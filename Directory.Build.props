@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**\obj_verify\**;**\bin_verify\**;**\.codex_build\**;**\artifacts\**;**\_verify_build\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,151 @@
+<UserControl x:Class="StationApp.UI.Views.Settings.ScaleDeviceConfigView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StationApp.UI;component/Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="FormLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="Margin" Value="0,8,0,2"/>
+            </Style>
+            <Style x:Key="FormBox" TargetType="TextBox">
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="#FFFFFF"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="#CCCCCC"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="#FFFFFF">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="2*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left side: Configuration Fields -->
+        <Border Grid.Column="0" Margin="12" Background="#E8EFF7" Padding="16" CornerRadius="4" VerticalAlignment="Top">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Row 0 -->
+                <TextBlock Grid.Column="0" Grid.Row="0" Text="Cổng COM" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding ComPort, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,12"/>
+
+                <TextBlock Grid.Column="2" Grid.Row="0" Text="Baudrate" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="3" Grid.Row="0" Text="{Binding Baudrate, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <!-- Row 1 -->
+                <TextBlock Grid.Column="0" Grid.Row="1" Text="Parity" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding Parity}" IsEnabled="False" Style="{StaticResource FormBox}" Background="#EEEEEE" Margin="0,0,16,12"/>
+
+                <TextBlock Grid.Column="2" Grid.Row="1" Text="Data Bits" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="3" Grid.Row="1" Text="{Binding DataBits}" IsEnabled="False" Style="{StaticResource FormBox}" Background="#EEEEEE" Margin="0,0,0,12"/>
+
+                <!-- Row 2 -->
+                <TextBlock Grid.Column="0" Grid.Row="2" Text="Stop Bits" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding StopBits}" IsEnabled="False" Style="{StaticResource FormBox}" Background="#EEEEEE" Margin="0,0,16,12"/>
+
+                <TextBlock Grid.Column="2" Grid.Row="2" Text="Loại Parser" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="3" Grid.Row="2" Text="{Binding ParserType, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <!-- Row 3 -->
+                <TextBlock Grid.Column="0" Grid.Row="3" Text="Ký tự kết thúc" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding FrameEndChar, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,12"/>
+
+                <TextBlock Grid.Column="2" Grid.Row="3" Text="Độ trễ" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="3" Grid.Row="3" Text="{Binding StableCycles}" IsEnabled="False" Style="{StaticResource FormBox}" Background="#EEEEEE" Margin="0,0,0,12"/>
+
+                <!-- Row 4 -->
+                <TextBlock Grid.Column="0" Grid.Row="4" Text="Cắt - Bắt đầu" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding WeightSubstringStart, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,12"/>
+
+                <TextBlock Grid.Column="2" Grid.Row="4" Text="Cắt - Độ dài" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBox Grid.Column="3" Grid.Row="4" Text="{Binding WeightSubstringLength, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <!-- Row 5 Buttons -->
+                <StackPanel Grid.Column="0" Grid.Row="5" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Center">
+                    <Button Command="{Binding LoadCommand}" 
+                            Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding SaveCommand}" 
+                            Style="{StaticResource PrimaryButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="LƯU CẤU HÌNH" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Right side: Diagnostics / Parser Preview -->
+        <Border Grid.Column="1" Margin="12" Background="#FFFFFF" BorderBrush="#E8EFF7" BorderThickness="2" CornerRadius="4" VerticalAlignment="Top" Padding="16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Text="Kính ngắm Parser (Diagnostics)" FontSize="14" FontWeight="Bold" Foreground="#123B6B" Margin="0,0,0,16"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="1" Text="Dữ liệu Raw" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,12,12"/>
+                <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding SampleRawFrame, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Height="60" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="2" Text="Chuỗi bóc tách" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,12,12"/>
+                <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding ParsedStringResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#007F54" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="3" Text="Kết quả parse" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,12,12"/>
+                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ParsedWeightResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#BD2730" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                <Button Grid.Column="1" Grid.Row="4" Command="{Binding TestParseCommand}" 
+                        Style="{StaticResource UtilityButtonStyle}" Margin="0,4,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Text="KIỂM TRA PARSE" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

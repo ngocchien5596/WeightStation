@@ -1,0 +1,312 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using StationApp.Infrastructure.Persistence;
+using StationApp.Application.DTOs;
+using StationApp.Application.Interfaces;
+using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
+
+namespace StationApp.Infrastructure.Repositories;
+
+public class VehicleRegistrationRepository : IVehicleRegistrationRepository
+{
+    private readonly StationDbContext _db;
+
+    public VehicleRegistrationRepository(StationDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task AddAsync(VehicleRegistration registration, CancellationToken ct)
+    {
+        await _db.VehicleRegistrations.AddAsync(registration, ct);
+    }
+
+    public Task UpdateAsync(VehicleRegistration registration, CancellationToken ct)
+    {
+        _db.VehicleRegistrations.Update(registration);
+        return Task.CompletedTask;
+    }
+
+    public async Task<VehicleRegistration?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        return await _db.VehicleRegistrations.FindAsync(new object[] { id }, ct);
+    }
+
+    public async Task<VehicleRegistration?> GetByErpIdAsync(string erpVehicleRegistrationId, CancellationToken ct)
+    {
+        return await _db.VehicleRegistrations
+            .FirstOrDefaultAsync(v => v.ErpVehicleRegistrationId == erpVehicleRegistrationId, ct);
+    }
+
+    public async Task<IReadOnlyList<VehicleRegistration>> SearchAsync(string? keyword, CancellationToken ct)
+    {
+        var query = _db.VehicleRegistrations.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(v => v.VehiclePlate.Contains(keyword) || 
+                                     (v.ErpVehicleRegistrationId != null && v.ErpVehicleRegistrationId.Contains(keyword)));
+        }
+        return await query.OrderByDescending(v => v.CreatedAt).Take(100).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<VehicleRegistration>> GetUnprocessedInboundAsync(CancellationToken ct)
+    {
+        return await _db.VehicleRegistrations
+            .Where(v => !v.IsInboundProcessed && v.RegistrationSource == RegistrationSource.ERP)
+            .OrderBy(v => v.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<WeightViewListItem>> GetWeightViewListAsync(string? keyword, CancellationToken ct)
+    {
+        var regQuery = _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => vr.ProcessingStage == ProcessingStage.WEIGHING && !vr.IsCancelled);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            regQuery = regQuery.Where(vr => vr.VehiclePlate.Contains(keyword) || 
+                                           (vr.ErpVehicleRegistrationId != null && vr.ErpVehicleRegistrationId.Contains(keyword)));
+        }
+
+        var registrations = await regQuery.OrderByDescending(vr => vr.CreatedAt).Take(100).ToListAsync(ct);
+        var regIds = registrations.Select(x => x.Id).ToList();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var matchedByTicketNo = await _db.WeighTickets.AsNoTracking()
+                .Where(wt => !wt.IsDeleted && wt.TicketNo != null && wt.TicketNo.Contains(keyword))
+                .Select(wt => wt.VehicleRegistrationId)
+                .ToListAsync(ct);
+
+            var extraRegIds = matchedByTicketNo.Where(id => !regIds.Contains(id)).Distinct().ToList();
+            if (extraRegIds.Any())
+            {
+                var extraRegs = await _db.VehicleRegistrations.AsNoTracking()
+                    .Where(vr => extraRegIds.Contains(vr.Id))
+                    .ToListAsync(ct);
+
+                registrations.AddRange(extraRegs);
+                regIds = registrations.Select(x => x.Id).ToList();
+            }
+        }
+
+        var weighTickets = await _db.WeighTickets.AsNoTracking()
+            .Where(wt => regIds.Contains(wt.VehicleRegistrationId) && !wt.IsDeleted)
+            .ToListAsync(ct);
+
+        var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
+            .Where(dt => regIds.Contains(dt.VehicleRegistrationId) && !dt.IsDeleted)
+            .ToListAsync(ct);
+
+        var result = new List<WeightViewListItem>();
+
+        foreach (var vr in registrations)
+        {
+            var relatedWeighTickets = weighTickets.Where(wt => wt.VehicleRegistrationId == vr.Id).ToList();
+            var primaryWeighTicket = ResolvePrimaryWeighTicket(vr, relatedWeighTickets);
+            var relatedDeliveryTickets = deliveryTickets.Where(dt => dt.VehicleRegistrationId == vr.Id).ToList();
+            var primaryDeliveryTicket = ResolvePrimaryDeliveryTicket(vr, relatedDeliveryTickets, primaryWeighTicket);
+
+            result.Add(new WeightViewListItem(
+                vr.Id,
+                primaryWeighTicket?.TicketNo,
+                vr.ErpVehicleRegistrationId,
+                vr.VehiclePlate,
+                vr.CustomerName,
+                vr.ProductName,
+                vr.RegistrationStatus,
+                primaryWeighTicket?.Weight1,
+                primaryWeighTicket?.Weight2,
+                vr.BagCount,
+                vr.PlannedWeight,
+                primaryWeighTicket?.NetWeight,
+                primaryWeighTicket?.Weight2Time ?? primaryWeighTicket?.Weight1Time ?? vr.CreatedAt,
+                primaryWeighTicket?.Weight2User ?? primaryWeighTicket?.Weight1User,
+                primaryDeliveryTicket?.DeliveryNo,
+                vr.Notes,
+                vr.HasOverweightCase,
+                vr.TransactionType,
+                vr.TransportMethod
+            ));
+        }
+
+        return result.OrderByDescending(x => x.WeighDate).ToList().AsReadOnly();
+    }
+
+    private static WeighTicket? ResolvePrimaryWeighTicket(VehicleRegistration registration, IReadOnlyCollection<WeighTicket> weighTickets)
+    {
+        var workingTickets = weighTickets
+            .Where(wt => string.Equals(wt.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (workingTickets.Count == 0)
+        {
+            workingTickets = weighTickets.ToList();
+        }
+
+        var splitTickets = workingTickets.Where(wt => wt.SplitSequence.HasValue).ToList();
+        if (splitTickets.Count > 0)
+        {
+            return splitTickets
+                .OrderBy(wt => wt.SplitSequence ?? byte.MaxValue)
+                .ThenBy(wt => wt.IsOverWeight ? 1 : 0)
+                .ThenByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
+                .FirstOrDefault();
+        }
+
+        if (registration.CurrentPrimaryWeighTicketId.HasValue)
+        {
+            var currentPrimary = workingTickets.FirstOrDefault(wt => wt.Id == registration.CurrentPrimaryWeighTicketId.Value);
+            if (currentPrimary != null)
+            {
+                return currentPrimary;
+            }
+        }
+
+        return workingTickets
+            .Where(wt => wt.IsPrimaryDisplay)
+            .OrderBy(wt => wt.SplitSequence ?? 0)
+            .ThenByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
+            .FirstOrDefault()
+            ?? workingTickets
+                .OrderBy(wt => wt.SplitSequence ?? 0)
+                .ThenByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
+                .FirstOrDefault();
+    }
+
+    private static DeliveryTicket? ResolvePrimaryDeliveryTicket(
+        VehicleRegistration registration,
+        IReadOnlyCollection<DeliveryTicket> deliveryTickets,
+        WeighTicket? primaryWeighTicket)
+    {
+        if (registration.CurrentPrimaryDeliveryTicketId.HasValue)
+        {
+            var currentPrimary = deliveryTickets.FirstOrDefault(dt => dt.Id == registration.CurrentPrimaryDeliveryTicketId.Value);
+            if (currentPrimary != null)
+            {
+                return currentPrimary;
+            }
+        }
+
+        if (primaryWeighTicket?.SplitSequence != null)
+        {
+            var matchedBySplit = deliveryTickets.FirstOrDefault(dt => dt.SplitSequence == primaryWeighTicket.SplitSequence);
+            if (matchedBySplit != null)
+            {
+                return matchedBySplit;
+            }
+        }
+
+        return deliveryTickets
+            .OrderBy(dt => dt.SplitSequence ?? 0)
+            .ThenByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
+            .FirstOrDefault();
+    }
+
+    public async Task<IReadOnlyList<IncomingVehicleListItem>> GetIncomingListAsync(IncomingVehicleListFilter filter, CancellationToken ct)
+    {
+        var query = _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => vr.ProcessingStage == ProcessingStage.IN_YARD && !vr.IsCancelled);
+
+        if (!string.IsNullOrWhiteSpace(filter.ErpVehicleRegistrationId))
+            query = query.Where(vr => vr.ErpVehicleRegistrationId != null && vr.ErpVehicleRegistrationId.Contains(filter.ErpVehicleRegistrationId));
+
+        if (!string.IsNullOrWhiteSpace(filter.VehiclePlate))
+            query = query.Where(vr => vr.VehiclePlate.Contains(filter.VehiclePlate));
+
+        if (!string.IsNullOrWhiteSpace(filter.MoocNumber))
+            query = query.Where(vr => vr.MoocNumber != null && vr.MoocNumber.Contains(filter.MoocNumber));
+
+        if (!string.IsNullOrWhiteSpace(filter.ReceiverName))
+            query = query.Where(vr => vr.ReceiverName != null && vr.ReceiverName.Contains(filter.ReceiverName));
+
+        if (!string.IsNullOrWhiteSpace(filter.CustomerName))
+            query = query.Where(vr => vr.CustomerName != null && vr.CustomerName.Contains(filter.CustomerName));
+
+        if (!string.IsNullOrWhiteSpace(filter.ProductCode))
+            query = query.Where(vr => vr.ProductCode != null && vr.ProductCode.Contains(filter.ProductCode));
+
+        var registrations = await query.OrderByDescending(vr => vr.CreatedAt).Take(200).ToListAsync(ct);
+
+        return registrations.Select(vr => new IncomingVehicleListItem(
+            vr.Id,
+            vr.ErpVehicleRegistrationId,
+            vr.TransactionType,
+            vr.VehiclePlate,
+            vr.MoocNumber,
+            vr.ReceiverName,
+            vr.CustomerName,
+            vr.ProductCode,
+            vr.ProductName,
+            vr.PlannedWeight,
+            vr.BagCount,
+            vr.RegistrationStatus,
+            vr.TransportMethod,
+            vr.CreatedAt
+        )).ToList().AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<OutgoingVehicleListItem>> GetOutgoingListAsync(OutgoingVehicleListFilter filter, CancellationToken ct)
+    {
+        var query = _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => vr.ProcessingStage == ProcessingStage.OUT_YARD
+                && vr.RegistrationStatus == RegistrationStatus.COMPLETED
+                && !vr.IsCancelled);
+
+        if (!string.IsNullOrWhiteSpace(filter.ErpVehicleRegistrationId))
+            query = query.Where(vr => vr.ErpVehicleRegistrationId != null && vr.ErpVehicleRegistrationId.Contains(filter.ErpVehicleRegistrationId));
+
+        if (!string.IsNullOrWhiteSpace(filter.VehiclePlate))
+            query = query.Where(vr => vr.VehiclePlate.Contains(filter.VehiclePlate));
+
+        if (!string.IsNullOrWhiteSpace(filter.MoocNumber))
+            query = query.Where(vr => vr.MoocNumber != null && vr.MoocNumber.Contains(filter.MoocNumber));
+
+        if (!string.IsNullOrWhiteSpace(filter.ReceiverName))
+            query = query.Where(vr => vr.ReceiverName != null && vr.ReceiverName.Contains(filter.ReceiverName));
+
+        if (!string.IsNullOrWhiteSpace(filter.CustomerName))
+            query = query.Where(vr => vr.CustomerName != null && vr.CustomerName.Contains(filter.CustomerName));
+
+        var registrations = await query.OrderByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt).Take(200).ToListAsync(ct);
+        var regIds = registrations.Select(x => x.Id).ToList();
+
+        var weighTickets = await _db.WeighTickets.AsNoTracking()
+            .Where(wt => regIds.Contains(wt.VehicleRegistrationId) && !wt.IsDeleted
+                && wt.RecordRole == "WORKING")
+            .ToListAsync(ct);
+
+        var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
+            .Where(dt => regIds.Contains(dt.VehicleRegistrationId) && !dt.IsDeleted
+                && dt.RecordRole == "WORKING")
+            .ToListAsync(ct);
+
+        return registrations.Select(vr =>
+        {
+            var relatedWeigh = weighTickets.Where(wt => wt.VehicleRegistrationId == vr.Id).ToList();
+            var relatedDelivery = deliveryTickets.Where(dt => dt.VehicleRegistrationId == vr.Id).ToList();
+            var primaryWeigh = ResolvePrimaryWeighTicket(vr, relatedWeigh);
+
+            return new OutgoingVehicleListItem(
+                vr.Id,
+                vr.ErpVehicleRegistrationId,
+                vr.TransactionType,
+                vr.VehiclePlate,
+                vr.MoocNumber,
+                vr.ReceiverName,
+                vr.CustomerName,
+                vr.ProductName,
+                primaryWeigh?.NetWeight,
+                vr.UpdatedAt ?? vr.CreatedAt,
+                vr.TransportMethod,
+                relatedWeigh.Count == 0 || relatedWeigh.All(wt => wt.IsPrinted),
+                relatedDelivery.Count == 0 || relatedDelivery.All(dt => dt.IsPrinted)
+            );
+        }).ToList().AsReadOnly();
+    }
+}

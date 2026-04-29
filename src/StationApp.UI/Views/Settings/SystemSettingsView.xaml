@@ -1,0 +1,94 @@
+<UserControl x:Class="StationApp.UI.Views.Settings.SystemSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StationApp.UI;component/Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="FormLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="Margin" Value="0,12,0,4"/>
+            </Style>
+            <Style x:Key="FormBox" TargetType="TextBox">
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Background" Value="#FFFFFF"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="#CCCCCC"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="#FFFFFF">
+        <Border Margin="12" Background="#E8EFF7" Padding="24" CornerRadius="4" VerticalAlignment="Top" MaxWidth="600" HorizontalAlignment="Left">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Column="0" Grid.Row="0" Text="Mã trạm (Station Code)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding StationCode, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="1" Text="Tiền tố phiếu (Ticket Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding TicketPrefix, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="2" Text="Tiền tố phiếu giao nhận (Delivery Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding DeliveryPrefix, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="3" Text="Dung sai cho phép (Tolerance - kg)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ToleranceKg, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="4" Text="Chu kỳ đồng bộ ERP (Sync Interval - giây)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding SyncIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Column="0" Grid.Row="5" Text="Thời gian thăm dò ERP (Poll Inbound - giây)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding RegistrationInboundPollSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+
+                <CheckBox Grid.Column="1" Grid.Row="6" Content="Bật chế độ Pilot" IsChecked="{Binding PilotModeEnabled}" VerticalAlignment="Center" Margin="0,4,0,16" FontWeight="SemiBold"/>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" Grid.Row="7" Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Command="{Binding LoadCommand}" 
+                            Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding SaveCommand}" 
+                            Style="{StaticResource PrimaryButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="LƯU THAY ĐỔI" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

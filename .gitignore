@@ -1,0 +1,30 @@
+# .gitignore for C# and Project specific exclusions
+
+# Build folders
+bin/
+obj/
+obj_verify/
+Builds/
+_verify_build/
+
+# IDE files
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+
+# AI & Agent artifacts
+.agent/
+.gemini/
+artifacts/
+scratch/
+brain/
+
+# Logs and DB connection info
+logs/
+db_connection_used.txt
+
+# OS files
+.DS_Store
+Thumbs.db

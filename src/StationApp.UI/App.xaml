@@ -1,0 +1,29 @@
+<Application x:Class="StationApp.UI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:StationApp.UI.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <converters:NullToVisibilityConverter x:Key="NullToVis"/>
+            <converters:StringToVisibilityConverter x:Key="StringToVis"/>
+            <converters:WeightToTonConverter x:Key="WeightToTon"/>
+            <converters:ExpiryToBrushConverter x:Key="ExpiryToBrush"/>
+            <converters:OverweightToRowBrushConverter x:Key="OverweightToRow"/>
+            <converters:OverweightToForegroundConverter x:Key="OverweightToFore"/>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+            <converters:StringEqualityToBoolConverter x:Key="StringEqToBool"/>
+            <converters:MultiStringEqualityToBoolConverter x:Key="MultiStringEqToBool"/>
+            <converters:RegistrationStatusDisplayConverter x:Key="StatusDisplay"/>
+            <converters:BooleanToStatusConverter x:Key="BooleanToStatusConverter"/>
+            <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+            <converters:TransactionTypeDisplayConverter x:Key="TransactionTypeDisplayConverter"/>
+            <converters:TransportMethodDisplayConverter x:Key="TransportMethodDisplayConverter"/>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="Styles/BasePageStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

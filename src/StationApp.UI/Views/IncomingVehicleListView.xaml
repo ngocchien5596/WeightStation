@@ -1,0 +1,223 @@
+<UserControl x:Class="StationApp.UI.Views.IncomingVehicleListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:StationApp.UI.Helpers"
+             xmlns:enums="clr-namespace:StationApp.Domain.Enums;assembly=StationApp.Domain"
+             Background="Transparent">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StationApp.UI;component/Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="FormLabel" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
+                <Setter Property="Margin" Value="0,0,20,0"/>
+                <Setter Property="HorizontalAlignment" Value="Right"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}"/>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="#FFFFFF">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="M&#x00E3; &#x0110;KPT:" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
+                    <TextBox Width="160"
+                             Height="28"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             Text="{Binding SearchErpVehicleRegistrationId, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+
+                    <TextBlock Text="S&#x1ED1; PTVC:" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBox Width="160"
+                             Height="28"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             Text="{Binding SearchVehiclePlate, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+
+                    <Button Command="{Binding SearchCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Margin="12" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="16" Background="White">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                    <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#123B6B"/>
+                    <TextBlock Text="{Binding DetailPanelTitle}" FontSize="15" FontWeight="Bold" Foreground="#123B6B" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="Auto"/> <!-- Row 5: Buttons Area -->
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Lo&#x1EA1;i" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                              SelectedValue="{Binding FormTransactionType, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedValuePath="Tag"
+                              Style="{StaticResource StandardComboBoxStyle}">
+                        <ComboBoxItem Content="Nh&#x1EAD;p h&#x00E0;ng" Tag="{x:Static enums:TransactionType.INBOUND}"/>
+                        <ComboBoxItem Content="Xu&#x1EA5;t h&#x00E0;ng" Tag="{x:Static enums:TransactionType.OUTBOUND}"/>
+                    </ComboBox>
+
+                    <TextBlock Text="S&#x1ED1; PTVC" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding FormVehiclePlate}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="Mooc" Grid.Row="0" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="0" Grid.Column="5" Text="{Binding FormMoocNumber}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="HTVC" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                              SelectedValue="{Binding FormTransportMethod, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedValuePath="Tag"
+                              Style="{StaticResource StandardComboBoxStyle}">
+                        <ComboBoxItem Content="Đ&#x01B0;&#x1EDD;ng b&#x1ED9;" Tag="{x:Static enums:TransportMethod.ROAD}"/>
+                        <ComboBoxItem Content="Đ&#x01B0;&#x1EDD;ng th&#x1EE7;y" Tag="{x:Static enums:TransportMethod.WATERWAY}"/>
+                    </ComboBox>
+
+                    <TextBlock Text="H&#x1EA1;n ĐK Xe" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="1" Grid.Column="3"
+                             Text="{Binding VehicleRegistrationExpiry, Mode=OneWay, StringFormat='{}{0:dd/MM/yyyy}'}"
+                             IsReadOnly="True"
+                             Style="{StaticResource FormBox}"
+                             Background="#F8F9F9"/>
+
+                    <TextBlock Text="H&#x1EA1;n ĐK Mooc" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="1" Grid.Column="5"
+                             Text="{Binding MoocRegistrationExpiry, Mode=OneWay, StringFormat='{}{0:dd/MM/yyyy}'}"
+                             IsReadOnly="True"
+                             Style="{StaticResource FormBox}"
+                             Background="#F8F9F9"/>
+
+                    <TextBlock Text="T&#x00EA;n t&#x00E0;i x&#x1EBF;" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding FormDriverName}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="TTCP 10%" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="3"
+                             Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}'}"
+                             IsReadOnly="True"
+                             Style="{StaticResource FormBox}"
+                             Background="#F8F9F9"/>
+
+                    <TextBlock Text="M&#x00E3; ĐKPT" Grid.Row="2" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="5"
+                             Text="{Binding FormErpVehicleRegistrationId, Mode=OneWay}"
+                             IsReadOnly="True"
+                             Style="{StaticResource FormBox}"
+                             Background="#F8F9F9"/>
+
+                    <TextBlock Text="M&#x00E3; SP" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding FormProductCode}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="Kh&#x00E1;ch h&#x00E0;ng" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FormCustomerName}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="T&#x00EA;n s&#x1EA3;n ph&#x1EA9;m" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding FormProductName}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="SL đ&#x1EB7;t" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding FormPlannedWeight}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="S&#x1ED1; bao" Grid.Row="3" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="5" Text="{Binding FormBagCount}" Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="Ghi ch&#x00FA;" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="5" Text="{Binding FormNotes}" Style="{StaticResource FormBox}"/>
+
+                    <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Command="{Binding StartCreateInboundCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,12,0" Background="#F4F6F7">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="TH&#x00CA;M M&#x1EDA;I" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding SaveDetailCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding SaveButtonText}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ResetDetailCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="HOÀN TÁC" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ConfirmEnterWeighingCommand}" Style="{StaticResource WorkflowButtonStyle}" IsEnabled="{Binding CanConfirmEnterWeighing}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="XÁC NHẬN VÀO CÂN" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2" Margin="12,0,12,12">
+            <DataGrid ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}"
+                      Style="{StaticResource SystemDataGridStyle}"
+                      ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                      RowStyle="{StaticResource SystemDataGridRowStyle}"
+                      CellStyle="{StaticResource SystemDataGridCellStyle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="MÃ ĐKPT" Binding="{Binding ErpVehicleRegistrationId}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="LOẠI" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="SỐ PTVC" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="TÊN TÀI XẾ" Binding="{Binding ReceiverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="KHÁCH HÀNG" Binding="{Binding CustomerName}" Width="320" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="MÃ SP" Binding="{Binding ProductCode}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="SẢN PHẨM" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="SL ĐẶT (KG)" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="SỐ BAO" Binding="{Binding BagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="GHI CHÚ" Binding="{Binding Notes}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="THỜI GIAN TẠO" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</UserControl>

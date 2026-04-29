@@ -1,0 +1,69 @@
+<Window x:Class="StationApp.UI.Views.Dialogs.PrintOptionsDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="{Binding Title}"
+        Height="760"
+        Width="1100"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="CanResize"
+        Background="#F4F7FB">
+    <Grid Margin="18">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="320"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="White" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="8" Padding="12">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top"
+                           Text="Preview overlay lên mẫu giấy in sẵn"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="#203B73"
+                           Margin="0,0,0,12"/>
+                <DocumentViewer Document="{Binding PreviewDocument}" />
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Column="1" Margin="16,0,0,0" Background="White" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="8" Padding="16">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="#203B73"/>
+                <TextBlock Text="Loại phiếu đã được xác định bởi nút IN PC / IN PGN, modal này chỉ cấu hình in."
+                           Margin="0,8,0,16"
+                           TextWrapping="Wrap"
+                           Foreground="#475569"/>
+
+                <TextBlock Text="Máy in" FontWeight="SemiBold"/>
+                <ComboBox ItemsSource="{Binding Printers}"
+                          SelectedItem="{Binding SelectedPrinter}"
+                          DisplayMemberPath="Name"
+                          Margin="0,6,0,14"/>
+
+                <TextBlock Text="Số lượng bản in / mỗi phiếu" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding CopyCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
+
+                <TextBlock Text="Offset X (mm)" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding OffsetXmm, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:0.##}}" Margin="0,6,0,14"/>
+
+                <TextBlock Text="Offset Y (mm)" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding OffsetYmm, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:0.##}}" Margin="0,6,0,14"/>
+
+                <Border Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="6" Padding="10"
+                        Visibility="{Binding ValidationMessage, Converter={StaticResource StringToVis}}">
+                    <TextBlock Text="{Binding ValidationMessage}" Foreground="#9A3412" TextWrapping="Wrap"/>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                    <Button Content="Hủy" Width="110" Height="36" Margin="0,0,10,0" Command="{Binding CancelCommand}"
+                            Background="#CBD5E1" Foreground="#0F172A" BorderThickness="0"/>
+                    <Button Content="In" Width="110" Height="36" Command="{Binding PrintCommand}"
+                            Background="#1D4ED8" Foreground="White" BorderThickness="0"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

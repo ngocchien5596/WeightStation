@@ -1,0 +1,142 @@
+<Window x:Class="StationApp.UI.Views.Dialogs.CustomDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:StationApp.UI.Views.Dialogs"
+        mc:Ignorable="d"
+        Title="{Binding Title}" 
+        Height="Auto" 
+        Width="450" 
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" 
+        ShowInTaskbar="False" 
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True">
+    
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" GlassFrameThickness="0" CornerRadius="8" ResizeBorderThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource CardBrush}" 
+            CornerRadius="8" 
+            BorderBrush="{StaticResource AccentBrush}" 
+            BorderThickness="1"
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="10" Color="#55000000" ShadowDepth="2"/>
+        </Border.Effect>
+        
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="60"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="{StaticResource SidebarBrush}" CornerRadius="7,7,0,0">
+                <Grid>
+                    <TextBlock Text="{Binding Title}" 
+                               Foreground="White" 
+                               FontWeight="Bold" 
+                               VerticalAlignment="Center" 
+                               HorizontalAlignment="Left" 
+                               Margin="16,0,0,0"
+                               FontSize="14"/>
+                    <Button Content="✕" 
+                            Foreground="White" 
+                            Background="Transparent" 
+                            BorderThickness="0" 
+                            FontSize="16" 
+                            HorizontalAlignment="Right" 
+                            Width="40" 
+                            VerticalAlignment="Stretch"
+                            WindowChrome.IsHitTestVisibleInChrome="True"
+                            Command="{Binding CancelCommand}"/>
+                </Grid>
+            </Border>
+
+            <!-- Content Area -->
+            <Border Grid.Row="1" Padding="20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Icon Path -->
+                    <Path Grid.Column="0" 
+                          Data="{Binding IconGeometry}" 
+                          Fill="{Binding IconColor}" 
+                          Width="40" 
+                          Height="40" 
+                          Stretch="Uniform" 
+                          VerticalAlignment="Center" 
+                          HorizontalAlignment="Center"/>
+
+                    <!-- Message -->
+                    <TextBlock Grid.Column="1" 
+                               Text="{Binding Message}" 
+                               Foreground="{StaticResource ForegroundBrush}" 
+                               FontSize="14" 
+                               TextWrapping="Wrap" 
+                               VerticalAlignment="Center" 
+                               Margin="10,0,0,0"
+                               LineHeight="20"/>
+                </Grid>
+            </Border>
+
+            <!-- Footer Action Buttons -->
+            <Border Grid.Row="2" Background="{StaticResource SubCardBrush}" CornerRadius="0,0,7,7" Padding="15,10">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- Cancel Button -->
+                    <Button Content="{Binding CancelText}" 
+                            Width="100" 
+                            Height="32"
+                            Margin="0,0,10,0"
+                            Visibility="{Binding IsCancelVisible, Converter={StaticResource BoolToVis}}"
+                            Background="#D1D5DB"
+                            Foreground="#1F355C"
+                            FontWeight="SemiBold"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="12,6">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#9CA3AF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Resources>
+                        <Button.InputBindings>
+                            <MouseBinding MouseAction="LeftClick" Command="{Binding CancelCommand}"/>
+                        </Button.InputBindings>
+                        <Button.Command>
+                            <Binding Path="CancelCommand"/>
+                        </Button.Command>
+                    </Button>
+
+                    <!-- Confirm Button -->
+                    <Button Content="{Binding ConfirmText}" 
+                            Width="110" 
+                            Height="32"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding ConfirmCommand}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

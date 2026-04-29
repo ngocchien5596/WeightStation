@@ -1,0 +1,60 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        Dùng character entity cho tiếng Việt để tránh lỗi mã hóa khi file XAML
+        bị lưu sai encoding ở các máy/dev tool khác nhau.
+    -->
+
+    <sys:String x:Key="Workflow.SearchButton">T&#x00CC;M KI&#x1EBE;M</sys:String>
+    <sys:String x:Key="Workflow.Label.RegistrationId">M&#x00E3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Workflow.Label.VehiclePlate">S&#x1ED1; PTVC</sys:String>
+
+    <sys:String x:Key="Incoming.Title">DANH S&#x00C1;CH XE V&#x00C0;O</sys:String>
+    <sys:String x:Key="Incoming.Action.ConfirmEnterWeighing">X&#x00C1;C NH&#x1EAC;N V&#x00C0;O C&#x00C2;N</sys:String>
+    <sys:String x:Key="Incoming.Action.CreateVehicle">T&#x1EA0;O XE NH&#x1EAC;P</sys:String>
+    <sys:String x:Key="Incoming.Form.Title">T&#x1EA0;O XE NH&#x1EAC;P H&#x00C0;NG</sys:String>
+    <sys:String x:Key="Incoming.Form.TransactionType">Lo&#x1EA1;i *</sys:String>
+    <sys:String x:Key="Incoming.Form.Inbound">Nh&#x1EAD;p h&#x00E0;ng</sys:String>
+    <sys:String x:Key="Incoming.Form.Outbound">Xu&#x1EA5;t h&#x00E0;ng</sys:String>
+    <sys:String x:Key="Incoming.Form.VehiclePlate">S&#x1ED1; PTVC *</sys:String>
+    <sys:String x:Key="Incoming.Form.Mooc">Mooc</sys:String>
+    <sys:String x:Key="Incoming.Form.TransportMethod">HTVC</sys:String>
+    <sys:String x:Key="Incoming.Form.Road">Đ&#x01B0;&#x1EDD;ng b&#x1ED9;</sys:String>
+    <sys:String x:Key="Incoming.Form.Waterway">Đ&#x01B0;&#x1EDD;ng th&#x1EE7;y</sys:String>
+    <sys:String x:Key="Incoming.Form.DriverName">T&#x00EA;n t&#x00E0;i x&#x1EBF;</sys:String>
+    <sys:String x:Key="Incoming.Form.ProductCode">M&#x00E3; SP</sys:String>
+    <sys:String x:Key="Incoming.Form.CustomerName">Kh&#x00E1;ch h&#x00E0;ng</sys:String>
+    <sys:String x:Key="Incoming.Form.PlannedWeight">SL đ&#x1EB7;t (kg)</sys:String>
+    <sys:String x:Key="Incoming.Form.BagCount">S&#x1ED1; bao</sys:String>
+    <sys:String x:Key="Incoming.Form.Notes">Ghi ch&#x00FA;</sys:String>
+    <sys:String x:Key="Incoming.Form.Create">T&#x1EA0;O</sys:String>
+    <sys:String x:Key="Incoming.Form.Cancel">H&#x1EE6;Y</sys:String>
+
+    <sys:String x:Key="Incoming.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Incoming.Column.TransactionType">LO&#x1EA0;I</sys:String>
+    <sys:String x:Key="Incoming.Column.TransportMethod">HTVC</sys:String>
+    <sys:String x:Key="Incoming.Column.VehiclePlate">S&#x1ED0; PTVC</sys:String>
+    <sys:String x:Key="Incoming.Column.Mooc">MOOC</sys:String>
+    <sys:String x:Key="Incoming.Column.DriverName">T&#x00CA;N T&#x00C0;I X&#x1EBE;</sys:String>
+    <sys:String x:Key="Incoming.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
+    <sys:String x:Key="Incoming.Column.ProductCode">M&#x00C3; SP</sys:String>
+    <sys:String x:Key="Incoming.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
+    <sys:String x:Key="Incoming.Column.PlannedWeight">SL Đ&#x1EB6;T (KG)</sys:String>
+    <sys:String x:Key="Incoming.Column.BagCount">S&#x1ED0; BAO</sys:String>
+    <sys:String x:Key="Incoming.Column.Notes">GHI CH&#x00DA;</sys:String>
+    <sys:String x:Key="Incoming.Column.CreatedAt">TH&#x1EDC;I GIAN T&#x1EA0;O</sys:String>
+
+    <sys:String x:Key="Outgoing.Title">DANH S&#x00C1;CH XE RA</sys:String>
+    <sys:String x:Key="Outgoing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
+    <sys:String x:Key="Outgoing.Column.TransportMethod">HTVC</sys:String>
+    <sys:String x:Key="Outgoing.Column.VehiclePlate">S&#x1ED0; PTVC</sys:String>
+    <sys:String x:Key="Outgoing.Column.Mooc">MOOC</sys:String>
+    <sys:String x:Key="Outgoing.Column.DriverName">T&#x00CA;N T&#x00C0;I X&#x1EBE;</sys:String>
+    <sys:String x:Key="Outgoing.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
+    <sys:String x:Key="Outgoing.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
+    <sys:String x:Key="Outgoing.Column.NetWeight">TL H&#x00C0;NG (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.CompletedAt">TH&#x1EDC;I GIAN XONG</sys:String>
+</ResourceDictionary>

@@ -1,0 +1,23 @@
+<Window x:Class="StationApp.UI.Controls.ToastNotificationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Toast" Height="80" Width="350"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" Focusable="False" IsHitTestVisible="False"
+        SizeToContent="Height"
+        Opacity="0">
+    <Window.Resources>
+        <DropShadowEffect x:Key="DropShadow" ShadowDepth="2" BlurRadius="5" Opacity="0.5"/>
+    </Window.Resources>
+    <Border x:Name="ToastBorder" CornerRadius="8" Margin="10" Padding="15,10"
+            Background="#333333" Effect="{StaticResource DropShadow}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="IconText" Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBlock x:Name="MessageText" Text="Message" Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" Grid.Column="1" FontSize="14" FontWeight="SemiBold"/>
+        </Grid>
+    </Border>
+</Window>
