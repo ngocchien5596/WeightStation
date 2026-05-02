@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Infrastructure.Persistence;
 
@@ -49,6 +51,73 @@ public class VehicleRepository : IVehicleRepository
         var list = await query.ToListAsync(ct);
         return list.AsReadOnly();
     }
+
+    public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleSourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _context.Vehicles.AsNoTracking()
+            .Where(v => v.IsActive && v.VehiclePlate != null && v.VehiclePlate.Contains(normalized))
+            .OrderByDescending(v => v.VehiclePlate.StartsWith(normalized))
+            .ThenBy(v => v.VehiclePlate)
+            .Take(limit)
+            .Select(v => new VehicleAutocompleteSource(
+                v.VehiclePlate,
+                string.IsNullOrWhiteSpace(v.MoocNumber) ? null : v.MoocNumber,
+                v.DriverName,
+                v.TtcpWeight,
+                v.VehicleRegistrationNo,
+                v.VehicleRegistrationExpiryDate,
+                v.MoocRegistrationNo,
+                v.MoocRegistrationExpiryDate,
+                "MASTER"))
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchMoocSourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _context.Vehicles.AsNoTracking()
+            .Where(v => v.IsActive && v.MoocNumber != null && v.MoocNumber.Contains(normalized))
+            .OrderByDescending(v => v.MoocNumber != null && v.MoocNumber.StartsWith(normalized))
+            .ThenBy(v => v.MoocNumber)
+            .Take(limit)
+            .Select(v => new VehicleAutocompleteSource(
+                v.VehiclePlate,
+                v.MoocNumber,
+                v.DriverName,
+                v.TtcpWeight,
+                v.VehicleRegistrationNo,
+                v.VehicleRegistrationExpiryDate,
+                v.MoocRegistrationNo,
+                v.MoocRegistrationExpiryDate,
+                "MASTER"))
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<DriverAutocompleteSource>> SearchDriverSourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _context.Vehicles.AsNoTracking()
+            .Where(v => v.IsActive && v.DriverName != null && v.DriverName.Contains(normalized))
+            .OrderByDescending(v => v.DriverName != null && v.DriverName.StartsWith(normalized))
+            .ThenBy(v => v.DriverName)
+            .Take(limit)
+            .Select(v => new DriverAutocompleteSource(
+                v.DriverName!,
+                v.VehiclePlate,
+                string.IsNullOrWhiteSpace(v.MoocNumber) ? null : v.MoocNumber,
+                "MASTER"))
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
 }
 
 public class CustomerRepository : ICustomerRepository
@@ -87,6 +156,24 @@ public class CustomerRepository : ICustomerRepository
         var list = await query.ToListAsync(ct);
         return list.AsReadOnly();
     }
+
+    public async Task<IReadOnlyList<CustomerAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _context.Customers.AsNoTracking()
+            .Where(c => c.IsActive && (c.CustomerCode.Contains(normalized) || c.CustomerName.Contains(normalized)))
+            .OrderByDescending(c => c.CustomerName.StartsWith(normalized) || c.CustomerCode.StartsWith(normalized))
+            .ThenBy(c => c.CustomerName)
+            .Take(limit)
+            .Select(c => new CustomerAutocompleteSource(
+                c.CustomerCode,
+                c.CustomerName,
+                "MASTER"))
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
 }
 
 public class ProductRepository : IProductRepository
@@ -123,6 +210,24 @@ public class ProductRepository : IProductRepository
             query = query.Where(p => p.ProductCode.Contains(keyword) || p.ProductName.Contains(keyword));
         }
         var list = await query.ToListAsync(ct);
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _context.Products.AsNoTracking()
+            .Where(p => p.IsActive && (p.ProductCode.Contains(normalized) || p.ProductName.Contains(normalized)))
+            .OrderByDescending(p => p.ProductCode.StartsWith(normalized) || p.ProductName.StartsWith(normalized))
+            .ThenBy(p => p.ProductCode)
+            .Take(limit)
+            .Select(p => new ProductAutocompleteSource(
+                p.ProductCode,
+                p.ProductName,
+                "MASTER"))
+            .ToListAsync(ct);
+
         return list.AsReadOnly();
     }
 }
@@ -190,10 +295,20 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
         return list.AsReadOnly();
     }
 
+    public async Task<IReadOnlyList<DeliveryTicket>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
+    {
+        var list = await _context.DeliveryTickets
+            .Where(d => d.WeighingSessionId == weighingSessionId && !d.IsDeleted)
+            .OrderBy(d => d.SplitSequence ?? 0)
+            .ThenBy(d => d.CreatedAt)
+            .ToListAsync(ct);
+        return list.AsReadOnly();
+    }
+
     public async Task<DeliveryTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
     {
         return await _context.DeliveryTickets
-            .Where(d => d.VehicleRegistrationId == registrationId && d.RecordRole == "WORKING" && !d.IsDeleted)
+            .Where(d => d.VehicleRegistrationId == registrationId && d.RecordRole == DeliveryTicketRecordRoles.Normal && !d.IsDeleted)
             .OrderBy(d => d.SplitSequence ?? 0)
             .ThenByDescending(d => d.UpdatedAt ?? d.CreatedAt)
             .FirstOrDefaultAsync(ct);

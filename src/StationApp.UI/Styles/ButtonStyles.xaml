@@ -7,11 +7,11 @@
     <Style x:Key="PrimaryButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Height" Value="38"/>
-        <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="Height" Value="42"/>
+        <Setter Property="MinWidth" Value="128"/>
+        <Setter Property="Padding" Value="18,8"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Background" Value="#2E86C1"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -57,11 +57,11 @@
     <Style x:Key="WorkflowButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Height" Value="38"/>
-        <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="Height" Value="42"/>
+        <Setter Property="MinWidth" Value="128"/>
+        <Setter Property="Padding" Value="18,8"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Background" Value="#0F4C75"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -107,11 +107,11 @@
     <Style x:Key="UtilityButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Height" Value="38"/>
-        <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="Height" Value="42"/>
+        <Setter Property="MinWidth" Value="128"/>
+        <Setter Property="Padding" Value="18,8"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Background" Value="#5D6D7E"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -157,11 +157,11 @@
     <Style x:Key="DangerButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Height" Value="38"/>
-        <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="Height" Value="42"/>
+        <Setter Property="MinWidth" Value="128"/>
+        <Setter Property="Padding" Value="18,8"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Background" Value="#C0392B"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -207,11 +207,11 @@
     <Style x:Key="NeutralButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Height" Value="38"/>
-        <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="Padding" Value="16,6"/>
+        <Setter Property="Height" Value="42"/>
+        <Setter Property="MinWidth" Value="128"/>
+        <Setter Property="Padding" Value="18,8"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Background" Value="#7F8C8D"/>
         <Setter Property="Cursor" Value="Hand"/>

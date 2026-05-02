@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.UseCases.MasterData;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -16,6 +17,7 @@ public sealed class CreateInboundRegistrationUseCase
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
     private readonly IAuditService _audit;
+    private readonly EnsureInboundMasterDataUseCase _ensureInboundMasterDataUseCase;
 
     public CreateInboundRegistrationUseCase(
         IVehicleRegistrationRepository regRepo,
@@ -23,7 +25,8 @@ public sealed class CreateInboundRegistrationUseCase
         IAppVersionProvider versionProvider,
         ICurrentUserContext userContext,
         IClock clock,
-        IAuditService audit)
+        IAuditService audit,
+        EnsureInboundMasterDataUseCase ensureInboundMasterDataUseCase)
     {
         _regRepo = regRepo;
         _uow = uow;
@@ -31,6 +34,7 @@ public sealed class CreateInboundRegistrationUseCase
         _userContext = userContext;
         _clock = clock;
         _audit = audit;
+        _ensureInboundMasterDataUseCase = ensureInboundMasterDataUseCase;
     }
 
     public async Task<OperationResult<VehicleRegistration>> ExecuteAsync(CreateInboundRegistrationRequest request, CancellationToken ct)
@@ -70,6 +74,21 @@ public sealed class CreateInboundRegistrationUseCase
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
             await _regRepo.AddAsync(reg, innerCt);
+            await _ensureInboundMasterDataUseCase.ExecuteAsync(
+                reg.VehiclePlate,
+                reg.MoocNumber,
+                reg.ReceiverName,
+                reg.TransportMethod,
+                reg.CustomerCode,
+                reg.CustomerName,
+                reg.ProductCode,
+                reg.ProductName,
+                innerCt,
+                request.TtcpWeight,
+                request.VehicleRegistrationNo,
+                request.VehicleRegistrationExpiryDate,
+                request.MoocRegistrationNo,
+                request.MoocRegistrationExpiryDate);
         }, ct);
 
         await _audit.LogAsync("CREATE_INBOUND_REGISTRATION", nameof(VehicleRegistration), reg.Id,

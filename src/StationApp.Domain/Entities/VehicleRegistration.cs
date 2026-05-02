@@ -37,6 +37,7 @@ public class VehicleRegistration
     public bool IsCancelled { get; set; }
     public bool HasOverweightCase { get; set; }
     public ProcessingStage ProcessingStage { get; set; } = ProcessingStage.IN_YARD;
+    public Guid? WeighingSessionId { get; set; }
 
     public Guid? CurrentPrimaryWeighTicketId { get; set; }
     public Guid? CurrentPrimaryDeliveryTicketId { get; set; }

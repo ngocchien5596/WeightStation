@@ -7,8 +7,12 @@
     <Nullable>enable</Nullable>
     <RootNamespace>StationApp.UI</RootNamespace>
     <UseSharedCompilation>false</UseSharedCompilation>
+    <RunDatabaseSchemaUpdate>true</RunDatabaseSchemaUpdate>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\StationApp.DbMigrator\StationApp.DbMigrator.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
     <ProjectReference Include="..\StationApp.Domain\StationApp.Domain.csproj" />
     <ProjectReference Include="..\StationApp.Application\StationApp.Application.csproj" />
     <ProjectReference Include="..\StationApp.Infrastructure\StationApp.Infrastructure.csproj" />
@@ -37,4 +41,9 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
   </ItemGroup>
+  <Target Name="UpdateLocalDatabaseSchema"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDatabaseSchemaUpdate)' != 'true' and '$(RunDatabaseSchemaUpdate)' == 'true'">
+    <Exec Command='powershell -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildThisFileDirectory)..\..\scripts\update-local-db-schema.ps1" -Configuration "$(Configuration)" -ConfigPath "src/StationApp.UI/appsettings.json"' />
+  </Target>
 </Project>

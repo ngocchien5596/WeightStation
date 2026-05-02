@@ -54,7 +54,10 @@ public class SyncTests : IDisposable
         using var scope = _host.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
         db.Database.EnsureDeleted();
-        db.Database.Migrate();
+        StationDatabaseInitializer.InitializeAsync(
+            db,
+            scope.ServiceProvider.GetService<ILoggerFactory>(),
+            CancellationToken.None).GetAwaiter().GetResult();
     }
 
     [Fact]

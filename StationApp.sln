@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StationApp.Sync.Tests", "te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StationApp.IntegrationTests", "tests\StationApp.IntegrationTests\StationApp.IntegrationTests.csproj", "{AF0A6C90-8247-4D6B-AD77-93CDF772DB90}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StationApp.DbMigrator", "src\StationApp.DbMigrator\StationApp.DbMigrator.csproj", "{9C28B61B-1346-4AF2-B6FE-A217CE3258BF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +87,10 @@ Global
 		{AF0A6C90-8247-4D6B-AD77-93CDF772DB90}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AF0A6C90-8247-4D6B-AD77-93CDF772DB90}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AF0A6C90-8247-4D6B-AD77-93CDF772DB90}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C28B61B-1346-4AF2-B6FE-A217CE3258BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C28B61B-1346-4AF2-B6FE-A217CE3258BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C28B61B-1346-4AF2-B6FE-A217CE3258BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C28B61B-1346-4AF2-B6FE-A217CE3258BF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B1000001-0000-0000-0000-000000000001} = {A1B2C3D4-0001-0000-0000-000000000001}
@@ -99,5 +105,6 @@ Global
 		{C1000003-0000-0000-0000-000000000001} = {A1B2C3D4-0002-0000-0000-000000000001}
 		{C1000004-0000-0000-0000-000000000001} = {A1B2C3D4-0002-0000-0000-000000000001}
 		{AF0A6C90-8247-4D6B-AD77-93CDF772DB90} = {A1B2C3D4-0002-0000-0000-000000000001}
+		{9C28B61B-1346-4AF2-B6FE-A217CE3258BF} = {A1B2C3D4-0001-0000-0000-000000000001}
 	EndGlobalSection
 EndGlobal

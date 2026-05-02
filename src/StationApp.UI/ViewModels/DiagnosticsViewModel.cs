@@ -6,6 +6,7 @@ using StationApp.Application.Interfaces;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Implementations;
 using StationApp.Device.Models;
+using StationApp.UI.Resources;
 
 namespace StationApp.UI.ViewModels;
 
@@ -20,11 +21,11 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     private int _isWeightUpdatePending;
     private DateTime _lastWeightUpdate = DateTime.MinValue;
 
-    [ObservableProperty] private string _rawFrame = "(cho du lieu...)";
+    [ObservableProperty] private string _rawFrame = UiText.Diagnostics.WaitingData;
     [ObservableProperty] private string _substringPreview = string.Empty;
     [ObservableProperty] private string _parserType = string.Empty;
     [ObservableProperty] private string? _deviceError;
-    [ObservableProperty] private string _deviceConnectionStatus = "Dang kiem tra...";
+    [ObservableProperty] private string _deviceConnectionStatus = UiText.Diagnostics.CheckingConnection;
     [ObservableProperty] private SolidColorBrush _deviceConnectionBrush = new(Colors.Gray);
     [ObservableProperty] private decimal _liveWeight;
     [ObservableProperty] private bool _liveIsStable;
@@ -87,7 +88,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             {
                 LiveWeight = reading.Weight;
                 LiveIsStable = reading.IsStable;
-                if (string.IsNullOrEmpty(RawFrame) || RawFrame == "(cho du lieu...)")
+                if (string.IsNullOrEmpty(RawFrame) || RawFrame == UiText.Diagnostics.WaitingData)
                 {
                     RawFrame = reading.RawPayload;
                 }
@@ -164,7 +165,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     {
         if (_scaleDevice.IsConnected)
         {
-            DeviceConnectionStatus = "Dang hoat dong";
+            DeviceConnectionStatus = UiText.Diagnostics.ActiveConnection;
             DeviceConnectionBrush = new SolidColorBrush(Color.FromRgb(46, 213, 115));
             return;
         }
@@ -182,7 +183,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        DeviceConnectionStatus = "Mat ket noi";
+        DeviceConnectionStatus = UiText.Diagnostics.LostConnection;
         DeviceConnectionBrush = new SolidColorBrush(Colors.Red);
     }
 
@@ -196,8 +197,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
         var pending = await outboxRepo.GetPendingAsync(clock.NowLocal, 1000, CancellationToken.None);
         PendingSyncCount = pending.Count;
 
-        CentralApiUrl = await appConfig.GetValueAsync("central_api_url", CancellationToken.None) ?? "(chua cau hinh)";
-        LastMasterDataSync = await appConfig.GetValueAsync("master_data_last_sync", CancellationToken.None) ?? "(chua dong bo)";
+        CentralApiUrl = await appConfig.GetValueAsync("central_api_url", CancellationToken.None) ?? UiText.Diagnostics.CentralApiNotConfigured;
+        LastMasterDataSync = await appConfig.GetValueAsync("master_data_last_sync", CancellationToken.None) ?? UiText.Diagnostics.MasterDataNotSynced;
         MasterDataSyncStatus = await appConfig.GetValueAsync("master_data_sync_status", CancellationToken.None) ?? "Unknown";
         MasterDataSyncError = await appConfig.GetValueAsync("master_data_sync_error", CancellationToken.None);
     }
@@ -211,8 +212,22 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        RawFrame = UiText.Diagnostics.WaitingData;
+        SubstringPreview = string.Empty;
+        DeviceError = null;
+        DeviceConnectionStatus = UiText.Diagnostics.CheckingConnection;
+        DeviceConnectionBrush = new SolidColorBrush(Colors.Gray);
+        LiveWeight = 0;
+        LiveIsStable = false;
+        PendingSyncCount = 0;
+        LastSyncError = null;
+        CentralApiUrl = null;
+        LastMasterDataSync = null;
+        MasterDataSyncStatus = "Unknown";
+        MasterDataSyncError = null;
         UpdateDeviceStatus();
         await LoadSyncInfoAsync();
+        LoadAppVersion();
     }
 
     public void Dispose()

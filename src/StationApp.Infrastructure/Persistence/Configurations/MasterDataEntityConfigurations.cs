@@ -68,13 +68,16 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
     {
         builder.ToTable("delivery_tickets");
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.WeighingSessionId);
+        builder.Property(e => e.WeighingSessionLineId);
 
         builder.Property(e => e.DeliveryNo).HasMaxLength(30).IsRequired();
         builder.Property(e => e.ErpVehicleRegistrationId).HasMaxLength(50).IsRequired();
         builder.Property(e => e.CustomerCode).HasMaxLength(50);
         builder.Property(e => e.ProductCode).HasMaxLength(50);
         builder.Property(e => e.Notes).HasMaxLength(500);
-        builder.Property(e => e.RecordRole).HasMaxLength(20).IsRequired().HasDefaultValue("WORKING");
+        builder.Property(e => e.RecordRole).HasMaxLength(20).IsRequired().HasDefaultValue("NORMAL");
+        builder.Property(e => e.AllocatedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.DeletedBy).HasMaxLength(100);
         builder.Property(e => e.LastPrintedAt);
@@ -87,5 +90,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.HasIndex(e => e.ErpVehicleRegistrationId).HasDatabaseName("IX_delivery_tickets_erp_reg_id");
         builder.HasIndex(e => e.SplitGroupId).HasDatabaseName("IX_delivery_tickets_split_group_id");
         builder.HasIndex(e => e.IsPrinted).HasDatabaseName("IX_delivery_tickets_is_printed");
+        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_delivery_tickets_weighing_session_id");
+        builder.HasIndex(e => e.WeighingSessionLineId).HasDatabaseName("IX_delivery_tickets_weighing_session_line_id");
     }
 }

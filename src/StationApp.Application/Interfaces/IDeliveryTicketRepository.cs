@@ -11,5 +11,6 @@ public interface IDeliveryTicketRepository
     Task<IReadOnlyList<DeliveryTicket>> GetBySplitGroupIdAsync(Guid splitGroupId, CancellationToken ct);
     Task<IReadOnlyList<DeliveryTicket>> GetByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
     Task<IReadOnlyList<DeliveryTicket>> GetAllByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
+    Task<IReadOnlyList<DeliveryTicket>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
     Task<DeliveryTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
 }

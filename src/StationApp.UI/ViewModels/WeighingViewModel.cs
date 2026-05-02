@@ -1,4 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,12 +13,14 @@ using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
 using StationApp.Application.UseCases;
-using StationApp.Application.UseCases.MasterData;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Models;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
+using StationApp.UI.Converters;
 using StationApp.UI.Printing;
+using StationApp.UI.Resources;
 using StationApp.UI.Services;
 using StationApp.UI.ViewModels.Dialogs;
 
@@ -24,874 +31,638 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
     private readonly IToastService _toastService;
-    private readonly IClock _clock;
-    private readonly ILogger<WeighingViewModel>? _logger;
     private readonly IDialogService _dialogService;
+    private readonly IClock _clock;
+    private readonly ICurrentUserContext _currentUserContext;
+    private readonly ILogger<WeighingViewModel>? _logger;
+    private Guid? _focusSessionId;
+    private decimal? _pendingCapturedWeight1;
+    private decimal? _pendingCapturedWeight2;
+    private bool _pendingWeight1IsStable;
+    private bool _pendingWeight2IsStable;
+    private WeightMode _pendingWeight1Mode = WeightMode.AUTO;
+    private WeightMode _pendingWeight2Mode = WeightMode.AUTO;
 
-    private readonly Helpers.LatestScaleReadingSnapshot _scaleSnapshot = new();
-    private readonly SemaphoreSlim _ticketLoadGate = new(1, 1);
-    private readonly SemaphoreSlim _initializationGate = new(1, 1);
-    private CancellationTokenSource? _initializationCts;
-    private Task? _initializationTask;
-    private bool _initializeRequested;
-    private int _uiThrottleMs = 200;
-    private DateTime _lastUiUpdate = DateTime.MinValue;
-    private int _isUiUpdatePending;
-    private static readonly SolidColorBrush _stableBrush = new(Color.FromRgb(46, 213, 115));
-    private static readonly SolidColorBrush _unstableBrush = new(Colors.Orange);
+    public event Action? NavigateToOutgoingRequested;
 
-    [ObservableProperty] private decimal _currentWeight;
-    [ObservableProperty] private bool _isStable;
-    [ObservableProperty] private string _stabilityText = "UNSTABLE";
-    [ObservableProperty] private SolidColorBrush _stabilityBrush = new(Colors.Orange);
-    [ObservableProperty] private string _currentCaptureMode = "AUTO";
-    [ObservableProperty] private string _deviceStatusText = "Dang khoi tao...";
-    [ObservableProperty] private bool _isDeviceConnected;
-    [ObservableProperty] private bool _isInitializing;
-    [ObservableProperty] private bool _isTicketsLoading;
-    [ObservableProperty] private string? _initializationError;
+    private static readonly SolidColorBrush StableBrush = new(Color.FromRgb(46, 213, 115));
+    private static readonly SolidColorBrush UnstableBrush = new(Colors.Orange);
 
-    [ObservableProperty] private string? _searchErpVehicleRegistrationId;
-    [ObservableProperty] private string? _searchVehiclePlate;
-
-    [ObservableProperty] private string? _vehiclePlate;
-    [ObservableProperty] private string? _moocNumber;
-    [ObservableProperty] private string? _driverName;
-    [ObservableProperty] private decimal? _ttcpWeight;
-    [ObservableProperty] private string? _erpVehicleRegistrationId;
-    [ObservableProperty] private TransportMethod? _transportMethod;
-    [ObservableProperty] private string? _customerName;
-    [ObservableProperty] private string? _productCode;
-    [ObservableProperty] private decimal? _plannedWeight;
-    [ObservableProperty] private int? _bagCount;
-    [ObservableProperty] private string? _notes;
-    [ObservableProperty] private bool _isCancelled;
-
-    [ObservableProperty] private string? _vehicleRegistrationNo;
-    [ObservableProperty] private DateTime? _vehicleRegistrationExpiry;
-    [ObservableProperty] private string? _moocRegistrationNo;
-    [ObservableProperty] private DateTime? _moocRegistrationExpiry;
-    [ObservableProperty] private bool _isVehicleRegistrationExpired;
-    [ObservableProperty] private bool _isMoocRegistrationExpired;
-    [ObservableProperty] private string? _registrationWarningMessage;
-    
-    private WeightMode _capturedWeight1Mode = WeightMode.AUTO;
-    private bool _capturedWeight1IsStable = true;
-    private WeightMode _capturedWeight2Mode = WeightMode.AUTO;
-    private bool _capturedWeight2IsStable = true;
-
-    private System.Threading.CancellationTokenSource? _searchCts;
-
-    public bool IsAutoMode => CurrentCaptureMode == "AUTO";
-    public bool IsManualMode => CurrentCaptureMode == "MANUAL";
-
-    public bool IsPlateReadOnly => !IsManualMode || !string.IsNullOrWhiteSpace(ErpVehicleRegistrationId);
-    public bool IsCustomerReadOnly => !IsManualMode || !string.IsNullOrWhiteSpace(ErpVehicleRegistrationId);
-    public bool IsProductReadOnly => !IsManualMode || !string.IsNullOrWhiteSpace(ErpVehicleRegistrationId);
-    public bool IsMoocReadOnly => !IsManualMode;
-    public bool IsDriverReadOnly => !IsManualMode;
-    public bool IsPlannedWeightReadOnly => !IsManualMode;
-    public bool IsBagCountReadOnly => !IsManualMode;
-    public bool IsNotesReadOnly => false;
-
-    public decimal DisplayTtcpKg => (TtcpWeight ?? 0);
-    public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0) * 1.10m);
-    public string DisplayPlannedWeightCombined => PlannedWeight.HasValue 
-        ? $"{PlannedWeight.Value:N0} kg ({PlannedWeight.Value / 1000m:N2} tấn)" 
-        : string.Empty;
-    public string TransportMethodDisplay => TransportMethod?.ToString() ?? "N/A";
-
-    [ObservableProperty] private string? _ticketNo;
-    [ObservableProperty] private decimal? _weight1;
-    [ObservableProperty] private decimal? _weight2;
-    [ObservableProperty] private decimal? _netWeight;
-
-    public decimal DisplayWeight1 => (Weight1 ?? 0);
-    public decimal DisplayWeight2 => (Weight2 ?? 0);
-    public decimal DisplayNetWeight => (NetWeight ?? 0);
-
-    [ObservableProperty] private ObservableCollection<string> _vehicleSuggestions = new();
-    [ObservableProperty] private ObservableCollection<string> _moocOptions = new();
-    [ObservableProperty] private ObservableCollection<Customer> _customerSuggestions = new();
-    [ObservableProperty] private ObservableCollection<Product> _productSuggestions = new();
-
-    [ObservableProperty] private ObservableCollection<WeightViewListItem> _tickets = new();
+    [ObservableProperty] private ObservableCollection<WeighingSessionListItem> _sessions = new();
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CaptureWeight1Command))]
     [NotifyCanExecuteChangedFor(nameof(CaptureWeight2Command))]
-    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-    [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCapturedWeightCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenAllocationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ShowOverweightHandlingCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveToOutYardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
-    private WeightViewListItem? _selectedTicket;
+    private WeighingSessionListItem? _selectedSession;
 
-    [ObservableProperty] private int _statsOutboundRoadCount;
-    [ObservableProperty] private int _statsOutboundWaterCount;
-    [ObservableProperty] private int _statsInboundCount;
+    [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _sessionLines = new();
+    [ObservableProperty] private string? _searchSessionNo;
+    [ObservableProperty] private string? _searchVehiclePlate;
 
-    private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
-    private readonly EventHandler _clockTickHandler;
-    [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt");
+    [ObservableProperty] private string? _sessionNo;
+    [ObservableProperty] private TransactionType _transactionType;
+    [ObservableProperty] private string? _vehiclePlate;
+    [ObservableProperty] private string? _moocNumber;
+    [ObservableProperty] private string? _driverName;
+    [ObservableProperty] private string? _customerSummary;
+    [ObservableProperty] private string? _productSummary;
+    [ObservableProperty] private decimal? _weight1;
+    [ObservableProperty] private decimal? _weight2;
+    [ObservableProperty] private decimal? _netWeight;
+    [ObservableProperty] private decimal? _ttcp10WeightSnapshot;
+    [ObservableProperty] private decimal _overweightAmount;
+    [ObservableProperty] private decimal _overweightSplitStepWeight;
+    [ObservableProperty] private bool _isOverweight;
+    [ObservableProperty] private string? _sessionStatusText;
+    [ObservableProperty] private string? _overweightResolutionText;
 
-    [ObservableProperty] private bool _isOverweightModalVisible;
-    [ObservableProperty] private string? _overweightWarningMessage;
+    [ObservableProperty] private decimal _currentWeight;
+    [ObservableProperty] private bool _isStable;
+    [ObservableProperty] private string _stabilityText = "CHƯA ỔN ĐỊNH";
+    [ObservableProperty] private SolidColorBrush _stabilityBrush = UnstableBrush;
+    [ObservableProperty] private string _currentCaptureMode = "TỰ ĐỘNG";
+    [ObservableProperty] private string _deviceStatusText = UiText.Weighing.InitializingDevice;
+    [ObservableProperty] private bool _isDeviceConnected;
+    [ObservableProperty] private bool _isInitializing;
+
+    [ObservableProperty] private bool _isAllocationVisible;
+    [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _allocationLines = new();
     [ObservableProperty] private bool _isRelatedTicketsVisible;
     [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
+    [ObservableProperty] private bool _isOverweightHandlingVisible;
+    [ObservableProperty] private ObservableCollection<OverweightSplitPreviewGroupItem> _overweightPreviewGroups = new();
+    [ObservableProperty] private ObservableCollection<OverweightSplitPreviewLineItem> _overweightPreviewLines = new();
 
-    public WeighingViewModel(IServiceScopeFactory scopeFactory, IScaleDevice scaleDevice, IToastService toastService, IDialogService dialogService, IClock clock, ILogger<WeighingViewModel>? logger = null)
+    public bool IsAutoMode => CurrentCaptureMode == "TỰ ĐỘNG";
+    public bool IsManualMode => CurrentCaptureMode == "CÂN TAY";
+    public bool CanUseManualMode => string.Equals(_currentUserContext.RoleCode, "ADMIN", StringComparison.OrdinalIgnoreCase);
+
+    public WeighingViewModel(
+        IServiceScopeFactory scopeFactory,
+        IScaleDevice scaleDevice,
+        IToastService toastService,
+        IDialogService dialogService,
+        IClock clock,
+        ICurrentUserContext currentUserContext,
+        ILogger<WeighingViewModel>? logger = null)
     {
         _scopeFactory = scopeFactory;
         _scaleDevice = scaleDevice;
         _toastService = toastService;
         _dialogService = dialogService;
         _clock = clock;
+        _currentUserContext = currentUserContext;
         _logger = logger;
+
         _scaleDevice.WeightReceived += OnWeightReceived;
-
-        UpdateStats();
-
-        _clockTickHandler = (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt");
-        _clockTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(1)
-        };
-        _clockTimer.Tick += _clockTickHandler;
-        _clockTimer.Start();
     }
 
     partial void OnCurrentCaptureModeChanged(string value)
     {
+        if (value == "CÂN TAY" && !CanUseManualMode)
+        {
+            CurrentCaptureMode = "TỰ ĐỘNG";
+            _toastService.ShowWarning(UiText.Weighing.ManualModeForbidden);
+            return;
+        }
+
         OnPropertyChanged(nameof(IsAutoMode));
         OnPropertyChanged(nameof(IsManualMode));
-        OnPropertyChanged(nameof(IsPlateReadOnly));
-        OnPropertyChanged(nameof(IsCustomerReadOnly));
-        OnPropertyChanged(nameof(IsProductReadOnly));
-        OnPropertyChanged(nameof(IsMoocReadOnly));
-        OnPropertyChanged(nameof(IsDriverReadOnly));
-        OnPropertyChanged(nameof(IsPlannedWeightReadOnly));
-        OnPropertyChanged(nameof(IsBagCountReadOnly));
-        OnPropertyChanged(nameof(IsNotesReadOnly));
-        UpdateCommandCanExecuteStates();
+        OnPropertyChanged(nameof(CanUseManualMode));
     }
 
-    partial void OnSearchErpVehicleRegistrationIdChanged(string? value) => DebounceSearch();
-    partial void OnSearchVehiclePlateChanged(string? value) => DebounceSearch();
-    partial void OnWeight1Changed(decimal? value) => UpdateCommandCanExecuteStates();
-    partial void OnWeight2Changed(decimal? value) => UpdateCommandCanExecuteStates();
-
-    private void DebounceSearch()
+    partial void OnSelectedSessionChanged(WeighingSessionListItem? value)
     {
-        _searchCts?.Cancel();
-        _searchCts = new System.Threading.CancellationTokenSource();
-        var token = _searchCts.Token;
-
-        Task.Delay(500, token).ContinueWith(t =>
-        {
-            if (t.IsCompletedSuccessfully && !token.IsCancellationRequested)
-            {
-                System.Windows.Application.Current.Dispatcher.Invoke(async () =>
-                {
-                    await LoadTicketsCoreAsync(CancellationToken.None);
-                });
-            }
-        }, TaskScheduler.Default);
+        ClearPendingCapturedWeights();
+        _ = LoadSelectedSessionAsync(value);
     }
 
-    private void UpdateCommandCanExecuteStates()
+    public async Task InitializeAsync()
     {
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-        {
-            CaptureWeight1Command.NotifyCanExecuteChanged();
-            CaptureWeight2Command.NotifyCanExecuteChanged();
-            PrintWeighTicketCommand.NotifyCanExecuteChanged();
-            CancelCommand.NotifyCanExecuteChanged();
-            PrintDeliveryTicketCommand.NotifyCanExecuteChanged();
-            SaveCommand.NotifyCanExecuteChanged();
-            ShowRelatedTicketsCommand.NotifyCanExecuteChanged();
-        });
-    }
-
-    private bool CanCaptureWeight1() => SelectedTicket != null && SelectedTicket.RegistrationStatus == RegistrationStatus.REGISTERED;
-    private bool CanCaptureWeight2() => SelectedTicket != null && SelectedTicket.RegistrationStatus == RegistrationStatus.LOADING_IN_PROGRESS;
-    private bool CanPrintWeighTicket() => SelectedTicket != null && SelectedTicket.RegistrationStatus == RegistrationStatus.COMPLETED;
-    private bool CanCancel() => SelectedTicket != null
-        && (SelectedTicket.RegistrationStatus == RegistrationStatus.REGISTERED
-            || SelectedTicket.RegistrationStatus == RegistrationStatus.LOADING_IN_PROGRESS);
-    private bool CanPrintDeliveryTicket() => SelectedTicket != null && SelectedTicket.RegistrationStatus == RegistrationStatus.COMPLETED;
-    private bool CanSave()
-    {
-        if (SelectedTicket == null) return false;
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.REGISTERED)
-        {
-            return Weight1.HasValue && Weight1.Value > 0;
-        }
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.LOADING_IN_PROGRESS)
-        {
-            return Weight2.HasValue && Weight2.Value > 0;
-        }
-        return false;
-    }
-    private bool CanShowRelatedTickets() => SelectedTicket != null && SelectedTicket.RegistrationStatus != RegistrationStatus.CANCELLED;
-
-    private void UpdateStats()
-    {
-        StatsOutboundRoadCount = Tickets.Count(t => t.TransactionType == TransactionType.OUTBOUND && t.TransportMethod == StationApp.Domain.Enums.TransportMethod.ROAD);
-        StatsOutboundWaterCount = Tickets.Count(t => t.TransactionType == TransactionType.OUTBOUND && t.TransportMethod == StationApp.Domain.Enums.TransportMethod.WATERWAY);
-        StatsInboundCount = Tickets.Count(t => t.TransactionType == TransactionType.INBOUND);
-    }
-
-    private void OnWeightReceived(object? sender, ScaleReading reading)
-    {
-        lock (_scaleSnapshot)
-        {
-            _scaleSnapshot.Weight = reading.Weight;
-            _scaleSnapshot.IsStable = reading.IsStable;
-            _scaleSnapshot.ReceivedAt = DateTime.UtcNow;
-        }
-
-        var now = DateTime.UtcNow;
-        if ((now - _lastUiUpdate).TotalMilliseconds < _uiThrottleMs && reading.IsStable == IsStable)
+        if (IsInitializing)
         {
             return;
         }
 
-        if (Interlocked.CompareExchange(ref _isUiUpdatePending, 1, 0) != 0)
-        {
-            return;
-        }
-
-        _lastUiUpdate = now;
-        System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
-        {
-            try
-            {
-                decimal currentWeightToRender;
-                bool isStableToRender;
-
-                lock (_scaleSnapshot)
-                {
-                    currentWeightToRender = _scaleSnapshot.Weight;
-                    isStableToRender = _scaleSnapshot.IsStable;
-                }
-
-                if (CurrentCaptureMode == "AUTO")
-                {
-                    CurrentWeight = currentWeightToRender;
-                    IsStable = isStableToRender;
-                    StabilityText = isStableToRender ? "STABLE" : "UNSTABLE";
-                    StabilityBrush = isStableToRender ? _stableBrush : _unstableBrush;
-                }
-                else
-                {
-                    IsStable = true;
-                    StabilityText = "MANUAL";
-                    StabilityBrush = _stableBrush;
-                }
-
-                IsDeviceConnected = _scaleDevice.IsConnected;
-                DeviceStatusText = _scaleDevice.IsConnected ? "Dang hoat dong" : "Mat ket noi";
-
-                CheckOverweight();
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _isUiUpdatePending, 0);
-            }
-        });
-    }
-
-    private void CheckOverweight()
-    {
-        if (!TtcpWeight.HasValue || TtcpWeight.Value <= 0)
-        {
-            return;
-        }
-
-        var limit = TtcpWeight.Value * 1.10m;
-        if (CurrentWeight <= limit || IsOverweightModalVisible || CurrentCaptureMode != "AUTO")
-        {
-            return;
-        }
-
-        OverweightWarningMessage = $"Phat hien qua tai! Trong luong ({CurrentWeight:N0} kg) > 110% TTCP ({limit:N0} kg).";
-        IsOverweightModalVisible = true;
-
+        IsInitializing = true;
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var logger = scope.ServiceProvider.GetService<ILogger<WeighingViewModel>>();
-            logger?.LogWarning("OVERWEIGHT ALERT: Vehicle={Plate}, Weight={Weight}kg, Limit={Limit}kg", VehiclePlate, CurrentWeight, limit);
-        }
-        catch
-        {
-        }
-    }
-
-    partial void OnSelectedTicketChanged(WeightViewListItem? value)
-    {
-        _ = LoadTicketDetailsAsync(value);
-    }
-
-    private async Task LoadTicketDetailsAsync(WeightViewListItem? value)
-    {
-        if (value == null)
-        {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-            {
-                ClearDetailFields();
-            });
-            return;
-        }
-
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-        {
-            TicketNo = value.TicketNo;
-            VehiclePlate = value.VehiclePlate;
-            CustomerName = value.CustomerName;
-            ProductCode = value.ProductName;
-            PlannedWeight = value.PlannedWeight;
-            BagCount = value.BagCount;
-            Notes = value.Notes;
-            IsCancelled = value.RegistrationStatus == RegistrationStatus.CANCELLED;
-            Weight1 = value.Weight1;
-            Weight2 = value.Weight2;
-            NetWeight = value.NetWeight;
-            TransportMethod = value.TransportMethod;
-            ErpVehicleRegistrationId = value.ErpVehicleRegistrationId;
-
-            MoocNumber = null;
-            DriverName = value.WeighUser;
-            TtcpWeight = null;
-            VehicleRegistrationNo = null;
-            VehicleRegistrationExpiry = null;
-            MoocRegistrationNo = null;
-            MoocRegistrationExpiry = null;
-            
-            OnPropertyChanged(nameof(IsPlateReadOnly));
-            OnPropertyChanged(nameof(IsCustomerReadOnly));
-            OnPropertyChanged(nameof(IsProductReadOnly));
-            OnPropertyChanged(nameof(IsMoocReadOnly));
-            OnPropertyChanged(nameof(IsDriverReadOnly));
-            OnPropertyChanged(nameof(IsPlannedWeightReadOnly));
-            OnPropertyChanged(nameof(IsBagCountReadOnly));
-        });
-
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var regRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
-            var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
-
-            var registration = await regRepo.GetByIdAsync(value.RegistrationId, CancellationToken.None);
-            if (registration != null)
-            {
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MoocNumber = registration.MoocNumber;
-                });
-
-                var vehicle = await vehicleRepo.GetByPlateAndMoocAsync(value.VehiclePlate, registration.MoocNumber ?? "", CancellationToken.None);
-                if (vehicle != null)
-                {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        DriverName = vehicle.DriverName;
-                        TtcpWeight = vehicle.TtcpWeight;
-                        VehicleRegistrationNo = vehicle.VehicleRegistrationNo;
-                        VehicleRegistrationExpiry = vehicle.VehicleRegistrationExpiryDate;
-                        MoocRegistrationNo = vehicle.MoocRegistrationNo;
-                        MoocRegistrationExpiry = vehicle.MoocRegistrationExpiryDate;
-                    });
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to load detailed registration/master data for {Id}", value.RegistrationId);
-        }
-
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-        {
-            CheckExpiry();
-            UpdateCommandCanExecuteStates();
-            OnPropertyChanged(nameof(DisplayTtcpKg));
-            OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
-            OnPropertyChanged(nameof(DisplayPlannedWeightCombined));
-            OnPropertyChanged(nameof(DisplayWeight1));
-            OnPropertyChanged(nameof(DisplayWeight2));
-            OnPropertyChanged(nameof(DisplayNetWeight));
-            OnPropertyChanged(nameof(TransportMethodDisplay));
-        });
-    }
-
-    private void ClearDetailFields()
-    {
-        TicketNo = null;
-        VehiclePlate = null;
-        MoocNumber = null;
-        DriverName = null;
-        TtcpWeight = null;
-        ErpVehicleRegistrationId = null;
-        TransportMethod = null;
-        CustomerName = null;
-        ProductCode = null;
-        PlannedWeight = null;
-        BagCount = null;
-        Notes = null;
-        IsCancelled = false;
-        Weight1 = null;
-        Weight2 = null;
-        NetWeight = null;
-
-        VehicleRegistrationNo = null;
-        VehicleRegistrationExpiry = null;
-        MoocRegistrationNo = null;
-        MoocRegistrationExpiry = null;
-        
-        OnPropertyChanged(nameof(IsPlateReadOnly));
-        OnPropertyChanged(nameof(IsCustomerReadOnly));
-        OnPropertyChanged(nameof(IsProductReadOnly));
-        OnPropertyChanged(nameof(IsMoocReadOnly));
-        OnPropertyChanged(nameof(IsDriverReadOnly));
-        OnPropertyChanged(nameof(IsPlannedWeightReadOnly));
-        OnPropertyChanged(nameof(IsBagCountReadOnly));
-    }
-
-    private void CheckExpiry()
-    {
-        var now = _clock.TodayLocal;
-        IsVehicleRegistrationExpired = VehicleRegistrationExpiry.HasValue && VehicleRegistrationExpiry.Value < now;
-        IsMoocRegistrationExpired = MoocRegistrationExpiry.HasValue && MoocRegistrationExpiry.Value < now;
-        RegistrationWarningMessage = IsVehicleRegistrationExpired || IsMoocRegistrationExpired
-            ? "Xe / Mooc da het han dang kiem!"
-            : null;
-    }
-
-    [RelayCommand]
-    private async Task SearchVehiclesAsync(string? text)
-    {
-        try
-        {
-            using (Helpers.PerformanceLogger.Track("Search / Autocomplete Duration"))
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var uc = scope.ServiceProvider.GetRequiredService<SearchVehicleSuggestionsUseCase>();
-                var suggestions = await uc.ExecuteAsync(text, CancellationToken.None);
-                VehicleSuggestions = new ObservableCollection<string>(suggestions);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "SearchVehicles failed");
-            _toastService.ShowError("Không thể tải dữ liệu tìm kiếm. Vui lòng thử lại.");
-        }
-    }
-
-    [RelayCommand]
-    private async Task SelectVehicleAsync(string plate)
-    {
-        VehiclePlate = plate;
-        using var scope = _scopeFactory.CreateScope();
-        var uc = scope.ServiceProvider.GetRequiredService<SearchVehicleMoocOptionsUseCase>();
-        var options = await uc.ExecuteAsync(plate, CancellationToken.None);
-        MoocOptions = new ObservableCollection<string>(options.Select(o => o.MoocNumber).Distinct());
-    }
-
-    [RelayCommand]
-    private async Task SelectMoocAsync(string mooc)
-    {
-        MoocNumber = mooc;
-        using var scope = _scopeFactory.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
-        var vehicle = await repo.GetByPlateAndMoocAsync(VehiclePlate!, mooc, CancellationToken.None);
-        if (vehicle == null)
-        {
-            return;
-        }
-
-        DriverName = vehicle.DriverName;
-        TtcpWeight = vehicle.TtcpWeight;
-        VehicleRegistrationNo = vehicle.VehicleRegistrationNo;
-        VehicleRegistrationExpiry = vehicle.VehicleRegistrationExpiryDate;
-        MoocRegistrationNo = vehicle.MoocRegistrationNo;
-        MoocRegistrationExpiry = vehicle.MoocRegistrationExpiryDate;
-
-        if (Enum.TryParse<TransportMethod>(vehicle.TransportMethod, out var transportMethod))
-        {
-            TransportMethod = transportMethod;
-        }
-        else
-        {
-            TransportMethod = null;
-        }
-
-        CheckExpiry();
-        OnPropertyChanged(nameof(DisplayTtcpKg));
-        OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
-    }
-
-    [RelayCommand]
-    private async Task LoadTicketsAsync()
-    {
-        await LoadTicketsCoreAsync(CancellationToken.None);
-    }
-
-    private async Task LoadTicketsCoreAsync(CancellationToken ct)
-    {
-        await _ticketLoadGate.WaitAsync(ct);
-        try
-        {
-            IsTicketsLoading = true;
-            using (Helpers.PerformanceLogger.Track("WeightView Load Duration"))
-            using (Helpers.PerformanceLogger.Track("WeightView - Grid Data"))
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var uc = scope.ServiceProvider.GetRequiredService<GetWeightViewTicketsUseCase>();
-                var keyword = !string.IsNullOrWhiteSpace(SearchVehiclePlate)
-                    ? SearchVehiclePlate
-                    : SearchErpVehicleRegistrationId;
-
-                var currentSelectionId = SelectedTicket?.RegistrationId;
-
-                var list = await uc.ExecuteAsync(keyword, ct);
-                Tickets = new ObservableCollection<WeightViewListItem>(list);
-                UpdateStats();
-
-                if (currentSelectionId.HasValue)
-                {
-                    SelectedTicket = Tickets.FirstOrDefault(x => x.RegistrationId == currentSelectionId.Value);
-                }
-
-                if (list.Count == 0 && !string.IsNullOrWhiteSpace(keyword))
-                {
-                    _toastService.ShowInfo("Không tìm thấy dữ liệu phù hợp.");
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Ignore cancellation
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "LoadTicketsCore failed");
-            _toastService.ShowError("Không thể tải dữ liệu tìm kiếm. Vui lòng thử lại.");
+            await AttachDeviceAsync();
+            await LoadSessionsAsync();
         }
         finally
         {
-            IsTicketsLoading = false;
-            _ticketLoadGate.Release();
+            IsInitializing = false;
         }
     }
+
+    public async Task FocusSessionAsync(Guid sessionId)
+    {
+        _focusSessionId = sessionId;
+        await LoadSessionsAsync();
+    }
+
+    [RelayCommand]
+    private async Task LoadSessionsAsync()
+    {
+        await LoadSessionsInternalAsync(true);
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        SearchSessionNo = null;
+        SearchVehiclePlate = null;
+        _focusSessionId = null;
+        IsAllocationVisible = false;
+        IsRelatedTicketsVisible = false;
+        IsOverweightHandlingVisible = false;
+        SelectedSession = null;
+        await LoadSessionsInternalAsync(false);
+    }
+
+    private async Task LoadSessionsInternalAsync(bool selectFirstWhenNoSelection)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<GetWeighingSessionsUseCase>();
+            var keyword = !string.IsNullOrWhiteSpace(SearchSessionNo) ? SearchSessionNo : SearchVehiclePlate;
+            var list = await uc.ExecuteAsync(keyword, CancellationToken.None);
+            Sessions = new ObservableCollection<WeighingSessionListItem>(list);
+
+            if (_focusSessionId.HasValue)
+            {
+                SelectedSession = Sessions.FirstOrDefault(x => x.SessionId == _focusSessionId.Value);
+                _focusSessionId = null;
+            }
+            else if (SelectedSession != null)
+            {
+                SelectedSession = Sessions.FirstOrDefault(x => x.SessionId == SelectedSession.SessionId);
+            }
+            else if (selectFirstWhenNoSelection)
+            {
+                SelectedSession = Sessions.FirstOrDefault();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Load weighing sessions failed");
+            _toastService.ShowError(UiText.Weighing.LoadSessionsError);
+        }
+    }
+
+    private async Task LoadSelectedSessionAsync(WeighingSessionListItem? value)
+    {
+        if (value == null)
+        {
+            ClearSelectionDetails();
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+
+        var lineItems = await sessionRepo.GetLineItemsBySessionIdAsync(value.SessionId, CancellationToken.None);
+
+        SessionNo = value.SessionNo;
+        TransactionType = value.TransactionType;
+        VehiclePlate = value.VehiclePlate;
+        MoocNumber = value.MoocNumber;
+        DriverName = value.DriverName;
+        Weight1 = value.Weight1;
+        Weight2 = value.Weight2;
+        NetWeight = value.NetWeight;
+        Ttcp10WeightSnapshot = value.Ttcp10WeightSnapshot;
+        IsOverweight = value.IsOverweight;
+        OverweightAmount = value.OverweightAmount;
+        OverweightSplitStepWeight = 0m;
+        SessionStatusText = SessionStatusMapper.ToDisplayString(value.SessionStatus);
+        OverweightResolutionText = OverweightResolutionStatusMapper.ToDisplayString(value.OverweightResolutionStatus);
+        CustomerSummary = string.Join(" / ", lineItems.Select(x => x.CustomerName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+        ProductSummary = string.Join(" / ", lineItems.Select(x => x.ProductName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+        SessionLines = new ObservableCollection<WeighingSessionLineRow>(lineItems.Select(x => new WeighingSessionLineRow(x)));
+    }
+
+    private void ClearSelectionDetails()
+    {
+        ClearPendingCapturedWeights();
+        SessionNo = null;
+        VehiclePlate = null;
+        MoocNumber = null;
+        DriverName = null;
+        CustomerSummary = null;
+        ProductSummary = null;
+        Weight1 = null;
+        Weight2 = null;
+        NetWeight = null;
+        Ttcp10WeightSnapshot = null;
+        IsOverweight = false;
+        OverweightAmount = 0m;
+        OverweightSplitStepWeight = 0m;
+        SessionStatusText = null;
+        OverweightResolutionText = null;
+        SessionLines = new ObservableCollection<WeighingSessionLineRow>();
+    }
+
+    private bool CanCaptureWeight1() => SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1;
+    private bool CanCaptureWeight2() => SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2;
+    private bool CanSaveCapturedWeight() =>
+        SelectedSession?.SessionStatus switch
+        {
+            WeighingSessionStatus.PENDING_WEIGHT1 => _pendingCapturedWeight1.HasValue,
+            WeighingSessionStatus.PENDING_WEIGHT2 => _pendingCapturedWeight2.HasValue,
+            _ => false
+        };
+    private bool CanOpenAllocation() => SelectedSession?.SessionStatus is WeighingSessionStatus.ALLOCATION_PENDING or WeighingSessionStatus.READY_TO_COMPLETE;
+    private bool CanShowOverweightHandling() =>
+        SelectedSession != null
+        && SelectedSession.IsOverweight
+        && SelectedSession.OverweightResolutionStatus == OverweightResolutionStatus.PENDING;
+    private bool CanPrintWeighTicket() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT1;
+    private bool CanPrintDeliveryTicket() => SelectedSession != null && SelectedSession.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED;
+    private bool CanMoveToOutYard() =>
+        SelectedSession != null
+        && SelectedSession.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
+        && (SelectedSession.OverweightResolutionStatus is OverweightResolutionStatus.NOT_APPLICABLE
+            or OverweightResolutionStatus.SPLIT_CONFIRMED
+            or OverweightResolutionStatus.NO_SPLIT_CONFIRMED);
+    private bool CanCancel() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
+    private bool CanShowRelatedTickets() => SelectedSession != null;
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight1))]
     private Task CaptureWeight1Async()
     {
-        if (SelectedTicket is null)
+        var weight = ResolveWeightToCapture();
+        if (weight <= 0)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
+            _toastService.ShowWarning(UiText.Weighing.InvalidWeight1);
             return Task.CompletedTask;
         }
 
-        decimal weightToCapture;
-        bool isStableToCapture;
-        
-        if (CurrentCaptureMode == "AUTO")
-        {
-            lock (_scaleSnapshot)
-            {
-                weightToCapture = _scaleSnapshot.Weight;
-                isStableToCapture = _scaleSnapshot.IsStable;
-            }
-        }
-        else
-        {
-            weightToCapture = CurrentWeight;
-            isStableToCapture = true;
-        }
-
-        if (CurrentCaptureMode == "AUTO" && (!IsDeviceConnected || weightToCapture <= 0))
-        {
-            _toastService.ShowError("Chưa nhận được dữ liệu cân hợp lệ từ thiết bị.");
-            return Task.CompletedTask;
-        }
-        else if (CurrentCaptureMode != "AUTO" && weightToCapture <= 0)
-        {
-            _toastService.ShowError("Vui lòng nhập số cân lần 1 hợp lệ.");
-            return Task.CompletedTask;
-        }
-
-        Weight1 = weightToCapture;
-        _capturedWeight1Mode = CurrentCaptureMode == "AUTO" ? WeightMode.AUTO : WeightMode.MANUAL;
-        _capturedWeight1IsStable = isStableToCapture;
-        
-        _toastService.ShowSuccess("Đã lấy số cân lần 1 lên màn hình (vui lòng nhấn LƯU để xác nhận).");
-        UpdateCommandCanExecuteStates();
+        _pendingCapturedWeight1 = weight;
+        _pendingWeight1IsStable = IsStable;
+        _pendingWeight1Mode = IsManualMode ? WeightMode.MANUAL : WeightMode.AUTO;
+        Weight1 = weight;
+        Weight2 = null;
+        NetWeight = null;
+        SaveCapturedWeightCommand.NotifyCanExecuteChanged();
         return Task.CompletedTask;
     }
-
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight2))]
     private Task CaptureWeight2Async()
     {
-        if (SelectedTicket is null)
+        var weight = ResolveWeightToCapture();
+        if (weight <= 0)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
+            _toastService.ShowWarning(UiText.Weighing.InvalidWeight2);
             return Task.CompletedTask;
         }
 
-        decimal weightToCapture;
-        bool isStableToCapture;
-        
-        if (CurrentCaptureMode == "AUTO")
+        var weight1ToCompare = _pendingCapturedWeight1 ?? SelectedSession?.Weight1 ?? Weight1;
+        if (!weight1ToCompare.HasValue)
         {
-            lock (_scaleSnapshot)
-            {
-                weightToCapture = _scaleSnapshot.Weight;
-                isStableToCapture = _scaleSnapshot.IsStable;
-            }
-        }
-        else
-        {
-            weightToCapture = CurrentWeight;
-            isStableToCapture = true;
-        }
-
-        if (CurrentCaptureMode == "AUTO" && (!IsDeviceConnected || weightToCapture <= 0))
-        {
-            _toastService.ShowError("Chưa nhận được dữ liệu cân hợp lệ từ thiết bị.");
-            return Task.CompletedTask;
-        }
-        else if (CurrentCaptureMode != "AUTO" && weightToCapture <= 0)
-        {
-            _toastService.ShowError("Vui lòng nhập số cân lần 2 hợp lệ.");
+            _toastService.ShowWarning(UiText.Weighing.InvalidWeight1);
             return Task.CompletedTask;
         }
 
-        Weight2 = weightToCapture;
-        _capturedWeight2Mode = CurrentCaptureMode == "AUTO" ? WeightMode.AUTO : WeightMode.MANUAL;
-        _capturedWeight2IsStable = isStableToCapture;
-        
-        _toastService.ShowSuccess("Đã lấy số cân lần 2 lên màn hình (vui lòng nhấn LƯU để xác nhận).");
-        UpdateCommandCanExecuteStates();
+        _pendingCapturedWeight2 = weight;
+        _pendingWeight2IsStable = IsStable;
+        _pendingWeight2Mode = IsManualMode ? WeightMode.MANUAL : WeightMode.AUTO;
+        Weight2 = weight;
+        NetWeight = CalculatePreviewNetWeight(weight1ToCompare.Value, weight, SelectedSession?.TransactionType ?? TransactionType.OUTBOUND);
+        SaveCapturedWeightCommand.NotifyCanExecuteChanged();
         return Task.CompletedTask;
     }
 
-
-
-    [RelayCommand(CanExecute = nameof(CanCancel))]
-    private async Task CancelAsync()
+    [RelayCommand(CanExecute = nameof(CanSaveCapturedWeight))]
+    private async Task SaveCapturedWeightAsync()
     {
-        if (SelectedTicket is null)
+        if (SelectedSession == null)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
             return;
         }
-
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.CANCELLED)
-        {
-            _toastService.ShowWarning("Phiếu đã hủy.");
-            return;
-        }
-
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.COMPLETED)
-        {
-            _toastService.ShowWarning("Phiếu đã hoàn thành, không thể hủy.");
-            return;
-        }
-
-        if (SelectedTicket.RegistrationStatus != RegistrationStatus.REGISTERED
-            && SelectedTicket.RegistrationStatus != RegistrationStatus.LOADING_IN_PROGRESS)
-        {
-            _toastService.ShowWarning("Phiếu ở trạng thái hiện tại không thể hủy.");
-            return;
-        }
-
-        var confirm = await _dialogService.ShowConfirmAsync(
-            "Xác nhận hủy phiếu", 
-            "Bạn có chắc muốn hủy phiếu này không? Tất cả phiếu cân và phiếu giao nhận liên quan sẽ bị xóa.", 
-            "Hủy phiếu", 
-            "Không"
-        );
-
-        if (!confirm) return;
 
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var uc = scope.ServiceProvider.GetRequiredService<CancelTicketUseCase>();
-            await uc.ExecuteAsync(new CancelTicketRequest(SelectedTicket.RegistrationId), CancellationToken.None);
-            _toastService.ShowSuccess("Đã hủy phiếu thành công.");
-            await LoadTicketsCoreAsync(CancellationToken.None);
+
+            if (SelectedSession.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1)
+            {
+                var uc = scope.ServiceProvider.GetRequiredService<CaptureSessionWeight1UseCase>();
+                await uc.ExecuteAsync(
+                    new CaptureSessionWeightRequest(
+                        SelectedSession.SessionId,
+                        _pendingCapturedWeight1!.Value,
+                        _pendingWeight1IsStable,
+                        _pendingWeight1Mode),
+                    CancellationToken.None);
+
+                _toastService.ShowSuccess(UiText.Weighing.Weight1Saved);
+            }
+            else if (SelectedSession.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
+            {
+                var uc = scope.ServiceProvider.GetRequiredService<CaptureSessionWeight2UseCase>();
+                await uc.ExecuteAsync(
+                    new CaptureSessionWeightRequest(
+                        SelectedSession.SessionId,
+                        _pendingCapturedWeight2!.Value,
+                        _pendingWeight2IsStable,
+                        _pendingWeight2Mode),
+                    CancellationToken.None);
+
+                _toastService.ShowSuccess(UiText.Weighing.Weight2Saved);
+            }
+
+            ClearPendingCapturedWeights();
+            await FocusSessionAsync(SelectedSession.SessionId);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "CancelTicket failed");
-            _toastService.ShowError("Không thể hủy phiếu. Vui lòng thử lại.");
+            _logger?.LogError(ex, "Save captured weight failed");
+            _toastService.ShowError(UiText.Weighing.LoadSessionsError);
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
-    private async Task SaveAsync()
+    [RelayCommand(CanExecute = nameof(CanOpenAllocation))]
+    private Task OpenAllocationAsync()
     {
-        if (SelectedTicket is null)
+        AllocationLines = new ObservableCollection<WeighingSessionLineRow>(SessionLines.Select(x => x.Clone()));
+        IsAllocationVisible = true;
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private void CloseAllocation()
+    {
+        IsAllocationVisible = false;
+    }
+
+    [RelayCommand]
+    private void AllocateByPlan()
+    {
+        if (!NetWeight.HasValue || AllocationLines.Count == 0)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
             return;
         }
 
-        try
+        var totalPlanned = AllocationLines.Sum(x => x.PlannedWeight ?? 0m);
+        decimal allocated = 0m;
+        for (var i = 0; i < AllocationLines.Count; i++)
         {
-            using var scope = _scopeFactory.CreateScope();
-            
-            if (SelectedTicket.RegistrationStatus == RegistrationStatus.REGISTERED)
+            var row = AllocationLines[i];
+            if (i == AllocationLines.Count - 1)
             {
-                if (!Weight1.HasValue || Weight1.Value <= 0)
-                {
-                    _toastService.ShowWarning("Vui lòng lấy số cân lần 1 hợp lệ.");
-                    return;
-                }
-                
-                var uc = scope.ServiceProvider.GetRequiredService<CaptureWeight1UseCase>();
-                await uc.ExecuteAsync(new CaptureWeightRequest(
-                    SelectedTicket.RegistrationId, 
-                    Weight1.Value, 
-                    _capturedWeight1IsStable, 
-                    _capturedWeight1Mode
-                ), CancellationToken.None);
-                
-                _toastService.ShowSuccess("Đã lưu thông tin cân lần 1 thành công.");
+                row.ActualAllocatedWeight = NetWeight.Value - allocated;
             }
-            else if (SelectedTicket.RegistrationStatus == RegistrationStatus.LOADING_IN_PROGRESS)
+            else if (totalPlanned > 0)
             {
-                if (!Weight2.HasValue || Weight2.Value <= 0)
-                {
-                    _toastService.ShowWarning("Vui lòng lấy số cân lần 2 hợp lệ.");
-                    return;
-                }
-
-                decimal netWeight = Math.Abs((Weight1 ?? 0m) - Weight2.Value);
-                decimal allowedThreshold = (TtcpWeight ?? PlannedWeight ?? 0m) * 1.10m;
-
-                if (netWeight <= allowedThreshold)
-                {
-                    var uc = scope.ServiceProvider.GetRequiredService<CaptureWeight2UseCase>();
-                    await uc.ExecuteAsync(new CaptureWeightRequest(
-                        SelectedTicket.RegistrationId, 
-                        Weight2.Value, 
-                        _capturedWeight2IsStable, 
-                        _capturedWeight2Mode
-                    ), CancellationToken.None);
-
-                    var completeUc = scope.ServiceProvider.GetRequiredService<CompleteTicketUseCase>();
-                    await completeUc.ExecuteAsync(new CompleteTicketRequest(SelectedTicket.RegistrationId), CancellationToken.None);
-                    
-                    _toastService.ShowSuccess("Đã lưu thông tin cân lần 2 và hoàn tất phiếu.");
-                }
-                else
-                {
-                    var result = await _dialogService.ShowConfirmAsync(
-                        "Cảnh báo quá tải", 
-                        "Trọng lượng hàng vượt TTCP 10%. Bạn có muốn tách phiếu cân không?", 
-                        "Tách phiếu", 
-                        "Không"
-                    );
-
-                    if (result)
-                    {
-                        var splitUc = scope.ServiceProvider.GetRequiredService<SplitOverweightTicketUseCase>();
-                        await splitUc.ExecuteAsync(new SplitOverweightTicketRequest(
-                            SelectedTicket.RegistrationId,
-                            Weight2.Value,
-                            _capturedWeight2IsStable,
-                            _capturedWeight2Mode
-                        ), CancellationToken.None);
-
-                        _toastService.ShowSuccess("Đã thực hiện tách phiếu ngay trong transaction thành công.");
-                    }
-                    else
-                    {
-                        var withoutSplitUc = scope.ServiceProvider.GetRequiredService<CompleteOverweightTicketWithoutSplitUseCase>();
-                        await withoutSplitUc.ExecuteAsync(new CompleteOverweightTicketWithoutSplitRequest(
-                            SelectedTicket.RegistrationId,
-                            Weight2.Value,
-                            _capturedWeight2IsStable,
-                            _capturedWeight2Mode
-                        ), CancellationToken.None);
-
-                        _toastService.ShowSuccess("Đã lưu thông tin cân lần 2 mà không tách phiếu quá tải.");
-                    }
-                }
+                var proportional = decimal.Round(NetWeight.Value * ((row.PlannedWeight ?? 0m) / totalPlanned), 3, MidpointRounding.AwayFromZero);
+                row.ActualAllocatedWeight = proportional;
+                allocated += proportional;
             }
             else
             {
-                _toastService.ShowWarning("Phiếu ở trạng thái hiện tại không cho phép chỉnh sửa.");
-                return;
+                var even = decimal.Round(NetWeight.Value / AllocationLines.Count, 3, MidpointRounding.AwayFromZero);
+                row.ActualAllocatedWeight = even;
+                allocated += even;
             }
-
-            await LoadTicketsCoreAsync(CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Save failed");
-            _toastService.ShowError("Không thể lưu dữ liệu cân. Vui lòng kiểm tra lại kết nối hoặc dữ liệu.");
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanPrintDeliveryTicket))]
-    private async Task PrintDeliveryTicketAsync()
+    [RelayCommand]
+    private async Task ConfirmAllocationAsync()
     {
-        if (SelectedTicket is null)
+        if (SelectedSession == null)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
             return;
         }
 
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.CANCELLED)
+        using var scope = _scopeFactory.CreateScope();
+        var uc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
+        await uc.ExecuteAsync(
+            new AllocateWeighingSessionRequest(
+                SelectedSession.SessionId,
+                AllocationLines.Select(x => new AllocateWeighingSessionLineRequest(
+                    x.SessionLineId,
+                    x.ActualAllocatedWeight,
+                    x.ActualAllocatedBagCount)).ToList()),
+            CancellationToken.None);
+
+        _toastService.ShowSuccess(UiText.Weighing.AllocationSaved);
+        IsAllocationVisible = false;
+        await FocusSessionAsync(SelectedSession.SessionId);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanShowOverweightHandling))]
+    private async Task ShowOverweightHandlingAsync()
+    {
+        if (SelectedSession == null)
         {
-            _toastService.ShowWarning("Phiếu đã hủy, không thể in phiếu giao nhận.");
             return;
         }
 
-        using (var scope = _scopeFactory.CreateScope())
+        using var scope = _scopeFactory.CreateScope();
+        var previewUseCase = scope.ServiceProvider.GetRequiredService<PreviewWeighingSessionOverweightSplitUseCase>();
+        var preview = await previewUseCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
+        OverweightSplitStepWeight = preview.OverweightSplitStepWeight;
+        OverweightPreviewGroups = new ObservableCollection<OverweightSplitPreviewGroupItem>(preview.Groups);
+        OverweightPreviewLines = new ObservableCollection<OverweightSplitPreviewLineItem>(preview.Lines);
+        IsOverweightHandlingVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseOverweightHandling()
+    {
+        OverweightSplitStepWeight = 0m;
+        IsOverweightHandlingVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmOverweightSplitAsync()
+    {
+        if (SelectedSession == null)
         {
-            var ensureUc = scope.ServiceProvider.GetRequiredService<EnsurePrimaryDeliveryTicketUseCase>();
-            await ensureUc.ExecuteAsync(SelectedTicket.RegistrationId, CancellationToken.None);
+            return;
         }
 
-        _toastService.ShowInfo("Đang mở cấu hình in phiếu giao nhận...");
-        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedTicket.RegistrationId, "phiếu giao nhận");
+        using var scope = _scopeFactory.CreateScope();
+        var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightSplitUseCase>();
+        await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
+        _toastService.ShowSuccess("Đã cập nhật xử lý quá tải.");
+        IsOverweightHandlingVisible = false;
+        await FocusSessionAsync(SelectedSession.SessionId);
+    }
+
+    [RelayCommand]
+    private async Task ConfirmOverweightNoSplitAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightNoSplitUseCase>();
+        await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
+        _toastService.ShowSuccess("Đã cập nhật xử lý quá tải.");
+        IsOverweightHandlingVisible = false;
+        await FocusSessionAsync(SelectedSession.SessionId);
     }
 
     [RelayCommand(CanExecute = nameof(CanPrintWeighTicket))]
     private async Task PrintWeighTicketAsync()
     {
-        if (SelectedTicket is null)
+        if (SelectedSession == null)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
             return;
         }
 
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.CANCELLED)
-        {
-            _toastService.ShowWarning("Phiếu đã hủy, không thể in phiếu cân.");
-            return;
-        }
-
-        _toastService.ShowInfo("Đang mở cấu hình in phiếu cân...");
-        await ExecutePrintFlowAsync(PrintDocumentKind.WeighTicket, SelectedTicket.RegistrationId, "phiếu cân");
+        await ExecutePrintFlowAsync(PrintDocumentKind.WeighTicket, SelectedSession.SessionId, "phiếu cân");
     }
 
-    private async Task ExecutePrintFlowAsync(PrintDocumentKind kind, Guid registrationId, string documentDisplayName)
+    [RelayCommand(CanExecute = nameof(CanPrintDeliveryTicket))]
+    private async Task PrintDeliveryTicketAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedSession.SessionId, "phiếu giao nhận");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveToOutYard))]
+    private async Task MoveToOutYardAsync()
+    {
+        if (SelectedSession == null)
+        {
+            _toastService.ShowWarning(UiText.Weighing.MoveOutNotReady);
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            UiText.Weighing.MoveOutConfirmTitle,
+            UiText.Weighing.MoveOutConfirmMessage,
+            UiText.Weighing.MoveOutConfirmAction,
+            UiText.Common.No);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<CompleteWeighingSessionUseCase>();
+            await uc.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
+            _toastService.ShowSuccess(UiText.Weighing.MoveOutSuccess);
+            await LoadSessionsAsync();
+            NavigateToOutgoingRequested?.Invoke();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "MoveToOutYard failed");
+            _toastService.ShowError(UiText.Weighing.MoveOutError);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancel))]
+    private async Task CancelAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            UiText.Weighing.CancelTitle,
+            UiText.Weighing.CancelMessage,
+            UiText.Weighing.CancelConfirm,
+            UiText.Weighing.Close);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var uc = scope.ServiceProvider.GetRequiredService<CancelWeighingSessionUseCase>();
+        await uc.ExecuteAsync(new CancelWeighingSessionRequest(SelectedSession.SessionId), CancellationToken.None);
+        _toastService.ShowSuccess(UiText.Weighing.CancelSuccess);
+        await LoadSessionsAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanShowRelatedTickets))]
+    private async Task ShowRelatedTicketsAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
+        var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
+        var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(SelectedSession.SessionId, CancellationToken.None);
+        var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(SelectedSession.SessionId, CancellationToken.None);
+
+        RelatedTickets = new ObservableCollection<RelatedDocumentListItem>(
+            weighTickets.Select(ticket => new RelatedDocumentListItem(
+                    UiText.Weighing.RelatedWeighTicket,
+                    ticket.TicketNo,
+                    null,
+                    ticket.RecordRole,
+                    ticket.SplitSequence,
+                    ticket.Weight1,
+                    ticket.Weight2,
+                    ticket.NetWeight,
+                    ticket.CreatedAt))
+                .Concat(deliveryTickets.Select(ticket => new RelatedDocumentListItem(
+                    UiText.Weighing.RelatedDeliveryTicket,
+                    null,
+                    ticket.DeliveryNo,
+                    ticket.RecordRole,
+                    ticket.SplitSequence,
+                    null,
+                    null,
+                    ticket.AllocatedWeight,
+                    ticket.CreatedAt)))
+                .OrderBy(x => x.DocumentType)
+                .ThenBy(x => x.SplitSequence ?? byte.MaxValue)
+                .ThenBy(x => x.CreatedAt));
+
+        IsRelatedTicketsVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseRelatedTickets()
+    {
+        IsRelatedTicketsVisible = false;
+    }
+
+    private async Task ExecutePrintFlowAsync(PrintDocumentKind kind, Guid sessionId, string displayName)
     {
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = await LoadPrintContextAsync(scope, registrationId);
+            var context = await LoadPrintContextAsync(scope, sessionId);
             if (context == null)
             {
-                _toastService.ShowWarning($"Chưa có {documentDisplayName} để in.");
+                _toastService.ShowWarning(string.Format(UiText.Weighing.NoPrintableDocumentFormat, displayName));
                 return;
             }
 
@@ -901,15 +672,14 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
             var template = await templateProvider.GetTemplateAsync(kind, CancellationToken.None);
             var preview = BuildPrintBatchPreview(scope, context, kind);
-
             if (preview.Pages.Count == 0)
             {
-                _toastService.ShowWarning($"Chưa có {documentDisplayName} để in.");
+                _toastService.ShowWarning(string.Format(UiText.Weighing.NoPrintableDocumentFormat, displayName));
                 return;
             }
 
             var dialogVm = new PrintOptionsDialogViewModel(
-                kind == PrintDocumentKind.WeighTicket ? "In phiếu cân" : "In phiếu giao nhận",
+                kind == PrintDocumentKind.WeighTicket ? UiText.Weighing.PrintDialogWeighTicket : UiText.Weighing.PrintDialogDeliveryTicket,
                 template,
                 preview,
                 printerDiscovery.GetInstalledPrinters(),
@@ -921,308 +691,325 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            _toastService.ShowInfo($"Đang in {documentDisplayName}...");
             var result = await printService.PrintAsync(template, preview, printOptions, CancellationToken.None);
             await PersistPrintResultAsync(scope, context, kind, result);
 
             if (result.HasFailures)
             {
-                _toastService.ShowError($"Không thể in {documentDisplayName}. Vui lòng kiểm tra máy in.");
+                _toastService.ShowError(string.Format(UiText.Weighing.PrintErrorFormat, displayName));
                 return;
             }
 
-            _toastService.ShowSuccess(kind == PrintDocumentKind.WeighTicket
-                ? "Đã in phiếu cân thành công."
-                : "Đã in phiếu giao nhận thành công.");
-
-            // Auto-move to OUT_YARD if all documents are printed
-            try
-            {
-                using var moveScope = _scopeFactory.CreateScope();
-                var moveUc = moveScope.ServiceProvider.GetRequiredService<TryMoveToOutYardUseCase>();
-                var moved = await moveUc.ExecuteAsync(registrationId, CancellationToken.None);
-                if (moved)
-                {
-                    _toastService.ShowSuccess("Xe đã hoàn tất - tự động chuyển sang Danh sách xe ra.");
-                    await LoadTicketsCoreAsync(CancellationToken.None);
-                }
-            }
-            catch (Exception moveEx)
-            {
-                _logger?.LogWarning(moveEx, "TryMoveToOutYard failed after print for {RegistrationId}", registrationId);
-            }
+            _toastService.ShowSuccess(string.Format(UiText.Weighing.PrintSuccessFormat, displayName));
+            await FocusSessionAsync(sessionId);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Print flow failed for {Kind}", kind);
-            _toastService.ShowError(kind == PrintDocumentKind.WeighTicket
-                ? "Không thể in phiếu cân. Vui lòng kiểm tra máy in."
-                : "Không thể in phiếu giao nhận. Vui lòng kiểm tra máy in.");
+            _logger?.LogError(ex, "Print flow failed");
+            _toastService.ShowError(string.Format(UiText.Weighing.PrintErrorFormat, displayName));
         }
     }
 
-    private async Task<PrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid registrationId)
+    private async Task<SessionPrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid sessionId)
     {
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
         var regRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
         var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
         var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
         var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
 
-        var registration = await regRepo.GetByIdAsync(registrationId, CancellationToken.None);
-        if (registration == null)
+        var session = await sessionRepo.GetByIdAsync(sessionId, CancellationToken.None);
+        if (session == null)
         {
             return null;
         }
 
-        var weighTickets = (await weighRepo.GetByVehicleRegistrationIdAsync(registrationId, CancellationToken.None))
-            .Where(t => string.Equals(t.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(t.TicketNo))
-            .OrderBy(t => t.SplitSequence ?? 0)
-            .ThenBy(t => t.CreatedAt)
-            .ToList();
+        var lines = await sessionRepo.GetLinesBySessionIdAsync(sessionId, CancellationToken.None);
+        var registrations = await regRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
+        var registrationsById = registrations.ToDictionary(x => x.Id);
+        var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
+        var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
+        var vehicle = await vehicleRepo.GetByPlateAndMoocAsync(session.VehiclePlate, session.MoocNumber ?? string.Empty, CancellationToken.None)
+            ?? (await vehicleRepo.GetByPlateAsync(session.VehiclePlate, CancellationToken.None)).FirstOrDefault();
 
-        var deliveryTickets = (await deliveryRepo.GetByVehicleRegistrationIdAsync(registrationId, CancellationToken.None))
-            .Where(t => string.Equals(t.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(t.DeliveryNo))
-            .OrderBy(t => t.SplitSequence ?? 0)
-            .ThenBy(t => t.CreatedAt)
-            .ToList();
-
-        var vehicle = await vehicleRepo.GetByPlateAndMoocAsync(registration.VehiclePlate, registration.MoocNumber ?? string.Empty, CancellationToken.None)
-            ?? (await vehicleRepo.GetByPlateAsync(registration.VehiclePlate, CancellationToken.None)).FirstOrDefault();
-
-        return new PrintContext(registration, vehicle, weighTickets, deliveryTickets);
+        return new SessionPrintContext(session, lines, registrationsById, weighTickets, deliveryTickets, vehicle);
     }
 
-    private PrintBatchPreviewModel BuildPrintBatchPreview(IServiceScope scope, PrintContext context, PrintDocumentKind kind)
+    private PrintBatchPreviewModel BuildPrintBatchPreview(IServiceScope scope, SessionPrintContext context, PrintDocumentKind kind)
     {
         var printedAtLocal = _clock.NowLocal;
+        var splitConfirmed = context.MasterSession.OverweightResolutionStatus == OverweightResolutionStatus.SPLIT_CONFIRMED;
+
         if (kind == PrintDocumentKind.WeighTicket)
         {
             var composer = scope.ServiceProvider.GetRequiredService<IWeighTicketPrintComposer>();
+            var primaryRegistration = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).FirstOrDefault();
+            if (primaryRegistration == null)
+            {
+                return new PrintBatchPreviewModel { Kind = kind, Title = UiText.Weighing.PrintPreviewWeigh, Pages = [] };
+            }
+
+            var ticketsToPrint = splitConfirmed
+                ? context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && !x.IsDeleted).OrderBy(x => x.SplitSequence).ToList()
+                : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted).Take(1).ToList();
+
             return new PrintBatchPreviewModel
             {
                 Kind = kind,
-                Title = "In phiếu cân",
-                Pages = context.WeighTickets
-                    .Select(ticket => (PrintPreviewPageModel)composer.Compose(context.Registration, ticket, context.Vehicle, printedAtLocal))
-                    .ToList()
+                Title = splitConfirmed ? "In phiếu cân tách tải" : UiText.Weighing.PrintPreviewWeighMaster,
+                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal)).Cast<PrintPreviewPageModel>().ToList()
             };
         }
 
         var deliveryComposer = scope.ServiceProvider.GetRequiredService<IDeliveryTicketPrintComposer>();
-        var weighBySequence = context.WeighTickets.ToDictionary(t => t.SplitSequence ?? 0, t => t);
-        var primaryWeigh = context.WeighTickets.FirstOrDefault();
+        var pages = new List<PrintPreviewPageModel>();
+        var deliveryTicketsToPrint = splitConfirmed
+            ? context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.SplitDerived && !x.IsDeleted)
+                .OrderBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
+            : context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted)
+                .OrderBy(x => x.WeighingSessionLineId).ThenBy(x => x.CreatedAt);
+
+        foreach (var ticket in deliveryTicketsToPrint)
+        {
+            if (!ticket.WeighingSessionLineId.HasValue)
+            {
+                continue;
+            }
+
+            var line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
+            if (line == null || !context.RegistrationsById.TryGetValue(line.VehicleRegistrationId, out var registration))
+            {
+                continue;
+            }
+
+            var relatedWeighTicket = splitConfirmed
+                ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
+                : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
+
+            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal));
+        }
+
         return new PrintBatchPreviewModel
         {
             Kind = kind,
-            Title = "In phiếu giao nhận",
-            Pages = context.DeliveryTickets
-                .Select(ticket =>
-                {
-                    weighBySequence.TryGetValue(ticket.SplitSequence ?? 0, out var matchedWeigh);
-                    matchedWeigh ??= primaryWeigh;
-                    return (PrintPreviewPageModel)deliveryComposer.Compose(context.Registration, ticket, matchedWeigh, context.Vehicle, printedAtLocal);
-                })
-                .ToList()
+            Title = UiText.Weighing.PrintPreviewDelivery,
+            Pages = pages
         };
     }
 
-    private async Task PersistPrintResultAsync(IServiceScope scope, PrintContext context, PrintDocumentKind kind, PrintExecutionResult result)
+    private async Task PersistPrintResultAsync(IServiceScope scope, SessionPrintContext context, PrintDocumentKind kind, PrintExecutionResult result)
     {
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+        var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
+        var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
         var now = _clock.NowLocal;
-        var user = scope.ServiceProvider.GetRequiredService<ICurrentUserContext>();
-        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var splitConfirmed = context.MasterSession.OverweightResolutionStatus == OverweightResolutionStatus.SPLIT_CONFIRMED;
 
-        await uow.ExecuteInTransactionAsync(async innerCt =>
+        await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async innerCt =>
         {
             if (kind == PrintDocumentKind.WeighTicket)
             {
-                var repo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
-                foreach (var ticket in context.WeighTickets)
+                var ticketsToPersist = splitConfirmed
+                    ? context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && !x.IsDeleted)
+                    : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
+
+                foreach (var weighTicket in ticketsToPersist)
                 {
-                    var ticketResult = result.Documents.FirstOrDefault(x => x.DocumentId == ticket.Id);
-                    if (ticketResult == null)
+                    var ticketResult = result.Documents.FirstOrDefault(x => x.DocumentId == weighTicket.Id);
+                    if (ticketResult == null || !ticketResult.Success)
                     {
                         continue;
                     }
 
-                    if (ticketResult.Success)
-                    {
-                        ticket.IsPrinted = true;
-                        ticket.LastPrintedAt = now;
-                        ticket.LastPrintError = null;
-                    }
-                    else
-                    {
-                        ticket.LastPrintError = ticketResult.ErrorMessage;
-                    }
+                    weighTicket.IsPrinted = true;
+                    weighTicket.LastPrintedAt = now;
+                    weighTicket.LastPrintError = null;
+                    weighTicket.UpdatedAt = now;
+                    weighTicket.UpdatedBy = _currentUserContext.Username;
+                    await weighRepo.UpdateAsync(weighTicket, innerCt);
+                }
 
-                    ticket.UpdatedAt = now;
-                    ticket.UpdatedBy = user.Username;
-                    await repo.UpdateAsync(ticket, innerCt);
+                if (!splitConfirmed && !result.HasFailures)
+                {
+                    context.MasterSession.HasPrintedMasterWeighTicket = true;
+                    context.MasterSession.UpdatedAt = now;
+                    context.MasterSession.UpdatedBy = _currentUserContext.Username;
+                    await sessionRepo.UpdateAsync(context.MasterSession, innerCt);
                 }
 
                 return;
             }
 
-            var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
-            foreach (var ticket in context.DeliveryTickets)
+            foreach (var deliveryTicket in context.DeliveryTickets.Where(x => !x.IsDeleted))
             {
-                var ticketResult = result.Documents.FirstOrDefault(x => x.DocumentId == ticket.Id);
-                if (ticketResult == null)
+                var ticketResult = result.Documents.FirstOrDefault(x => x.DocumentId == deliveryTicket.Id);
+                if (ticketResult == null || !ticketResult.Success)
                 {
                     continue;
                 }
 
-                if (ticketResult.Success)
-                {
-                    ticket.IsPrinted = true;
-                    ticket.LastPrintedAt = now;
-                    ticket.LastPrintError = null;
-                }
-                else
-                {
-                    ticket.LastPrintError = ticketResult.ErrorMessage;
-                }
+                deliveryTicket.IsPrinted = true;
+                deliveryTicket.LastPrintedAt = now;
+                deliveryTicket.LastPrintError = null;
+                deliveryTicket.UpdatedAt = now;
+                deliveryTicket.UpdatedBy = _currentUserContext.Username;
+                await deliveryRepo.UpdateAsync(deliveryTicket, innerCt);
+            }
 
-                ticket.UpdatedAt = now;
-                ticket.UpdatedBy = user.Username;
-                await deliveryRepo.UpdateAsync(ticket, innerCt);
+            foreach (var line in context.Lines)
+            {
+                var relevantTickets = splitConfirmed
+                    ? context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.SplitDerived && x.WeighingSessionLineId == line.Id && !x.IsDeleted).ToList()
+                    : context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && x.WeighingSessionLineId == line.Id && !x.IsDeleted).ToList();
+
+                line.HasPrintedDeliveryTicket = relevantTickets.Count > 0 && relevantTickets.All(x => x.IsPrinted);
+                line.UpdatedAt = now;
+                line.UpdatedBy = _currentUserContext.Username;
+                await sessionRepo.UpdateLineAsync(line, innerCt);
             }
         }, CancellationToken.None);
     }
 
-    [RelayCommand(CanExecute = nameof(CanShowRelatedTickets))]
-    private async Task ShowRelatedTicketsAsync()
+    private decimal ResolveWeightToCapture()
     {
-        if (SelectedTicket is null)
+        return decimal.Round(CurrentWeight, 3, MidpointRounding.AwayFromZero);
+    }
+
+    private void ClearPendingCapturedWeights()
+    {
+        _pendingCapturedWeight1 = null;
+        _pendingCapturedWeight2 = null;
+        _pendingWeight1IsStable = false;
+        _pendingWeight2IsStable = false;
+        _pendingWeight1Mode = WeightMode.AUTO;
+        _pendingWeight2Mode = WeightMode.AUTO;
+        SaveCapturedWeightCommand.NotifyCanExecuteChanged();
+    }
+
+    private static decimal CalculatePreviewNetWeight(decimal weight1, decimal weight2, TransactionType transactionType)
+    {
+        if (transactionType == TransactionType.INBOUND && weight1 < weight2)
         {
-            _toastService.ShowWarning("Vui lòng chọn một phiếu để thao tác.");
+            return 0m;
+        }
+
+        return Math.Abs(weight1 - weight2);
+    }
+
+    private async Task AttachDeviceAsync()
+    {
+        if (_scaleDevice.IsConnected)
+        {
+            DeviceStatusText = UiText.Weighing.ActiveConnection;
+            IsDeviceConnected = true;
             return;
         }
 
-        if (SelectedTicket.RegistrationStatus == RegistrationStatus.CANCELLED)
-        {
-            _toastService.ShowWarning("Phiếu đã hủy, không thể mở danh sách phiếu liên quan.");
-            return;
-        }
-
-        try
-        {
-            _toastService.ShowInfo("Đang mở danh sách phiếu liên quan.");
-            using var scope = _scopeFactory.CreateScope();
-            var uc = scope.ServiceProvider.GetRequiredService<GetRelatedTicketsUseCase>();
-            var list = await uc.ExecuteAsync(SelectedTicket.RegistrationId, CancellationToken.None);
-            if (list.Count == 0)
-            {
-                _toastService.ShowWarning("Phiếu hiện chưa có chứng từ liên quan.");
-            }
-            RelatedTickets = new ObservableCollection<RelatedDocumentListItem>(list);
-            IsRelatedTicketsVisible = true;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "ShowRelatedTickets failed");
-            _toastService.ShowError("Không thể tải dữ liệu tìm kiếm. Vui lòng thử lại.");
-        }
+        await _scaleDevice.ConnectAsync(CancellationToken.None);
+        await _scaleDevice.StartAsync(CancellationToken.None);
+        DeviceStatusText = _scaleDevice.IsConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
+        IsDeviceConnected = _scaleDevice.IsConnected;
     }
 
-    [RelayCommand]
-    private void CloseRelatedTickets() => IsRelatedTicketsVisible = false;
-
-    [RelayCommand]
-    private void CloseOverweightModal() => IsOverweightModalVisible = false;
-
-    public Task InitializeAsync()
+    private void OnWeightReceived(object? sender, ScaleReading reading)
     {
-        if (_initializeRequested)
+        if (IsAutoMode)
         {
-            return Task.CompletedTask;
+            CurrentWeight = reading.Weight;
+            IsStable = reading.IsStable;
+            StabilityText = reading.IsStable ? "ỔN ĐỊNH" : "CHƯA ỔN ĐỊNH";
+            StabilityBrush = reading.IsStable ? StableBrush : UnstableBrush;
+        }
+        else
+        {
+            IsStable = true;
+            StabilityText = "CÂN TAY";
+            StabilityBrush = StableBrush;
         }
 
-        _initializeRequested = true;
-        _initializationCts?.Cancel();
-        _initializationCts = new CancellationTokenSource();
-        IsInitializing = true;
-        DeviceStatusText = _scaleDevice.IsConnected ? "Dang hoat dong" : "Dang ket noi nen...";
-        _initializationTask = InitializeCoreAsync(_initializationCts.Token);
-        return Task.CompletedTask;
+        IsDeviceConnected = _scaleDevice.IsConnected;
+        DeviceStatusText = _scaleDevice.IsConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
     }
-
-    private async Task InitializeCoreAsync(CancellationToken ct)
-    {
-        await _initializationGate.WaitAsync(ct);
-        try
-        {
-            using (Helpers.PerformanceLogger.Track("WeightView - Initialize Shell"))
-            {
-                await LoadUiThrottleAsync(ct);
-            }
-
-            var ticketLoadTask = LoadTicketsCoreAsync(ct);
-            var deviceAttachTask = AttachDeviceAsync(ct);
-
-            await Task.WhenAll(ticketLoadTask, deviceAttachTask);
-            InitializationError = null;
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            _logger?.LogDebug("WeighingView initialization cancelled.");
-        }
-        catch (Exception ex)
-        {
-            InitializationError = ex.Message;
-            DeviceStatusText = "Khoi tao loi";
-            _logger?.LogError(ex, "WeighingView initialization failed.");
-        }
-        finally
-        {
-            IsInitializing = false;
-            _initializationGate.Release();
-        }
-    }
-
-    private async Task LoadUiThrottleAsync(CancellationToken ct)
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var appRepo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-        var throttleStr = await appRepo.GetValueAsync("device_ui_throttle_ms", ct);
-        if (int.TryParse(throttleStr, out var throttleVal) && throttleVal >= 0)
-        {
-            _uiThrottleMs = throttleVal;
-        }
-    }
-
-    private async Task AttachDeviceAsync(CancellationToken ct)
-    {
-        using (Helpers.PerformanceLogger.Track("WeightView - Device Attach"))
-        {
-            if (_scaleDevice.IsConnected)
-            {
-                DeviceStatusText = "Dang hoat dong";
-                IsDeviceConnected = true;
-                return;
-            }
-
-            DeviceStatusText = "Dang ket noi can...";
-            await _scaleDevice.ConnectAsync(ct);
-            await _scaleDevice.StartAsync(ct);
-            IsDeviceConnected = _scaleDevice.IsConnected;
-            DeviceStatusText = _scaleDevice.IsConnected ? "Dang hoat dong" : "Mat ket noi";
-        }
-    }
-
-    private sealed record PrintContext(
-        VehicleRegistration Registration,
-        Vehicle? Vehicle,
-        IReadOnlyList<WeighTicket> WeighTickets,
-        IReadOnlyList<DeliveryTicket> DeliveryTickets);
 
     public void Dispose()
     {
-        _initializationCts?.Cancel();
         _scaleDevice.WeightReceived -= OnWeightReceived;
-        _clockTimer.Stop();
-        _clockTimer.Tick -= _clockTickHandler;
-        _initializationCts?.Dispose();
+    }
+
+    private sealed record SessionPrintContext(
+        WeighingSession MasterSession,
+        IReadOnlyList<WeighingSessionLine> Lines,
+        IReadOnlyDictionary<Guid, VehicleRegistration> RegistrationsById,
+        IReadOnlyList<WeighTicket> WeighTickets,
+        IReadOnlyList<DeliveryTicket> DeliveryTickets,
+        Vehicle? Vehicle);
+}
+
+public partial class WeighingSessionLineRow : ObservableObject
+{
+    private const decimal DefaultBagWeightKg = 50m;
+
+    public WeighingSessionLineRow(WeighingSessionLineItem item)
+    {
+        SessionLineId = item.SessionLineId;
+        VehicleRegistrationId = item.VehicleRegistrationId;
+        SequenceNo = item.SequenceNo;
+        ErpVehicleRegistrationId = item.ErpVehicleRegistrationId;
+        CustomerName = item.CustomerName;
+        DistributorName = item.DistributorName;
+        ProductCode = item.ProductCode;
+        ProductName = item.ProductName;
+        PlannedWeight = item.PlannedWeight;
+        PlannedBagCount = item.PlannedBagCount;
+        ActualAllocatedWeight = item.ActualAllocatedWeight;
+        ActualAllocatedBagCount = item.ActualAllocatedBagCount;
+        LineStatus = item.LineStatus;
+        HasPrintedDeliveryTicket = item.HasPrintedDeliveryTicket;
+    }
+
+    [ObservableProperty] private decimal? _actualAllocatedWeight;
+    [ObservableProperty] private int? _actualAllocatedBagCount;
+
+    public Guid SessionLineId { get; }
+    public Guid VehicleRegistrationId { get; }
+    public int SequenceNo { get; }
+    public string? ErpVehicleRegistrationId { get; }
+    public string? CustomerName { get; }
+    public string? DistributorName { get; }
+    public string? ProductCode { get; }
+    public string? ProductName { get; }
+    public decimal? PlannedWeight { get; }
+    public int? PlannedBagCount { get; }
+    public WeighingSessionLineStatus LineStatus { get; }
+    public bool HasPrintedDeliveryTicket { get; set; }
+
+    partial void OnActualAllocatedWeightChanged(decimal? value)
+    {
+        if (!value.HasValue || value <= 0)
+        {
+            ActualAllocatedBagCount = null;
+            return;
+        }
+
+        ActualAllocatedBagCount = (int)decimal.Round(value.Value / DefaultBagWeightKg, 0, MidpointRounding.AwayFromZero);
+    }
+
+    public WeighingSessionLineRow Clone()
+    {
+        return new WeighingSessionLineRow(new WeighingSessionLineItem(
+            SessionLineId,
+            VehicleRegistrationId,
+            SequenceNo,
+            ErpVehicleRegistrationId,
+            CustomerName,
+            DistributorName,
+            ProductCode,
+            ProductName,
+            PlannedWeight,
+            PlannedBagCount,
+            ActualAllocatedWeight,
+            ActualAllocatedBagCount,
+            LineStatus,
+            HasPrintedDeliveryTicket));
     }
 }

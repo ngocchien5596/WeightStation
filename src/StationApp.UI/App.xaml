@@ -14,7 +14,12 @@
             <converters:StringEqualityToBoolConverter x:Key="StringEqToBool"/>
             <converters:MultiStringEqualityToBoolConverter x:Key="MultiStringEqToBool"/>
             <converters:RegistrationStatusDisplayConverter x:Key="StatusDisplay"/>
+            <converters:SessionStatusDisplayConverter x:Key="SessionStatusDisplay"/>
+            <converters:SessionLineStatusDisplayConverter x:Key="SessionLineStatusDisplay"/>
+            <converters:OverweightResolutionStatusDisplayConverter x:Key="OverweightResolutionStatusDisplay"/>
+            <converters:RecordRoleDisplayConverter x:Key="RecordRoleDisplay"/>
             <converters:BooleanToStatusConverter x:Key="BooleanToStatusConverter"/>
+            <converters:OverweightFlagDisplayConverter x:Key="OverweightFlagDisplay"/>
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
             <converters:TransactionTypeDisplayConverter x:Key="TransactionTypeDisplayConverter"/>
             <converters:TransportMethodDisplayConverter x:Key="TransportMethodDisplayConverter"/>
@@ -23,6 +28,7 @@
                 <ResourceDictionary Source="Styles/ButtonStyles.xaml"/>
                 <ResourceDictionary Source="Styles/InputStyles.xaml"/>
                 <ResourceDictionary Source="Styles/BasePageStyles.xaml"/>
+                <ResourceDictionary Source="Resources/WorkflowTextResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

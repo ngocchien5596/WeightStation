@@ -56,9 +56,9 @@
         <Setter Property="Background" Value="{StaticResource SidebarItemBackground}"/>
         <Setter Property="Foreground" Value="{StaticResource SidebarItemForeground}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Height" Value="44"/>
+        <Setter Property="Height" Value="48"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Padding" Value="20,0,12,0"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -96,13 +96,13 @@
     <!-- 3. HEADER STYLES -->
     <Style x:Key="HeaderContainerStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource HeaderBackground}"/>
-        <Setter Property="Height" Value="56"/>
+        <Setter Property="Height" Value="64"/>
     </Style>
 
     <Style x:Key="HeaderLabelStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource HeaderForeground}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="15"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -111,14 +111,14 @@
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
     </Style>
 
     <Style x:Key="HeaderActionButton" TargetType="Button" BasedOn="{StaticResource WorkflowButtonStyle}">
-        <Setter Property="Height" Value="30"/>
-        <Setter Property="MinWidth" Value="110"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Padding" Value="12,0"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="MinWidth" Value="120"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Padding" Value="14,0"/>
         <Setter Property="Background" Value="#F39C12"/>
     </Style>
 
@@ -132,8 +132,8 @@
         <Setter Property="BorderBrush" Value="{StaticResource ClockBorderColor}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="16"/>
-        <Setter Property="Height" Value="34"/>
-        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="Height" Value="38"/>
+        <Setter Property="Padding" Value="12,0"/>
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -141,7 +141,7 @@
     <Style x:Key="ClockTextStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource ClockForeground}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -159,14 +159,15 @@
     <Style x:Key="SystemDataGridStyle" TargetType="DataGrid">
         <Setter Property="AutoGenerateColumns" Value="False"/>
         <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="GridLinesVisibility" Value="All"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDC3C7"/>
         <Setter Property="VerticalGridLinesBrush" Value="#BDC3C7"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="#BDC3C7"/>
-        <Setter Property="RowHeight" Value="32"/>
+        <Setter Property="RowHeight" Value="38"/>
         <Setter Property="CanUserResizeColumns" Value="True"/>
-        <Setter Property="ColumnHeaderHeight" Value="36"/>
+        <Setter Property="ColumnHeaderHeight" Value="42"/>
         <Setter Property="Background" Value="White"/>
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
@@ -175,8 +176,9 @@
     <Style x:Key="SystemDataGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
         <Setter Property="Background" Value="#1E2A38"/>
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="Height" Value="36"/>
-        <Setter Property="Padding" Value="8,0"/>
+        <Setter Property="Height" Value="42"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="BorderThickness" Value="0,0,1,1"/>
         <Setter Property="BorderBrush" Value="#BDC3C7"/>
@@ -189,6 +191,10 @@
         <Setter Property="Foreground" Value="{Binding Converter={StaticResource OverweightToFore}}"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Style.Triggers>
+            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                <Setter Property="Background" Value="#2980B9"/>
+                <Setter Property="Foreground" Value="White"/>
+            </DataTrigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="#2980B9"/>
                 <Setter Property="Foreground" Value="White"/>
@@ -202,6 +208,10 @@
     <Style x:Key="SystemDataGridCellStyle" TargetType="DataGridCell">
         <Setter Property="BorderThickness" Value="0"/>
         <Style.Triggers>
+            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                <Setter Property="Background" Value="#2980B9"/>
+                <Setter Property="Foreground" Value="White"/>
+            </DataTrigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="#2980B9"/>
                 <Setter Property="Foreground" Value="White"/>
@@ -211,21 +221,24 @@
 
     <!-- Grid Text Alignment Styles -->
     <Style x:Key="GridTextCenter" TargetType="TextBlock">
-        <Setter Property="Margin" Value="8,4"/>
+        <Setter Property="Margin" Value="10,6"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="GridTextRight" TargetType="TextBlock">
-        <Setter Property="Margin" Value="8,4"/>
+        <Setter Property="Margin" Value="10,6"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Right"/>
     </Style>
 
     <Style x:Key="GridTextLeft" TargetType="TextBlock">
-        <Setter Property="Margin" Value="8,4"/>
+        <Setter Property="Margin" Value="10,6"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Left"/>

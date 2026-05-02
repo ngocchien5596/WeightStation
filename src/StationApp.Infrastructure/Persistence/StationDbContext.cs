@@ -19,6 +19,8 @@ public class StationDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<DeliveryTicket> DeliveryTickets => Set<DeliveryTicket>();
+    public DbSet<WeighingSession> WeighingSessions => Set<WeighingSession>();
+    public DbSet<WeighingSessionLine> WeighingSessionLines => Set<WeighingSessionLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,5 +35,7 @@ public class StationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CustomerEntityConfiguration());
         modelBuilder.ApplyConfiguration(new ProductEntityConfiguration());
         modelBuilder.ApplyConfiguration(new DeliveryTicketEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new WeighingSessionEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new WeighingSessionLineEntityConfiguration());
     }
 }

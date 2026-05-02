@@ -6,6 +6,7 @@ public class WeighTicket
 {
     public Guid Id { get; set; }
     public Guid VehicleRegistrationId { get; set; }
+    public Guid? WeighingSessionId { get; set; }
     public string TicketNo { get; set; } = string.Empty;
     public string? ErpVehicleRegistrationId { get; set; }
     public string VehiclePlate { get; set; } = string.Empty;
@@ -46,7 +47,7 @@ public class WeighTicket
     public string? AppVersion { get; set; }
 
     // Phase 2 Delta - Snapshots
-    public decimal? TtcpWeightSnapshot { get; set; }
+    public decimal? Ttcp10WeightSnapshot { get; set; }
     public string? VehicleRegistrationNoSnapshot { get; set; }
     public DateTime? VehicleRegistrationExpirySnapshot { get; set; }
     public string? MoocRegistrationNoSnapshot { get; set; }
@@ -65,7 +66,7 @@ public class WeighTicket
     public byte? SplitSequence { get; set; }
     public Guid? SourceTicketId { get; set; }
     public Guid? DeliveryTicketId { get; set; }
-    public string RecordRole { get; set; } = "WORKING"; // WORKING, SOURCE
+    public string RecordRole { get; set; } = "MASTER_SESSION";
 
     // Audit
     public DateTime CreatedAt { get; set; }

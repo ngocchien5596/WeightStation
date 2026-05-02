@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.UI.Services;
 
 namespace StationApp.UI.ViewModels.Settings
@@ -25,6 +26,7 @@ namespace StationApp.UI.ViewModels.Settings
         [ObservableProperty] private string _toleranceKg = "0";
         [ObservableProperty] private string _syncIntervalSeconds = "30";
         [ObservableProperty] private string _registrationInboundPollSeconds = "15";
+        [ObservableProperty] private string _overweightSplitStepWeight = "0.0025";
         [ObservableProperty] private bool _pilotModeEnabled;
 
         public async Task LoadAsync()
@@ -38,6 +40,8 @@ namespace StationApp.UI.ViewModels.Settings
             ToleranceKg = await repo.GetValueAsync("tolerance_kg", CancellationToken.None) ?? "0";
             SyncIntervalSeconds = await repo.GetValueAsync("sync_interval", CancellationToken.None) ?? "30";
             RegistrationInboundPollSeconds = await repo.GetValueAsync("registration_inbound_poll_seconds", CancellationToken.None) ?? "15";
+            OverweightSplitStepWeight = await repo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, CancellationToken.None)
+                ?? AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
             
             var pilotStr = await repo.GetValueAsync("pilot_mode_enabled", CancellationToken.None);
             PilotModeEnabled = pilotStr == "true";
@@ -59,6 +63,7 @@ namespace StationApp.UI.ViewModels.Settings
                 await repo.SetValueAsync("tolerance_kg", ToleranceKg.Trim(), CancellationToken.None);
                 await repo.SetValueAsync("sync_interval", SyncIntervalSeconds.Trim(), CancellationToken.None);
                 await repo.SetValueAsync("registration_inbound_poll_seconds", RegistrationInboundPollSeconds.Trim(), CancellationToken.None);
+                await repo.SetValueAsync(AppConfigKeys.OverweightSplitStepWeight, OverweightSplitStepWeight.Trim(), CancellationToken.None);
                 await repo.SetValueAsync("pilot_mode_enabled", PilotModeEnabled ? "true" : "false", CancellationToken.None);
 
                 await uow.SaveChangesAsync(CancellationToken.None);

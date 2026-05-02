@@ -43,6 +43,18 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        PendingTicketsCount = 0;
+        InProgressTicketsCount = 0;
+        OverweightTicketsCount = 0;
+        UnsyncedTicketsCount = 0;
+        CompletedTodayCount = 0;
+        TotalVehiclesCount = 0;
+        NetworkStatus = "Đang kiểm tra...";
+        NetworkStatusBrush = new SolidColorBrush(Colors.Gray);
+        DeviceStatus = "Đang kiểm tra...";
+        DeviceStatusBrush = new SolidColorBrush(Colors.Gray);
+        LastSyncTime = null;
+        StationCode = null;
         await InitializeAsync();
     }
 

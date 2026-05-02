@@ -1,14 +1,14 @@
 <Window x:Class="StationApp.UI.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Quản lý trạm cân - XMCP"
+        Title="{StaticResource MainWindow.Title}"
         Height="768"
         Width="1366"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundBrush}">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="232"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -20,13 +20,13 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource SidebarTopBackground}" Height="56" Padding="16,0">
+                <Border Grid.Row="0" Background="{StaticResource SidebarTopBackground}" Height="64" Padding="18,0">
                     <Grid>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE774;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBlock Text="Quản lý trạm cân - XMCP" FontSize="15" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="{Binding CurrentTimeDisplay}" FontSize="17" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#8899BB" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"/>
+                        <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#8899BB" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"/>
                     </Grid>
                 </Border>
 
@@ -38,7 +38,7 @@
                                     CommandParameter="Dashboard">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Trang chủ" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Dashboard}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
@@ -46,7 +46,7 @@
                                     CommandParameter="IncomingVehicles">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE77F;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Danh sách xe vào" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Incoming}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
@@ -54,7 +54,7 @@
                                     CommandParameter="Weighing">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Lập phiếu cân" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Weighing}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
@@ -62,7 +62,7 @@
                                     CommandParameter="OutgoingVehicles">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE783;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Danh sách xe ra" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Outgoing}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
@@ -70,7 +70,7 @@
                                     CommandParameter="TicketList">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8A4;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Danh sách phiếu" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Tickets}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
@@ -78,7 +78,7 @@
                                     CommandParameter="Diagnostics">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Diagnostics" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Diagnostics}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
 
@@ -86,7 +86,7 @@
                                     Command="{Binding ToggleSettingsSubmenuCommand}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Cấu hình hệ thống" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Settings}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Button>
 
@@ -95,49 +95,49 @@
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Params">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Tham số hệ thống" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsParams}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Device">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Cấu hình Cân" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsDevice}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Vehicles">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Danh mục Xe" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsVehicles}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Customers">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Danh mục Khách hàng" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsCustomers}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Products">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Danh mục Sản phẩm" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsProducts}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Sync">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Cấu hình đồng bộ" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsSync}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Accounts">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Quản lý tài khoản" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsAccounts}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -159,7 +159,7 @@
                         <Button Style="{StaticResource SidebarMenuItemStyle}" Command="{Binding LogoutCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                <TextBlock Text="Đăng xuất" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>

@@ -11,23 +11,29 @@ namespace StationApp.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.UpdateData(
-                table: "users",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000001"),
-                column: "PasswordHash",
-                value: "$2a$11$163R2ooQUQJV1vz3PUT.suSHkSkXzm9uqReEbooIM8MoZayruJsAm");
+            migrationBuilder.Sql("""
+IF COL_LENGTH('users', 'PasswordHash') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'
+        UPDATE [users]
+        SET [PasswordHash] = ''$2a$11$163R2ooQUQJV1vz3PUT.suSHkSkXzm9uqReEbooIM8MoZayruJsAm''
+        WHERE [Id] = ''00000000-0000-0000-0000-000000000001'';';
+END
+""");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.UpdateData(
-                table: "users",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000001"),
-                column: "PasswordHash",
-                value: null);
+            migrationBuilder.Sql("""
+IF COL_LENGTH('users', 'PasswordHash') IS NOT NULL
+BEGIN
+    EXEC sp_executesql N'
+        UPDATE [users]
+        SET [PasswordHash] = NULL
+        WHERE [Id] = ''00000000-0000-0000-0000-000000000001'';';
+END
+""");
         }
     }
 }

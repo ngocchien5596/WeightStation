@@ -110,7 +110,13 @@ public interface IWeighTicketPrintComposer
 
 public interface IDeliveryTicketPrintComposer
 {
-    DeliveryTicketPrintModel Compose(VehicleRegistration registration, DeliveryTicket deliveryTicket, WeighTicket? weighTicket, Vehicle? vehicle, DateTime printedAtLocal);
+    DeliveryTicketPrintModel Compose(
+        VehicleRegistration registration,
+        DeliveryTicket deliveryTicket,
+        WeighTicket? weighTicket,
+        WeighingSessionLine? sessionLine,
+        Vehicle? vehicle,
+        DateTime printedAtLocal);
 }
 
 public interface IPrintTemplateProvider
@@ -179,10 +185,18 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
 
 public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
 {
-    public DeliveryTicketPrintModel Compose(VehicleRegistration registration, DeliveryTicket deliveryTicket, WeighTicket? weighTicket, Vehicle? vehicle, DateTime printedAtLocal)
+    public DeliveryTicketPrintModel Compose(
+        VehicleRegistration registration,
+        DeliveryTicket deliveryTicket,
+        WeighTicket? weighTicket,
+        WeighingSessionLine? sessionLine,
+        Vehicle? vehicle,
+        DateTime printedAtLocal)
     {
         var vehicleLine = string.Join(" / ", new[] { FirstNonEmpty(weighTicket?.VehiclePlate, registration.VehiclePlate), FirstNonEmpty(weighTicket?.MoocNumber, registration.MoocNumber) }
             .Where(v => !string.IsNullOrWhiteSpace(v)));
+        var actualWeight = deliveryTicket.AllocatedWeight ?? sessionLine?.ActualAllocatedWeight ?? weighTicket?.NetWeight;
+        var actualBagCount = (deliveryTicket.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount)?.ToString(CultureInfo.InvariantCulture);
 
         return new DeliveryTicketPrintModel
         {
@@ -190,12 +204,12 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
             DisplayNumber = FirstNonEmpty(registration.CutOrderCode, deliveryTicket.DeliveryNo) ?? deliveryTicket.DeliveryNo,
             DeliveryNo = deliveryTicket.DeliveryNo,
             CutOrderCode = registration.CutOrderCode,
-            OrderCode = registration.OrderCode,
-            ActualWeight = weighTicket?.NetWeight,
+            OrderCode = FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpVehicleRegistrationId, registration.ErpVehicleRegistrationId),
+            ActualWeight = actualWeight,
             Fields = new[]
             {
-                Field("DeliveryNo", registration.CutOrderCode),
-                Field("ReferenceCode", registration.OrderCode),
+                Field("DeliveryNo", FirstNonEmpty(registration.CutOrderCode, deliveryTicket.DeliveryNo)),
+                Field("ReferenceCode", FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpVehicleRegistrationId, registration.ErpVehicleRegistrationId)),
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),
                 Field("ProductName", registration.ProductName),
@@ -205,8 +219,8 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
                 Field("SealNo", registration.SealNo),
                 Field("PlannedWeight", FormatWeight(registration.PlannedWeight)),
                 Field("BagCount", registration.BagCount?.ToString(CultureInfo.InvariantCulture)),
-                Field("ActualWeight", FormatWeight(weighTicket?.NetWeight)),
-                Field("ActualBagCount", null),
+                Field("ActualWeight", FormatWeight(actualWeight)),
+                Field("ActualBagCount", actualBagCount),
                 Field("VehicleLine", vehicleLine),
                 Field("VehicleRegistrationNo", FirstNonEmpty(weighTicket?.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(weighTicket?.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),

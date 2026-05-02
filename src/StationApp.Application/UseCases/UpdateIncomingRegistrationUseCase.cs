@@ -1,5 +1,6 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.UseCases.MasterData;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -12,19 +13,22 @@ public sealed class UpdateIncomingRegistrationUseCase
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
     private readonly IAuditService _audit;
+    private readonly EnsureInboundMasterDataUseCase _ensureInboundMasterDataUseCase;
 
     public UpdateIncomingRegistrationUseCase(
         IVehicleRegistrationRepository regRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock,
-        IAuditService audit)
+        IAuditService audit,
+        EnsureInboundMasterDataUseCase ensureInboundMasterDataUseCase)
     {
         _regRepo = regRepo;
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
         _audit = audit;
+        _ensureInboundMasterDataUseCase = ensureInboundMasterDataUseCase;
     }
 
     public async Task<OperationResult<VehicleRegistration>> ExecuteAsync(UpdateIncomingRegistrationRequest request, CancellationToken ct)
@@ -64,6 +68,21 @@ public sealed class UpdateIncomingRegistrationUseCase
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
             await _regRepo.UpdateAsync(reg, innerCt);
+            await _ensureInboundMasterDataUseCase.ExecuteAsync(
+                reg.VehiclePlate,
+                reg.MoocNumber,
+                reg.ReceiverName,
+                reg.TransportMethod,
+                reg.CustomerCode,
+                reg.CustomerName,
+                reg.ProductCode,
+                reg.ProductName,
+                innerCt,
+                request.TtcpWeight,
+                request.VehicleRegistrationNo,
+                request.VehicleRegistrationExpiryDate,
+                request.MoocRegistrationNo,
+                request.MoocRegistrationExpiryDate);
         }, ct);
 
         await _audit.LogAsync(

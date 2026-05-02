@@ -186,6 +186,12 @@ namespace StationApp.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("AllocatedBagCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("AllocatedWeight")
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<string>("CustomerCode")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -238,7 +244,7 @@ namespace StationApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("WORKING");
+                        .HasDefaultValue("NORMAL");
 
                     b.Property<Guid?>("SourceDeliveryTicketId")
                         .HasColumnType("uniqueidentifier");
@@ -262,6 +268,12 @@ namespace StationApp.Infrastructure.Migrations
                     b.Property<Guid>("VehicleRegistrationId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("WeighingSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("WeighingSessionLineId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DeliveryNo")
@@ -276,6 +288,12 @@ namespace StationApp.Infrastructure.Migrations
 
                     b.HasIndex("SplitGroupId")
                         .HasDatabaseName("IX_delivery_tickets_split_group_id");
+
+                    b.HasIndex("WeighingSessionId")
+                        .HasDatabaseName("IX_delivery_tickets_weighing_session_id");
+
+                    b.HasIndex("WeighingSessionLineId")
+                        .HasDatabaseName("IX_delivery_tickets_weighing_session_line_id");
 
                     b.ToTable("delivery_tickets", (string)null);
                 });
@@ -761,6 +779,9 @@ namespace StationApp.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<Guid?>("WeighingSessionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt")
@@ -779,6 +800,9 @@ namespace StationApp.Infrastructure.Migrations
 
                     b.HasIndex("VehiclePlate")
                         .HasDatabaseName("IX_vehicle_registrations_vehicle_plate");
+
+                    b.HasIndex("WeighingSessionId")
+                        .HasDatabaseName("IX_vehicle_registrations_weighing_session_id");
 
                     b.HasIndex("ProcessingStage", "IsCancelled")
                         .HasDatabaseName("IX_vehicle_registrations_processing_stage");
@@ -900,7 +924,7 @@ namespace StationApp.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("WORKING");
+                        .HasDefaultValue("MASTER_SESSION");
 
                     b.Property<Guid?>("SourceTicketId")
                         .HasColumnType("uniqueidentifier");
@@ -935,7 +959,7 @@ namespace StationApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<decimal?>("TtcpWeightSnapshot")
+                    b.Property<decimal?>("Ttcp10WeightSnapshot")
                         .HasColumnType("decimal(18,3)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -959,6 +983,9 @@ namespace StationApp.Infrastructure.Migrations
                     b.Property<string>("VehicleRegistrationNoSnapshot")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid?>("WeighingSessionId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal?>("Weight1")
                         .HasColumnType("decimal(18,3)");
@@ -1031,7 +1058,221 @@ namespace StationApp.Infrastructure.Migrations
                     b.HasIndex("VehiclePlate")
                         .HasDatabaseName("IX_weigh_tickets_vehicle_plate");
 
+                    b.HasIndex("WeighingSessionId")
+                        .HasDatabaseName("IX_weigh_tickets_weighing_session_id");
+
                     b.ToTable("weigh_tickets", (string)null);
+                });
+
+            modelBuilder.Entity("StationApp.Domain.Entities.WeighingSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DriverName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("HasPrintedMasterWeighTicket")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsOverweight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("MoocNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("NetWeight")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("OverweightAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("OverweightResolutionStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("OverweightResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OverweightResolvedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SessionNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SessionStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("Ttcp10WeightSnapshot")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VehiclePlate")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("Weight1")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("Weight1Time")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Weight2")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("Weight2Time")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_weighing_sessions_created_at");
+
+                    b.HasIndex("SessionNo")
+                        .IsUnique()
+                        .HasDatabaseName("UX_weighing_sessions_session_no");
+
+                    b.HasIndex("SessionStatus")
+                        .HasDatabaseName("IX_weighing_sessions_status");
+
+                    b.HasIndex("VehiclePlate")
+                        .HasDatabaseName("IX_weighing_sessions_vehicle_plate");
+
+                    b.ToTable("weighing_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("StationApp.Domain.Entities.WeighingSessionLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ActualAllocatedBagCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ActualAllocatedWeight")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CustomerCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid?>("DeliveryTicketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DistributorCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DistributorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("HasPrintedDeliveryTicket")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("LineStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("PlannedBagCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("PlannedWeight")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("ProductCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProductName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("SequenceNo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("VehicleRegistrationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("WeighingSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleRegistrationId")
+                        .HasDatabaseName("IX_weighing_session_lines_registration_id");
+
+                    b.HasIndex("WeighingSessionId")
+                        .HasDatabaseName("IX_weighing_session_lines_session_id");
+
+                    b.HasIndex("WeighingSessionId", "VehicleRegistrationId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_weighing_session_lines_session_registration");
+
+                    b.ToTable("weighing_session_lines", (string)null);
                 });
 #pragma warning restore 612, 618
         }

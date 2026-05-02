@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
@@ -46,7 +47,7 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
 
     public async Task<IReadOnlyList<WeighTicket>> GetPrimaryDisplayTicketsAsync(string? keyword, CancellationToken ct)
     {
-        var query = _db.WeighTickets.Where(t => t.RecordRole == "WORKING" && t.IsPrimaryDisplay && !t.IsDeleted);
+        var query = _db.WeighTickets.Where(t => t.RecordRole == WeighTicketRecordRoles.MasterSession && t.IsPrimaryDisplay && !t.IsDeleted);
         if (!string.IsNullOrWhiteSpace(keyword))
             query = query.Where(t => t.TicketNo.Contains(keyword) || t.VehiclePlate.Contains(keyword));
         
@@ -93,12 +94,30 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<WeighTicket>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
+    {
+        return await _db.WeighTickets
+            .Where(t => t.WeighingSessionId == weighingSessionId && !t.IsDeleted)
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync(ct);
+    }
+
     public async Task<WeighTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
     {
         return await _db.WeighTickets
             .Where(t => t.VehicleRegistrationId == registrationId && t.IsPrimaryDisplay && !t.IsDeleted)
             .OrderBy(t => t.SplitSequence ?? 0)
             .ThenByDescending(t => t.UpdatedAt ?? t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<WeighTicket?> GetPrimaryByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
+    {
+        return await _db.WeighTickets
+            .Where(t => t.WeighingSessionId == weighingSessionId
+                && t.RecordRole == WeighTicketRecordRoles.MasterSession
+                && !t.IsDeleted)
+            .OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt)
             .FirstOrDefaultAsync(ct);
     }
 }

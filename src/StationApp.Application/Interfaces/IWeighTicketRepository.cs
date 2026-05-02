@@ -12,5 +12,7 @@ public interface IWeighTicketRepository
     Task UpdateAsync(WeighTicket ticket, CancellationToken ct);
     Task<IReadOnlyList<WeighTicket>> GetByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
     Task<IReadOnlyList<WeighTicket>> GetAllByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
+    Task<IReadOnlyList<WeighTicket>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
     Task<WeighTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
+    Task<WeighTicket?> GetPrimaryByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
 }

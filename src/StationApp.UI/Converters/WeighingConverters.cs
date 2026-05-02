@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-
-using StationApp.Application.DTOs;
 using StationApp.Domain.Enums;
 
 namespace StationApp.UI.Converters;
@@ -12,14 +10,20 @@ public class WeightToTonConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is decimal weight)
+        {
             return weight / 1000m;
+        }
+
         return 0m;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (decimal.TryParse(value?.ToString(), out var result))
+        {
             return result * 1000m;
+        }
+
         return 0m;
     }
 }
@@ -37,11 +41,15 @@ public class ExpiryToBrushConverter : IValueConverter
         {
             vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         }
+
         var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone).Date;
 
         if (value is DateTime expiry && expiry < today)
+        {
             return new SolidColorBrush(Colors.Red);
-        return new SolidColorBrush(Colors.Transparent); // Or default foreground
+        }
+
+        return new SolidColorBrush(Colors.Transparent);
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -54,8 +62,6 @@ public class OverweightToRowBrushConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        // Design Update: Overloaded records no longer have a background color highlight.
-        // Return Transparent to let default row background/hover/selection take over.
         return Brushes.Transparent;
     }
 
@@ -69,29 +75,40 @@ public class OverweightToForegroundConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        // Try to handle generically using dynamic to support multiple DTO types
         try
         {
-            if (value == null) return Brushes.Black;
-            
-            dynamic item = value;
-            
-            // Check for overweight first (only for WeightViewListItem)
-            try {
-                if (item.HasOverweightCase) return Brushes.Red;
-            } catch { /* Property doesn't exist */ }
+            if (value == null)
+            {
+                return Brushes.Black;
+            }
 
-            // Then check TransactionType
-            try {
+            dynamic item = value;
+            try
+            {
+                if (item.HasOverweightCase)
+                {
+                    return Brushes.Red;
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
                 if (item.TransactionType == TransactionType.OUTBOUND)
+                {
                     return Brushes.Green;
-            } catch { /* Property doesn't exist */ }
+                }
+            }
+            catch
+            {
+            }
         }
         catch
         {
-            // Fallback for safety
         }
-        
+
         return Brushes.Black;
     }
 
@@ -107,9 +124,10 @@ public static class RegistrationStatusMapper
     {
         return status switch
         {
-            RegistrationStatus.REGISTERED => "Chờ cân",
+            RegistrationStatus.REGISTERED => "Đã đăng ký",
+            RegistrationStatus.IN_SESSION => "Đang trong lượt cân",
             RegistrationStatus.LOADING_IN_PROGRESS => "Đang lấy hàng",
-            RegistrationStatus.COMPLETED => "Hoàn thành",
+            RegistrationStatus.COMPLETED => "Đã hoàn tất",
             RegistrationStatus.CANCELLED => "Đã hủy",
             _ => status.ToString()
         };
@@ -118,13 +136,76 @@ public static class RegistrationStatusMapper
     public static string ToDisplayString(string? statusStr)
     {
         if (string.IsNullOrWhiteSpace(statusStr))
+        {
             return string.Empty;
+        }
 
         if (Enum.TryParse<RegistrationStatus>(statusStr, true, out var status))
         {
             return ToDisplayString(status);
         }
+
         return statusStr;
+    }
+}
+
+public static class SessionStatusMapper
+{
+    public static string ToDisplayString(WeighingSessionStatus status)
+    {
+        return status switch
+        {
+            WeighingSessionStatus.PENDING_WEIGHT1 => "Chờ cân lần 1",
+            WeighingSessionStatus.PENDING_WEIGHT2 => "Chờ cân lần 2",
+            WeighingSessionStatus.ALLOCATION_PENDING => "Chờ phân bổ",
+            WeighingSessionStatus.READY_TO_COMPLETE => "Sẵn sàng hoàn tất",
+            WeighingSessionStatus.COMPLETED => "Đã hoàn tất",
+            WeighingSessionStatus.CANCELLED => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+}
+
+public static class SessionLineStatusMapper
+{
+    public static string ToDisplayString(WeighingSessionLineStatus status)
+    {
+        return status switch
+        {
+            WeighingSessionLineStatus.PENDING => "Chưa phân bổ",
+            WeighingSessionLineStatus.ALLOCATED => "Đã phân bổ",
+            WeighingSessionLineStatus.CANCELLED => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+}
+
+public static class OverweightResolutionStatusMapper
+{
+    public static string ToDisplayString(OverweightResolutionStatus status)
+    {
+        return status switch
+        {
+            OverweightResolutionStatus.NOT_APPLICABLE => "Không quá tải",
+            OverweightResolutionStatus.PENDING => "Chờ xử lý quá tải",
+            OverweightResolutionStatus.SPLIT_CONFIRMED => "Đã xác nhận tách tải",
+            OverweightResolutionStatus.NO_SPLIT_CONFIRMED => "Đã xác nhận không tách",
+            _ => status.ToString()
+        };
+    }
+}
+
+public static class RecordRoleMapper
+{
+    public static string ToDisplayString(string? role)
+    {
+        return role switch
+        {
+            "MASTER_SESSION" => "Phiếu cân tổng",
+            "NORMAL" => "Phiếu giao nhận thường",
+            "SPLIT_DERIVED" => "Chứng từ tách tải",
+            _ => role ?? string.Empty
+        };
     }
 }
 
@@ -133,12 +214,74 @@ public class RegistrationStatusDisplayConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is RegistrationStatus status)
+        {
             return RegistrationStatusMapper.ToDisplayString(status);
-            
+        }
+
         if (value is string statusStr)
+        {
             return RegistrationStatusMapper.ToDisplayString(statusStr);
-            
+        }
+
         return string.Empty;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class SessionStatusDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is WeighingSessionStatus status
+            ? SessionStatusMapper.ToDisplayString(status)
+            : string.Empty;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class SessionLineStatusDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is WeighingSessionLineStatus status
+            ? SessionLineStatusMapper.ToDisplayString(status)
+            : string.Empty;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class OverweightResolutionStatusDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is OverweightResolutionStatus status
+            ? OverweightResolutionStatusMapper.ToDisplayString(status)
+            : string.Empty;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class RecordRoleDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return RecordRoleMapper.ToDisplayString(value?.ToString());
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -154,6 +297,19 @@ public class BooleanToStatusConverter : IValueConverter
         return value is bool isActive && isActive
             ? "Đang hoạt động"
             : "Ngừng hoạt động";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class OverweightFlagDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is bool flag && flag ? "Quá tải" : "Bình thường";
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

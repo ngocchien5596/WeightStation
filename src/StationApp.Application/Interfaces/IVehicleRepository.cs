@@ -1,8 +1,9 @@
+using StationApp.Application.DTOs;
 using StationApp.Domain.Entities;
 
 namespace StationApp.Application.Interfaces;
 
-public interface IVehicleRepository
+public interface IVehicleRepository : IVehicleAutocompleteSource
 {
     Task AddAsync(Vehicle vehicle, CancellationToken ct);
     Task UpdateAsync(Vehicle vehicle, CancellationToken ct);

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 
 namespace StationApp.Infrastructure.Persistence.Configurations;
@@ -39,7 +40,8 @@ public class AppConfigEntityConfiguration : IEntityTypeConfiguration<AppConfig>
             new AppConfig { ConfigKey = "retry_base_seconds", ConfigValue = "30", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new AppConfig { ConfigKey = "device_com_port", ConfigValue = "COM1", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new AppConfig { ConfigKey = "device_baudrate", ConfigValue = "9600", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "device_parser_type", ConfigValue = "DEFAULT", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new AppConfig { ConfigKey = "device_parser_type", ConfigValue = "DEFAULT", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = AppConfigKeys.OverweightSplitStepWeight, ConfigValue = "0.0025", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
     }
 }

@@ -182,7 +182,7 @@ public class SyncMasterDataFromInboundTicketUseCase
         // These fields are coming from the ticket delta / inbound payload
         // In a real scenario, the inbound DTO would have these. 
         // For now we assume they are populated in the ticket entity during inbound processing.
-        if (ticket.TtcpWeightSnapshot.HasValue) vehicle.TtcpWeight = ticket.TtcpWeightSnapshot;
+        if (ticket.Ttcp10WeightSnapshot.HasValue) vehicle.TtcpWeight = ticket.Ttcp10WeightSnapshot;
         if (!string.IsNullOrEmpty(ticket.VehicleRegistrationNoSnapshot)) vehicle.VehicleRegistrationNo = ticket.VehicleRegistrationNoSnapshot;
         if (ticket.VehicleRegistrationExpirySnapshot.HasValue) vehicle.VehicleRegistrationExpiryDate = ticket.VehicleRegistrationExpirySnapshot;
         if (!string.IsNullOrEmpty(ticket.MoocRegistrationNoSnapshot)) vehicle.MoocRegistrationNo = ticket.MoocRegistrationNoSnapshot;

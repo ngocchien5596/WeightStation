@@ -37,6 +37,7 @@ public class SmokeTests : IDisposable
                 services.AddScoped<IUserRepository, UserRepository>();
                 services.AddScoped<IUnitOfWork, EfUnitOfWork>();
                 services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
+                services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
                 services.AddSingleton<IAppVersionProvider, AppVersionProvider>();
                 services.AddSingleton<IClock, SystemClock>();
                 services.AddSingleton<ICurrentUserContext, CurrentUserContext>();
@@ -46,6 +47,7 @@ public class SmokeTests : IDisposable
                 services.AddScoped<CreateVehicleRegistrationUseCase>();
                 services.AddScoped<CaptureWeight1UseCase>();
                 services.AddScoped<CaptureWeight2UseCase>();
+                services.AddScoped<EnsurePrimaryDeliveryTicketUseCase>();
                 services.AddScoped<CompleteTicketUseCase>();
                 services.AddScoped<CancelTicketUseCase>();
             })
@@ -56,7 +58,10 @@ public class SmokeTests : IDisposable
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
         db.Database.EnsureDeleted();
-        db.Database.Migrate();
+        StationDatabaseInitializer.InitializeAsync(
+            db,
+            scope.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>(),
+            CancellationToken.None).GetAwaiter().GetResult();
     }
 
     [Fact]

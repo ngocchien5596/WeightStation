@@ -63,6 +63,10 @@ namespace StationApp.UI.ViewModels.Settings
         [RelayCommand]
         private async Task RefreshAsync()
         {
+            PendingRegistrationsCount = 0;
+            PendingTicketsCount = 0;
+            UnprocessedInboundCount = 0;
+            LastSyncError = "N/A";
             await LoadAsync();
             using var scope = _scopeFactory.CreateScope();
             var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();

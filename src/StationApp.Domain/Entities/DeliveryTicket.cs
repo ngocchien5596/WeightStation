@@ -6,11 +6,15 @@ public class DeliveryTicket
 {
     public Guid Id { get; set; }
     public Guid VehicleRegistrationId { get; set; }
+    public Guid? WeighingSessionId { get; set; }
+    public Guid? WeighingSessionLineId { get; set; }
     public string DeliveryNo { get; set; } = string.Empty;
     public string ErpVehicleRegistrationId { get; set; } = string.Empty;
     public string? CustomerCode { get; set; }
     public string? ProductCode { get; set; }
     public string? Notes { get; set; }
+    public decimal? AllocatedWeight { get; set; }
+    public int? AllocatedBagCount { get; set; }
     public bool IsOverWeight { get; set; }
     public bool IsPrinted { get; set; }
     public bool IsDeleted { get; set; }
@@ -21,7 +25,7 @@ public class DeliveryTicket
     public Guid? SplitGroupId { get; set; }
     public byte? SplitSequence { get; set; }
     public Guid? SourceDeliveryTicketId { get; set; }
-    public string RecordRole { get; set; } = "WORKING"; // WORKING, SOURCE
+    public string RecordRole { get; set; } = "NORMAL";
     public SyncStatus SyncStatus { get; set; }
 
     public DateTime CreatedAt { get; set; }

@@ -10,6 +10,7 @@ using Serilog;
 using Serilog.Events;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
+using StationApp.Application.Services;
 using StationApp.Application.UseCases;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Device.Abstractions;
@@ -19,6 +20,7 @@ using StationApp.Infrastructure.Repositories;
 using StationApp.Infrastructure.Services;
 using StationApp.Sync.Services;
 using StationApp.UI.Printing;
+using StationApp.UI.Resources;
 using StationApp.UI.Services;
 using StationApp.UI.ViewModels;
 using StationApp.UI.Views;
@@ -37,7 +39,7 @@ public partial class App : System.Windows.Application
         DispatcherUnhandledException += (s, args) =>
         {
             Log.Fatal(args.Exception, "Unhandled UI Exception");
-            MessageBox.Show($"Lỗi giao diện nghiêm trọng: {args.Exception.Message}", "Lỗi Hệ Thống", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(string.Format(UiText.Startup.UiExceptionFormat, args.Exception.Message), UiText.Startup.UiExceptionTitle, MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
             Shutdown(1);
         };
@@ -48,7 +50,7 @@ public partial class App : System.Windows.Application
             Log.Fatal(ex, "Unhandled AppDomain Exception");
             if (args.IsTerminating)
             {
-                MessageBox.Show($"Lỗi hệ thống nghiêm trọng: {ex?.Message}", "Lỗi Hệ Thống", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(string.Format(UiText.Startup.FatalExceptionFormat, ex?.Message), UiText.Startup.UiExceptionTitle, MessageBoxButton.OK, MessageBoxImage.Error);
             }
         };
 
@@ -120,7 +122,7 @@ public partial class App : System.Windows.Application
                 .ConfigureServices((context, services) =>
                 {
                     var connStr = context.Configuration.GetConnectionString("DefaultConnection")
-                        ?? "Server=.;Database=StationAppLocal;Trusted_Connection=True;TrustServerCertificate=True;";
+                        ?? "Server=.;Database=StationAppLocal;Trusted_Connection=True;Encrypt=False;TrustServerCertificate=True;";
 
                     services.AddDbContext<StationDbContext>(options =>
                         options.UseSqlServer(
@@ -131,6 +133,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<ITicketRepository, TicketRepository>();
                     services.AddScoped<IWeighTicketRepository, TicketRepository>();
                     services.AddScoped<IVehicleRegistrationRepository, VehicleRegistrationRepository>();
+                    services.AddScoped<IWeighingSessionRepository, WeighingSessionRepository>();
                     services.AddScoped<ISyncOutboxRepository, SyncOutboxRepository>();
                     services.AddScoped<IAuditLogRepository, AuditLogRepository>();
                     services.AddScoped<IAppConfigRepository, AppConfigRepository>();
@@ -151,6 +154,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IToleranceProvider, ToleranceProvider>();
                     services.AddScoped<IAuditService, AuditService>();
                     services.AddScoped<ISyncPayloadFactory, SyncPayloadFactory>();
+                    services.AddSingleton<WeighingSessionOverweightService>();
                     services.AddSingleton<PrintOverlayRenderer>();
                     services.AddScoped<IWeighTicketPrintComposer, WeighTicketPrintComposer>();
                     services.AddScoped<IDeliveryTicketPrintComposer, DeliveryTicketPrintComposer>();
@@ -172,6 +176,8 @@ public partial class App : System.Windows.Application
                     services.AddScoped<SearchVehicleMoocOptionsUseCase>();
                     services.AddScoped<SearchCustomerSuggestionsUseCase>();
                     services.AddScoped<SearchProductSuggestionsUseCase>();
+                    services.AddScoped<EnsureInboundMasterDataUseCase>();
+                    services.AddScoped<IAutocompleteService, AutocompleteService>();
                     services.AddScoped<GetWeightViewTicketsUseCase>();
                     services.AddScoped<GetRelatedTicketsUseCase>();
                     services.AddScoped<EnsurePrimaryDeliveryTicketUseCase>();
@@ -184,7 +190,16 @@ public partial class App : System.Windows.Application
                     services.AddScoped<ConfirmEnterWeighingUseCase>();
                     services.AddScoped<CreateInboundRegistrationUseCase>();
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
-                    services.AddScoped<TryMoveToOutYardUseCase>();
+                    services.AddScoped<CreateWeighingSessionUseCase>();
+                    services.AddScoped<CaptureSessionWeight1UseCase>();
+                    services.AddScoped<CaptureSessionWeight2UseCase>();
+                    services.AddScoped<AllocateWeighingSessionUseCase>();
+                    services.AddScoped<PreviewWeighingSessionOverweightSplitUseCase>();
+                    services.AddScoped<ResolveWeighingSessionOverweightSplitUseCase>();
+                    services.AddScoped<ResolveWeighingSessionOverweightNoSplitUseCase>();
+                    services.AddScoped<CompleteWeighingSessionUseCase>();
+                    services.AddScoped<CancelWeighingSessionUseCase>();
+                    services.AddScoped<GetWeighingSessionsUseCase>();
 
                     services.AddTransient<IncomingVehicleListViewModel>();
                     services.AddTransient<OutgoingVehicleListViewModel>();
@@ -259,29 +274,8 @@ public partial class App : System.Windows.Application
         {
             using var scope = _host!.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
-            var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("SchemaCompatibilityBootstrapper");
-
-            using (Helpers.PerformanceLogger.Track("DB Migrate Duration"))
-            {
-                await db.Database.MigrateAsync();
-            }
-
-            using (Helpers.PerformanceLogger.Track("DB Schema Compatibility Duration"))
-            {
-                await SchemaCompatibilityBootstrapper.EnsureAsync(db, logger, CancellationToken.None);
-            }
-
-            using (Helpers.PerformanceLogger.Track("Backfill Data Duration"))
-            {
-                var backfill = new BackfillVehicleRegistrationsService(db);
-                await backfill.ExecuteAsync(CancellationToken.None);
-            }
-
-            using (Helpers.PerformanceLogger.Track("Primary Ticket Repair Duration"))
-            {
-                var repair = new WeighTicketPrimaryRepairService(db);
-                await repair.ExecuteAsync(CancellationToken.None);
-            }
+            var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
+            await StationDatabaseInitializer.InitializeAsync(db, loggerFactory, CancellationToken.None);
         }
     }
 
@@ -294,14 +288,14 @@ public partial class App : System.Windows.Application
 
             if (startupChecks.HasCriticalFailure)
             {
-                var sb = new StringBuilder("Startup checks phát hiện lỗi nghiêm trọng:\n\n");
+                var sb = new StringBuilder(UiText.Startup.StartupChecksHeader);
                 foreach (var r in startupChecks.Results.Where(r => !r.IsOk))
                 {
                     sb.AppendLine($"[X] {r.Name}: {r.Message}");
                 }
 
-                sb.AppendLine("\nỨng dụng có thể không hoạt động đúng.");
-                MessageBox.Show(sb.ToString(), "Station App - Cảnh báo khởi động", MessageBoxButton.OK, MessageBoxImage.Warning);
+                sb.AppendLine(UiText.Startup.StartupChecksFooter);
+                MessageBox.Show(sb.ToString(), UiText.Startup.StartupChecksTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }

@@ -3,7 +3,8 @@ namespace StationApp.Domain.Enums;
 public enum RegistrationStatus
 {
     REGISTERED = 1,
-    LOADING_IN_PROGRESS = 2,
+    IN_SESSION = 2,
+    LOADING_IN_PROGRESS = 3,
     COMPLETED = 4,
     CANCELLED = 5
 }

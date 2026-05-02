@@ -40,7 +40,13 @@ public class VehicleRegistrationEntityConfiguration : IEntityTypeConfiguration<V
 
         builder.Property(e => e.IsCancelled).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.HasOverweightCase).IsRequired().HasDefaultValue(false);
-        builder.Property(e => e.ProcessingStage).HasConversion<string>().HasMaxLength(30).IsRequired().HasDefaultValue(StationApp.Domain.Enums.ProcessingStage.IN_YARD);
+        builder.Property(e => e.ProcessingStage)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired()
+            .HasDefaultValue(StationApp.Domain.Enums.ProcessingStage.IN_YARD)
+            .HasSentinel(StationApp.Domain.Enums.ProcessingStage.IN_YARD);
+        builder.Property(e => e.WeighingSessionId);
 
         builder.Property(e => e.IsInboundProcessed).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.InboundProcessedAt);
@@ -65,6 +71,7 @@ public class VehicleRegistrationEntityConfiguration : IEntityTypeConfiguration<V
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_vehicle_registrations_vehicle_plate");
         builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_vehicle_registrations_created_at");
         builder.HasIndex(e => new { e.ProcessingStage, e.IsCancelled }).HasDatabaseName("IX_vehicle_registrations_processing_stage");
+        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_vehicle_registrations_weighing_session_id");
         
         builder.HasIndex(e => e.ErpVehicleRegistrationId)
                .IsUnique()

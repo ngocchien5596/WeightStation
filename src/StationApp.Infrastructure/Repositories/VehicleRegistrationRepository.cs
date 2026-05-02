@@ -37,10 +37,30 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
         return await _db.VehicleRegistrations.FindAsync(new object[] { id }, ct);
     }
 
+    public async Task<IReadOnlyList<VehicleRegistration>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0)
+        {
+            return Array.Empty<VehicleRegistration>();
+        }
+
+        return await _db.VehicleRegistrations
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync(ct);
+    }
+
     public async Task<VehicleRegistration?> GetByErpIdAsync(string erpVehicleRegistrationId, CancellationToken ct)
     {
         return await _db.VehicleRegistrations
             .FirstOrDefaultAsync(v => v.ErpVehicleRegistrationId == erpVehicleRegistrationId, ct);
+    }
+
+    public async Task<IReadOnlyList<VehicleRegistration>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
+    {
+        return await _db.VehicleRegistrations
+            .Where(x => x.WeighingSessionId == weighingSessionId)
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<VehicleRegistration>> SearchAsync(string? keyword, CancellationToken ct)
@@ -231,6 +251,9 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
         if (!string.IsNullOrWhiteSpace(filter.ProductCode))
             query = query.Where(vr => vr.ProductCode != null && vr.ProductCode.Contains(filter.ProductCode));
 
+        if (!string.IsNullOrWhiteSpace(filter.ProductName))
+            query = query.Where(vr => vr.ProductName != null && vr.ProductName.Contains(filter.ProductName));
+
         var registrations = await query.OrderByDescending(vr => vr.CreatedAt).Take(200).ToListAsync(ct);
 
         return registrations.Select(vr => new IncomingVehicleListItem(
@@ -308,5 +331,134 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
                 relatedDelivery.Count == 0 || relatedDelivery.All(dt => dt.IsPrinted)
             );
         }).ToList().AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => !vr.IsCancelled && vr.VehiclePlate.Contains(normalized))
+            .OrderByDescending(vr => vr.VehiclePlate.StartsWith(normalized))
+            .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
+            .Select(vr => new VehicleAutocompleteSource(
+                vr.VehiclePlate,
+                vr.MoocNumber,
+                vr.ReceiverName,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "HISTORY"))
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchMoocHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => !vr.IsCancelled && vr.MoocNumber != null && vr.MoocNumber.Contains(normalized))
+            .OrderByDescending(vr => vr.MoocNumber != null && vr.MoocNumber.StartsWith(normalized))
+            .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
+            .Select(vr => new VehicleAutocompleteSource(
+                vr.VehiclePlate,
+                vr.MoocNumber,
+                vr.ReceiverName,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "HISTORY"))
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<DriverAutocompleteSource>> SearchDriverHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => !vr.IsCancelled && vr.ReceiverName != null && vr.ReceiverName.Contains(normalized))
+            .OrderByDescending(vr => vr.ReceiverName != null && vr.ReceiverName.StartsWith(normalized))
+            .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
+            .Select(vr => new DriverAutocompleteSource(
+                vr.ReceiverName!,
+                vr.VehiclePlate,
+                vr.MoocNumber,
+                "HISTORY"))
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<CustomerAutocompleteSource>> SearchCustomerHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => !vr.IsCancelled && vr.CustomerName != null
+                && ((vr.CustomerCode != null && vr.CustomerCode.Contains(normalized)) || vr.CustomerName.Contains(normalized)))
+            .OrderByDescending(vr => vr.CustomerName != null && vr.CustomerName.StartsWith(normalized))
+            .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
+            .Select(vr => new CustomerAutocompleteSource(
+                vr.CustomerCode,
+                vr.CustomerName!,
+                "HISTORY"))
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchProductCodeHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => !vr.IsCancelled && vr.ProductCode != null && vr.ProductCode.Contains(normalized))
+            .OrderByDescending(vr => vr.ProductCode != null && vr.ProductCode.StartsWith(normalized))
+            .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
+            .Select(vr => new ProductAutocompleteSource(
+                vr.ProductCode!,
+                vr.ProductName ?? string.Empty,
+                "HISTORY"))
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchProductNameHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var normalized = keyword.Trim();
+
+        var list = await _db.VehicleRegistrations.AsNoTracking()
+            .Where(vr => !vr.IsCancelled && vr.ProductName != null
+                && ((vr.ProductCode != null && vr.ProductCode.Contains(normalized)) || vr.ProductName.Contains(normalized)))
+            .OrderByDescending(vr => vr.ProductName != null && vr.ProductName.StartsWith(normalized))
+            .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
+            .Select(vr => new ProductAutocompleteSource(
+                vr.ProductCode ?? string.Empty,
+                vr.ProductName!,
+                "HISTORY"))
+            .Distinct()
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return list.AsReadOnly();
     }
 }

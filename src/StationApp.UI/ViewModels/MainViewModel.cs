@@ -11,6 +11,8 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
+    private Guid? _pendingWeighingSessionId;
 
     [ObservableProperty] private object? _currentView;
     [ObservableProperty] private string? _currentDestination;
@@ -21,11 +23,20 @@ public partial class MainViewModel : ObservableObject
 
     public string CurrentUserRoleCode => _currentUserContext.RoleCode;
 
+    [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
+
     public MainViewModel(IServiceProvider serviceProvider, ICurrentUserContext currentUserContext)
     {
         _serviceProvider = serviceProvider;
         _currentUserContext = currentUserContext;
         _ = NavigateAsync("IncomingVehicles");
+
+        _clockTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _clockTimer.Tick += (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
+        _clockTimer.Start();
     }
 
     [RelayCommand]
@@ -46,13 +57,20 @@ public partial class MainViewModel : ObservableObject
             {
                 case "Weighing":
                     var weighingVm = _serviceProvider.GetRequiredService<WeighingViewModel>();
+                    weighingVm.NavigateToOutgoingRequested += async () => await NavigateAsync("OutgoingVehicles");
                     CurrentView = new WeighingView { DataContext = weighingVm };
                     await weighingVm.InitializeAsync();
+                    if (_pendingWeighingSessionId.HasValue)
+                    {
+                        await weighingVm.FocusSessionAsync(_pendingWeighingSessionId.Value);
+                        _pendingWeighingSessionId = null;
+                    }
                     break;
                 case "IncomingVehicles":
                     var incomingVm = _serviceProvider.GetRequiredService<IncomingVehicleListViewModel>();
-                    incomingVm.NavigateToWeighingRequested += async (registrationId) =>
+                    incomingVm.NavigateToWeighingRequested += async (sessionId) =>
                     {
+                        _pendingWeighingSessionId = sessionId;
                         await NavigateAsync("Weighing");
                     };
                     CurrentView = new IncomingVehicleListView { DataContext = incomingVm };

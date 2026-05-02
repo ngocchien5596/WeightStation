@@ -102,7 +102,7 @@ public class PrintComposerTests
             MoocRegistrationNoSnapshot = "DK-MOOC-SNAPSHOT"
         };
 
-        var model = composer.Compose(registration, ticket, weigh, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
+        var model = composer.Compose(registration, ticket, weigh, sessionLine: null, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
 
         Assert.Equal("PGN0001", model.DeliveryNo);
         Assert.Equal("ERP-001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
@@ -110,5 +110,95 @@ public class PrintComposerTests
         Assert.Null(model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
         Assert.Equal("Noi tieu thu", model.Fields.Single(x => x.FieldKey == "ConsumptionPlace").Value);
         Assert.Equal("Noi xuat hang", model.Fields.Single(x => x.FieldKey == "LoadingPlace").Value);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_UsesSessionLineAllocation_WhenProvided()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new VehicleRegistration
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang"
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            VehicleRegistrationId = registration.Id,
+            DeliveryNo = "PGN0002",
+            ErpVehicleRegistrationId = "ERP-002"
+        };
+
+        var weigh = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            VehicleRegistrationId = registration.Id,
+            TicketNo = "PC0002",
+            VehiclePlate = registration.VehiclePlate,
+            NetWeight = 20500
+        };
+
+        var sessionLine = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            VehicleRegistrationId = registration.Id,
+            SequenceNo = 1,
+            ActualAllocatedWeight = 10250,
+            ActualAllocatedBagCount = 200
+        };
+
+        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
+
+        Assert.Equal("10,250", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("200", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_PrefersDeliveryTicketAllocatedValues_OverSessionLine()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new VehicleRegistration
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang"
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            VehicleRegistrationId = registration.Id,
+            DeliveryNo = "PGN0003",
+            ErpVehicleRegistrationId = "ERP-003",
+            AllocatedWeight = 2500,
+            AllocatedBagCount = 50
+        };
+
+        var weigh = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            VehicleRegistrationId = registration.Id,
+            TicketNo = "PC0003",
+            VehiclePlate = registration.VehiclePlate,
+            NetWeight = 20500
+        };
+
+        var sessionLine = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            VehicleRegistrationId = registration.Id,
+            SequenceNo = 1,
+            ActualAllocatedWeight = 10250,
+            ActualAllocatedBagCount = 200
+        };
+
+        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
+
+        Assert.Equal("2,500", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("50", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
     }
 }

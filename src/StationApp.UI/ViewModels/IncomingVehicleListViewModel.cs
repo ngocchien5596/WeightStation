@@ -12,7 +12,9 @@ using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
+using StationApp.UI.Resources;
 using StationApp.UI.Services;
+using StationApp.UI.ViewModels.Dialogs;
 
 namespace StationApp.UI.ViewModels;
 
@@ -20,12 +22,14 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IToastService _toastService;
+    private readonly IDialogService _dialogService;
     private readonly ILogger<IncomingVehicleListViewModel>? _logger;
+    private CancellationTokenSource? _customerCodeLookupCts;
 
     public event Action<Guid>? NavigateToWeighingRequested;
 
-    [ObservableProperty] private ObservableCollection<IncomingVehicleListItem> _vehicles = new();
-    [ObservableProperty] private IncomingVehicleListItem? _selectedVehicle;
+    [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _vehicles = new();
+    [ObservableProperty] private IncomingVehicleSelectionItem? _selectedVehicle;
     [ObservableProperty] private string? _searchErpVehicleRegistrationId;
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private bool _isLoading;
@@ -48,24 +52,56 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [ObservableProperty] private TransactionType _formTransactionType = TransactionType.INBOUND;
 
     [ObservableProperty] private decimal? _ttcpWeight;
+    [ObservableProperty] private string? _vehicleRegistrationNo;
     [ObservableProperty] private DateTime? _vehicleRegistrationExpiry;
+    [ObservableProperty] private string? _moocRegistrationNo;
     [ObservableProperty] private DateTime? _moocRegistrationExpiry;
 
-    public string DetailPanelTitle => IsCreateMode ? "TẠO XE NHẬP HÀNG" : "THÔNG TIN XE ĐƯỢC CHỌN";
+    public AutocompleteInputViewModel SearchVehiclePlateInput { get; }
+    public AutocompleteInputViewModel FormVehiclePlateInput { get; }
+    public AutocompleteInputViewModel FormMoocInput { get; }
+    public AutocompleteInputViewModel FormDriverInput { get; }
+    public AutocompleteInputViewModel FormCustomerInput { get; }
+    public AutocompleteInputViewModel FormProductCodeInput { get; }
+    public AutocompleteInputViewModel FormProductNameInput { get; }
+
     public string SaveButtonText => IsCreateMode ? "TẠO XE NHẬP" : "LƯU THAY ĐỔI";
     public bool IsDetailSelectionMode => !IsCreateMode && SelectedVehicle != null;
-    public bool CanConfirmEnterWeighing => SelectedVehicle != null && !IsCreateMode;
+    public bool CanConfirmEnterWeighing => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
     public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0m) * 1.10m);
 
-    public IncomingVehicleListViewModel(IServiceScopeFactory scopeFactory, IToastService toastService, ILogger<IncomingVehicleListViewModel>? logger = null)
+    public IncomingVehicleListViewModel(
+        IServiceScopeFactory scopeFactory,
+        IToastService toastService,
+        IDialogService dialogService,
+        ILogger<IncomingVehicleListViewModel>? logger = null)
     {
         _scopeFactory = scopeFactory;
         _toastService = toastService;
+        _dialogService = dialogService;
         _logger = logger;
+
+        SearchVehiclePlateInput = CreateAutocompleteField(AutocompleteFieldType.Vehicle, 1, item => SearchVehiclePlate = item.Value);
+
+        FormVehiclePlateInput = CreateAutocompleteField(AutocompleteFieldType.Vehicle, 1, ApplyVehicleSelection);
+        FormMoocInput = CreateAutocompleteField(AutocompleteFieldType.Mooc, 1, ApplyMoocSelection);
+        FormDriverInput = CreateAutocompleteField(AutocompleteFieldType.Driver, 2, item => FormDriverName = item.Value);
+        FormCustomerInput = CreateAutocompleteField(AutocompleteFieldType.Customer, 2, ApplyCustomerSelection);
+        FormProductCodeInput = CreateAutocompleteField(AutocompleteFieldType.ProductCode, 1, ApplyProductSelection);
+        FormProductNameInput = CreateAutocompleteField(AutocompleteFieldType.ProductName, 2, ApplyProductSelection);
+
+        WireTextState(SearchVehiclePlateInput, value => SearchVehiclePlate = value);
+        WireTextState(FormVehiclePlateInput, value => FormVehiclePlate = value);
+        WireTextState(FormMoocInput, value => FormMoocNumber = value);
+        WireTextState(FormDriverInput, value => FormDriverName = value);
+        WireTextState(FormCustomerInput, value => FormCustomerName = value);
+        WireTextState(FormProductCodeInput, value => FormProductCode = value);
+        WireTextState(FormProductNameInput, value => FormProductName = value);
+
         BeginCreateMode();
     }
 
-    partial void OnSelectedVehicleChanged(IncomingVehicleListItem? value)
+    partial void OnSelectedVehicleChanged(IncomingVehicleSelectionItem? value)
     {
         if (value == null)
         {
@@ -73,17 +109,19 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         }
 
         _ = LoadSelectedVehicleDetailsAsync(value);
-        OnPropertyChanged(nameof(CanConfirmEnterWeighing));
-        ConfirmEnterWeighingCommand.NotifyCanExecuteChanged();
+        RefreshCreateSessionState();
     }
 
     partial void OnIsCreateModeChanged(bool value)
     {
-        OnPropertyChanged(nameof(DetailPanelTitle));
         OnPropertyChanged(nameof(SaveButtonText));
         OnPropertyChanged(nameof(IsDetailSelectionMode));
-        OnPropertyChanged(nameof(CanConfirmEnterWeighing));
-        ConfirmEnterWeighingCommand.NotifyCanExecuteChanged();
+        RefreshCreateSessionState();
+    }
+
+    partial void OnFormCustomerCodeChanged(string? value)
+    {
+        _ = SyncCustomerByCodeAsync(value);
     }
 
     [RelayCommand]
@@ -101,14 +139,29 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     null,
                     null,
                     null,
+                    null,
                     null),
                 CancellationToken.None);
 
-            Vehicles = new ObservableCollection<IncomingVehicleListItem>(list);
+            var selectedIds = Vehicles.Where(x => x.IsSelected).Select(x => x.RegistrationId).ToHashSet();
+            Vehicles = new ObservableCollection<IncomingVehicleSelectionItem>(
+                list.Select(x =>
+                {
+                    var item = new IncomingVehicleSelectionItem(x);
+                    item.IsSelected = selectedIds.Contains(x.RegistrationId);
+                    item.PropertyChanged += (_, args) =>
+                    {
+                        if (args.PropertyName == nameof(IncomingVehicleSelectionItem.IsSelected))
+                        {
+                            RefreshCreateSessionState();
+                        }
+                    };
+                    return item;
+                }));
 
             if (list.Count == 0 && HasSearchFilters())
             {
-                _toastService.ShowInfo("Không tìm thấy dữ liệu phù hợp.");
+                _toastService.ShowInfo(UiText.Common.NoMatchingData);
             }
 
             if (SelectedVehicle != null)
@@ -119,17 +172,19 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger?.LogError(ex, "LoadIncomingVehicles failed");
-            _toastService.ShowError("Không thể tải danh sách xe vào. Vui lòng thử lại.");
+            _toastService.ShowError(UiText.Common.SearchIncomingLoadError);
         }
         finally
         {
             IsLoading = false;
+            RefreshCreateSessionState();
         }
     }
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private async Task RefreshAsync()
     {
+        BeginCreateMode();
         await LoadVehiclesAsync();
     }
 
@@ -144,7 +199,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(FormVehiclePlate))
         {
-            _toastService.ShowWarning("Vui lòng nhập Số PTVC.");
+            _toastService.ShowWarning(UiText.Common.RequiredVehiclePlate);
             return;
         }
 
@@ -167,16 +222,21 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     FormProductName,
                     FormPlannedWeight,
                     FormBagCount,
-                    FormNotes
+                    FormNotes,
+                    TtcpWeight,
+                    VehicleRegistrationNo,
+                    VehicleRegistrationExpiry,
+                    MoocRegistrationNo,
+                    MoocRegistrationExpiry
                 ), CancellationToken.None);
 
                 if (!result.Success)
                 {
-                    _toastService.ShowError(result.ErrorMessage ?? "Không thể tạo xe nhập hàng.");
+                    _toastService.ShowError(result.ErrorMessage ?? UiText.Incoming.CreateInboundError);
                     return;
                 }
 
-                _toastService.ShowSuccess("Đã tạo xe nhập hàng thành công.");
+                _toastService.ShowSuccess(UiText.Incoming.CreateInboundSuccess);
                 await LoadVehiclesAsync();
 
                 if (result.Data != null)
@@ -190,7 +250,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
             if (!EditingRegistrationId.HasValue)
             {
-                _toastService.ShowWarning("Vui lòng chọn xe cần cập nhật.");
+                _toastService.ShowWarning(UiText.Incoming.UpdateSelectionRequired);
                 return;
             }
 
@@ -209,16 +269,21 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 FormPlannedWeight,
                 FormBagCount,
                 FormNotes,
-                FormIsCancelled
+                FormIsCancelled,
+                TtcpWeight,
+                VehicleRegistrationNo,
+                VehicleRegistrationExpiry,
+                MoocRegistrationNo,
+                MoocRegistrationExpiry
             ), CancellationToken.None);
 
             if (!updateResult.Success)
             {
-                _toastService.ShowError(updateResult.ErrorMessage ?? "Không thể cập nhật thông tin xe vào.");
+                _toastService.ShowError(updateResult.ErrorMessage ?? UiText.Incoming.UpdateInboundError);
                 return;
             }
 
-            _toastService.ShowSuccess("Đã lưu thay đổi thông tin xe vào.");
+            _toastService.ShowSuccess(UiText.Incoming.UpdateInboundSuccess);
             await LoadVehiclesAsync();
 
             if (SelectedVehicle != null)
@@ -229,7 +294,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Save incoming detail failed");
-            _toastService.ShowError("Không thể lưu thông tin xe vào. Vui lòng thử lại.");
+            _toastService.ShowError(UiText.Incoming.SaveInboundError);
         }
     }
 
@@ -253,29 +318,97 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanConfirmEnterWeighing))]
     private async Task ConfirmEnterWeighingAsync()
     {
-        if (SelectedVehicle == null)
+        var selectedVehicles = Vehicles.Where(x => x.IsSelected).ToList();
+        if (selectedVehicles.Count == 0 && SelectedVehicle != null)
         {
-            _toastService.ShowWarning("Vui lòng chọn một xe để xác nhận vào cân.");
+            selectedVehicles.Add(SelectedVehicle);
+        }
+
+        var selectedIds = selectedVehicles.Select(x => x.RegistrationId).ToList();
+        if (selectedIds.Count == 0)
+        {
+            _toastService.ShowWarning(UiText.Incoming.CreateSessionSelectionRequired);
             return;
+        }
+
+        var primaryVehicle = ResolvePrimaryVehicleSelection(selectedVehicles);
+        if (primaryVehicle == null)
+        {
+            _toastService.ShowWarning(UiText.Incoming.CreateSessionSelectionRequired);
+            return;
+        }
+
+        var distinctVehiclePlates = selectedVehicles
+            .Select(x => x.VehiclePlate?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (distinctVehiclePlates.Count > 1)
+        {
+            var selectionVm = new VehicleRepresentativeSelectionDialogViewModel(
+                selectedVehicles
+                    .OrderBy(x => x.CreatedAt)
+                    .ThenBy(x => x.ErpVehicleRegistrationId)
+                    .Select(x => new VehicleRepresentativeOption(
+                        x.RegistrationId,
+                        x.VehiclePlate,
+                        x.MoocNumber,
+                        x.ReceiverName,
+                        x.ErpVehicleRegistrationId,
+                        x.CreatedAt))
+                    .ToList(),
+                primaryVehicle.RegistrationId);
+
+            var selectionResult = await _dialogService.ShowCustomDialogAsync<VehicleRepresentativeSelectionDialogViewModel, VehicleRepresentativeSelectionResult>(selectionVm);
+            if (selectionResult == null)
+            {
+                return;
+            }
+
+            primaryVehicle = selectedVehicles.FirstOrDefault(x => x.RegistrationId == selectionResult.RegistrationId);
+            if (primaryVehicle == null)
+            {
+                return;
+            }
         }
 
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var uc = scope.ServiceProvider.GetRequiredService<ConfirmEnterWeighingUseCase>();
-            await uc.ExecuteAsync(new ConfirmEnterWeighingRequest(SelectedVehicle.RegistrationId), CancellationToken.None);
+            var uc = scope.ServiceProvider.GetRequiredService<CreateWeighingSessionUseCase>();
+            var result = await uc.ExecuteAsync(
+                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.RegistrationId),
+                CancellationToken.None);
 
-            _toastService.ShowSuccess("Đã chuyển xe vào màn Lập phiếu cân.");
+            _toastService.ShowSuccess(UiText.Incoming.CreateSessionSuccess);
 
-            var registrationId = SelectedVehicle.RegistrationId;
             await LoadVehiclesAsync();
-            NavigateToWeighingRequested?.Invoke(registrationId);
+            NavigateToWeighingRequested?.Invoke(result.SessionId);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "ConfirmEnterWeighing failed");
-            _toastService.ShowError("Không thể chuyển xe vào cân. Vui lòng thử lại.");
+            _logger?.LogError(ex, "CreateWeighingSession failed");
+            _toastService.ShowError(ex.Message);
         }
+    }
+
+    private IncomingVehicleSelectionItem? ResolvePrimaryVehicleSelection(IReadOnlyCollection<IncomingVehicleSelectionItem> selectedVehicles)
+    {
+        if (selectedVehicles.Count == 0)
+        {
+            return null;
+        }
+
+        if (SelectedVehicle != null && selectedVehicles.Any(x => x.RegistrationId == SelectedVehicle.RegistrationId))
+        {
+            return SelectedVehicle;
+        }
+
+        return selectedVehicles
+            .OrderBy(x => x.CreatedAt)
+            .ThenBy(x => x.ErpVehicleRegistrationId)
+            .FirstOrDefault();
     }
 
     public async Task InitializeAsync()
@@ -283,7 +416,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         await LoadVehiclesAsync();
     }
 
-    private async Task LoadSelectedVehicleDetailsAsync(IncomingVehicleListItem selected)
+    private async Task LoadSelectedVehicleDetailsAsync(IncomingVehicleSelectionItem selected)
     {
         try
         {
@@ -300,13 +433,13 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             IsCreateMode = false;
             EditingRegistrationId = registration.Id;
             FormErpVehicleRegistrationId = registration.ErpVehicleRegistrationId;
-            FormVehiclePlate = registration.VehiclePlate;
-            FormMoocNumber = registration.MoocNumber;
-            FormDriverName = registration.ReceiverName;
+            SetFormVehiclePlate(registration.VehiclePlate);
+            SetFormMoocNumber(registration.MoocNumber);
+            SetFormDriverName(registration.ReceiverName);
             FormCustomerCode = registration.CustomerCode;
-            FormCustomerName = registration.CustomerName;
-            FormProductCode = registration.ProductCode;
-            FormProductName = registration.ProductName;
+            SetFormCustomerName(registration.CustomerName);
+            SetFormProductCode(registration.ProductCode);
+            SetFormProductName(registration.ProductName);
             FormPlannedWeight = registration.PlannedWeight;
             FormBagCount = registration.BagCount;
             FormNotes = registration.Notes;
@@ -320,14 +453,16 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Load selected incoming vehicle detail failed");
-            _toastService.ShowError("Không thể tải thông tin chi tiết xe vào.");
+            _toastService.ShowError(UiText.Incoming.DetailLoadError);
         }
     }
 
     private async Task LoadVehicleMasterInfoAsync(IVehicleRepository vehicleRepo, string? vehiclePlate, string? moocNumber)
     {
         TtcpWeight = null;
+        VehicleRegistrationNo = null;
         VehicleRegistrationExpiry = null;
+        MoocRegistrationNo = null;
         MoocRegistrationExpiry = null;
         OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
 
@@ -353,7 +488,9 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         }
 
         TtcpWeight = vehicle.TtcpWeight;
+        VehicleRegistrationNo = vehicle.VehicleRegistrationNo;
         VehicleRegistrationExpiry = vehicle.VehicleRegistrationExpiryDate;
+        MoocRegistrationNo = vehicle.MoocRegistrationNo;
         MoocRegistrationExpiry = vehicle.MoocRegistrationExpiryDate;
         OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
     }
@@ -362,6 +499,11 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         IsCreateMode = true;
         SelectedVehicle = null;
+        foreach (var vehicle in Vehicles)
+        {
+            vehicle.IsSelected = false;
+        }
+
         ClearForm();
         FormTransactionType = TransactionType.INBOUND;
         FormTransportMethod = TransportMethod.ROAD;
@@ -371,21 +513,29 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         EditingRegistrationId = null;
         FormErpVehicleRegistrationId = null;
-        FormVehiclePlate = null;
-        FormMoocNumber = null;
-        FormDriverName = null;
+        SetFormVehiclePlate(null);
+        SetFormMoocNumber(null);
+        SetFormDriverName(null);
         FormCustomerCode = null;
-        FormCustomerName = null;
-        FormProductCode = null;
-        FormProductName = null;
+        SetFormCustomerName(null);
+        SetFormProductCode(null);
+        SetFormProductName(null);
         FormPlannedWeight = null;
         FormBagCount = null;
         FormNotes = null;
         FormIsCancelled = false;
         TtcpWeight = null;
+        VehicleRegistrationNo = null;
         VehicleRegistrationExpiry = null;
+        MoocRegistrationNo = null;
         MoocRegistrationExpiry = null;
         OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
+    }
+
+    private void RefreshCreateSessionState()
+    {
+        OnPropertyChanged(nameof(CanConfirmEnterWeighing));
+        ConfirmEnterWeighingCommand.NotifyCanExecuteChanged();
     }
 
     private bool HasSearchFilters()
@@ -393,4 +543,239 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         return !string.IsNullOrWhiteSpace(SearchErpVehicleRegistrationId)
             || !string.IsNullOrWhiteSpace(SearchVehiclePlate);
     }
+
+    private AutocompleteInputViewModel CreateAutocompleteField(
+        AutocompleteFieldType fieldType,
+        int minimumPrefixLength,
+        Action<AutocompleteItem> onSelected)
+    {
+        return new AutocompleteInputViewModel(
+            (keyword, ct) => SearchAutocompleteAsync(fieldType, keyword, ct),
+            onSelected,
+            minimumPrefixLength);
+    }
+
+    private async Task<IReadOnlyList<AutocompleteItem>> SearchAutocompleteAsync(
+        AutocompleteFieldType fieldType,
+        string keyword,
+        CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
+        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword), ct);
+    }
+
+    private static void WireTextState(AutocompleteInputViewModel state, Action<string?> setter)
+    {
+        state.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(AutocompleteInputViewModel.Text))
+            {
+                setter(state.Text);
+            }
+        };
+    }
+
+    private void ApplyVehicleSelection(AutocompleteItem item)
+    {
+        SetFormVehiclePlate(item.Value);
+        if (!string.IsNullOrWhiteSpace(item.Payload?.MoocNumber))
+        {
+            SetFormMoocNumber(item.Payload.MoocNumber);
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Payload?.DriverName))
+        {
+            SetFormDriverName(item.Payload.DriverName);
+        }
+
+        ApplyVehiclePayload(item.Payload);
+    }
+
+    private void ApplyMoocSelection(AutocompleteItem item)
+    {
+        SetFormMoocNumber(item.Value);
+        ApplyVehiclePayload(item.Payload);
+    }
+
+    private void ApplyCustomerSelection(AutocompleteItem item)
+    {
+        FormCustomerCode = item.Payload?.CustomerCode;
+        SetFormCustomerName(item.Payload?.CustomerName ?? item.Value);
+    }
+
+    private void ApplyProductSelection(AutocompleteItem item)
+    {
+        SetFormProductCode(item.Payload?.ProductCode ?? item.Value);
+        SetFormProductName(item.Payload?.ProductName ?? item.Value);
+    }
+
+    private void ApplyVehiclePayload(AutocompletePayload? payload)
+    {
+        if (payload == null)
+        {
+            _ = LoadVehicleMasterInfoAsyncFromFormAsync();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.VehiclePlate))
+        {
+            SetFormVehiclePlate(payload.VehiclePlate);
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.MoocNumber))
+        {
+            SetFormMoocNumber(payload.MoocNumber);
+        }
+
+        if (!string.IsNullOrWhiteSpace(payload.DriverName))
+        {
+            SetFormDriverName(payload.DriverName);
+        }
+
+        TtcpWeight = payload.TtcpWeight;
+        VehicleRegistrationNo = payload.VehicleRegistrationNo;
+        VehicleRegistrationExpiry = payload.VehicleRegistrationExpiryDate;
+        MoocRegistrationNo = payload.MoocRegistrationNo;
+        MoocRegistrationExpiry = payload.MoocRegistrationExpiryDate;
+        OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
+
+        if (payload.TtcpWeight == null && !string.IsNullOrWhiteSpace(FormVehiclePlate))
+        {
+            _ = LoadVehicleMasterInfoAsyncFromFormAsync();
+        }
+    }
+
+    private async Task LoadVehicleMasterInfoAsyncFromFormAsync()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
+        await LoadVehicleMasterInfoAsync(vehicleRepo, FormVehiclePlate, FormMoocNumber);
+    }
+
+    private async Task SyncCustomerByCodeAsync(string? value)
+    {
+        _customerCodeLookupCts?.Cancel();
+        _customerCodeLookupCts?.Dispose();
+
+        var normalizedCode = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        if (normalizedCode == null)
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _customerCodeLookupCts = cts;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var customerRepo = scope.ServiceProvider.GetRequiredService<ICustomerRepository>();
+            var customer = await customerRepo.GetByCodeAsync(normalizedCode, cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (customer != null)
+            {
+                if (!string.Equals(FormCustomerCode, normalizedCode, StringComparison.Ordinal))
+                {
+                    FormCustomerCode = normalizedCode;
+                }
+
+                SetFormCustomerName(customer.CustomerName);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Customer code lookup failed for {CustomerCode}", normalizedCode);
+        }
+        finally
+        {
+            if (ReferenceEquals(_customerCodeLookupCts, cts))
+            {
+                _customerCodeLookupCts = null;
+            }
+
+            cts.Dispose();
+        }
+    }
+
+    private void SetFormVehiclePlate(string? value)
+    {
+        FormVehiclePlate = value;
+        FormVehiclePlateInput.SetText(value);
+    }
+
+    private void SetFormMoocNumber(string? value)
+    {
+        FormMoocNumber = value;
+        FormMoocInput.SetText(value);
+    }
+
+    private void SetFormDriverName(string? value)
+    {
+        FormDriverName = value;
+        FormDriverInput.SetText(value);
+    }
+
+    private void SetFormCustomerName(string? value)
+    {
+        FormCustomerName = value;
+        FormCustomerInput.SetText(value);
+    }
+
+    private void SetFormProductCode(string? value)
+    {
+        FormProductCode = value;
+        FormProductCodeInput.SetText(value);
+    }
+
+    private void SetFormProductName(string? value)
+    {
+        FormProductName = value;
+        FormProductNameInput.SetText(value);
+    }
+}
+
+public partial class IncomingVehicleSelectionItem : ObservableObject
+{
+    public IncomingVehicleSelectionItem(IncomingVehicleListItem item)
+    {
+        RegistrationId = item.RegistrationId;
+        ErpVehicleRegistrationId = item.ErpVehicleRegistrationId;
+        TransactionType = item.TransactionType;
+        VehiclePlate = item.VehiclePlate;
+        MoocNumber = item.MoocNumber;
+        ReceiverName = item.ReceiverName;
+        CustomerName = item.CustomerName;
+        ProductCode = item.ProductCode;
+        ProductName = item.ProductName;
+        PlannedWeight = item.PlannedWeight;
+        BagCount = item.BagCount;
+        RegistrationStatus = item.RegistrationStatus;
+        TransportMethod = item.TransportMethod;
+        CreatedAt = item.CreatedAt;
+    }
+
+    [ObservableProperty] private bool _isSelected;
+
+    public Guid RegistrationId { get; }
+    public string? ErpVehicleRegistrationId { get; }
+    public TransactionType TransactionType { get; }
+    public string VehiclePlate { get; }
+    public string? MoocNumber { get; }
+    public string? ReceiverName { get; }
+    public string? CustomerName { get; }
+    public string? ProductCode { get; }
+    public string? ProductName { get; }
+    public decimal? PlannedWeight { get; }
+    public int? BagCount { get; }
+    public RegistrationStatus RegistrationStatus { get; }
+    public TransportMethod? TransportMethod { get; }
+    public DateTime CreatedAt { get; }
 }

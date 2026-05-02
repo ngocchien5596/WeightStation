@@ -229,7 +229,8 @@ public sealed record IncomingVehicleListFilter(
     string? MoocNumber,
     string? ReceiverName,
     string? CustomerName,
-    string? ProductCode
+    string? ProductCode,
+    string? ProductName
 );
 
 public sealed record OutgoingVehicleListFilter(
@@ -289,7 +290,12 @@ public sealed record CreateInboundRegistrationRequest(
     string? ProductName = null,
     decimal? PlannedWeight = null,
     int? BagCount = null,
-    string? Notes = null
+    string? Notes = null,
+    decimal? TtcpWeight = null,
+    string? VehicleRegistrationNo = null,
+    DateTime? VehicleRegistrationExpiryDate = null,
+    string? MoocRegistrationNo = null,
+    DateTime? MoocRegistrationExpiryDate = null
 );
 
 public sealed record UpdateIncomingRegistrationRequest(
@@ -306,5 +312,192 @@ public sealed record UpdateIncomingRegistrationRequest(
     decimal? PlannedWeight = null,
     int? BagCount = null,
     string? Notes = null,
-    bool IsCancelled = false
+    bool IsCancelled = false,
+    decimal? TtcpWeight = null,
+    string? VehicleRegistrationNo = null,
+    DateTime? VehicleRegistrationExpiryDate = null,
+    string? MoocRegistrationNo = null,
+    DateTime? MoocRegistrationExpiryDate = null
+);
+
+public sealed record CreateWeighingSessionRequest(
+    IReadOnlyList<Guid> RegistrationIds,
+    Guid? PrimaryRegistrationId = null
+);
+
+public sealed record CreateWeighingSessionResult(
+    Guid SessionId
+);
+
+public sealed record CaptureSessionWeightRequest(
+    Guid SessionId,
+    decimal Weight,
+    bool IsStable,
+    WeightMode Mode
+);
+
+public sealed record AllocateWeighingSessionLineRequest(
+    Guid SessionLineId,
+    decimal? ActualAllocatedWeight,
+    int? ActualAllocatedBagCount
+);
+
+public sealed record AllocateWeighingSessionRequest(
+    Guid SessionId,
+    IReadOnlyList<AllocateWeighingSessionLineRequest> Lines
+);
+
+public sealed record CancelWeighingSessionRequest(
+    Guid SessionId
+);
+
+public sealed record WeighingSessionListItem(
+    Guid SessionId,
+    string SessionNo,
+    TransactionType TransactionType,
+    string VehiclePlate,
+    string? MoocNumber,
+    string? DriverName,
+    decimal? Weight1,
+    decimal? Weight2,
+    decimal? NetWeight,
+    decimal? Ttcp10WeightSnapshot,
+    bool IsOverweight,
+    decimal OverweightAmount,
+    OverweightResolutionStatus OverweightResolutionStatus,
+    WeighingSessionStatus SessionStatus,
+    int LineCount,
+    bool HasPrintedMasterWeighTicket,
+    bool AllDeliveryTicketsPrinted,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt
+);
+
+public sealed record WeighingSessionLineItem(
+    Guid SessionLineId,
+    Guid VehicleRegistrationId,
+    int SequenceNo,
+    string? ErpVehicleRegistrationId,
+    string? CustomerName,
+    string? DistributorName,
+    string? ProductCode,
+    string? ProductName,
+    decimal? PlannedWeight,
+    int? PlannedBagCount,
+    decimal? ActualAllocatedWeight,
+    int? ActualAllocatedBagCount,
+    WeighingSessionLineStatus LineStatus,
+    bool HasPrintedDeliveryTicket
+);
+
+public sealed record OverweightSplitPreviewGroupItem(
+    Guid SplitGroupId,
+    byte SplitSequence,
+    decimal GroupWeight,
+    int DeliveryTicketCount
+);
+
+public sealed record OverweightSplitPreviewLineItem(
+    Guid SessionLineId,
+    int SequenceNo,
+    string? ErpVehicleRegistrationId,
+    string? CustomerName,
+    string? ProductName,
+    byte SplitSequence,
+    decimal AllocatedWeight,
+    int? AllocatedBagCount
+);
+
+public sealed record OverweightSplitPreviewDto(
+    Guid SessionId,
+    decimal Ttcp10WeightSnapshot,
+    decimal NetWeight,
+    decimal OverweightAmount,
+    decimal OverweightSplitStepWeight,
+    IReadOnlyList<OverweightSplitPreviewGroupItem> Groups,
+    IReadOnlyList<OverweightSplitPreviewLineItem> Lines
+);
+
+public sealed record OutgoingSessionListItem(
+    Guid SessionId,
+    string SessionNo,
+    TransactionType TransactionType,
+    string VehiclePlate,
+    string? MoocNumber,
+    string? DriverName,
+    decimal? NetWeight,
+    int LineCount,
+    bool HasPrintedMasterWeighTicket,
+    bool AllDeliveryTicketsPrinted,
+    DateTime? CompletedAt
+);
+
+public enum AutocompleteFieldType
+{
+    Vehicle = 1,
+    Mooc = 2,
+    Driver = 3,
+    Customer = 4,
+    ProductCode = 5,
+    ProductName = 6
+}
+
+public sealed record AutocompleteQuery(
+    AutocompleteFieldType FieldType,
+    string SearchText,
+    int Limit = 10
+);
+
+public sealed record AutocompletePayload(
+    string? VehiclePlate = null,
+    string? MoocNumber = null,
+    string? DriverName = null,
+    decimal? TtcpWeight = null,
+    string? VehicleRegistrationNo = null,
+    DateTime? VehicleRegistrationExpiryDate = null,
+    string? MoocRegistrationNo = null,
+    DateTime? MoocRegistrationExpiryDate = null,
+    string? CustomerCode = null,
+    string? CustomerName = null,
+    string? ProductCode = null,
+    string? ProductName = null
+);
+
+public sealed record AutocompleteItem(
+    string Value,
+    string DisplayText,
+    string? SecondaryText,
+    AutocompleteFieldType FieldType,
+    AutocompletePayload? Payload = null
+);
+
+public sealed record VehicleAutocompleteSource(
+    string VehiclePlate,
+    string? MoocNumber,
+    string? DriverName,
+    decimal? TtcpWeight,
+    string? VehicleRegistrationNo,
+    DateTime? VehicleRegistrationExpiryDate,
+    string? MoocRegistrationNo,
+    DateTime? MoocRegistrationExpiryDate,
+    string Source
+);
+
+public sealed record DriverAutocompleteSource(
+    string DriverName,
+    string? VehiclePlate,
+    string? MoocNumber,
+    string Source
+);
+
+public sealed record CustomerAutocompleteSource(
+    string? CustomerCode,
+    string CustomerName,
+    string Source
+);
+
+public sealed record ProductAutocompleteSource(
+    string ProductCode,
+    string ProductName,
+    string Source
 );

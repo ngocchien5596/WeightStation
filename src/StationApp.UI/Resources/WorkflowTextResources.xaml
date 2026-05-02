@@ -8,30 +8,35 @@
     -->
 
     <sys:String x:Key="Workflow.SearchButton">T&#x00CC;M KI&#x1EBE;M</sys:String>
+    <sys:String x:Key="Workflow.RefreshButton">L&#x00C0;M M&#x1EDA;I</sys:String>
+    <sys:String x:Key="Workflow.CloseButton">&#x0110;&#x00D3;NG</sys:String>
     <sys:String x:Key="Workflow.Label.RegistrationId">M&#x00E3; &#x0110;KPT</sys:String>
     <sys:String x:Key="Workflow.Label.VehiclePlate">S&#x1ED1; PTVC</sys:String>
+    <sys:String x:Key="Workflow.Label.Mooc">Mooc</sys:String>
+    <sys:String x:Key="Workflow.Label.DriverName">T&#x00EA;n t&#x00E0;i x&#x1EBF;</sys:String>
+    <sys:String x:Key="Workflow.Label.CustomerName">Kh&#x00E1;ch h&#x00E0;ng</sys:String>
+    <sys:String x:Key="Workflow.Label.ProductCode">M&#x00E3; SP</sys:String>
+    <sys:String x:Key="Workflow.Label.ProductName">T&#x00EA;n s&#x1EA3;n ph&#x1EA9;m</sys:String>
+    <sys:String x:Key="Workflow.Label.Notes">Ghi ch&#x00FA;</sys:String>
+    <sys:String x:Key="Workflow.Label.Ttcp">TTCP</sys:String>
+    <sys:String x:Key="Workflow.Message.NoMatchingData">Kh&#x00F4;ng c&#x00F3; d&#x1EEF; li&#x1EC7;u ph&#x00F9; h&#x1EE3;p</sys:String>
 
     <sys:String x:Key="Incoming.Title">DANH S&#x00C1;CH XE V&#x00C0;O</sys:String>
-    <sys:String x:Key="Incoming.Action.ConfirmEnterWeighing">X&#x00C1;C NH&#x1EAC;N V&#x00C0;O C&#x00C2;N</sys:String>
-    <sys:String x:Key="Incoming.Action.CreateVehicle">T&#x1EA0;O XE NH&#x1EAC;P</sys:String>
+    <sys:String x:Key="Incoming.Action.CreateSession">T&#x1EA0;O L&#x01AF;&#x1EE2;T C&#x00C2;N</sys:String>
     <sys:String x:Key="Incoming.Form.Title">T&#x1EA0;O XE NH&#x1EAC;P H&#x00C0;NG</sys:String>
-    <sys:String x:Key="Incoming.Form.TransactionType">Lo&#x1EA1;i *</sys:String>
+    <sys:String x:Key="Incoming.Form.TransactionType">Lo&#x1EA1;i</sys:String>
     <sys:String x:Key="Incoming.Form.Inbound">Nh&#x1EAD;p h&#x00E0;ng</sys:String>
     <sys:String x:Key="Incoming.Form.Outbound">Xu&#x1EA5;t h&#x00E0;ng</sys:String>
-    <sys:String x:Key="Incoming.Form.VehiclePlate">S&#x1ED1; PTVC *</sys:String>
-    <sys:String x:Key="Incoming.Form.Mooc">Mooc</sys:String>
     <sys:String x:Key="Incoming.Form.TransportMethod">HTVC</sys:String>
-    <sys:String x:Key="Incoming.Form.Road">Đ&#x01B0;&#x1EDD;ng b&#x1ED9;</sys:String>
-    <sys:String x:Key="Incoming.Form.Waterway">Đ&#x01B0;&#x1EDD;ng th&#x1EE7;y</sys:String>
-    <sys:String x:Key="Incoming.Form.DriverName">T&#x00EA;n t&#x00E0;i x&#x1EBF;</sys:String>
-    <sys:String x:Key="Incoming.Form.ProductCode">M&#x00E3; SP</sys:String>
-    <sys:String x:Key="Incoming.Form.CustomerName">Kh&#x00E1;ch h&#x00E0;ng</sys:String>
-    <sys:String x:Key="Incoming.Form.PlannedWeight">SL đ&#x1EB7;t (kg)</sys:String>
+    <sys:String x:Key="Incoming.Form.Road">&#x0110;&#x01B0;&#x1EDD;ng b&#x1ED9;</sys:String>
+    <sys:String x:Key="Incoming.Form.Waterway">&#x0110;&#x01B0;&#x1EDD;ng th&#x1EE7;y</sys:String>
+    <sys:String x:Key="Incoming.Form.VehicleRegistrationExpiry">H&#x1EA1;n &#x0110;K Xe</sys:String>
+    <sys:String x:Key="Incoming.Form.MoocRegistrationExpiry">H&#x1EA1;n &#x0110;K Mooc</sys:String>
+    <sys:String x:Key="Incoming.Form.PlannedWeight">SL &#x0111;&#x1EB7;t</sys:String>
     <sys:String x:Key="Incoming.Form.BagCount">S&#x1ED1; bao</sys:String>
-    <sys:String x:Key="Incoming.Form.Notes">Ghi ch&#x00FA;</sys:String>
-    <sys:String x:Key="Incoming.Form.Create">T&#x1EA0;O</sys:String>
-    <sys:String x:Key="Incoming.Form.Cancel">H&#x1EE6;Y</sys:String>
+    <sys:String x:Key="Incoming.Action.Reset">HO&#x00C0;N T&#x00C1;C</sys:String>
 
+    <sys:String x:Key="Incoming.Column.Select">CH&#x1ECC;N</sys:String>
     <sys:String x:Key="Incoming.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
     <sys:String x:Key="Incoming.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Incoming.Column.TransportMethod">HTVC</sys:String>
@@ -41,12 +46,30 @@
     <sys:String x:Key="Incoming.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
     <sys:String x:Key="Incoming.Column.ProductCode">M&#x00C3; SP</sys:String>
     <sys:String x:Key="Incoming.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
-    <sys:String x:Key="Incoming.Column.PlannedWeight">SL Đ&#x1EB6;T (KG)</sys:String>
+    <sys:String x:Key="Incoming.Column.PlannedWeight">SL &#x0110;&#x1EB6;T (KG)</sys:String>
     <sys:String x:Key="Incoming.Column.BagCount">S&#x1ED0; BAO</sys:String>
-    <sys:String x:Key="Incoming.Column.Notes">GHI CH&#x00DA;</sys:String>
     <sys:String x:Key="Incoming.Column.CreatedAt">TH&#x1EDC;I GIAN T&#x1EA0;O</sys:String>
 
+    <sys:String x:Key="Weighing.Title">L&#x1EAC;P PHI&#x1EBE;U C&#x00C2;N</sys:String>
+    <sys:String x:Key="Weighing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n</sys:String>
+    <sys:String x:Key="Weighing.Label.TransactionType">Lo&#x1EA1;i</sys:String>
+    <sys:String x:Key="Weighing.Label.DriverName">T&#x00E0;i x&#x1EBF;</sys:String>
+    <sys:String x:Key="Weighing.Label.Status">Tr&#x1EA1;ng th&#x00E1;i</sys:String>
+    <sys:String x:Key="Weighing.Label.Product">S&#x1EA3;n ph&#x1EA9;m</sys:String>
+    <sys:String x:Key="Weighing.Mode.Auto">C&#x00E2;n t&#x1EF1; &#x0111;&#x1ED9;ng</sys:String>
+    <sys:String x:Key="Weighing.Mode.Manual">C&#x00E2;n tay</sys:String>
+    <sys:String x:Key="Weighing.Weight1">C&#x00E2;n l&#x1EA7;n 1</sys:String>
+    <sys:String x:Key="Weighing.Weight2">C&#x00E2;n l&#x1EA7;n 2</sys:String>
+    <sys:String x:Key="Weighing.Action.Allocate">PH&#x00C2;N B&#x1ED4;</sys:String>
+    <sys:String x:Key="Weighing.Action.RelatedTickets">PHI&#x1EBE;U LI&#x00CA;N QUAN</sys:String>
+    <sys:String x:Key="Weighing.Action.Cancel">H&#x1EE6;Y</sys:String>
+    <sys:String x:Key="Weighing.Action.AllocateByPlan">THEO K&#x1EBE; HO&#x1EA0;CH</sys:String>
+    <sys:String x:Key="Weighing.Action.Confirm">X&#x00C1;C NH&#x1EAC;N</sys:String>
+    <sys:String x:Key="Weighing.Dialog.AllocationTitle">PH&#x00C2;N B&#x1ED4; TH&#x1EF0;C GIAO</sys:String>
+    <sys:String x:Key="Weighing.Dialog.RelatedTitle">DANH S&#x00C1;CH PHI&#x1EBE;U LI&#x00CA;N QUAN</sys:String>
+
     <sys:String x:Key="Outgoing.Title">DANH S&#x00C1;CH XE RA</sys:String>
+    <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
     <sys:String x:Key="Outgoing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Outgoing.Column.TransportMethod">HTVC</sys:String>
@@ -57,4 +80,35 @@
     <sys:String x:Key="Outgoing.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
     <sys:String x:Key="Outgoing.Column.NetWeight">TL H&#x00C0;NG (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.CompletedAt">TH&#x1EDC;I GIAN XONG</sys:String>
+
+    <sys:String x:Key="Diagnostics.Title">DIAGNOSTICS</sys:String>
+    <sys:String x:Key="Diagnostics.Refresh">Refresh</sys:String>
+    <sys:String x:Key="Diagnostics.DeviceTitle">THI&#x1EBE;T B&#x1ECA; C&#x00C2;N</sys:String>
+    <sys:String x:Key="Diagnostics.RawFrame">RAW FRAME:</sys:String>
+    <sys:String x:Key="Diagnostics.SubstringPreview">SUBSTRING PREVIEW:</sys:String>
+    <sys:String x:Key="Diagnostics.Weight">TR&#x1ECC;NG L&#x01AF;&#x1EE2;NG</sys:String>
+    <sys:String x:Key="Diagnostics.Stable">&#x1ED4;N &#x0110;&#x1ECA;NH</sys:String>
+    <sys:String x:Key="Diagnostics.Parser">Parser:</sys:String>
+    <sys:String x:Key="Diagnostics.SyncTitle">&#x0110;&#x1ED2;NG B&#x1ED8; V&#x00C0; H&#x1EC6; TH&#x1ED0;NG</sys:String>
+    <sys:String x:Key="Diagnostics.OutboxQueue">OUTBOX QUEUE</sys:String>
+    <sys:String x:Key="Diagnostics.CentralApiUrl">CENTRAL API URL</sys:String>
+    <sys:String x:Key="Diagnostics.MasterDataLastSync">MASTER DATA &#x0110;&#x1ED2;NG B&#x1ED8; L&#x1EA6;N CU&#x1ED0;I</sys:String>
+    <sys:String x:Key="Diagnostics.MasterDataStatus">MASTER DATA STATUS</sys:String>
+
+    <sys:String x:Key="MainWindow.Title">Qu&#x1EA3;n l&#x00FD; tr&#x1EA1;m c&#x00E2;n - XMCP</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Dashboard">Trang ch&#x1EE7;</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Incoming">Danh s&#x00E1;ch xe v&#x00E0;o</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Weighing">L&#x1EAD;p phi&#x1EBF;u c&#x00E2;n</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Outgoing">Danh s&#x00E1;ch xe ra</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Tickets">Danh s&#x00E1;ch phi&#x1EBF;u</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Diagnostics">Diagnostics</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Settings">C&#x1EA5;u h&#x00EC;nh h&#x1EC7; th&#x1ED1;ng</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsParams">Tham s&#x1ED1; h&#x1EC7; th&#x1ED1;ng</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsDevice">C&#x1EA5;u h&#x00EC;nh C&#x00E2;n</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsVehicles">Danh m&#x1EE5;c Xe</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsCustomers">Danh m&#x1EE5;c Kh&#x00E1;ch h&#x00E0;ng</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsProducts">Danh m&#x1EE5;c S&#x1EA3;n ph&#x1EA9;m</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsSync">C&#x1EA5;u h&#x00EC;nh &#x0111;&#x1ED3;ng b&#x1ED9;</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsAccounts">Qu&#x1EA3;n l&#x00FD; t&#x00E0;i kho&#x1EA3;n</sys:String>
+    <sys:String x:Key="MainWindow.Nav.Logout">&#x0110;&#x0103;ng xu&#x1EA5;t</sys:String>
 </ResourceDictionary>

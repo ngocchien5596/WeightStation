@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
 using StationApp.UI.Services;
+using StationApp.Domain.Enums;
 
 namespace StationApp.UI.ViewModels.Settings
 {
@@ -28,8 +29,8 @@ namespace StationApp.UI.ViewModels.Settings
         [ObservableProperty] private string _editVehiclePlate = string.Empty;
         [ObservableProperty] private string _editMoocNumber = string.Empty;
         [ObservableProperty] private string _editDriverName = string.Empty;
-        [ObservableProperty] private string _editTransportMethod = string.Empty;
-        [ObservableProperty] private string _editTtcpWeight = string.Empty;
+        [ObservableProperty] private TransportMethod? _editTransportMethod = TransportMethod.ROAD;
+        [ObservableProperty] private decimal? _editTtcpWeight;
         [ObservableProperty] private string _editVehicleRegistrationNo = string.Empty;
         [ObservableProperty] private DateTime? _editVehicleRegistrationExpiryDate;
         [ObservableProperty] private string _editMoocRegistrationNo = string.Empty;
@@ -46,8 +47,8 @@ namespace StationApp.UI.ViewModels.Settings
                 EditVehiclePlate = value.VehiclePlate;
                 EditMoocNumber = value.MoocNumber;
                 EditDriverName = value.DriverName ?? string.Empty;
-                EditTransportMethod = value.TransportMethod ?? string.Empty;
-                EditTtcpWeight = value.TtcpWeight?.ToString() ?? string.Empty;
+                EditTransportMethod = Enum.TryParse<TransportMethod>(value.TransportMethod, out var tm) ? tm : null;
+                EditTtcpWeight = value.TtcpWeight;
                 EditVehicleRegistrationNo = value.VehicleRegistrationNo ?? string.Empty;
                 EditVehicleRegistrationExpiryDate = value.VehicleRegistrationExpiryDate;
                 EditMoocRegistrationNo = value.MoocRegistrationNo ?? string.Empty;
@@ -82,8 +83,8 @@ namespace StationApp.UI.ViewModels.Settings
             EditVehiclePlate = string.Empty;
             EditMoocNumber = string.Empty;
             EditDriverName = string.Empty;
-            EditTransportMethod = string.Empty;
-            EditTtcpWeight = string.Empty;
+            EditTransportMethod = TransportMethod.ROAD;
+            EditTtcpWeight = null;
             EditVehicleRegistrationNo = string.Empty;
             EditVehicleRegistrationExpiryDate = null;
             EditMoocRegistrationNo = string.Empty;
@@ -107,11 +108,6 @@ namespace StationApp.UI.ViewModels.Settings
                 return;
             }
 
-            decimal? ttcpParsed = null;
-            if (!string.IsNullOrWhiteSpace(EditTtcpWeight) && decimal.TryParse(EditTtcpWeight, out var val))
-            {
-                ttcpParsed = val;
-            }
 
             try
             {
@@ -130,8 +126,8 @@ namespace StationApp.UI.ViewModels.Settings
                         VehiclePlate = EditVehiclePlate.Trim(),
                         MoocNumber = EditMoocNumber.Trim(),
                         DriverName = EditDriverName.Trim(),
-                        TransportMethod = EditTransportMethod.Trim(),
-                        TtcpWeight = ttcpParsed,
+                        TransportMethod = EditTransportMethod?.ToString(),
+                        TtcpWeight = EditTtcpWeight,
                         VehicleRegistrationNo = EditVehicleRegistrationNo.Trim(),
                         VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate,
                         MoocRegistrationNo = EditMoocRegistrationNo.Trim(),
@@ -147,8 +143,8 @@ namespace StationApp.UI.ViewModels.Settings
                     SelectedVehicle.VehiclePlate = EditVehiclePlate.Trim();
                     SelectedVehicle.MoocNumber = EditMoocNumber.Trim();
                     SelectedVehicle.DriverName = EditDriverName.Trim();
-                    SelectedVehicle.TransportMethod = EditTransportMethod.Trim();
-                    SelectedVehicle.TtcpWeight = ttcpParsed;
+                    SelectedVehicle.TransportMethod = EditTransportMethod?.ToString();
+                    SelectedVehicle.TtcpWeight = EditTtcpWeight;
                     SelectedVehicle.VehicleRegistrationNo = EditVehicleRegistrationNo.Trim();
                     SelectedVehicle.VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate;
                     SelectedVehicle.MoocRegistrationNo = EditMoocRegistrationNo.Trim();
@@ -162,8 +158,8 @@ namespace StationApp.UI.ViewModels.Settings
                         existing.VehiclePlate = EditVehiclePlate.Trim();
                         existing.MoocNumber = EditMoocNumber.Trim();
                         existing.DriverName = EditDriverName.Trim();
-                        existing.TransportMethod = EditTransportMethod.Trim();
-                        existing.TtcpWeight = ttcpParsed;
+                        existing.TransportMethod = EditTransportMethod?.ToString();
+                        existing.TtcpWeight = EditTtcpWeight;
                         existing.VehicleRegistrationNo = EditVehicleRegistrationNo.Trim();
                         existing.VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate;
                         existing.MoocRegistrationNo = EditMoocRegistrationNo.Trim();

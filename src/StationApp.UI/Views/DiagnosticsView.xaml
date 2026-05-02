@@ -19,8 +19,8 @@
         </Grid.RowDefinitions>
 
         <DockPanel Margin="0,0,0,24">
-            <TextBlock Text="DIAGNOSTICS" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}"/>
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}"
+            <TextBlock Text="{StaticResource Diagnostics.Title}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}"/>
+            <Button Content="{StaticResource Diagnostics.Refresh}" Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}"
                     HorizontalAlignment="Right" DockPanel.Dock="Right"/>
         </DockPanel>
 
@@ -32,19 +32,19 @@
 
             <Border Grid.Column="0" Background="{DynamicResource CardBrush}" CornerRadius="12" Padding="20" Margin="0,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="THIET BI CAN" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,16"/>
+                    <TextBlock Text="{StaticResource Diagnostics.DeviceTitle}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,16"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                         <Ellipse Width="12" Height="12" Fill="{Binding DeviceConnectionBrush}" Margin="0,0,8,0"/>
                         <TextBlock Text="{Binding DeviceConnectionStatus}" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}"/>
                     </StackPanel>
 
-                    <TextBlock Text="RAW FRAME:" Foreground="Gray" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBlock Text="{StaticResource Diagnostics.RawFrame}" Foreground="Gray" FontSize="12" Margin="0,0,0,4"/>
                     <Border Background="Black" CornerRadius="6" Padding="12" Margin="0,0,0,12">
                         <TextBlock Text="{Binding RawFrame}" FontFamily="Consolas" Foreground="#00FF00" FontSize="14" TextWrapping="Wrap" MinHeight="40"/>
                     </Border>
 
-                    <TextBlock Text="SUBSTRING PREVIEW:" Foreground="Gray" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBlock Text="{StaticResource Diagnostics.SubstringPreview}" Foreground="Gray" FontSize="12" Margin="0,0,0,4"/>
                     <Border Background="Black" CornerRadius="6" Padding="12" Margin="0,0,0,12">
                         <TextBlock Text="{Binding SubstringPreview}" FontFamily="Consolas" Foreground="#3498db" FontSize="14" TextWrapping="Wrap" MinHeight="40"/>
                     </Border>
@@ -55,17 +55,17 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="TRONG LUONG" Foreground="Gray" FontSize="12"/>
+                            <TextBlock Text="{StaticResource Diagnostics.Weight}" Foreground="Gray" FontSize="12"/>
                             <TextBlock Text="{Binding LiveWeight, StringFormat='{}{0:N0} kg'}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="ON DINH" Foreground="Gray" FontSize="12"/>
+                            <TextBlock Text="{StaticResource Diagnostics.Stable}" Foreground="Gray" FontSize="12"/>
                             <TextBlock Text="{Binding LiveIsStable}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}"/>
                         </StackPanel>
                     </Grid>
 
                     <StackPanel Orientation="Horizontal" Margin="0,4">
-                        <TextBlock Text="Parser: " Foreground="Gray"/>
+                        <TextBlock Text="{StaticResource Diagnostics.Parser}" Foreground="Gray"/>
                         <TextBlock Text="{Binding ParserType}" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}"/>
                     </StackPanel>
 
@@ -78,18 +78,18 @@
 
             <Border Grid.Column="1" Background="{DynamicResource CardBrush}" CornerRadius="12" Padding="20" Margin="8,0,0,0">
                 <StackPanel>
-                    <TextBlock Text="DONG BO VA HE THONG" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,16"/>
+                    <TextBlock Text="{StaticResource Diagnostics.SyncTitle}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,16"/>
 
-                    <TextBlock Text="OUTBOX QUEUE" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Diagnostics.OutboxQueue}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding PendingSyncCount}" FontSize="48" FontWeight="Bold" Foreground="#f1c40f" Margin="0,4,0,12"/>
 
-                    <TextBlock Text="CENTRAL API URL" Foreground="Gray" FontSize="12" Margin="0,8,0,4"/>
+                    <TextBlock Text="{StaticResource Diagnostics.CentralApiUrl}" Foreground="Gray" FontSize="12" Margin="0,8,0,4"/>
                     <TextBlock Text="{Binding CentralApiUrl}" FontSize="14" Foreground="{DynamicResource ForegroundBrush}" TextWrapping="Wrap"/>
 
-                    <TextBlock Text="MASTER DATA DONG BO LAN CUOI" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>
+                    <TextBlock Text="{StaticResource Diagnostics.MasterDataLastSync}" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>
                     <TextBlock Text="{Binding LastMasterDataSync}" FontSize="14" Foreground="{DynamicResource ForegroundBrush}"/>
 
-                    <TextBlock Text="MASTER DATA STATUS" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>
+                    <TextBlock Text="{StaticResource Diagnostics.MasterDataStatus}" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>
                     <TextBlock Text="{Binding MasterDataSyncStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}"/>
                     <Border Background="#22FFAA00" CornerRadius="6" Padding="8" Margin="0,8,0,0"
                             Visibility="{Binding MasterDataSyncError, Converter={StaticResource StringToVis}, FallbackValue=Collapsed}">

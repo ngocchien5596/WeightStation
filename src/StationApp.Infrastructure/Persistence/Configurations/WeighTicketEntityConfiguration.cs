@@ -12,6 +12,7 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.ToTable("weigh_tickets");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.VehicleRegistrationId).IsRequired();
+        builder.Property(e => e.WeighingSessionId);
 
         builder.Property(e => e.TicketNo).HasMaxLength(20).IsRequired();
         builder.Property(e => e.ErpVehicleRegistrationId).HasMaxLength(50);
@@ -46,12 +47,12 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
         // Phase 2 Delta Snapshots
-        builder.Property(e => e.TtcpWeightSnapshot).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.Ttcp10WeightSnapshot).HasColumnType("decimal(18,3)");
         builder.Property(e => e.VehicleRegistrationNoSnapshot).HasMaxLength(50);
         builder.Property(e => e.MoocRegistrationNoSnapshot).HasMaxLength(50);
 
         // Phase 2 Delta Logic
-        builder.Property(e => e.RecordRole).HasMaxLength(20).IsRequired().HasDefaultValue("WORKING");
+        builder.Property(e => e.RecordRole).HasMaxLength(20).IsRequired().HasDefaultValue("MASTER_SESSION");
         builder.Property(e => e.IsPrimaryDisplay).IsRequired();
         builder.Property(e => e.IsOverWeight).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.IsPrinted).IsRequired().HasDefaultValue(false);
@@ -72,5 +73,6 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.HasIndex(e => e.Status).HasDatabaseName("IX_weigh_tickets_status");
         builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_weigh_tickets_sync_status");
         builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_weigh_tickets_created_at");
+        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_weigh_tickets_weighing_session_id");
     }
 }
