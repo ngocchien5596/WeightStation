@@ -1,4 +1,5 @@
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 
 namespace StationApp.Application.Interfaces;
 
@@ -12,5 +13,6 @@ public interface IDeliveryTicketRepository
     Task<IReadOnlyList<DeliveryTicket>> GetByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
     Task<IReadOnlyList<DeliveryTicket>> GetAllByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
     Task<IReadOnlyList<DeliveryTicket>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
+    Task<IReadOnlyList<DeliveryTicket>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct);
     Task<DeliveryTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct);
 }

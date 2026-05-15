@@ -88,6 +88,26 @@ public sealed record CurrentUserSessionDto(
     bool IsAuthenticated
 );
 
+public sealed record UpdateSystemSettingsRequest(
+    string StationCode,
+    string TicketPrefix,
+    string DeliveryPrefix,
+    string ToleranceKg,
+    string SyncIntervalSeconds,
+    string RegistrationInboundPollSeconds,
+    string OverweightSplitStepWeight,
+    bool PilotModeEnabled
+);
+
+public sealed record UpdateScaleDeviceSettingsRequest(
+    string ComPort,
+    string Baudrate,
+    string ParserType,
+    string FrameEndChar,
+    string WeightSubstringStart,
+    string WeightSubstringLength
+);
+
 public sealed record UserListItemDto(
     Guid Id,
     string Username,
@@ -325,6 +345,11 @@ public sealed record CreateWeighingSessionRequest(
     Guid? PrimaryRegistrationId = null
 );
 
+public sealed record MarkRegistrationsNoLoadRequest(
+    IReadOnlyList<Guid> RegistrationIds,
+    Guid? PrimaryRegistrationId = null
+);
+
 public sealed record CreateWeighingSessionResult(
     Guid SessionId
 );
@@ -348,6 +373,10 @@ public sealed record AllocateWeighingSessionRequest(
 );
 
 public sealed record CancelWeighingSessionRequest(
+    Guid SessionId
+);
+
+public sealed record MarkWeighingSessionNoLoadRequest(
     Guid SessionId
 );
 
@@ -397,6 +426,18 @@ public sealed record OverweightSplitPreviewGroupItem(
     int DeliveryTicketCount
 );
 
+public sealed record PreviewWeighingSessionOverweightSplitRequest(
+    Guid SessionId,
+    decimal? FirstSplitNetWeight = null,
+    bool IsManualOverride = false
+);
+
+public sealed record ResolveWeighingSessionOverweightSplitRequest(
+    Guid SessionId,
+    decimal? FirstSplitNetWeight = null,
+    bool IsManualOverride = false
+);
+
 public sealed record OverweightSplitPreviewLineItem(
     Guid SessionLineId,
     int SequenceNo,
@@ -414,6 +455,10 @@ public sealed record OverweightSplitPreviewDto(
     decimal NetWeight,
     decimal OverweightAmount,
     decimal OverweightSplitStepWeight,
+    decimal SplitTicket1NetWeight,
+    decimal SplitTicket2NetWeight,
+    decimal? RandomSplitFactor,
+    bool IsManualOverride,
     IReadOnlyList<OverweightSplitPreviewGroupItem> Groups,
     IReadOnlyList<OverweightSplitPreviewLineItem> Lines
 );

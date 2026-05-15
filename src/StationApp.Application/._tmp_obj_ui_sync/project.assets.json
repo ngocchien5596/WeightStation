@@ -1,0 +1,94 @@
+{
+  "version": 3,
+  "targets": {
+    "net8.0": {
+      "StationApp.Domain/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v8.0",
+        "compile": {
+          "bin/placeholder/StationApp.Domain.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/StationApp.Domain.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "StationApp.Domain/1.0.0": {
+      "type": "project",
+      "path": "../StationApp.Domain/StationApp.Domain.csproj",
+      "msbuildProject": "../StationApp.Domain/StationApp.Domain.csproj"
+    }
+  },
+  "projectFileDependencyGroups": {
+    "net8.0": [
+      "StationApp.Domain >= 1.0.0"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\Chienbn\\.nuget\\packages\\": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "G:\\Source-code\\pmcan_C#\\src\\StationApp.Application\\StationApp.Application.csproj",
+      "projectName": "StationApp.Application",
+      "projectPath": "G:\\Source-code\\pmcan_C#\\src\\StationApp.Application\\StationApp.Application.csproj",
+      "packagesPath": "C:\\Users\\Chienbn\\.nuget\\packages\\",
+      "outputPath": "G:\\Source-code\\pmcan_C#\\src\\StationApp.Application\\._tmp_obj_ui_sync/",
+      "projectStyle": "PackageReference",
+      "configFilePaths": [
+        "C:\\Users\\Chienbn\\AppData\\Roaming\\NuGet\\NuGet.Config"
+      ],
+      "originalTargetFrameworks": [
+        "net8.0"
+      ],
+      "sources": {
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "projectReferences": {
+            "G:\\Source-code\\pmcan_C#\\src\\StationApp.Domain\\StationApp.Domain.csproj": {
+              "projectPath": "G:\\Source-code\\pmcan_C#\\src\\StationApp.Domain\\StationApp.Domain.csproj"
+            }
+          }
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
+      }
+    },
+    "frameworks": {
+      "net8.0": {
+        "targetAlias": "net8.0",
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.420/PortableRuntimeIdentifierGraph.json"
+      }
+    }
+  }
+}

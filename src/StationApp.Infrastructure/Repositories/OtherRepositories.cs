@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Security;
 using StationApp.Domain.Entities;
 using StationApp.Infrastructure.Persistence;
 
@@ -82,6 +83,11 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> ExistsByUsernameAsync(string username, CancellationToken ct)
         => await _db.Users.AnyAsync(u => u.Username == username, ct);
+
+    public async Task<int> CountActiveAdminsAsync(CancellationToken ct)
+        => await _db.Users.CountAsync(
+            u => u.IsActive && u.RoleCode == StationRoles.Admin,
+            ct);
 
     public async Task<IReadOnlyList<User>> SearchAsync(
         string? username,

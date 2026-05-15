@@ -9,5 +9,6 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(Guid id, CancellationToken ct);
     Task<User?> GetByUsernameAsync(string username, CancellationToken ct);
     Task<bool> ExistsByUsernameAsync(string username, CancellationToken ct);
+    Task<int> CountActiveAdminsAsync(CancellationToken ct);
     Task<IReadOnlyList<User>> SearchAsync(string? username, string? displayName, string? roleCode, bool? isActive, CancellationToken ct);
 }

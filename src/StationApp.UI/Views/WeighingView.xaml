@@ -108,7 +108,7 @@
                     <TextBlock Text="Xử lý quá tải" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="3" Text="{Binding OverweightResolutionText}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="Vượt tải (KG)" Grid.Row="6" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="Vượt tải (kg)" Grid.Row="6" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding OverweightAmount, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
                     <TextBlock Text="Tình trạng" Grid.Row="6" Grid.Column="2" Style="{StaticResource FormLabel}"/>
@@ -126,7 +126,11 @@
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
                         <RadioButton Content="Cân tự động" IsChecked="{Binding CurrentCaptureMode, Converter={StaticResource StringEqToBool}, ConverterParameter='TỰ ĐỘNG'}" Margin="0,0,24,0" FontWeight="Bold"/>
-                        <RadioButton Content="Cân tay" IsChecked="{Binding CurrentCaptureMode, Converter={StaticResource StringEqToBool}, ConverterParameter='CÂN TAY'}" FontWeight="Bold" IsEnabled="{Binding CanUseManualMode}"/>
+                        <RadioButton Content="Cân tay"
+                                     IsChecked="{Binding CurrentCaptureMode, Converter={StaticResource StringEqToBool}, ConverterParameter='CÂN TAY'}"
+                                     FontWeight="Bold"
+                                     IsEnabled="{Binding CanUseManualMode}"
+                                     Visibility="{Binding CanUseManualMode, Converter={StaticResource BoolToVis}}"/>
                     </StackPanel>
 
                     <Border Grid.Row="1" BorderThickness="1" CornerRadius="4" Background="#FDFDCC" BorderBrush="#F1C40F">
@@ -160,7 +164,7 @@
                         <TextBlock Text="Cân lần 2" Grid.Row="1" Style="{StaticResource FormLabel}"/>
                         <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Weight2, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                        <TextBlock Text="TL Hàng (KG)" Grid.Row="2" Style="{StaticResource FormLabel}"/>
+                        <TextBlock Text="TL hàng (kg)" Grid.Row="2" Style="{StaticResource FormLabel}"/>
                         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NetWeight, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
                     </Grid>
                 </Grid>
@@ -176,6 +180,7 @@
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="CHUYỂN XE RA" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,6,0"/>
+            <Button Content="KHÔNG LẤY HÀNG" Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="PHIẾU LIÊN QUAN" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="HỦY" Command="{Binding CancelCommand}" Style="{StaticResource DangerButtonStyle}"/>
         </StackPanel>
@@ -227,7 +232,7 @@
         </Grid>
 
         <Grid Background="#AA000000" Visibility="{Binding IsAllocationVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Background="White" CornerRadius="8" Padding="24" Width="960" MaxHeight="700" VerticalAlignment="Center">
+            <Border Background="White" CornerRadius="8" Padding="24" Width="1200" MaxWidth="1500" MaxHeight="820" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -266,7 +271,7 @@
         </Grid>
 
         <Grid Background="#AA000000" Visibility="{Binding IsOverweightHandlingVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Background="White" CornerRadius="8" Padding="24" Width="980" MaxHeight="720" VerticalAlignment="Center">
+            <Border Background="White" CornerRadius="8" Padding="24" Width="1260" MaxWidth="1560" MaxHeight="860" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -278,12 +283,18 @@
                     <TextBlock Text="XỬ LÝ QUÁ TẢI" FontSize="18" FontWeight="Bold" Margin="0,0,0,16" Foreground="#2C3E50"/>
 
                     <Grid Grid.Row="1" Margin="0,0,0,16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel>
                             <TextBlock Text="TTCP 10% (kg)" FontWeight="Bold"/>
                             <TextBlock Text="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" FontSize="20"/>
@@ -297,14 +308,38 @@
                             <TextBlock Text="{Binding OverweightAmount, StringFormat='{}{0:N0}'}" FontSize="20" Foreground="#C0392B"/>
                         </StackPanel>
                         <StackPanel Grid.Column="3">
-                            <TextBlock Text="BÆ°á»›c tÃ¡ch" FontWeight="Bold"/>
+                            <TextBlock Text="Bước tách tối đa" FontWeight="Bold"/>
                             <TextBlock Text="{Binding OverweightSplitStepWeight, StringFormat='{}{0:P2}'}" FontSize="20"/>
                         </StackPanel>
+
+                        <StackPanel Grid.Row="1">
+                            <TextBlock Text="Phiếu 1 (kg)" FontWeight="Bold"/>
+                            <TextBox Text="{Binding OverweightSplitTicket1WeightText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="1">
+                            <TextBlock Text="Phiếu 2 (kg)" FontWeight="Bold"/>
+                            <TextBox Text="{Binding OverweightSplitTicket2WeightText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="2">
+                            <TextBlock Text="Chế độ tách" FontWeight="Bold"/>
+                            <TextBox Text="{Binding IsManualSplitOverride, Converter={StaticResource SplitModeDisplayConverter}}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="3">
+                            <TextBlock Text="Hệ số ngẫu nhiên" FontWeight="Bold"/>
+                            <TextBox Text="{Binding OverweightSplitRandomFactorText}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.ColumnSpan="4"
+                                   Text="{Binding OverweightSplitValidationMessage}"
+                                   Foreground="#C0392B"
+                                   FontWeight="SemiBold"
+                                   Margin="0,12,0,0"
+                                   Visibility="{Binding OverweightSplitValidationMessage, Converter={StaticResource StringToVis}}"/>
                     </Grid>
 
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="300"/>
+                            <ColumnDefinition Width="340"/>
                             <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
@@ -339,6 +374,7 @@
                     </Grid>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Content="ĐỀ XUẤT LẠI" Command="{Binding SuggestOverweightSplitAgainCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,8,0"/>
                         <Button Content="TÁCH QUÁ TẢI" Command="{Binding ConfirmOverweightSplitCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,0"/>
                         <Button Content="KHÔNG TÁCH" Command="{Binding ConfirmOverweightNoSplitCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,8,0"/>
                         <Button Content="ĐỂ SAU" Command="{Binding CloseOverweightHandlingCommand}" Style="{StaticResource UtilityButtonStyle}"/>
@@ -348,7 +384,7 @@
         </Grid>
 
         <Grid Background="#AA000000" Visibility="{Binding IsRelatedTicketsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Background="White" CornerRadius="8" Padding="24" Width="900" MaxHeight="650" VerticalAlignment="Center">
+            <Border Background="White" CornerRadius="8" Padding="24" Width="1180" MaxWidth="1480" MaxHeight="780" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -357,20 +393,20 @@
                     </Grid.RowDefinitions>
                     <TextBlock Text="DANH SÁCH PHIẾU LIÊN QUAN" FontSize="18" FontWeight="Bold" Margin="0,0,0,16" Foreground="#2C3E50"/>
 
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding RelatedTickets}" AutoGenerateColumns="False" IsReadOnly="True" Height="400"
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding RelatedTickets}" AutoGenerateColumns="False" IsReadOnly="True"
                               Style="{StaticResource SystemDataGridStyle}"
                               ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                               RowStyle="{StaticResource SystemDataGridRowStyle}"
                               CellStyle="{StaticResource SystemDataGridCellStyle}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Loại" Binding="{Binding DocumentType}" Width="140"/>
-                            <DataGridTextColumn Header="Số PC" Binding="{Binding TicketNo}" Width="120"/>
-                            <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="120"/>
-                            <DataGridTextColumn Header="Vai trò" Binding="{Binding RecordRole, Converter={StaticResource RecordRoleDisplay}}" Width="140"/>
-                            <DataGridTextColumn Header="Cân 1" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="90"/>
-                            <DataGridTextColumn Header="Cân 2" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="90"/>
-                            <DataGridTextColumn Header="Net" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="90"/>
-                            <DataGridTextColumn Header="Ngày tạo" Binding="{Binding CreatedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Width="120"/>
+                            <DataGridTextColumn Header="Loại" Binding="{Binding DocumentType}" Width="180"/>
+                            <DataGridTextColumn Header="Số PC" Binding="{Binding TicketNo}" Width="140"/>
+                            <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="140"/>
+                            <DataGridTextColumn Header="Vai trò" Binding="{Binding RecordRole, Converter={StaticResource RecordRoleDisplay}}" Width="180"/>
+                            <DataGridTextColumn Header="Cân 1" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="110"/>
+                            <DataGridTextColumn Header="Cân 2" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="110"/>
+                            <DataGridTextColumn Header="Net" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="110"/>
+                            <DataGridTextColumn Header="Ngày tạo" Binding="{Binding CreatedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Width="150"/>
                         </DataGrid.Columns>
                     </DataGrid>
 

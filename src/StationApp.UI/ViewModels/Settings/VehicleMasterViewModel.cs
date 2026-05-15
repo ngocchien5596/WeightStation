@@ -67,14 +67,28 @@ namespace StationApp.UI.ViewModels.Settings
         {
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
-            
-            // Note: Custom multi-parameter searches can fall back to standard keyword filters appropriately
-            var list = await repo.SearchAsync(SearchVehiclePlate, CancellationToken.None);
+
+            var list = await repo.SearchAsync(null, CancellationToken.None);
+            var filtered = list.Where(x =>
+                MatchesSearch(x.VehiclePlate, SearchVehiclePlate)
+                && MatchesSearch(x.MoocNumber, SearchMoocNumber)
+                && MatchesSearch(x.DriverName, SearchDriverName));
             Vehicles.Clear();
-            foreach (var item in list)
+            foreach (var item in filtered)
             {
                 Vehicles.Add(item);
             }
+        }
+
+        private static bool MatchesSearch(string? source, string? keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return true;
+            }
+
+            return !string.IsNullOrWhiteSpace(source)
+                && source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
         [RelayCommand]

@@ -28,6 +28,12 @@ public class SyncOutboxRepository : ISyncOutboxRepository
             .Take(batchSize)
             .ToListAsync(ct);
 
+    public async Task<SyncOutbox?> GetLatestByAggregateAsync(Guid aggregateId, string aggregateType, CancellationToken ct)
+        => await _db.SyncOutbox
+            .Where(m => m.AggregateId == aggregateId && m.AggregateType == aggregateType)
+            .OrderByDescending(m => m.UpdatedAt ?? m.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
     public async Task MarkProcessingAsync(Guid id, CancellationToken ct)
     {
         var msg = await _db.SyncOutbox.FindAsync(new object[] { id }, ct);

@@ -78,7 +78,7 @@
         </Border>
 
         <Grid Background="#AA000000" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="3">
-            <Border Background="White" CornerRadius="8" Padding="24" Width="980" MaxHeight="720" VerticalAlignment="Center">
+            <Border Background="White" CornerRadius="8" Padding="24" Width="1200" MaxWidth="1500" MaxHeight="820" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

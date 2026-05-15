@@ -24,16 +24,24 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
         _overweightService = overweightService;
     }
 
-    public async Task<OverweightSplitPreviewDto> ExecuteAsync(Guid sessionId, CancellationToken ct)
+    public Task<OverweightSplitPreviewDto> ExecuteAsync(Guid sessionId, CancellationToken ct)
+        => ExecuteAsync(new PreviewWeighingSessionOverweightSplitRequest(sessionId), ct);
+
+    public async Task<OverweightSplitPreviewDto> ExecuteAsync(PreviewWeighingSessionOverweightSplitRequest request, CancellationToken ct)
     {
-        var session = await _sessionRepo.GetByIdAsync(sessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
-        var lines = await _sessionRepo.GetLinesBySessionIdAsync(sessionId, ct);
+        var session = await _sessionRepo.GetByIdAsync(request.SessionId, ct)
+            ?? throw new InvalidOperationException("Khong tim thay luot can.");
+        var lines = await _sessionRepo.GetLinesBySessionIdAsync(request.SessionId, ct);
 
         EnsureSessionPendingOverweight(session);
 
         var splitStepWeight = await ResolveWeighingSessionOverweightSplitUseCase.ResolveSplitStepWeightAsync(_configRepo, ct);
-        var plan = _overweightService.BuildSplitPlan(session, lines, splitStepWeight);
+        var plan = _overweightService.BuildSplitPlan(
+            session,
+            lines,
+            splitStepWeight,
+            request.FirstSplitNetWeight,
+            request.IsManualOverride);
 
         var previewGroups = plan.Groups
             .Select(x => new OverweightSplitPreviewGroupItem(
@@ -43,7 +51,7 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
                 x.Lines.Count))
             .ToList();
 
-        var lineItems = await _sessionRepo.GetLineItemsBySessionIdAsync(sessionId, ct);
+        var lineItems = await _sessionRepo.GetLineItemsBySessionIdAsync(request.SessionId, ct);
         var lineLookup = lineItems.ToDictionary(x => x.SessionLineId);
         var previewLines = plan.Groups
             .SelectMany(group => group.Lines.Select(line =>
@@ -67,6 +75,10 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
             session.NetWeight ?? 0m,
             session.OverweightAmount,
             plan.OverweightSplitStepWeight,
+            plan.SplitTicket1NetWeight,
+            plan.SplitTicket2NetWeight,
+            plan.RandomSplitFactor,
+            plan.IsManualOverride,
             previewGroups,
             previewLines);
     }
@@ -75,12 +87,12 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
     {
         if (session.SessionStatus != WeighingSessionStatus.READY_TO_COMPLETE)
         {
-            throw new InvalidOperationException("Lượt cân chưa ở trạng thái sẵn sàng xử lý quá tải.");
+            throw new InvalidOperationException("Luot can chua o trang thai san sang xu ly qua tai.");
         }
 
         if (!session.IsOverweight || session.OverweightResolutionStatus != OverweightResolutionStatus.PENDING)
         {
-            throw new InvalidOperationException("Lượt cân hiện tại không còn ở trạng thái chờ xử lý quá tải.");
+            throw new InvalidOperationException("Luot can hien tai khong con o trang thai cho xu ly qua tai.");
         }
     }
 }
@@ -122,24 +134,32 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         _overweightService = overweightService;
     }
 
-    public async Task ExecuteAsync(Guid sessionId, CancellationToken ct)
+    public Task ExecuteAsync(Guid sessionId, CancellationToken ct)
+        => ExecuteAsync(new ResolveWeighingSessionOverweightSplitRequest(sessionId), ct);
+
+    public async Task ExecuteAsync(ResolveWeighingSessionOverweightSplitRequest request, CancellationToken ct)
     {
-        var session = await _sessionRepo.GetByIdAsync(sessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
+        var session = await _sessionRepo.GetByIdAsync(request.SessionId, ct)
+            ?? throw new InvalidOperationException("Khong tim thay luot can.");
         PreviewWeighingSessionOverweightSplitUseCase.EnsureSessionPendingOverweight(session);
 
-        var lines = await _sessionRepo.GetLinesBySessionIdAsync(sessionId, ct);
-        var weighTickets = await _weighRepo.GetByWeighingSessionIdAsync(sessionId, ct);
-        var deliveryTickets = await _deliveryRepo.GetByWeighingSessionIdAsync(sessionId, ct);
+        var lines = await _sessionRepo.GetLinesBySessionIdAsync(request.SessionId, ct);
+        var weighTickets = await _weighRepo.GetByWeighingSessionIdAsync(request.SessionId, ct);
+        var deliveryTickets = await _deliveryRepo.GetByWeighingSessionIdAsync(request.SessionId, ct);
         var masterTicket = weighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted)
-            ?? throw new InvalidOperationException("Không tìm thấy phiếu cân tổng của lượt cân.");
+            ?? throw new InvalidOperationException("Khong tim thay phieu can tong cua luot can.");
         var normalDeliveryByLineId = deliveryTickets
             .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted && x.WeighingSessionLineId.HasValue)
             .GroupBy(x => x.WeighingSessionLineId!.Value)
             .ToDictionary(x => x.Key, x => x.OrderByDescending(t => t.UpdatedAt ?? t.CreatedAt).First());
 
         var splitStepWeight = await ResolveSplitStepWeightAsync(_configRepo, ct);
-        var plan = _overweightService.BuildSplitPlan(session, lines, splitStepWeight);
+        var plan = _overweightService.BuildSplitPlan(
+            session,
+            lines,
+            splitStepWeight,
+            request.FirstSplitNetWeight,
+            request.IsManualOverride);
         var now = _clock.NowLocal;
         var nextTicketNumbers = new Queue<string>(await AllocateSequentialNumbersAsync(
             () => _ticketNoGen.GenerateAsync(ct),
@@ -154,9 +174,7 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
 
         var splitWeighTickets = new List<WeighTicket>();
         var splitDeliveryTickets = new List<DeliveryTicket>();
-        var currentStartWeight = session.TransactionType == TransactionType.OUTBOUND
-            ? masterTicket.Weight1.GetValueOrDefault()
-            : masterTicket.Weight1.GetValueOrDefault();
+        var currentStartWeight = masterTicket.Weight1.GetValueOrDefault();
 
         foreach (var group in plan.Groups.OrderBy(x => x.SplitSequence))
         {
@@ -294,21 +312,18 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         string ticketNo,
         DateTime now)
     {
-        decimal endWeight;
         decimal weight1;
         decimal weight2;
 
         if (session.TransactionType == TransactionType.OUTBOUND)
         {
             weight1 = startWeight;
-            endWeight = startWeight + group.GroupWeight;
-            weight2 = endWeight;
+            weight2 = startWeight + group.GroupWeight;
         }
         else
         {
             weight1 = startWeight;
-            endWeight = startWeight - group.GroupWeight;
-            weight2 = endWeight;
+            weight2 = startWeight - group.GroupWeight;
         }
 
         return new WeighTicket
@@ -413,7 +428,7 @@ public sealed class ResolveWeighingSessionOverweightNoSplitUseCase
     public async Task ExecuteAsync(Guid sessionId, CancellationToken ct)
     {
         var session = await _sessionRepo.GetByIdAsync(sessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
+            ?? throw new InvalidOperationException("Khong tim thay luot can.");
         PreviewWeighingSessionOverweightSplitUseCase.EnsureSessionPendingOverweight(session);
 
         var now = _clock.NowLocal;

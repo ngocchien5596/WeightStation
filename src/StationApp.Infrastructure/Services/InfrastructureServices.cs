@@ -207,4 +207,7 @@ public class SyncPayloadFactory : ISyncPayloadFactory
 
     public string CreatePayload(VehicleRegistration registration)
         => JsonSerializer.Serialize(registration, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(DeliveryTicket ticket)
+        => JsonSerializer.Serialize(ticket, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }

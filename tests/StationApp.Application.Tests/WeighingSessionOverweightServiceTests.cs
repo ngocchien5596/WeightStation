@@ -120,13 +120,14 @@ public class WeighingSessionOverweightServiceTests
             CreateAllocatedLine(line2Id, sequenceNo: 2, weight: 12_000m, bagCount: 120)
         };
 
-        var plan = service.BuildSplitPlan(session, lines, 0.0025m);
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m, 21_945m, true);
 
         Assert.Equal(2, plan.Groups.Count);
         Assert.Equal(21_945m, plan.Groups[0].GroupWeight);
         Assert.Equal(2_055m, plan.Groups[1].GroupWeight);
         Assert.Equal(24_000m, plan.Groups.Sum(x => x.GroupWeight));
         Assert.Equal(0.0025m, plan.OverweightSplitStepWeight);
+        Assert.True(plan.IsManualOverride);
 
         var line1Parts = plan.Groups.SelectMany(x => x.Lines).Where(x => x.SessionLineId == line1Id).ToList();
         var line2Parts = plan.Groups.SelectMany(x => x.Lines).Where(x => x.SessionLineId == line2Id).ToList();
@@ -141,6 +142,46 @@ public class WeighingSessionOverweightServiceTests
         Assert.Equal(99, line2Parts[0].AllocatedBagCount);
         Assert.Equal(21, line2Parts[1].AllocatedBagCount);
         Assert.Equal(120, line2Parts.Sum(x => x.AllocatedBagCount ?? 0));
+    }
+
+    [Fact]
+    public void BuildSplitPlan_SystemSuggestion_UsesRandomFactorWithinConfiguredRange()
+    {
+        var service = new WeighingSessionOverweightService();
+        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 27_500m);
+        var lines = new[]
+        {
+            CreateAllocatedLine(sequenceNo: 1, weight: 18_000m, bagCount: 360),
+            CreateAllocatedLine(sequenceNo: 2, weight: 12_000m, bagCount: 240)
+        };
+
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m);
+
+        Assert.False(plan.IsManualOverride);
+        Assert.NotNull(plan.RandomSplitFactor);
+        Assert.InRange(plan.RandomSplitFactor!.Value, 0.0001m, 0.0025m);
+        Assert.Equal(plan.NetWeight, plan.SplitTicket1NetWeight + plan.SplitTicket2NetWeight);
+        Assert.True(plan.SplitTicket1NetWeight < plan.Ttcp10WeightSnapshot);
+        Assert.True(plan.SplitTicket2NetWeight <= plan.Ttcp10WeightSnapshot);
+    }
+
+    [Fact]
+    public void BuildSplitPlan_ManualOverride_UsesRequestedWeight_AndHidesRandomFactor()
+    {
+        var service = new WeighingSessionOverweightService();
+        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 27_500m);
+        var lines = new[]
+        {
+            CreateAllocatedLine(sequenceNo: 1, weight: 18_000m, bagCount: 360),
+            CreateAllocatedLine(sequenceNo: 2, weight: 12_000m, bagCount: 240)
+        };
+
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m, 26_000m, true);
+
+        Assert.True(plan.IsManualOverride);
+        Assert.Null(plan.RandomSplitFactor);
+        Assert.Equal(26_000m, plan.SplitTicket1NetWeight);
+        Assert.Equal(4_000m, plan.SplitTicket2NetWeight);
     }
 
     [Fact]

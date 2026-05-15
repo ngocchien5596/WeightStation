@@ -27,6 +27,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     private CancellationTokenSource? _customerCodeLookupCts;
 
     public event Action<Guid>? NavigateToWeighingRequested;
+    public event Action? NavigateToOutgoingRequested;
 
     [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _vehicles = new();
     [ObservableProperty] private IncomingVehicleSelectionItem? _selectedVehicle;
@@ -68,6 +69,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public string SaveButtonText => IsCreateMode ? "TẠO XE NHẬP" : "LƯU THAY ĐỔI";
     public bool IsDetailSelectionMode => !IsCreateMode && SelectedVehicle != null;
     public bool CanConfirmEnterWeighing => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
+    public bool CanMarkNoLoad => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
     public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0m) * 1.10m);
 
     public IncomingVehicleListViewModel(
@@ -393,6 +395,60 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanMarkNoLoad))]
+    private async Task MarkNoLoadAsync()
+    {
+        var selectedVehicles = Vehicles.Where(x => x.IsSelected).ToList();
+        if (selectedVehicles.Count == 0 && SelectedVehicle != null)
+        {
+            selectedVehicles.Add(SelectedVehicle);
+        }
+
+        if (selectedVehicles.Count == 0)
+        {
+            _toastService.ShowWarning("Vui lòng chọn ít nhất một xe để chuyển ra.");
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "Xác nhận không lấy hàng",
+            "Xe đã chọn sẽ được chuyển thẳng sang danh sách xe ra với trạng thái không lấy hàng. Tiếp tục?",
+            "Chuyển xe ra",
+            UiText.Common.No);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var primaryVehicle = ResolvePrimaryVehicleSelection(selectedVehicles);
+        if (primaryVehicle == null)
+        {
+            _toastService.ShowWarning("Không xác định được xe đại diện để chuyển ra.");
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<MarkRegistrationsNoLoadUseCase>();
+            await uc.ExecuteAsync(
+                new MarkRegistrationsNoLoadRequest(
+                    selectedVehicles.Select(x => x.RegistrationId).ToList(),
+                    primaryVehicle.RegistrationId),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã chuyển xe sang danh sách xe ra theo luồng không lấy hàng.");
+            await LoadVehiclesAsync();
+            NavigateToOutgoingRequested?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Mark incoming registrations as no-load failed");
+            _toastService.ShowError(ex.Message);
+        }
+    }
+
     private IncomingVehicleSelectionItem? ResolvePrimaryVehicleSelection(IReadOnlyCollection<IncomingVehicleSelectionItem> selectedVehicles)
     {
         if (selectedVehicles.Count == 0)
@@ -535,7 +591,9 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     private void RefreshCreateSessionState()
     {
         OnPropertyChanged(nameof(CanConfirmEnterWeighing));
+        OnPropertyChanged(nameof(CanMarkNoLoad));
         ConfirmEnterWeighingCommand.NotifyCanExecuteChanged();
+        MarkNoLoadCommand.NotifyCanExecuteChanged();
     }
 
     private bool HasSearchFilters()

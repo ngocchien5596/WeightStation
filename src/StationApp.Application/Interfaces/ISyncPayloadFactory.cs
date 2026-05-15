@@ -6,4 +6,5 @@ public interface ISyncPayloadFactory
 {
     string CreatePayload(WeighTicket ticket);
     string CreatePayload(VehicleRegistration registration);
+    string CreatePayload(DeliveryTicket ticket);
 }

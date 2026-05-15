@@ -52,42 +52,42 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Column="0" Grid.Row="0" Text="Ma tram (Station Code)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="0" Text="Mã trạm (Station Code)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding StationCode, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="1" Text="Tien to phieu (Ticket Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="1" Text="Tiền tố phiếu (Ticket Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding TicketPrefix, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="2" Text="Tien to phieu giao nhan (Delivery Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="2" Text="Tiền tố phiếu giao nhận (Delivery Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding DeliveryPrefix, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="3" Text="Dung sai cho phep (Tolerance - kg)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="3" Text="Dung sai cho phép (Tolerance - kg)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ToleranceKg, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="4" Text="Chu ky dong bo ERP (Sync Interval - giay)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="4" Text="Chu kỳ đồng bộ ERP (Sync Interval - giây)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding SyncIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="5" Text="Thoi gian tham do ERP (Poll Inbound - giay)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="5" Text="Thời gian thăm dò ERP (Poll Inbound - giây)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding RegistrationInboundPollSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="6" Text="Buoc tach qua tai (ty le)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="6" Text="Bước tách quá tải (tỷ lệ)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding OverweightSplitStepWeight, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <CheckBox Grid.Column="1" Grid.Row="7" Content="Bat che do Pilot" IsChecked="{Binding PilotModeEnabled}" VerticalAlignment="Center" Margin="0,4,0,16" FontWeight="SemiBold"/>
+                <CheckBox Grid.Column="1" Grid.Row="7" Content="Bật chế độ Pilot" IsChecked="{Binding PilotModeEnabled}" VerticalAlignment="Center" Margin="0,4,0,16" FontWeight="SemiBold"/>
 
                 <StackPanel Grid.Column="1" Grid.Row="8" Orientation="Horizontal" Margin="0,12,0,0">
                     <Button Command="{Binding LoadCommand}"
                             Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LAM MOI" VerticalAlignment="Center"/>
+                            <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding SaveCommand}"
                             Style="{StaticResource PrimaryButtonStyle}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LUU THAY DOI" VerticalAlignment="Center"/>
+                            <TextBlock Text="LƯU THAY ĐỔI" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>

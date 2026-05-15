@@ -23,6 +23,7 @@
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
             <converters:TransactionTypeDisplayConverter x:Key="TransactionTypeDisplayConverter"/>
             <converters:TransportMethodDisplayConverter x:Key="TransportMethodDisplayConverter"/>
+            <converters:SplitModeDisplayConverter x:Key="SplitModeDisplayConverter"/>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/AppTheme.xaml"/>
                 <ResourceDictionary Source="Styles/ButtonStyles.xaml"/>

@@ -63,6 +63,15 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<VehicleRegistration>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
+    {
+        return await _db.VehicleRegistrations
+            .Where(x => x.SyncStatus == syncStatus)
+            .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
+            .Take(take)
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<VehicleRegistration>> SearchAsync(string? keyword, CancellationToken ct)
     {
         var query = _db.VehicleRegistrations.AsQueryable();
@@ -123,6 +132,17 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
             .Where(dt => regIds.Contains(dt.VehicleRegistrationId) && !dt.IsDeleted)
             .ToListAsync(ct);
 
+        var sessionIds = registrations
+            .Where(vr => vr.WeighingSessionId.HasValue)
+            .Select(vr => vr.WeighingSessionId!.Value)
+            .Distinct()
+            .ToList();
+        var sessionById = sessionIds.Count == 0
+            ? new Dictionary<Guid, WeighingSession>()
+            : await _db.WeighingSessions.AsNoTracking()
+                .Where(session => sessionIds.Contains(session.Id))
+                .ToDictionaryAsync(session => session.Id, ct);
+
         var result = new List<WeightViewListItem>();
 
         foreach (var vr in registrations)
@@ -131,6 +151,7 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
             var primaryWeighTicket = ResolvePrimaryWeighTicket(vr, relatedWeighTickets);
             var relatedDeliveryTickets = deliveryTickets.Where(dt => dt.VehicleRegistrationId == vr.Id).ToList();
             var primaryDeliveryTicket = ResolvePrimaryDeliveryTicket(vr, relatedDeliveryTickets, primaryWeighTicket);
+            sessionById.TryGetValue(vr.WeighingSessionId ?? Guid.Empty, out var session);
 
             result.Add(new WeightViewListItem(
                 vr.Id,
@@ -140,12 +161,12 @@ public class VehicleRegistrationRepository : IVehicleRegistrationRepository
                 vr.CustomerName,
                 vr.ProductName,
                 vr.RegistrationStatus,
-                primaryWeighTicket?.Weight1,
-                primaryWeighTicket?.Weight2,
+                session?.Weight1 ?? primaryWeighTicket?.Weight1,
+                session?.Weight2 ?? primaryWeighTicket?.Weight2,
                 vr.BagCount,
                 vr.PlannedWeight,
-                primaryWeighTicket?.NetWeight,
-                primaryWeighTicket?.Weight2Time ?? primaryWeighTicket?.Weight1Time ?? vr.CreatedAt,
+                session?.NetWeight ?? primaryWeighTicket?.NetWeight,
+                session?.Weight2Time ?? session?.Weight1Time ?? primaryWeighTicket?.Weight2Time ?? primaryWeighTicket?.Weight1Time ?? vr.CreatedAt,
                 primaryWeighTicket?.Weight2User ?? primaryWeighTicket?.Weight1User,
                 primaryDeliveryTicket?.DeliveryNo,
                 vr.Notes,

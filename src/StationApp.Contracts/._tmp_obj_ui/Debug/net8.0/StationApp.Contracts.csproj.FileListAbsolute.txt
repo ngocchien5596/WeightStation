@@ -1,0 +1,12 @@
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_bin_ui\Debug\net8.0\StationApp.Contracts.deps.json
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_bin_ui\Debug\net8.0\StationApp.Contracts.dll
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_bin_ui\Debug\net8.0\StationApp.Contracts.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.GeneratedMSBuildEditorConfig.editorconfig
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.AssemblyInfoInputs.cache
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.AssemblyInfo.cs
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.csproj.CoreCompileInputs.cache
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.sourcelink.json
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.dll
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\refint\StationApp.Contracts.dll
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\StationApp.Contracts.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Contracts\._tmp_obj_ui\Debug\net8.0\ref\StationApp.Contracts.dll

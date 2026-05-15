@@ -2,6 +2,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
+using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Sync.Services;
@@ -30,7 +32,8 @@ public sealed class SyncOutboxWorker : BackgroundService
                     var appRepo = scope.ServiceProvider.GetService<IAppConfigRepository>();
                     if (appRepo != null)
                     {
-                        var intervalStr = await appRepo.GetValueAsync("sync_outbox_interval_seconds", stoppingToken);
+                        var intervalStr = await appRepo.GetValueAsync("sync_interval", stoppingToken)
+                            ?? await appRepo.GetValueAsync("sync_outbox_interval_seconds", stoppingToken);
                         if (int.TryParse(intervalStr, out var intervalVal) && intervalVal > 0)
                         {
                             _intervalSeconds = intervalVal;
@@ -61,12 +64,25 @@ public sealed class SyncOutboxWorker : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
-        var ticketRepo = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+        var registrationRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+        var weighTicketRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
+        var deliveryTicketRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
+        var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var apiClient = scope.ServiceProvider.GetRequiredService<ICentralApiClient>();
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
 
         var now = clock.NowLocal;
+        await EnsureQueuedAggregateMessagesAsync(
+            outboxRepo,
+            registrationRepo,
+            weighTicketRepo,
+            deliveryTicketRepo,
+            payloadFactory,
+            uow,
+            now,
+            ct);
+
         var swLoad = System.Diagnostics.Stopwatch.StartNew();
         var messages = await outboxRepo.GetPendingAsync(now, 10, ct);
         swLoad.Stop();
@@ -80,17 +96,17 @@ public sealed class SyncOutboxWorker : BackgroundService
                 await outboxRepo.MarkProcessingAsync(message.Id, ct);
                 await uow.SaveChangesAsync(ct);
 
-                var result = await apiClient.PushTicketAsync(message.PayloadJson, message.IdempotencyKey, ct);
+                var result = await apiClient.PushAggregateAsync(message.AggregateType, message.PayloadJson, message.IdempotencyKey, ct);
                 if (result.Success)
                 {
                     await outboxRepo.MarkSuccessAsync(message.Id, ct);
-
-                    var ticket = await ticketRepo.GetByIdAsync(message.AggregateId, ct);
-                    if (ticket != null)
-                    {
-                        ticket.SyncStatus = SyncStatus.SYNC_SUCCESS;
-                        await ticketRepo.UpdateAsync(ticket, ct);
-                    }
+                    await MarkAggregateSyncSuccessAsync(
+                        message,
+                        now,
+                        registrationRepo,
+                        weighTicketRepo,
+                        deliveryTicketRepo,
+                        ct);
                 }
                 else
                 {
@@ -104,12 +120,14 @@ public sealed class SyncOutboxWorker : BackgroundService
                         await outboxRepo.MarkFailedRetryableAsync(message.Id, result.ErrorMessage ?? "API error", nextRetry, ct);
                     }
 
-                    var failedTicket = await ticketRepo.GetByIdAsync(message.AggregateId, ct);
-                    if (failedTicket != null)
-                    {
-                        failedTicket.SyncStatus = SyncStatus.SYNC_FAILED;
-                        await ticketRepo.UpdateAsync(failedTicket, ct);
-                    }
+                    await MarkAggregateSyncFailedAsync(
+                        message,
+                        now,
+                        result.ErrorMessage ?? "API error",
+                        registrationRepo,
+                        weighTicketRepo,
+                        deliveryTicketRepo,
+                        ct);
                 }
                 swPush.Stop();
                 LogPerf("Sync - API Push Ticket", swPush.Elapsed.TotalMilliseconds);
@@ -122,6 +140,184 @@ public sealed class SyncOutboxWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to sync message {Id}", message.Id);
+            }
+        }
+    }
+
+    private static async Task EnsureQueuedAggregateMessagesAsync(
+        ISyncOutboxRepository outboxRepo,
+        IVehicleRegistrationRepository registrationRepo,
+        IWeighTicketRepository weighTicketRepo,
+        IDeliveryTicketRepository deliveryTicketRepo,
+        ISyncPayloadFactory payloadFactory,
+        IUnitOfWork uow,
+        DateTime now,
+        CancellationToken ct)
+    {
+        foreach (var registration in await registrationRepo.GetBySyncStatusAsync(SyncStatus.SYNC_QUEUED, 100, ct))
+        {
+            await EnsureOutboxMessageAsync(
+                outboxRepo,
+                payloadFactory.CreatePayload(registration),
+                registration.Id,
+                SyncAggregateTypes.VehicleRegistration,
+                registration.IdempotencyKey,
+                now,
+                ct);
+        }
+
+        foreach (var weighTicket in await weighTicketRepo.GetBySyncStatusAsync(SyncStatus.SYNC_QUEUED, 100, ct))
+        {
+            await EnsureOutboxMessageAsync(
+                outboxRepo,
+                payloadFactory.CreatePayload(weighTicket),
+                weighTicket.Id,
+                SyncAggregateTypes.WeighTicket,
+                weighTicket.IdempotencyKey,
+                now,
+                ct);
+        }
+
+        foreach (var deliveryTicket in await deliveryTicketRepo.GetBySyncStatusAsync(SyncStatus.SYNC_QUEUED, 100, ct))
+        {
+            await EnsureOutboxMessageAsync(
+                outboxRepo,
+                payloadFactory.CreatePayload(deliveryTicket),
+                deliveryTicket.Id,
+                SyncAggregateTypes.DeliveryTicket,
+                deliveryTicket.Id,
+                now,
+                ct);
+        }
+
+        await uow.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureOutboxMessageAsync(
+        ISyncOutboxRepository outboxRepo,
+        string payloadJson,
+        Guid aggregateId,
+        string aggregateType,
+        Guid idempotencyKey,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var latest = await outboxRepo.GetLatestByAggregateAsync(aggregateId, aggregateType, ct);
+        if (latest == null || latest.Status is OutboxStatus.SUCCESS or OutboxStatus.FAILED_FINAL)
+        {
+            await outboxRepo.EnqueueAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                AggregateId = aggregateId,
+                AggregateType = aggregateType,
+                PayloadJson = payloadJson,
+                IdempotencyKey = idempotencyKey,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, ct);
+            return;
+        }
+
+        latest.PayloadJson = payloadJson;
+        latest.IdempotencyKey = idempotencyKey;
+        latest.UpdatedAt = now;
+    }
+
+    private static async Task MarkAggregateSyncSuccessAsync(
+        SyncOutbox message,
+        DateTime now,
+        IVehicleRegistrationRepository registrationRepo,
+        IWeighTicketRepository weighTicketRepo,
+        IDeliveryTicketRepository deliveryTicketRepo,
+        CancellationToken ct)
+    {
+        switch (message.AggregateType)
+        {
+            case SyncAggregateTypes.VehicleRegistration:
+            {
+                var registration = await registrationRepo.GetByIdAsync(message.AggregateId, ct);
+                if (registration != null)
+                {
+                    registration.SyncStatus = SyncStatus.SYNC_SUCCESS;
+                    registration.LastSyncAttemptAt = now;
+                    registration.LastSyncError = null;
+                    registration.UpdatedAt = now;
+                    await registrationRepo.UpdateAsync(registration, ct);
+                }
+                break;
+            }
+            case SyncAggregateTypes.WeighTicket:
+            {
+                var weighTicket = await weighTicketRepo.GetByIdAsync(message.AggregateId, ct);
+                if (weighTicket != null)
+                {
+                    weighTicket.SyncStatus = SyncStatus.SYNC_SUCCESS;
+                    weighTicket.UpdatedAt = now;
+                    await weighTicketRepo.UpdateAsync(weighTicket, ct);
+                }
+                break;
+            }
+            case SyncAggregateTypes.DeliveryTicket:
+            {
+                var deliveryTicket = await deliveryTicketRepo.GetByIdAsync(message.AggregateId, ct);
+                if (deliveryTicket != null)
+                {
+                    deliveryTicket.SyncStatus = SyncStatus.SYNC_SUCCESS;
+                    deliveryTicket.UpdatedAt = now;
+                    await deliveryTicketRepo.UpdateAsync(deliveryTicket, ct);
+                }
+                break;
+            }
+        }
+    }
+
+    private static async Task MarkAggregateSyncFailedAsync(
+        SyncOutbox message,
+        DateTime now,
+        string error,
+        IVehicleRegistrationRepository registrationRepo,
+        IWeighTicketRepository weighTicketRepo,
+        IDeliveryTicketRepository deliveryTicketRepo,
+        CancellationToken ct)
+    {
+        switch (message.AggregateType)
+        {
+            case SyncAggregateTypes.VehicleRegistration:
+            {
+                var registration = await registrationRepo.GetByIdAsync(message.AggregateId, ct);
+                if (registration != null)
+                {
+                    registration.SyncStatus = SyncStatus.SYNC_FAILED;
+                    registration.LastSyncAttemptAt = now;
+                    registration.LastSyncError = error;
+                    registration.UpdatedAt = now;
+                    await registrationRepo.UpdateAsync(registration, ct);
+                }
+                break;
+            }
+            case SyncAggregateTypes.WeighTicket:
+            {
+                var weighTicket = await weighTicketRepo.GetByIdAsync(message.AggregateId, ct);
+                if (weighTicket != null)
+                {
+                    weighTicket.SyncStatus = SyncStatus.SYNC_FAILED;
+                    weighTicket.UpdatedAt = now;
+                    await weighTicketRepo.UpdateAsync(weighTicket, ct);
+                }
+                break;
+            }
+            case SyncAggregateTypes.DeliveryTicket:
+            {
+                var deliveryTicket = await deliveryTicketRepo.GetByIdAsync(message.AggregateId, ct);
+                if (deliveryTicket != null)
+                {
+                    deliveryTicket.SyncStatus = SyncStatus.SYNC_FAILED;
+                    deliveryTicket.UpdatedAt = now;
+                    await deliveryTicketRepo.UpdateAsync(deliveryTicket, ct);
+                }
+                break;
             }
         }
     }
@@ -148,4 +344,3 @@ public sealed class SyncOutboxWorker : BackgroundService
         catch { }
     }
 }
-

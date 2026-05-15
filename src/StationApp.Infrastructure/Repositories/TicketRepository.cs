@@ -102,6 +102,15 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<WeighTicket>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
+    {
+        return await _db.WeighTickets
+            .Where(t => t.SyncStatus == syncStatus && !t.IsDeleted)
+            .OrderBy(t => t.UpdatedAt ?? t.CreatedAt)
+            .Take(take)
+            .ToListAsync(ct);
+    }
+
     public async Task<WeighTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
     {
         return await _db.WeighTickets

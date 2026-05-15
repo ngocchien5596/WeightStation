@@ -1,10 +1,11 @@
 <UserControl x:Class="StationApp.UI.Views.Settings.SyncInfoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="800"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="600"
+             d:DesignWidth="800"
              Background="Transparent">
 
     <UserControl.Resources>
@@ -31,51 +32,77 @@
 
     <Grid Background="#FFFFFF">
         <StackPanel Margin="24">
-            <TextBlock Text="TRẠNG THÁI ĐỒNG BỘ DỮ LIỆU" FontSize="18" FontWeight="Bold" Foreground="#123B6B" Margin="0,0,0,24"/>
+            <TextBlock Text="TRẠNG THÁI ĐỒNG BỘ DỮ LIỆU"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="#123B6B"
+                       Margin="0,0,0,24"/>
 
-            <Grid MaxWidth="800" HorizontalAlignment="Left">
+            <Grid MaxWidth="980" HorizontalAlignment="Left">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="250"/>
-                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="230"/>
+                    <ColumnDefinition Width="230"/>
+                    <ColumnDefinition Width="230"/>
+                    <ColumnDefinition Width="230"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Column="0" Grid.Row="0">
-                    <TextBlock Text="ĐKPT Chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="ĐKPT chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
                     <TextBlock Text="{Binding PendingRegistrationsCount}" Style="{StaticResource MetricValue}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Grid.Row="0">
-                    <TextBlock Text="Phiếu Cân Chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="Phiếu cân chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
                     <TextBlock Text="{Binding PendingTicketsCount}" Style="{StaticResource MetricValue}"/>
                 </StackPanel>
 
+                <StackPanel Grid.Column="2" Grid.Row="0">
+                    <TextBlock Text="Phiếu thực giao chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="{Binding PendingDeliveryTicketsCount}" Style="{StaticResource MetricValue}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Grid.Row="0">
+                    <TextBlock Text="Bản ghi sync lỗi" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="{Binding FailedSyncCount}" Style="{StaticResource MetricValue}" Foreground="#BD2730"/>
+                </StackPanel>
+
                 <StackPanel Grid.Column="0" Grid.Row="1">
-                    <TextBlock Text="ĐKPT Chưa xử lý (Inbound)" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="ĐKPT chưa xử lý inbound" Style="{StaticResource MetricLabel}"/>
                     <TextBlock Text="{Binding UnprocessedInboundCount}" Style="{StaticResource MetricValue}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Grid.Row="1">
-                    <TextBlock Text="Lỗi Đồng bộ gần nhất" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding LastSyncError}" Style="{StaticResource MetricValue}" Foreground="#BD2730" FontSize="14"/>
+                    <TextBlock Text="Sync thành công gần nhất" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="{Binding LastSyncSuccessAt}" Style="{StaticResource MetricValue}" FontSize="16"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Grid.Row="1">
+                    <TextBlock Text="Sync lỗi gần nhất" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="{Binding LastSyncFailureAt}" Style="{StaticResource MetricValue}" Foreground="#BD2730" FontSize="16"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Grid.Row="1">
+                    <TextBlock Text="Lỗi đồng bộ gần nhất" Style="{StaticResource MetricLabel}"/>
+                    <TextBlock Text="{Binding LastSyncError}" Style="{StaticResource MetricValue}" Foreground="#BD2730" FontSize="14" TextWrapping="Wrap"/>
                 </StackPanel>
             </Grid>
 
             <Separator Background="#E8EFF7" Margin="0,12,0,24"/>
 
             <StackPanel Orientation="Horizontal">
-                <Button Command="{Binding RefreshCommand}" 
-                        Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                <Button Command="{Binding RefreshCommand}"
+                        Style="{StaticResource UtilityButtonStyle}"
+                        Margin="0,0,12,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Command="{Binding ForceSyncCommand}" 
+                <Button Command="{Binding ForceSyncCommand}"
                         Style="{StaticResource WorkflowButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>

@@ -86,9 +86,11 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         {
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-            var keyword = !string.IsNullOrWhiteSpace(SearchSessionNo) ? SearchSessionNo : SearchVehiclePlate;
-            var list = await repo.SearchCompletedSessionsAsync(keyword, CancellationToken.None);
-            Vehicles = new ObservableCollection<OutgoingSessionListItem>(list);
+            var list = await repo.SearchCompletedSessionsAsync(null, CancellationToken.None);
+            var filtered = list.Where(x =>
+                MatchesSearch(x.SessionNo, SearchSessionNo)
+                && MatchesSearch(x.VehiclePlate, SearchVehiclePlate));
+            Vehicles = new ObservableCollection<OutgoingSessionListItem>(filtered);
 
             if (keepSelection && SelectedVehicle != null)
             {
@@ -160,6 +162,17 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     {
         return !string.IsNullOrWhiteSpace(SearchSessionNo)
             || !string.IsNullOrWhiteSpace(SearchVehiclePlate);
+    }
+
+    private static bool MatchesSearch(string? source, string? keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(source)
+            && source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task LoadSessionDetailsAsync(Guid sessionId)

@@ -68,8 +68,7 @@ public partial class AccountManagementViewModel : ObservableObject
         EditUsername = value.Username;
         EditDisplayName = value.DisplayName;
         EditRoleCode = value.RoleCode;
-        EnsureRoleOptionExists(value.RoleCode);
-        SelectedRoleOption = value.RoleCode;
+        SelectedRoleOption = RoleOptions.Contains(value.RoleCode) ? value.RoleCode : RoleOptions.FirstOrDefault();
         EditIsActive = value.IsActive;
         CreatedAt = value.CreatedAt;
         CreatedBy = value.CreatedBy;
@@ -382,21 +381,7 @@ public partial class AccountManagementViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(roleCode) || RoleOptions.Contains(roleCode))
         {
-            EnsureSearchRoleOptionExists(roleCode);
             return;
         }
-
-        RoleOptions.Add(roleCode);
-        EnsureSearchRoleOptionExists(roleCode);
-    }
-
-    private void EnsureSearchRoleOptionExists(string roleCode)
-    {
-        if (string.IsNullOrWhiteSpace(roleCode) || SearchRoleOptions.Contains(roleCode))
-        {
-            return;
-        }
-
-        SearchRoleOptions.Add(roleCode);
     }
 }

@@ -1,11 +1,17 @@
+using System;
+using System.Linq;
+using System.Threading;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Implementations;
 using StationApp.Device.Models;
+using StationApp.Domain.Enums;
+using StationApp.Infrastructure.Persistence;
 using StationApp.UI.Resources;
 
 namespace StationApp.UI.ViewModels;
@@ -31,7 +37,10 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _liveIsStable;
 
     [ObservableProperty] private int _pendingSyncCount;
+    [ObservableProperty] private int _failedSyncCount;
     [ObservableProperty] private string? _lastSyncError;
+    [ObservableProperty] private string _lastSyncSuccessAt = "N/A";
+    [ObservableProperty] private string _lastSyncFailureAt = "N/A";
     [ObservableProperty] private string _appVersion = string.Empty;
     [ObservableProperty] private string _dbStatus = "OK";
     [ObservableProperty] private string? _centralApiUrl;
@@ -190,12 +199,30 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     private async Task LoadSyncInfoAsync()
     {
         using var scope = _scopeFactory.CreateScope();
-        var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
+        var context = scope.ServiceProvider.GetRequiredService<StationDbContext>();
         var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
 
-        var pending = await outboxRepo.GetPendingAsync(clock.NowLocal, 1000, CancellationToken.None);
-        PendingSyncCount = pending.Count;
+        PendingSyncCount = await context.SyncOutbox
+            .Where(o => o.Status == OutboxStatus.PENDING || o.Status == OutboxStatus.FAILED_RETRYABLE)
+            .CountAsync(CancellationToken.None);
+
+        FailedSyncCount = await context.SyncOutbox
+            .Where(o => o.Status == OutboxStatus.FAILED_RETRYABLE || o.Status == OutboxStatus.FAILED_FINAL)
+            .CountAsync(CancellationToken.None);
+
+        var lastFailure = await context.SyncOutbox
+            .Where(o => !string.IsNullOrWhiteSpace(o.LastError))
+            .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
+            .FirstOrDefaultAsync(CancellationToken.None);
+
+        var lastSuccess = await context.SyncOutbox
+            .Where(o => o.Status == OutboxStatus.SUCCESS)
+            .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
+            .FirstOrDefaultAsync(CancellationToken.None);
+
+        LastSyncError = lastFailure?.LastError;
+        LastSyncFailureAt = FormatTimestamp(lastFailure?.UpdatedAt ?? lastFailure?.CreatedAt);
+        LastSyncSuccessAt = FormatTimestamp(lastSuccess?.UpdatedAt ?? lastSuccess?.CreatedAt);
 
         CentralApiUrl = await appConfig.GetValueAsync("central_api_url", CancellationToken.None) ?? UiText.Diagnostics.CentralApiNotConfigured;
         LastMasterDataSync = await appConfig.GetValueAsync("master_data_last_sync", CancellationToken.None) ?? UiText.Diagnostics.MasterDataNotSynced;
@@ -220,7 +247,10 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
         LiveWeight = 0;
         LiveIsStable = false;
         PendingSyncCount = 0;
+        FailedSyncCount = 0;
         LastSyncError = null;
+        LastSyncSuccessAt = "N/A";
+        LastSyncFailureAt = "N/A";
         CentralApiUrl = null;
         LastMasterDataSync = null;
         MasterDataSyncStatus = "Unknown";
@@ -238,5 +268,10 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             serial.DiagnosticsReceived -= OnDiagnosticsReceived;
             serial.ErrorOccurred -= OnDeviceError;
         }
+    }
+
+    private static string FormatTimestamp(DateTime? timestamp)
+    {
+        return timestamp?.ToString("dd/MM/yyyy HH:mm:ss") ?? "N/A";
     }
 }

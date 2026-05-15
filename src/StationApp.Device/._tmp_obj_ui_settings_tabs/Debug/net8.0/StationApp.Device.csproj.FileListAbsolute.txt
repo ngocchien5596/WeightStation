@@ -1,0 +1,16 @@
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_bin_ui_settings_tabs\Debug\net8.0\StationApp.Device.deps.json
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_bin_ui_settings_tabs\Debug\net8.0\StationApp.Device.dll
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_bin_ui_settings_tabs\Debug\net8.0\StationApp.Device.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_bin_ui_settings_tabs\Debug\net8.0\StationApp.Domain.dll
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_bin_ui_settings_tabs\Debug\net8.0\StationApp.Domain.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.csproj.AssemblyReference.cache
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.GeneratedMSBuildEditorConfig.editorconfig
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.AssemblyInfoInputs.cache
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.AssemblyInfo.cs
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.csproj.CoreCompileInputs.cache
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.sourcelink.json
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationA.160AD3CF.Up2Date
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.dll
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\refint\StationApp.Device.dll
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\StationApp.Device.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Device\._tmp_obj_ui_settings_tabs\Debug\net8.0\ref\StationApp.Device.dll

@@ -80,10 +80,33 @@
                 <StackPanel>
                     <TextBlock Text="{StaticResource Diagnostics.SyncTitle}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource ForegroundBrush}" Margin="0,0,0,16"/>
 
-                    <TextBlock Text="{StaticResource Diagnostics.OutboxQueue}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding PendingSyncCount}" FontSize="48" FontWeight="Bold" Foreground="#f1c40f" Margin="0,4,0,12"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{StaticResource Diagnostics.OutboxQueue}" Foreground="Gray" FontSize="12"/>
+                            <TextBlock Text="{Binding PendingSyncCount}" FontSize="40" FontWeight="Bold" Foreground="#f1c40f" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Bản ghi sync lỗi" Foreground="Gray" FontSize="12"/>
+                            <TextBlock Text="{Binding FailedSyncCount}" FontSize="40" FontWeight="Bold" Foreground="#E74C3C" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
 
-                    <TextBlock Text="{StaticResource Diagnostics.CentralApiUrl}" Foreground="Gray" FontSize="12" Margin="0,8,0,4"/>
+                    <TextBlock Text="Sync thành công gần nhất" Foreground="Gray" FontSize="12" Margin="0,4,0,4"/>
+                    <TextBlock Text="{Binding LastSyncSuccessAt}" FontSize="14" Foreground="{DynamicResource ForegroundBrush}"/>
+
+                    <TextBlock Text="Sync lỗi gần nhất" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>
+                    <TextBlock Text="{Binding LastSyncFailureAt}" FontSize="14" Foreground="#E74C3C"/>
+
+                    <Border Background="#33FF0000" CornerRadius="6" Padding="8" Margin="0,8,0,0"
+                            Visibility="{Binding LastSyncError, Converter={StaticResource StringToVis}, FallbackValue=Collapsed}">
+                        <TextBlock Text="{Binding LastSyncError}" Foreground="#C0392B" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <TextBlock Text="{StaticResource Diagnostics.CentralApiUrl}" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>
                     <TextBlock Text="{Binding CentralApiUrl}" FontSize="14" Foreground="{DynamicResource ForegroundBrush}" TextWrapping="Wrap"/>
 
                     <TextBlock Text="{StaticResource Diagnostics.MasterDataLastSync}" Foreground="Gray" FontSize="12" Margin="0,12,0,4"/>

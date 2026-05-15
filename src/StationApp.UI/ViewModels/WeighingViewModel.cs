@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
+using StationApp.Application.Security;
 using StationApp.Application.UseCases;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Models;
@@ -42,6 +43,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private bool _pendingWeight2IsStable;
     private WeightMode _pendingWeight1Mode = WeightMode.AUTO;
     private WeightMode _pendingWeight2Mode = WeightMode.AUTO;
+    private bool _isUpdatingOverweightSplitInputs;
+    private int _overweightPreviewRequestVersion;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -58,6 +61,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveToOutYardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MarkNoLoadCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
     private WeighingSessionListItem? _selectedSession;
@@ -82,6 +86,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isOverweight;
     [ObservableProperty] private string? _sessionStatusText;
     [ObservableProperty] private string? _overweightResolutionText;
+    [ObservableProperty] private string _overweightSplitTicket1WeightText = string.Empty;
+    [ObservableProperty] private string _overweightSplitTicket2WeightText = string.Empty;
+    [ObservableProperty] private string _overweightSplitModeText = string.Empty;
+    [ObservableProperty] private string _overweightSplitRandomFactorText = string.Empty;
+    [ObservableProperty] private string? _overweightSplitValidationMessage;
+    [ObservableProperty] private bool _isManualSplitOverride;
+    [ObservableProperty] private bool _isOverweightSplitPlanValid;
 
     [ObservableProperty] private decimal _currentWeight;
     [ObservableProperty] private bool _isStable;
@@ -102,7 +113,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
     public bool IsAutoMode => CurrentCaptureMode == "TỰ ĐỘNG";
     public bool IsManualMode => CurrentCaptureMode == "CÂN TAY";
-    public bool CanUseManualMode => string.Equals(_currentUserContext.RoleCode, "ADMIN", StringComparison.OrdinalIgnoreCase);
+    public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
 
     public WeighingViewModel(
         IServiceScopeFactory scopeFactory,
@@ -136,6 +147,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsAutoMode));
         OnPropertyChanged(nameof(IsManualMode));
         OnPropertyChanged(nameof(CanUseManualMode));
+    }
+
+    partial void OnOverweightSplitTicket1WeightTextChanged(string value)
+    {
+        HandleOverweightSplitWeightEdited(value, isFirstTicket: true);
+    }
+
+    partial void OnOverweightSplitTicket2WeightTextChanged(string value)
+    {
+        HandleOverweightSplitWeightEdited(value, isFirstTicket: false);
     }
 
     partial void OnSelectedSessionChanged(WeighingSessionListItem? value)
@@ -183,6 +204,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         _focusSessionId = null;
         IsAllocationVisible = false;
         IsRelatedTicketsVisible = false;
+        ResetOverweightHandlingState();
         IsOverweightHandlingVisible = false;
         SelectedSession = null;
         await LoadSessionsInternalAsync(false);
@@ -194,9 +216,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<GetWeighingSessionsUseCase>();
-            var keyword = !string.IsNullOrWhiteSpace(SearchSessionNo) ? SearchSessionNo : SearchVehiclePlate;
-            var list = await uc.ExecuteAsync(keyword, CancellationToken.None);
-            Sessions = new ObservableCollection<WeighingSessionListItem>(list);
+            var list = await uc.ExecuteAsync(null, CancellationToken.None);
+            var filtered = list.Where(x =>
+                MatchesSearch(x.SessionNo, SearchSessionNo)
+                && MatchesSearch(x.VehiclePlate, SearchVehiclePlate));
+            Sessions = new ObservableCollection<WeighingSessionListItem>(filtered);
 
             if (_focusSessionId.HasValue)
             {
@@ -267,6 +291,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsOverweight = false;
         OverweightAmount = 0m;
         OverweightSplitStepWeight = 0m;
+        OverweightSplitTicket1WeightText = string.Empty;
+        OverweightSplitTicket2WeightText = string.Empty;
+        OverweightSplitModeText = string.Empty;
+        OverweightSplitRandomFactorText = string.Empty;
+        OverweightSplitValidationMessage = null;
+        IsManualSplitOverride = false;
+        IsOverweightSplitPlanValid = false;
         SessionStatusText = null;
         OverweightResolutionText = null;
         SessionLines = new ObservableCollection<WeighingSessionLineRow>();
@@ -288,14 +319,20 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         && SelectedSession.OverweightResolutionStatus == OverweightResolutionStatus.PENDING;
     private bool CanPrintWeighTicket() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT1;
     private bool CanPrintDeliveryTicket() => SelectedSession != null && SelectedSession.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED;
+    private bool CanConfirmOverweightSplit() => SelectedSession != null && IsOverweightSplitPlanValid;
     private bool CanMoveToOutYard() =>
         SelectedSession != null
         && SelectedSession.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
         && (SelectedSession.OverweightResolutionStatus is OverweightResolutionStatus.NOT_APPLICABLE
             or OverweightResolutionStatus.SPLIT_CONFIRMED
             or OverweightResolutionStatus.NO_SPLIT_CONFIRMED);
+    private bool CanMarkNoLoad() =>
+        SelectedSession != null
+        && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED
+        && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
     private bool CanCancel() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
     private bool CanShowRelatedTickets() => SelectedSession != null;
+    private bool CanSuggestOverweightSplitAgain() => SelectedSession != null && IsOverweightHandlingVisible;
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight1))]
     private Task CaptureWeight1Async()
@@ -446,20 +483,32 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        using var scope = _scopeFactory.CreateScope();
-        var uc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
-        await uc.ExecuteAsync(
-            new AllocateWeighingSessionRequest(
-                SelectedSession.SessionId,
-                AllocationLines.Select(x => new AllocateWeighingSessionLineRequest(
-                    x.SessionLineId,
-                    x.ActualAllocatedWeight,
-                    x.ActualAllocatedBagCount)).ToList()),
-            CancellationToken.None);
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
+            await uc.ExecuteAsync(
+                new AllocateWeighingSessionRequest(
+                    SelectedSession.SessionId,
+                    AllocationLines.Select(x => new AllocateWeighingSessionLineRequest(
+                        x.SessionLineId,
+                        x.ActualAllocatedWeight,
+                        x.ActualAllocatedBagCount)).ToList()),
+                CancellationToken.None);
 
-        _toastService.ShowSuccess(UiText.Weighing.AllocationSaved);
-        IsAllocationVisible = false;
-        await FocusSessionAsync(SelectedSession.SessionId);
+            _toastService.ShowSuccess(UiText.Weighing.AllocationSaved);
+            IsAllocationVisible = false;
+            await FocusSessionAsync(SelectedSession.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Confirm allocation failed");
+            _toastService.ShowError("Không thể lưu phân bổ thực giao. Vui lòng thử lại.");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanShowOverweightHandling))]
@@ -470,23 +519,18 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        using var scope = _scopeFactory.CreateScope();
-        var previewUseCase = scope.ServiceProvider.GetRequiredService<PreviewWeighingSessionOverweightSplitUseCase>();
-        var preview = await previewUseCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
-        OverweightSplitStepWeight = preview.OverweightSplitStepWeight;
-        OverweightPreviewGroups = new ObservableCollection<OverweightSplitPreviewGroupItem>(preview.Groups);
-        OverweightPreviewLines = new ObservableCollection<OverweightSplitPreviewLineItem>(preview.Lines);
+        await RefreshOverweightPreviewAsync(isManualOverride: false, firstSplitWeight: null);
         IsOverweightHandlingVisible = true;
     }
 
     [RelayCommand]
     private void CloseOverweightHandling()
     {
-        OverweightSplitStepWeight = 0m;
+        ResetOverweightHandlingState();
         IsOverweightHandlingVisible = false;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanConfirmOverweightSplit))]
     private async Task ConfirmOverweightSplitAsync()
     {
         if (SelectedSession == null)
@@ -494,12 +538,34 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (!TryParseOverweightSplitWeight(OverweightSplitTicket1WeightText, out var firstSplitWeight))
+        {
+            return;
+        }
+
         using var scope = _scopeFactory.CreateScope();
         var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightSplitUseCase>();
-        await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
+        await useCase.ExecuteAsync(
+            new ResolveWeighingSessionOverweightSplitRequest(
+                SelectedSession.SessionId,
+                firstSplitWeight,
+                IsManualSplitOverride),
+            CancellationToken.None);
         _toastService.ShowSuccess("Đã cập nhật xử lý quá tải.");
         IsOverweightHandlingVisible = false;
+        ResetOverweightHandlingState();
         await FocusSessionAsync(SelectedSession.SessionId);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSuggestOverweightSplitAgain))]
+    private async Task SuggestOverweightSplitAgainAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        await RefreshOverweightPreviewAsync(isManualOverride: false, firstSplitWeight: null);
     }
 
     [RelayCommand]
@@ -515,7 +581,179 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
         _toastService.ShowSuccess("Đã cập nhật xử lý quá tải.");
         IsOverweightHandlingVisible = false;
+        ResetOverweightHandlingState();
         await FocusSessionAsync(SelectedSession.SessionId);
+    }
+
+    private void HandleOverweightSplitWeightEdited(string value, bool isFirstTicket)
+    {
+        if (_isUpdatingOverweightSplitInputs || !IsOverweightHandlingVisible)
+        {
+            return;
+        }
+
+        _ = RefreshManualOverweightPreviewAsync(value, isFirstTicket);
+    }
+
+    private async Task RefreshManualOverweightPreviewAsync(string value, bool isFirstTicket)
+    {
+        if (SelectedSession == null || !NetWeight.HasValue)
+        {
+            return;
+        }
+
+        if (!TryParseOverweightSplitWeight(value, out var editedWeight))
+        {
+            SetOverweightSplitValidation("Khoi luong tach phai la so hop le.");
+            return;
+        }
+
+        var firstSplitWeight = isFirstTicket
+            ? editedWeight
+            : decimal.Round(NetWeight.Value - editedWeight, 3, MidpointRounding.AwayFromZero);
+
+        await RefreshOverweightPreviewAsync(isManualOverride: true, firstSplitWeight: firstSplitWeight);
+    }
+
+    private async Task RefreshOverweightPreviewAsync(bool isManualOverride, decimal? firstSplitWeight)
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var requestVersion = ++_overweightPreviewRequestVersion;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var previewUseCase = scope.ServiceProvider.GetRequiredService<PreviewWeighingSessionOverweightSplitUseCase>();
+            var preview = await previewUseCase.ExecuteAsync(
+                new PreviewWeighingSessionOverweightSplitRequest(
+                    SelectedSession.SessionId,
+                    firstSplitWeight,
+                    isManualOverride),
+                CancellationToken.None);
+
+            if (requestVersion != _overweightPreviewRequestVersion)
+            {
+                return;
+            }
+
+            ApplyOverweightPreview(preview);
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (requestVersion != _overweightPreviewRequestVersion)
+            {
+                return;
+            }
+
+            ApplyOverweightPreviewError(isManualOverride, firstSplitWeight, ex.Message);
+        }
+    }
+
+    private void ApplyOverweightPreview(OverweightSplitPreviewDto preview)
+    {
+        _isUpdatingOverweightSplitInputs = true;
+        try
+        {
+            OverweightSplitStepWeight = preview.OverweightSplitStepWeight;
+            OverweightSplitTicket1WeightText = FormatOverweightSplitWeight(preview.SplitTicket1NetWeight);
+            OverweightSplitTicket2WeightText = FormatOverweightSplitWeight(preview.SplitTicket2NetWeight);
+        }
+        finally
+        {
+            _isUpdatingOverweightSplitInputs = false;
+        }
+
+        IsManualSplitOverride = preview.IsManualOverride;
+        OverweightSplitModeText = SplitModeDisplayMapper.ToDisplayString(preview.IsManualOverride);
+        OverweightSplitRandomFactorText = preview.IsManualOverride
+            ? "Tùy chỉnh tay"
+            : preview.RandomSplitFactor.HasValue
+                ? preview.RandomSplitFactor.Value.ToString("P2", System.Globalization.CultureInfo.InvariantCulture)
+                : "--";
+        OverweightPreviewGroups = new ObservableCollection<OverweightSplitPreviewGroupItem>(preview.Groups);
+        OverweightPreviewLines = new ObservableCollection<OverweightSplitPreviewLineItem>(preview.Lines);
+        SetOverweightSplitValidation(null);
+    }
+
+    private void ApplyOverweightPreviewError(bool isManualOverride, decimal? firstSplitWeight, string message)
+    {
+        IsManualSplitOverride = isManualOverride;
+        OverweightSplitModeText = SplitModeDisplayMapper.ToDisplayString(isManualOverride);
+        OverweightSplitRandomFactorText = isManualOverride ? "Tùy chỉnh tay" : "--";
+
+        if (firstSplitWeight.HasValue)
+        {
+            _isUpdatingOverweightSplitInputs = true;
+            try
+            {
+                OverweightSplitTicket1WeightText = FormatOverweightSplitWeight(firstSplitWeight.Value);
+                if (NetWeight.HasValue)
+                {
+                    OverweightSplitTicket2WeightText = FormatOverweightSplitWeight(
+                        decimal.Round(NetWeight.Value - firstSplitWeight.Value, 3, MidpointRounding.AwayFromZero));
+                }
+            }
+            finally
+            {
+                _isUpdatingOverweightSplitInputs = false;
+            }
+        }
+
+        SetOverweightSplitValidation(message);
+        OverweightPreviewGroups = new ObservableCollection<OverweightSplitPreviewGroupItem>();
+        OverweightPreviewLines = new ObservableCollection<OverweightSplitPreviewLineItem>();
+    }
+
+    private void SetOverweightSplitValidation(string? validationMessage)
+    {
+        OverweightSplitValidationMessage = validationMessage;
+        IsOverweightSplitPlanValid = string.IsNullOrWhiteSpace(validationMessage);
+        ConfirmOverweightSplitCommand.NotifyCanExecuteChanged();
+        SuggestOverweightSplitAgainCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool TryParseOverweightSplitWeight(string? value, out decimal parsedWeight)
+    {
+        if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out parsedWeight))
+        {
+            parsedWeight = decimal.Round(parsedWeight, 3, MidpointRounding.AwayFromZero);
+            return true;
+        }
+
+        if (decimal.TryParse(value, out parsedWeight))
+        {
+            parsedWeight = decimal.Round(parsedWeight, 3, MidpointRounding.AwayFromZero);
+            return true;
+        }
+
+        parsedWeight = 0m;
+        return false;
+    }
+
+    private static string FormatOverweightSplitWeight(decimal weight)
+    {
+        return decimal.Round(weight, 0, MidpointRounding.AwayFromZero)
+            .ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    private void ResetOverweightHandlingState()
+    {
+        OverweightSplitStepWeight = 0m;
+        OverweightSplitTicket1WeightText = string.Empty;
+        OverweightSplitTicket2WeightText = string.Empty;
+        OverweightSplitModeText = string.Empty;
+        OverweightSplitRandomFactorText = string.Empty;
+        OverweightPreviewGroups = new ObservableCollection<OverweightSplitPreviewGroupItem>();
+        OverweightPreviewLines = new ObservableCollection<OverweightSplitPreviewLineItem>();
+        IsManualSplitOverride = false;
+        OverweightSplitValidationMessage = null;
+        IsOverweightSplitPlanValid = false;
+        ConfirmOverweightSplitCommand.NotifyCanExecuteChanged();
+        SuggestOverweightSplitAgainCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanPrintWeighTicket))]
@@ -577,6 +815,45 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             _logger?.LogError(ex, "MoveToOutYard failed");
             _toastService.ShowError(UiText.Weighing.MoveOutError);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMarkNoLoad))]
+    private async Task MarkNoLoadAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "Xác nhận không lấy hàng",
+            "Lượt cân đã chọn sẽ được chuyển thẳng sang danh sách xe ra với trạng thái không lấy hàng. Tiếp tục?",
+            "Chuyển xe ra",
+            UiText.Common.No);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<MarkWeighingSessionNoLoadUseCase>();
+            await uc.ExecuteAsync(new MarkWeighingSessionNoLoadRequest(SelectedSession.SessionId), CancellationToken.None);
+            _toastService.ShowSuccess("Đã chuyển xe sang danh sách xe ra theo luồng không lấy hàng.");
+            await LoadSessionsAsync();
+            NavigateToOutgoingRequested?.Invoke();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "MarkNoLoad failed");
+            _toastService.ShowError("Không thể chuyển xe ra theo luồng không lấy hàng.");
         }
     }
 
@@ -873,6 +1150,17 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private decimal ResolveWeightToCapture()
     {
         return decimal.Round(CurrentWeight, 3, MidpointRounding.AwayFromZero);
+    }
+
+    private static bool MatchesSearch(string? source, string? keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(source)
+            && source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private void ClearPendingCapturedWeights()

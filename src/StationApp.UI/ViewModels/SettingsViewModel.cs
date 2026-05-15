@@ -3,16 +3,18 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
-using StationApp.Domain.Entities;
+using StationApp.Application.Security;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Implementations;
+using StationApp.Domain.Entities;
 
 namespace StationApp.UI.ViewModels;
 
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    
+    private readonly ICurrentUserContext _currentUserContext;
+
     public ViewModels.Settings.SystemSettingsViewModel SystemSettingsVM { get; }
     public ViewModels.Settings.ScaleDeviceConfigViewModel ScaleDeviceConfigVM { get; }
     public ViewModels.Settings.VehicleMasterViewModel VehicleMasterVM { get; }
@@ -22,70 +24,27 @@ public partial class SettingsViewModel : ObservableObject
     public ViewModels.Settings.AccountManagementViewModel AccountManagementVM { get; }
 
     [ObservableProperty] private int _selectedTabIndex;
-    [ObservableProperty] private string _viewTitle = "THAM SỐ HỆ THỐNG";
+    [ObservableProperty] private string _viewTitle = "THAM SO HE THONG";
+
+    public bool CanAccessSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
+    public bool CanAccessScaleDeviceConfig => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
+    public bool CanAccessVehicleMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
+    public bool CanAccessCustomerMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
+    public bool CanAccessProductMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
+    public bool CanAccessSyncInfo => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
+    public bool CanAccessAccountManagement => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
 
     partial void OnSelectedTabIndexChanged(int value)
     {
-        // Trigger automated sub-view loads safely
         _ = HandleTabSelectionAsync(value);
     }
 
-    private async Task HandleTabSelectionAsync(int tabIndex)
-    {
-        ViewTitle = tabIndex switch
-        {
-            0 => "THAM SỐ HỆ THỐNG",
-            1 => "THIẾT BỊ CÂN",
-            2 => "MASTER XE",
-            3 => "KHÁCH HÀNG",
-            4 => "SẢN PHẨM",
-            5 => "ĐỒNG BỘ",
-            6 => "QUẢN LÝ TÀI KHOẢN",
-            _ => "CẤU HÌNH HỆ THỐNG"
-        };
-
-        try
-        {
-            switch (tabIndex)
-            {
-                case 0: await SystemSettingsVM.LoadAsync(); break;
-                case 1: await ScaleDeviceConfigVM.LoadAsync(); break;
-                case 2: await VehicleMasterVM.LoadAsync(); break;
-                case 3: await CustomerMasterVM.LoadAsync(); break;
-                case 4: await ProductMasterVM.LoadAsync(); break;
-                case 5: await SyncInfoVM.LoadAsync(); break;
-                case 6: await AccountManagementVM.LoadAsync(); break;
-            }
-        }
-        catch { /* Robust error containment */ }
-    }
-    // Tham số hệ thống
-    [ObservableProperty] private string? _stationCode;
-    [ObservableProperty] private string? _ticketPrefix;
-    [ObservableProperty] private string? _toleranceKg;
-    [ObservableProperty] private string? _syncInterval;
-    [ObservableProperty] private string? _centralApiUrl;
-    [ObservableProperty] private string? _centralApiKey;
-
-    // Thiết bị cân
-    [ObservableProperty] private string? _comPort;
-    [ObservableProperty] private string? _baudrate;
-    [ObservableProperty] private string? _parserType;
-    [ObservableProperty] private string? _frameEndChar;
-    [ObservableProperty] private bool _useSimulator;
-    [ObservableProperty] private string? _weightSubstringStart;
-    [ObservableProperty] private string? _weightSubstringLength;
-
-    // Master Data
-    [ObservableProperty] private ObservableCollection<Vehicle> _vehicles = new();
-    [ObservableProperty] private ObservableCollection<Customer> _customers = new();
-    [ObservableProperty] private ObservableCollection<Product> _products = new();
-
-    public SettingsViewModel(IServiceScopeFactory scopeFactory)
+    public SettingsViewModel(IServiceScopeFactory scopeFactory, ICurrentUserContext currentUserContext)
     {
         _scopeFactory = scopeFactory;
-        SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory);
-        ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory);
+        _currentUserContext = currentUserContext;
+        SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext);
+        ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext);
         VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory);
         CustomerMasterVM = new Settings.CustomerMasterViewModel(_scopeFactory);
         ProductMasterVM = new Settings.ProductMasterViewModel(_scopeFactory);
@@ -95,28 +54,124 @@ public partial class SettingsViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
-        await SystemSettingsVM.LoadAsync();
-        using var scope = _scopeFactory.CreateScope();
-        var appRepo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-        
-        StationCode = await appRepo.GetValueAsync("station_code", CancellationToken.None);
-        TicketPrefix = await appRepo.GetValueAsync("ticket_prefix", CancellationToken.None);
-        ToleranceKg = await appRepo.GetValueAsync("tolerance_kg", CancellationToken.None);
-        SyncInterval = await appRepo.GetValueAsync("sync_interval", CancellationToken.None);
-        CentralApiUrl = await appRepo.GetValueAsync("central_api_url", CancellationToken.None);
-        CentralApiKey = await appRepo.GetValueAsync("central_api_key", CancellationToken.None);
-
-        ComPort = await appRepo.GetValueAsync("device_com_port", CancellationToken.None) ?? "COM6";
-        Baudrate = await appRepo.GetValueAsync("device_baudrate", CancellationToken.None) ?? "9600";
-        ParserType = await appRepo.GetValueAsync("device_parser_type", CancellationToken.None) ?? "DEFAULT";
-        FrameEndChar = await appRepo.GetValueAsync("device_frame_end_char", CancellationToken.None) ?? "3";
-        WeightSubstringStart = await appRepo.GetValueAsync("weight_substring_start", CancellationToken.None) ?? "0";
-        WeightSubstringLength = await appRepo.GetValueAsync("weight_substring_length", CancellationToken.None) ?? "7";
-
-        UseSimulator = false; // Plan A: Hardcoded to false
-
+        SelectedTabIndex = GetDefaultAccessibleTabIndex();
         await LoadMasterDataAsync();
+        await HandleTabSelectionAsync(SelectedTabIndex);
     }
+
+    private async Task HandleTabSelectionAsync(int tabIndex)
+    {
+        if (!CanAccessTab(tabIndex))
+        {
+            var fallbackTab = GetDefaultAccessibleTabIndex();
+            if (SelectedTabIndex != fallbackTab)
+            {
+                SelectedTabIndex = fallbackTab;
+            }
+
+            return;
+        }
+
+        ViewTitle = tabIndex switch
+        {
+            0 => "THAM SO HE THONG",
+            1 => "THIET BI CAN",
+            2 => "MASTER XE",
+            3 => "KHACH HANG",
+            4 => "SAN PHAM",
+            5 => "DONG BO",
+            6 => "QUAN LY TAI KHOAN",
+            _ => "CAU HINH HE THONG"
+        };
+
+        try
+        {
+            switch (tabIndex)
+            {
+                case 0:
+                    await SystemSettingsVM.LoadAsync();
+                    break;
+                case 1:
+                    await ScaleDeviceConfigVM.LoadAsync();
+                    break;
+                case 2:
+                    await VehicleMasterVM.LoadAsync();
+                    break;
+                case 3:
+                    await CustomerMasterVM.LoadAsync();
+                    break;
+                case 4:
+                    await ProductMasterVM.LoadAsync();
+                    break;
+                case 5:
+                    await SyncInfoVM.LoadAsync();
+                    break;
+                case 6:
+                    await AccountManagementVM.LoadAsync();
+                    break;
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private bool CanAccessTab(int tabIndex)
+    {
+        return tabIndex switch
+        {
+            0 => CanAccessSystemSettings,
+            1 => CanAccessScaleDeviceConfig,
+            2 => CanAccessVehicleMaster,
+            3 => CanAccessCustomerMaster,
+            4 => CanAccessProductMaster,
+            5 => CanAccessSyncInfo,
+            6 => CanAccessAccountManagement,
+            _ => false
+        };
+    }
+
+    private int GetDefaultAccessibleTabIndex()
+    {
+        if (CanAccessSystemSettings)
+        {
+            return 0;
+        }
+
+        if (CanAccessVehicleMaster)
+        {
+            return 2;
+        }
+
+        if (CanAccessCustomerMaster)
+        {
+            return 3;
+        }
+
+        if (CanAccessProductMaster)
+        {
+            return 4;
+        }
+
+        return 0;
+    }
+
+    [ObservableProperty] private string? _stationCode;
+    [ObservableProperty] private string? _ticketPrefix;
+    [ObservableProperty] private string? _toleranceKg;
+    [ObservableProperty] private string? _syncInterval;
+    [ObservableProperty] private string? _centralApiUrl;
+    [ObservableProperty] private string? _centralApiKey;
+    [ObservableProperty] private string? _comPort;
+    [ObservableProperty] private string? _baudrate;
+    [ObservableProperty] private string? _parserType;
+    [ObservableProperty] private string? _frameEndChar;
+    [ObservableProperty] private bool _useSimulator;
+    [ObservableProperty] private string? _weightSubstringStart;
+    [ObservableProperty] private string? _weightSubstringLength;
+    [ObservableProperty] private ObservableCollection<Vehicle> _vehicles = new();
+    [ObservableProperty] private ObservableCollection<Customer> _customers = new();
+    [ObservableProperty] private ObservableCollection<Product> _products = new();
 
     private async Task LoadMasterDataAsync()
     {
@@ -148,32 +203,42 @@ public partial class SettingsViewModel : ObservableObject
         if (SyncInterval != null) await repo.SetValueAsync("sync_interval", SyncInterval, CancellationToken.None);
         if (CentralApiUrl != null) await repo.SetValueAsync("central_api_url", CentralApiUrl, CancellationToken.None);
         if (CentralApiKey != null) await repo.SetValueAsync("central_api_key", CentralApiKey, CancellationToken.None);
-
         if (ComPort != null) await repo.SetValueAsync("device_com_port", ComPort, CancellationToken.None);
         if (Baudrate != null) await repo.SetValueAsync("device_baudrate", Baudrate, CancellationToken.None);
         if (ParserType != null) await repo.SetValueAsync("device_parser_type", ParserType, CancellationToken.None);
         if (FrameEndChar != null) await repo.SetValueAsync("device_frame_end_char", FrameEndChar, CancellationToken.None);
-        
         if (WeightSubstringStart != null) await repo.SetValueAsync("weight_substring_start", WeightSubstringStart, CancellationToken.None);
         if (WeightSubstringLength != null) await repo.SetValueAsync("weight_substring_length", WeightSubstringLength, CancellationToken.None);
 
         await repo.SetValueAsync("device_use_simulator", "false", CancellationToken.None);
-
         await uow.SaveChangesAsync(CancellationToken.None);
 
-        // Update live parser instance parameters
         try
         {
             var parser = scope.ServiceProvider.GetService<IWeightFrameParser>() as YaohuaWeightFrameParser;
             if (parser != null)
             {
-                if (int.TryParse(WeightSubstringStart, out var startVal)) parser.WeightSubstringStart = startVal;
-                else parser.WeightSubstringStart = null;
+                if (int.TryParse(WeightSubstringStart, out var startVal))
+                {
+                    parser.WeightSubstringStart = startVal;
+                }
+                else
+                {
+                    parser.WeightSubstringStart = null;
+                }
 
-                if (int.TryParse(WeightSubstringLength, out var lenVal)) parser.WeightSubstringLength = lenVal;
-                else parser.WeightSubstringLength = null;
+                if (int.TryParse(WeightSubstringLength, out var lenVal))
+                {
+                    parser.WeightSubstringLength = lenVal;
+                }
+                else
+                {
+                    parser.WeightSubstringLength = null;
+                }
             }
         }
-        catch { /* Swallow */ }
+        catch
+        {
+        }
     }
 }

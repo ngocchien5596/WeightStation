@@ -34,6 +34,7 @@
                     <StackPanel>
                         <StackPanel Background="{StaticResource SidebarItemBackground}">
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewDashboard, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Dashboard">
                                 <StackPanel Orientation="Horizontal">
@@ -42,6 +43,7 @@
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewIncomingVehicles, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="IncomingVehicles">
                                 <StackPanel Orientation="Horizontal">
@@ -50,6 +52,7 @@
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewWeighing, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Weighing">
                                 <StackPanel Orientation="Horizontal">
@@ -58,6 +61,7 @@
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewOutgoingVehicles, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="OutgoingVehicles">
                                 <StackPanel Orientation="Horizontal">
@@ -66,6 +70,7 @@
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewTicketList, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="TicketList">
                                 <StackPanel Orientation="Horizontal">
@@ -74,6 +79,7 @@
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewDiagnostics, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Diagnostics">
                                 <StackPanel Orientation="Horizontal">
@@ -83,6 +89,7 @@
                             </Button>
 
                             <Button Style="{StaticResource SidebarExpandableItemStyle}"
+                                    Visibility="{Binding CanViewSettingsMenu, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding ToggleSettingsSubmenuCommand}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
@@ -92,6 +99,7 @@
 
                             <StackPanel Visibility="{Binding IsSettingsSubmenuVisible, Converter={StaticResource BoolToVis}}">
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsParams, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Params">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
@@ -99,6 +107,7 @@
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsDevice, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Device">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
@@ -106,6 +115,7 @@
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsVehicles, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Vehicles">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
@@ -113,6 +123,7 @@
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsCustomers, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Customers">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
@@ -120,6 +131,7 @@
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsProducts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Products">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
@@ -127,6 +139,7 @@
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsSync, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Sync">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
@@ -134,6 +147,7 @@
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                        Visibility="{Binding CanViewSettingsAccounts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Accounts">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>

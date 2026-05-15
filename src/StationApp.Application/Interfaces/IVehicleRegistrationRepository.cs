@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 
 namespace StationApp.Application.Interfaces;
 
@@ -15,6 +16,7 @@ public interface IVehicleRegistrationRepository
     Task<IReadOnlyList<VehicleRegistration>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<VehicleRegistration?> GetByErpIdAsync(string erpVehicleRegistrationId, CancellationToken ct);
     Task<IReadOnlyList<VehicleRegistration>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
+    Task<IReadOnlyList<VehicleRegistration>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct);
     Task<IReadOnlyList<VehicleRegistration>> SearchAsync(string? keyword, CancellationToken ct);
     Task<IReadOnlyList<VehicleRegistration>> GetUnprocessedInboundAsync(CancellationToken ct);
     Task<IReadOnlyList<WeightViewListItem>> GetWeightViewListAsync(string? keyword, CancellationToken ct);

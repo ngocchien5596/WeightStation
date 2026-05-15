@@ -5,6 +5,11 @@ namespace StationApp.Application.Services;
 
 public sealed class WeighingSessionOverweightService
 {
+    private const decimal MinRandomSplitFactor = 0.0001m;
+    private const decimal MinPositiveWeight = 0.001m;
+    private const int MaxRandomSuggestionAttempts = 50;
+    private const string InvalidSplitMessage = "Luot can nay khong the tach hop le thanh 2 phieu voi nguong TTCP 10% hien tai. Vui long chon Khong tach hoac kiem tra lai tham so tach tai.";
+
     public decimal ResolveTtcp10Threshold(decimal? baseTtcpWeight, IReadOnlyCollection<WeighingSessionLine> lines)
     {
         var baseWeight = baseTtcpWeight.GetValueOrDefault();
@@ -74,7 +79,9 @@ public sealed class WeighingSessionOverweightService
     public OverweightSplitPlan BuildSplitPlan(
         WeighingSession session,
         IReadOnlyList<WeighingSessionLine> lines,
-        decimal splitStepWeight)
+        decimal splitStepWeight,
+        decimal? firstSplitNetWeight = null,
+        bool isManualOverride = false)
     {
         if (!session.NetWeight.HasValue || !session.Ttcp10WeightSnapshot.HasValue)
         {
@@ -97,14 +104,48 @@ public sealed class WeighingSessionOverweightService
             throw new InvalidOperationException("Khong co dong phan bo thuc giao de tach qua tai.");
         }
 
-        if (splitStepWeight < 0m || splitStepWeight >= 1m)
+        if (!TryGetFeasibleWeightRange(session.NetWeight.Value, target, out var lowerBound, out var upperBound))
         {
-            throw new InvalidOperationException("Tham so buoc tach qua tai khong hop le.");
+            throw new InvalidOperationException(InvalidSplitMessage);
         }
 
-        var firstGroupTarget = decimal.Round(target * (1m - splitStepWeight), 3, MidpointRounding.AwayFromZero);
+        decimal resolvedFirstGroupTarget;
+        decimal? randomSplitFactor = null;
+
+        if (isManualOverride)
+        {
+            if (!firstSplitNetWeight.HasValue)
+            {
+                throw new InvalidOperationException("Phuong an tach tay chua co khoi luong phieu 1.");
+            }
+
+            resolvedFirstGroupTarget = decimal.Round(firstSplitNetWeight.Value, 3, MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            if (splitStepWeight < MinRandomSplitFactor || splitStepWeight >= 1m)
+            {
+                throw new InvalidOperationException("Tham so buoc tach qua tai khong hop le.");
+            }
+
+            if (firstSplitNetWeight.HasValue)
+            {
+                resolvedFirstGroupTarget = decimal.Round(firstSplitNetWeight.Value, 3, MidpointRounding.AwayFromZero);
+            }
+            else
+            {
+                (resolvedFirstGroupTarget, randomSplitFactor) = BuildSuggestedFirstSplitWeight(
+                    session.NetWeight.Value,
+                    target,
+                    splitStepWeight,
+                    lowerBound,
+                    upperBound);
+            }
+        }
+
+        var firstGroupTarget = resolvedFirstGroupTarget;
         var secondGroupTarget = decimal.Round(session.NetWeight.Value - firstGroupTarget, 3, MidpointRounding.AwayFromZero);
-        ValidateSplitTargets(target, firstGroupTarget, secondGroupTarget);
+        ValidateSplitTargets(target, firstGroupTarget, secondGroupTarget, lowerBound, upperBound);
 
         var firstGroupId = Guid.NewGuid();
         var secondGroupId = Guid.NewGuid();
@@ -168,18 +209,88 @@ public sealed class WeighingSessionOverweightService
                     x.BagCount)).ToList()))
             .ToList();
 
-        return new OverweightSplitPlan(session.Id, target, session.NetWeight.Value, splitStepWeight, groups);
+        return new OverweightSplitPlan(
+            session.Id,
+            target,
+            session.NetWeight.Value,
+            splitStepWeight,
+            firstGroupTarget,
+            secondGroupTarget,
+            randomSplitFactor,
+            isManualOverride,
+            groups);
     }
 
-    private static void ValidateSplitTargets(decimal ttcp10WeightSnapshot, decimal firstGroupTarget, decimal secondGroupTarget)
+    public bool TryGetFeasibleWeightRange(decimal netWeight, decimal ttcp10WeightSnapshot, out decimal lowerBound, out decimal upperBound)
     {
-        if (firstGroupTarget <= 0m
+        lowerBound = decimal.Round(Math.Max(netWeight - ttcp10WeightSnapshot, MinPositiveWeight), 3, MidpointRounding.AwayFromZero);
+        upperBound = decimal.Round(Math.Min(ttcp10WeightSnapshot - MinPositiveWeight, netWeight - MinPositiveWeight), 3, MidpointRounding.AwayFromZero);
+        return lowerBound <= upperBound;
+    }
+
+    private static void ValidateSplitTargets(
+        decimal ttcp10WeightSnapshot,
+        decimal firstGroupTarget,
+        decimal secondGroupTarget,
+        decimal lowerBound,
+        decimal upperBound)
+    {
+        if (firstGroupTarget < lowerBound
+            || firstGroupTarget > upperBound
+            || firstGroupTarget <= 0m
             || firstGroupTarget >= ttcp10WeightSnapshot
             || secondGroupTarget <= 0m
             || secondGroupTarget > ttcp10WeightSnapshot)
         {
-            throw new InvalidOperationException("Luot can nay khong the tach hop le thanh 2 phieu theo tham so hien tai");
+            throw new InvalidOperationException(InvalidSplitMessage);
         }
+    }
+
+    private static (decimal FirstGroupTarget, decimal? RandomSplitFactor) BuildSuggestedFirstSplitWeight(
+        decimal netWeight,
+        decimal ttcp10WeightSnapshot,
+        decimal splitStepWeight,
+        decimal lowerBound,
+        decimal upperBound)
+    {
+        var random = Random.Shared;
+
+        for (var attempt = 0; attempt < MaxRandomSuggestionAttempts; attempt++)
+        {
+            var rawFactor = random.NextDouble();
+            var factor = decimal.Round(
+                MinRandomSplitFactor + ((decimal)rawFactor * (splitStepWeight - MinRandomSplitFactor)),
+                4,
+                MidpointRounding.AwayFromZero);
+            var candidate = decimal.Round(
+                ttcp10WeightSnapshot * (1m - factor),
+                3,
+                MidpointRounding.AwayFromZero);
+            var secondGroupTarget = decimal.Round(netWeight - candidate, 3, MidpointRounding.AwayFromZero);
+
+            if (candidate >= lowerBound
+                && candidate <= upperBound
+                && secondGroupTarget > 0m
+                && secondGroupTarget <= ttcp10WeightSnapshot)
+            {
+                return (candidate, factor);
+            }
+        }
+
+        var integerLowerBound = (int)Math.Ceiling(lowerBound);
+        var integerUpperBound = (int)Math.Floor(upperBound);
+        if (integerLowerBound > integerUpperBound)
+        {
+            throw new InvalidOperationException(InvalidSplitMessage);
+        }
+
+        var fallbackWeight = random.Next(integerLowerBound, integerUpperBound + 1);
+        var fallbackFactor = decimal.Round(
+            (ttcp10WeightSnapshot - fallbackWeight) / ttcp10WeightSnapshot,
+            4,
+            MidpointRounding.AwayFromZero);
+
+        return (decimal.Round(fallbackWeight, 3, MidpointRounding.AwayFromZero), fallbackFactor);
     }
 
     private static void InvalidateResolvedDocumentsIfNeeded(
@@ -297,6 +408,10 @@ public sealed record OverweightSplitPlan(
     decimal Ttcp10WeightSnapshot,
     decimal NetWeight,
     decimal OverweightSplitStepWeight,
+    decimal SplitTicket1NetWeight,
+    decimal SplitTicket2NetWeight,
+    decimal? RandomSplitFactor,
+    bool IsManualOverride,
     IReadOnlyList<OverweightSplitGroupPlan> Groups);
 
 public sealed record OverweightSplitGroupPlan(

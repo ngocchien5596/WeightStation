@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -51,15 +52,28 @@ namespace StationApp.UI.ViewModels.Settings
         {
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
-            
-            var keyword = string.IsNullOrWhiteSpace(SearchName) ? SearchCode : SearchName;
-            var list = await repo.SearchAsync(keyword, CancellationToken.None);
-            
+
+            var list = await repo.SearchAsync(null, CancellationToken.None);
+            var filtered = list.Where(x =>
+                MatchesSearch(x.ProductCode, SearchCode)
+                && MatchesSearch(x.ProductName, SearchName));
+
             Products.Clear();
-            foreach (var item in list)
+            foreach (var item in filtered)
             {
                 Products.Add(item);
             }
+        }
+
+        private static bool MatchesSearch(string? source, string? keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return true;
+            }
+
+            return !string.IsNullOrWhiteSpace(source)
+                && source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
         [RelayCommand]

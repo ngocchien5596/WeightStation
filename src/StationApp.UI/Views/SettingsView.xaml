@@ -15,7 +15,7 @@
             <SolidColorBrush x:Key="EnterprisePanelBg" Color="#E8EFF7"/>
             <SolidColorBrush x:Key="EnterpriseSave" Color="#007F54"/>
             <SolidColorBrush x:Key="EnterpriseDelete" Color="#BD2730"/>
-            
+
             <Style x:Key="SettingLabel" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="14"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
@@ -62,43 +62,44 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Top Header Banner -->
         <Border Grid.Row="0" Background="{StaticResource EnterpriseDarkBlue}" CornerRadius="4" Padding="12" Margin="0,0,0,16">
             <TextBlock Text="{Binding ViewTitle}" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
         </Border>
 
         <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
-            <TabControl.ItemContainerStyle>
-                <Style TargetType="TabItem">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </Style>
-            </TabControl.ItemContainerStyle>
-            
-            <TabItem Header="THAM SỐ HỆ THỐNG">
+            <TabControl.Template>
+                <ControlTemplate TargetType="TabControl">
+                    <Border Background="Transparent">
+                        <ContentPresenter ContentSource="SelectedContent"/>
+                    </Border>
+                </ControlTemplate>
+            </TabControl.Template>
+
+            <TabItem Header="THAM SO HE THONG" Visibility="{Binding CanAccessSystemSettings, Converter={StaticResource BoolToVis}}">
                 <settings:SystemSettingsView DataContext="{Binding SystemSettingsVM}"/>
             </TabItem>
 
-            <TabItem Header="THIẾT BỊ CÂN">
+            <TabItem Header="THIET BI CAN" Visibility="{Binding CanAccessScaleDeviceConfig, Converter={StaticResource BoolToVis}}">
                 <settings:ScaleDeviceConfigView DataContext="{Binding ScaleDeviceConfigVM}"/>
             </TabItem>
 
-            <TabItem Header="MASTER XE">
+            <TabItem Header="MASTER XE" Visibility="{Binding CanAccessVehicleMaster, Converter={StaticResource BoolToVis}}">
                 <settings:VehicleMasterView DataContext="{Binding VehicleMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="KHÁCH HÀNG">
+            <TabItem Header="KHACH HANG" Visibility="{Binding CanAccessCustomerMaster, Converter={StaticResource BoolToVis}}">
                 <settings:CustomerMasterView DataContext="{Binding CustomerMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="SẢN PHẨM">
+            <TabItem Header="SAN PHAM" Visibility="{Binding CanAccessProductMaster, Converter={StaticResource BoolToVis}}">
                 <settings:ProductMasterView DataContext="{Binding ProductMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="ĐỒNG BỘ">
+            <TabItem Header="DONG BO" Visibility="{Binding CanAccessSyncInfo, Converter={StaticResource BoolToVis}}">
                 <settings:SyncInfoView DataContext="{Binding SyncInfoVM}"/>
             </TabItem>
 
-            <TabItem Header="QUẢN LÝ TÀI KHOẢN">
+            <TabItem Header="QUAN LY TAI KHOAN" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
                 <settings:AccountManagementView DataContext="{Binding AccountManagementVM}"/>
             </TabItem>
         </TabControl>

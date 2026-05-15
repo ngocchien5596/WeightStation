@@ -3,6 +3,7 @@ using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 
 namespace StationApp.Infrastructure.Repositories;
@@ -301,6 +302,16 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
             .Where(d => d.WeighingSessionId == weighingSessionId && !d.IsDeleted)
             .OrderBy(d => d.SplitSequence ?? 0)
             .ThenBy(d => d.CreatedAt)
+            .ToListAsync(ct);
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<DeliveryTicket>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
+    {
+        var list = await _context.DeliveryTickets
+            .Where(d => d.SyncStatus == syncStatus && !d.IsDeleted)
+            .OrderBy(d => d.UpdatedAt ?? d.CreatedAt)
+            .Take(take)
             .ToListAsync(ct);
         return list.AsReadOnly();
     }

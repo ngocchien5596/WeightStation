@@ -155,6 +155,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IAuditService, AuditService>();
                     services.AddScoped<ISyncPayloadFactory, SyncPayloadFactory>();
                     services.AddSingleton<WeighingSessionOverweightService>();
+                    services.AddSingleton<WeighingSessionTicketSyncService>();
                     services.AddSingleton<PrintOverlayRenderer>();
                     services.AddScoped<IWeighTicketPrintComposer, WeighTicketPrintComposer>();
                     services.AddScoped<IDeliveryTicketPrintComposer, DeliveryTicketPrintComposer>();
@@ -186,6 +187,8 @@ public partial class App : System.Windows.Application
                     services.AddScoped<UpdateUserAccountUseCase>();
                     services.AddScoped<SetUserActiveStatusUseCase>();
                     services.AddScoped<ResetUserPasswordUseCase>();
+                    services.AddScoped<UpdateSystemSettingsUseCase>();
+                    services.AddScoped<UpdateScaleDeviceSettingsUseCase>();
                     services.AddScoped<LoginUseCase>();
                     services.AddScoped<ConfirmEnterWeighingUseCase>();
                     services.AddScoped<CreateInboundRegistrationUseCase>();
@@ -194,9 +197,11 @@ public partial class App : System.Windows.Application
                     services.AddScoped<CaptureSessionWeight1UseCase>();
                     services.AddScoped<CaptureSessionWeight2UseCase>();
                     services.AddScoped<AllocateWeighingSessionUseCase>();
+                    services.AddScoped<MarkRegistrationsNoLoadUseCase>();
                     services.AddScoped<PreviewWeighingSessionOverweightSplitUseCase>();
                     services.AddScoped<ResolveWeighingSessionOverweightSplitUseCase>();
                     services.AddScoped<ResolveWeighingSessionOverweightNoSplitUseCase>();
+                    services.AddScoped<MarkWeighingSessionNoLoadUseCase>();
                     services.AddScoped<CompleteWeighingSessionUseCase>();
                     services.AddScoped<CancelWeighingSessionUseCase>();
                     services.AddScoped<GetWeighingSessionsUseCase>();

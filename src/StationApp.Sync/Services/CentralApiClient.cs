@@ -3,11 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.Interfaces;
 using StationApp.Contracts.Sync;
+using StationApp.Domain.Constants;
 
 namespace StationApp.Sync.Services;
 
 public interface ICentralApiClient
 {
+    Task<SyncWeighTicketResponse> PushAggregateAsync(string aggregateType, string payloadJson, Guid idempotencyKey, CancellationToken ct);
     Task<SyncWeighTicketResponse> PushTicketAsync(string payloadJson, Guid idempotencyKey, CancellationToken ct);
     Task<InboundMasterDataResponse> PullMasterDataAsync(DateTime? lastSyncAt, CancellationToken ct);
 }
@@ -26,10 +28,10 @@ public sealed class CentralApiClient : ICentralApiClient
     }
 
     /// <summary>
-    /// Pushes a weigh ticket to Central API (Outbound).
+    /// Pushes a sync aggregate to Central API (Outbound).
     /// X-Api-Key header is set via HttpClient message handler in DI config.
     /// </summary>
-    public async Task<SyncWeighTicketResponse> PushTicketAsync(string payloadJson, Guid idempotencyKey, CancellationToken ct)
+    public async Task<SyncWeighTicketResponse> PushAggregateAsync(string aggregateType, string payloadJson, Guid idempotencyKey, CancellationToken ct)
     {
         try
         {
@@ -44,24 +46,36 @@ public sealed class CentralApiClient : ICentralApiClient
                 };
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, "api/weigh-tickets"))
+            var endpoint = ResolveOutboundEndpoint(aggregateType);
+            var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, endpoint))
             {
                 Content = new StringContent(payloadJson, System.Text.Encoding.UTF8, "application/json")
             };
             request.Headers.Add("Idempotency-Key", idempotencyKey.ToString());
 
-            _logger?.LogDebug("Pushing ticket to Central API. Idempotency-Key: {Key}", idempotencyKey);
+            _logger?.LogDebug(
+                "Pushing aggregate {AggregateType} to Central API endpoint {Endpoint}. Idempotency-Key: {Key}",
+                aggregateType,
+                endpoint,
+                idempotencyKey);
 
             var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
-                _logger?.LogInformation("Ticket pushed successfully. Idempotency-Key: {Key}", idempotencyKey);
+                _logger?.LogInformation(
+                    "Aggregate {AggregateType} pushed successfully. Idempotency-Key: {Key}",
+                    aggregateType,
+                    idempotencyKey);
                 return new SyncWeighTicketResponse { Success = true };
             }
 
             var body = await response.Content.ReadAsStringAsync(ct);
-            _logger?.LogWarning("Push ticket failed. Status: {Status}, Body: {Body}", response.StatusCode, body);
+            _logger?.LogWarning(
+                "Push aggregate {AggregateType} failed. Status: {Status}, Body: {Body}",
+                aggregateType,
+                response.StatusCode,
+                body);
             return new SyncWeighTicketResponse
             {
                 Success = false,
@@ -71,7 +85,7 @@ public sealed class CentralApiClient : ICentralApiClient
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogError(ex, "HTTP error pushing ticket. Idempotency-Key: {Key}", idempotencyKey);
+            _logger?.LogError(ex, "HTTP error pushing aggregate {AggregateType}. Idempotency-Key: {Key}", aggregateType, idempotencyKey);
             return new SyncWeighTicketResponse
             {
                 Success = false,
@@ -81,7 +95,7 @@ public sealed class CentralApiClient : ICentralApiClient
         }
         catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            _logger?.LogError(ex, "Timeout pushing ticket. Idempotency-Key: {Key}", idempotencyKey);
+            _logger?.LogError(ex, "Timeout pushing aggregate {AggregateType}. Idempotency-Key: {Key}", aggregateType, idempotencyKey);
             return new SyncWeighTicketResponse
             {
                 Success = false,
@@ -90,6 +104,9 @@ public sealed class CentralApiClient : ICentralApiClient
             };
         }
     }
+
+    public Task<SyncWeighTicketResponse> PushTicketAsync(string payloadJson, Guid idempotencyKey, CancellationToken ct)
+        => PushAggregateAsync(SyncAggregateTypes.WeighTicket, payloadJson, idempotencyKey, ct);
 
     /// <summary>
     /// Pulls latest master data from Central API (Inbound).
@@ -205,5 +222,16 @@ public sealed class CentralApiClient : ICentralApiClient
         return uri.AbsoluteUri.EndsWith("/", StringComparison.Ordinal)
             ? uri
             : new Uri($"{uri.AbsoluteUri}/");
+    }
+
+    private static string ResolveOutboundEndpoint(string aggregateType)
+    {
+        return aggregateType switch
+        {
+            SyncAggregateTypes.VehicleRegistration => "api/vehicle-registrations",
+            SyncAggregateTypes.WeighTicket => "api/weigh-tickets",
+            SyncAggregateTypes.DeliveryTicket => "api/delivery-tickets",
+            _ => throw new InvalidOperationException($"Unsupported sync aggregate type: {aggregateType}")
+        };
     }
 }

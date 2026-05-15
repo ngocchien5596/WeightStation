@@ -1,0 +1,16 @@
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_bin_ui_sync\Debug\net8.0\StationApp.Application.deps.json
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_bin_ui_sync\Debug\net8.0\StationApp.Application.dll
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_bin_ui_sync\Debug\net8.0\StationApp.Application.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_bin_ui_sync\Debug\net8.0\StationApp.Domain.dll
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_bin_ui_sync\Debug\net8.0\StationApp.Domain.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.csproj.AssemblyReference.cache
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.GeneratedMSBuildEditorConfig.editorconfig
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.AssemblyInfoInputs.cache
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.AssemblyInfo.cs
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.csproj.CoreCompileInputs.cache
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.sourcelink.json
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationA.A357516A.Up2Date
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.dll
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\refint\StationApp.Application.dll
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\StationApp.Application.pdb
+G:\Source-code\pmcan_C#\src\StationApp.Application\._tmp_obj_ui_sync\Debug\net8.0\ref\StationApp.Application.dll
