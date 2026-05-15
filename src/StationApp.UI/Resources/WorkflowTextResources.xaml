@@ -3,8 +3,8 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!--
-        Dùng character entity cho tiếng Việt để tránh lỗi mã hóa khi file XAML
-        bị lưu sai encoding ở các máy/dev tool khác nhau.
+        Use XML character entities for Vietnamese text to avoid encoding corruption
+        when XAML files are edited on machines or tools with inconsistent code pages.
     -->
 
     <sys:String x:Key="Workflow.SearchButton">T&#x00CC;M KI&#x1EBE;M</sys:String>
@@ -51,25 +51,73 @@
     <sys:String x:Key="Incoming.Column.CreatedAt">TH&#x1EDC;I GIAN T&#x1EA0;O</sys:String>
 
     <sys:String x:Key="Weighing.Title">L&#x1EAC;P PHI&#x1EBE;U C&#x00C2;N</sys:String>
+    <sys:String x:Key="Weighing.Search.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
+    <sys:String x:Key="Weighing.Search.VehiclePlate">S&#x1ED1; PTVC:</sys:String>
     <sys:String x:Key="Weighing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n</sys:String>
     <sys:String x:Key="Weighing.Label.TransactionType">Lo&#x1EA1;i</sys:String>
+    <sys:String x:Key="Weighing.Label.VehiclePlate">S&#x1ED1; PTVC</sys:String>
     <sys:String x:Key="Weighing.Label.DriverName">T&#x00E0;i x&#x1EBF;</sys:String>
     <sys:String x:Key="Weighing.Label.Status">Tr&#x1EA1;ng th&#x00E1;i</sys:String>
+    <sys:String x:Key="Weighing.Label.Customer">Kh&#x00E1;ch h&#x00E0;ng</sys:String>
     <sys:String x:Key="Weighing.Label.Product">S&#x1EA3;n ph&#x1EA9;m</sys:String>
+    <sys:String x:Key="Weighing.Label.Ttcp10">TTCP 10% (kg)</sys:String>
+    <sys:String x:Key="Weighing.Label.OverweightResolution">X&#x1EED; l&#x00FD; qu&#x00E1; t&#x1EA3;i</sys:String>
+    <sys:String x:Key="Weighing.Label.OverweightAmount">V&#x01B0;&#x1EE3;t t&#x1EA3;i (kg)</sys:String>
+    <sys:String x:Key="Weighing.Label.Condition">T&#x00EC;nh tr&#x1EA1;ng</sys:String>
+    <sys:String x:Key="Weighing.Label.NetWeight">TL h&#x00E0;ng (kg)</sys:String>
     <sys:String x:Key="Weighing.Mode.Auto">C&#x00E2;n t&#x1EF1; &#x0111;&#x1ED9;ng</sys:String>
     <sys:String x:Key="Weighing.Mode.Manual">C&#x00E2;n tay</sys:String>
     <sys:String x:Key="Weighing.Weight1">C&#x00E2;n l&#x1EA7;n 1</sys:String>
     <sys:String x:Key="Weighing.Weight2">C&#x00E2;n l&#x1EA7;n 2</sys:String>
+    <sys:String x:Key="Weighing.Action.CaptureWeight1">C&#x00C2;N L&#x1EA6;N 1</sys:String>
+    <sys:String x:Key="Weighing.Action.CaptureWeight2">C&#x00C2;N L&#x1EA6;N 2</sys:String>
+    <sys:String x:Key="Weighing.Action.Save">L&#x01AF;U</sys:String>
     <sys:String x:Key="Weighing.Action.Allocate">PH&#x00C2;N B&#x1ED4;</sys:String>
+    <sys:String x:Key="Weighing.Action.HandleOverweight">X&#x1EEC; L&#x00DD; QU&#x00C1; T&#x1EA2;I</sys:String>
+    <sys:String x:Key="Weighing.Action.MoveOut">CHUY&#x1EC2;N XE RA</sys:String>
+    <sys:String x:Key="Weighing.Action.NoLoad">KH&#x00D4;NG L&#x1EA4;Y H&#x00C0;NG</sys:String>
     <sys:String x:Key="Weighing.Action.RelatedTickets">PHI&#x1EBE;U LI&#x00CA;N QUAN</sys:String>
     <sys:String x:Key="Weighing.Action.Cancel">H&#x1EE6;Y</sys:String>
     <sys:String x:Key="Weighing.Action.AllocateByPlan">THEO K&#x1EBE; HO&#x1EA0;CH</sys:String>
     <sys:String x:Key="Weighing.Action.Confirm">X&#x00C1;C NH&#x1EAC;N</sys:String>
     <sys:String x:Key="Weighing.Dialog.AllocationTitle">PH&#x00C2;N B&#x1ED4; TH&#x1EF0;C GIAO</sys:String>
+    <sys:String x:Key="Weighing.Dialog.OverweightTitle">X&#x1EEC; L&#x00DD; QU&#x00C1; T&#x1EA2;I</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.StepMax">B&#x01B0;&#x1EDB;c t&#x00E1;ch t&#x1ED1;i &#x0111;a</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.Ticket1">Phi&#x1EBF;u 1 (kg)</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.Ticket2">Phi&#x1EBF;u 2 (kg)</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.SplitMode">Ch&#x1EBF; &#x0111;&#x1ED9; t&#x00E1;ch</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.RandomFactor">H&#x1EC7; s&#x1ED1; ng&#x1EAB;u nhi&#x00EA;n</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.SuggestAgain">&#x0110;&#x1EC0; XU&#x1EA4;T L&#x1EA0;I</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.Split">T&#x00C1;CH QU&#x00C1; T&#x1EA2;I</sys:String>
+    <sys:String x:Key="Weighing.Dialog.Overweight.NoSplit">KH&#x00D4;NG T&#x00C1;CH</sys:String>
     <sys:String x:Key="Weighing.Dialog.RelatedTitle">DANH S&#x00C1;CH PHI&#x1EBE;U LI&#x00CA;N QUAN</sys:String>
+    <sys:String x:Key="Weighing.Column.SessionNo">S&#x1ED0; L&#x01AF;&#x1EE2;T C&#x00C2;N</sys:String>
+    <sys:String x:Key="Weighing.Column.VehiclePlate">PTVC</sys:String>
+    <sys:String x:Key="Weighing.Column.Status">TR&#x1EA0;NG TH&#x00C1;I</sys:String>
+    <sys:String x:Key="Weighing.Column.Net">NET</sys:String>
+    <sys:String x:Key="Weighing.Column.SequenceNo">STT</sys:String>
+    <sys:String x:Key="Weighing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Weighing.Column.Customer">KH&#x00C1;CH H&#x00C0;NG</sys:String>
+    <sys:String x:Key="Weighing.Column.ProductCode">M&#x00C3; SP</sys:String>
+    <sys:String x:Key="Weighing.Column.Product">S&#x1EA2;N PH&#x1EA8;M</sys:String>
+    <sys:String x:Key="Weighing.Column.PlannedWeight">KL &#x0110;&#x1EB6;T (KG)</sys:String>
+    <sys:String x:Key="Weighing.Column.PlannedBags">BAO &#x0110;&#x1EB6;T</sys:String>
+    <sys:String x:Key="Weighing.Column.ActualWeight">KL TH&#x1EF0;C (KG)</sys:String>
+    <sys:String x:Key="Weighing.Column.ActualBags">BAO TH&#x1EF0;C</sys:String>
+    <sys:String x:Key="Weighing.Column.PrintDelivery">IN PGN</sys:String>
+    <sys:String x:Key="Weighing.Column.Group">Nh&#x00F3;m</sys:String>
+    <sys:String x:Key="Weighing.Column.Weight">Kh&#x1ED1;i l&#x01B0;&#x1EE3;ng</sys:String>
+    <sys:String x:Key="Weighing.Column.LineCount">S&#x1ED1; d&#x00F2;ng</sys:String>
+    <sys:String x:Key="Weighing.Column.BagCount">Bao</sys:String>
+    <sys:String x:Key="Weighing.Column.Type">Lo&#x1EA1;i</sys:String>
+    <sys:String x:Key="Weighing.Column.WeighTicketNo">S&#x1ED1; PC</sys:String>
+    <sys:String x:Key="Weighing.Column.DeliveryNo">PGN</sys:String>
+    <sys:String x:Key="Weighing.Column.Role">Vai tr&#x00F2;</sys:String>
+    <sys:String x:Key="Weighing.Column.CreatedAt">Ng&#x00E0;y t&#x1EA1;o</sys:String>
 
     <sys:String x:Key="Outgoing.Title">DANH S&#x00C1;CH XE RA</sys:String>
     <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
+    <sys:String x:Key="Outgoing.Action.ViewDetails">XEM CHI TI&#x1EBE;T</sys:String>
     <sys:String x:Key="Outgoing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Outgoing.Column.TransportMethod">HTVC</sys:String>
@@ -79,7 +127,13 @@
     <sys:String x:Key="Outgoing.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
     <sys:String x:Key="Outgoing.Column.NetWeight">TL H&#x00C0;NG (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.LineCount">S&#x1ED0; D&#x00D2;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.CompletedAt">TH&#x1EDC;I GIAN XONG</sys:String>
+    <sys:String x:Key="Outgoing.Dialog.DetailTitle">CHI TI&#x1EBE;T L&#x01AF;&#x1EE2;T XE RA</sys:String>
+    <sys:String x:Key="Outgoing.Column.PlannedWeight">PL (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.PlannedBags">BAO PL</sys:String>
+    <sys:String x:Key="Outgoing.Column.ActualWeight">TH&#x1EF0;C (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.ActualBags">BAO TH&#x1EF0;C</sys:String>
 
     <sys:String x:Key="Diagnostics.Title">DIAGNOSTICS</sys:String>
     <sys:String x:Key="Diagnostics.Refresh">Refresh</sys:String>

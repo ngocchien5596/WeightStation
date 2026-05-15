@@ -45,6 +45,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private WeightMode _pendingWeight2Mode = WeightMode.AUTO;
     private bool _isUpdatingOverweightSplitInputs;
     private int _overweightPreviewRequestVersion;
+    private bool _hasStartedDeviceAttach;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -175,7 +176,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsInitializing = true;
         try
         {
-            await AttachDeviceAsync();
+            EnsureDeviceAttachStarted();
             await LoadSessionsAsync();
         }
         finally
@@ -388,6 +389,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (SelectedSession.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
+            && SelectedSession.TransactionType == TransactionType.INBOUND
+            && SelectedSession.Weight1.HasValue
+            && _pendingCapturedWeight2.HasValue
+            && _pendingCapturedWeight2.Value > SelectedSession.Weight1.Value)
+        {
+            _toastService.ShowWarning("\u0043\u00e2n l\u1ea7n 1 ph\u1ea3i l\u1edbn h\u01a1n ho\u1eb7c b\u1eb1ng c\u00e2n l\u1ea7n 2 \u0111\u1ed1i v\u1edbi phi\u1ebf\u0075 nh\u1eadp h\u00e0ng.");
+            return;
+        }
+
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -422,10 +433,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             ClearPendingCapturedWeights();
             await FocusSessionAsync(SelectedSession.SessionId);
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(ex, "Save captured weight rejected by business validation");
+            _toastService.ShowWarning(ex.Message);
+        }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Save captured weight failed");
-            _toastService.ShowError(UiText.Weighing.LoadSessionsError);
+            _toastService.ShowError("\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u006c\u01b0\u0075 \u0073\u1ed1 \u0063\u00e2n. \u0056\u0075\u0069 \u006c\u00f2\u006e\u0067 \u0074\u0068\u1eed \u006c\u1ea1\u0069.");
         }
     }
 
@@ -1197,6 +1213,31 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         await _scaleDevice.StartAsync(CancellationToken.None);
         DeviceStatusText = _scaleDevice.IsConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
         IsDeviceConnected = _scaleDevice.IsConnected;
+    }
+
+    private void EnsureDeviceAttachStarted()
+    {
+        if (_hasStartedDeviceAttach)
+        {
+            return;
+        }
+
+        _hasStartedDeviceAttach = true;
+        _ = AttachDeviceInBackgroundAsync();
+    }
+
+    private async Task AttachDeviceInBackgroundAsync()
+    {
+        try
+        {
+            await AttachDeviceAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Background device attach failed");
+            DeviceStatusText = UiText.Weighing.LostConnection;
+            IsDeviceConnected = false;
+        }
     }
 
     private void OnWeightReceived(object? sender, ScaleReading reading)

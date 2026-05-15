@@ -31,7 +31,7 @@
                 </Border>
 
                 <Border Grid.Row="1" Background="{StaticResource SidebarBackground}">
-                    <StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" Background="Transparent" BorderThickness="0">
                         <StackPanel Background="{StaticResource SidebarItemBackground}">
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewDashboard, Converter={StaticResource BoolToVis}}"
@@ -156,7 +156,7 @@
                                 </Button>
                             </StackPanel>
                         </StackPanel>
-                    </StackPanel>
+                    </ScrollViewer>
                 </Border>
 
                 <Border Grid.Row="2" Background="{StaticResource SidebarBackground}">

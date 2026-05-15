@@ -51,7 +51,7 @@
         </Border>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,12">
-            <Button Content="XEM CHI TIẾT" Command="{Binding ShowDetailsCommand}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,6,0"/>
+            <Button Content="{StaticResource Outgoing.Action.ViewDetails}" Command="{Binding ShowDetailsCommand}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}"/>
         </StackPanel>
@@ -69,16 +69,16 @@
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.Mooc}" Binding="{Binding MoocNumber}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.DriverName}" Binding="{Binding DriverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="NET (KG)" Binding="{Binding NetWeight, StringFormat=N0}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="SỐ DÒNG" Binding="{Binding LineCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridCheckBoxColumn Header="IN PC" Binding="{Binding HasPrintedMasterWeighTicket, Mode=OneWay}" Width="80"/>
-                    <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding AllDeliveryTicketsPrinted, Mode=OneWay}" Width="80"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.LineCount}" Binding="{Binding LineCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridCheckBoxColumn Header="IN PC" Binding="{Binding HasPrintedMasterWeighTicket, Mode=OneWay}" Width="80" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding AllDeliveryTicketsPrinted, Mode=OneWay}" Width="80" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.CompletedAt}" Binding="{Binding CompletedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
 
-        <Grid Background="#AA000000" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="3">
-            <Border Background="White" CornerRadius="8" Padding="24" Width="1200" MaxWidth="1500" MaxHeight="820" VerticalAlignment="Center">
+        <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="3">
+            <Border Style="{StaticResource ModalShellStyle}" Width="1200" MaxWidth="1500" MaxHeight="820" VerticalAlignment="Center" Margin="24">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -86,31 +86,40 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="CHI TIẾT LƯỢT XE RA" FontSize="18" FontWeight="Bold" Margin="0,0,0,16" Foreground="#2C3E50"/>
+                    <Border Grid.Row="0" Style="{StaticResource ModalHeaderStyle}">
+                        <TextBlock Text="{StaticResource Outgoing.Dialog.DetailTitle}" Style="{StaticResource ModalTitleStyle}"/>
+                    </Border>
 
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding DetailLines}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              Style="{StaticResource SystemDataGridStyle}"
-                              ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                              RowStyle="{StaticResource SystemDataGridRowStyle}"
-                              CellStyle="{StaticResource SystemDataGridCellStyle}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="STT" Binding="{Binding SequenceNo}" Width="50"/>
-                            <DataGridTextColumn Header="MÃ ĐKPT" Binding="{Binding ErpVehicleRegistrationId}" Width="130"/>
-                            <DataGridTextColumn Header="KHÁCH HÀNG" Binding="{Binding CustomerName}" Width="240"/>
-                            <DataGridTextColumn Header="SẢN PHẨM" Binding="{Binding ProductName}" Width="220"/>
-                            <DataGridTextColumn Header="PL (KG)" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="100"/>
-                            <DataGridTextColumn Header="BAO PL" Binding="{Binding PlannedBagCount}" Width="80"/>
-                            <DataGridTextColumn Header="THỰC (KG)" Binding="{Binding ActualAllocatedWeight, StringFormat=N0}" Width="110"/>
-                            <DataGridTextColumn Header="BAO THỰC" Binding="{Binding ActualAllocatedBagCount}" Width="90"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}">
+                        <Border Style="{StaticResource ModalSectionCardStyle}">
+                            <DataGrid ItemsSource="{Binding DetailLines}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      Style="{StaticResource SystemDataGridStyle}"
+                                      ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                                      RowStyle="{StaticResource SystemDataGridRowStyle}"
+                                      CellStyle="{StaticResource SystemDataGridCellStyle}"
+                                      Background="Transparent"
+                                      BorderThickness="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.RegistrationId}" Binding="{Binding ErpVehicleRegistrationId}" Width="130"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CustomerName}" Binding="{Binding CustomerName}" Width="240"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductName}" Binding="{Binding ProductName}" Width="220"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="100"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="80"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, StringFormat=N0}" Width="110"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount}" Width="90"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Border>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                        <Button Content="Đóng" Command="{Binding CloseDetailsCommand}" Style="{StaticResource UtilityButtonStyle}"/>
-                    </StackPanel>
+                    <Border Grid.Row="2" Style="{StaticResource ModalFooterStyle}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="{StaticResource Workflow.CloseButton}" Command="{Binding CloseDetailsCommand}" Style="{StaticResource UtilityButtonStyle}"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
         </Grid>

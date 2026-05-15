@@ -251,4 +251,71 @@
         <Setter Property="IsHitTestVisible" Value="False"/>
     </Style>
 
+    <Style x:Key="ModalOverlayStyle" TargetType="Grid">
+        <Setter Property="Background" Value="#660C1424"/>
+    </Style>
+
+    <Style x:Key="ModalShellStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect BlurRadius="18" Color="#55000000" ShadowDepth="3"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ModalHeaderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SidebarBrush}"/>
+        <Setter Property="CornerRadius" Value="9,9,0,0"/>
+        <Setter Property="Padding" Value="22,14"/>
+    </Style>
+
+    <Style x:Key="ModalTitleStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <Style x:Key="ModalBodyStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+        <Setter Property="Padding" Value="22,20"/>
+    </Style>
+
+    <Style x:Key="ModalFooterStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SubCardBrush}"/>
+        <Setter Property="CornerRadius" Value="0,0,9,9"/>
+        <Setter Property="Padding" Value="18,14"/>
+    </Style>
+
+    <Style x:Key="ModalSectionCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="#F8FBFD"/>
+        <Setter Property="BorderBrush" Value="#D5DFE8"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <Style x:Key="ModalMetricCardStyle" TargetType="Border" BasedOn="{StaticResource ModalSectionCardStyle}">
+        <Setter Property="Padding" Value="14,12"/>
+        <Setter Property="Margin" Value="0,0,10,0"/>
+    </Style>
+
+    <Style x:Key="ModalMetricLabelStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#5A6B85"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <Style x:Key="ModalMetricValueStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#1F355C"/>
+        <Setter Property="FontSize" Value="24"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Margin" Value="0,6,0,0"/>
+    </Style>
+
 </ResourceDictionary>
