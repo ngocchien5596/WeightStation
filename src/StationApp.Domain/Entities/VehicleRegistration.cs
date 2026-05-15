@@ -51,7 +51,7 @@ public class VehicleRegistration
     public string? InboundErrorCode { get; set; }
     public string? InboundErrorMessage { get; set; }
     
-    public DateTime? LastInboundAttemptAt { get; set; }
+
     public DateTime? LastSyncAttemptAt { get; set; }
     public string? LastSyncError { get; set; }
 

@@ -30,18 +30,21 @@ public class AppConfigEntityConfiguration : IEntityTypeConfiguration<AppConfig>
         builder.HasKey(e => e.ConfigKey);
         builder.Property(e => e.ConfigKey).HasMaxLength(100);
         builder.Property(e => e.ConfigValue).HasMaxLength(1000);
+        builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedAt).IsRequired();
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
         builder.HasData(
-            new AppConfig { ConfigKey = "station_code", ConfigValue = "QN01", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "ticket_prefix", ConfigValue = "QN", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "tolerance_kg", ConfigValue = "500", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "sync_interval_seconds", ConfigValue = "30", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "retry_base_seconds", ConfigValue = "30", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "device_com_port", ConfigValue = "COM1", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "device_baudrate", ConfigValue = "9600", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = "device_parser_type", ConfigValue = "DEFAULT", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new AppConfig { ConfigKey = AppConfigKeys.OverweightSplitStepWeight, ConfigValue = "0.0025", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new AppConfig { ConfigKey = "station_code", ConfigValue = "QN01", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "ticket_prefix", ConfigValue = "QN", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "tolerance_kg", ConfigValue = "500", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "sync_interval_seconds", ConfigValue = "30", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "retry_base_seconds", ConfigValue = "30", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "device_com_port", ConfigValue = "COM1", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "device_baudrate", ConfigValue = "9600", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = "device_parser_type", ConfigValue = "DEFAULT", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new AppConfig { ConfigKey = AppConfigKeys.OverweightSplitStepWeight, ConfigValue = "0.0025", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "SYSTEM", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
     }
 }
@@ -61,6 +64,8 @@ public class DeviceConfigEntityConfiguration : IEntityTypeConfiguration<DeviceCo
         builder.Property(e => e.StabilityThreshold).HasColumnType("decimal(18,3)");
         builder.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
     }
 }
 

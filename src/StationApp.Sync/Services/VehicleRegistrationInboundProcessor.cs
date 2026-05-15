@@ -140,7 +140,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
             
             reg.InboundErrorCode = "VALIDATION_FAILED";
             reg.InboundErrorMessage = "Missing mandatory fields (vehicle_plate, customer_code, product_code).";
-            reg.LastInboundAttemptAt = clock.NowLocal;
+
             reg.UpdatedAt = clock.NowLocal;
             reg.UpdatedBy = "SYSTEM_INBOUND_PROCESSOR";
 
@@ -229,7 +229,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
             // D. Set Root Data
             reg.IsInboundProcessed = true;
             reg.InboundProcessedAt = now;
-            reg.LastInboundAttemptAt = now;
+
             reg.InboundErrorCode = null;
             reg.InboundErrorMessage = null;
             reg.UpdatedAt = now;

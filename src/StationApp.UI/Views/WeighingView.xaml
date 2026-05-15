@@ -220,9 +220,9 @@
                         <DataGridTextColumn Header="KHÁCH HÀNG" Binding="{Binding CustomerName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="MÃ SP" Binding="{Binding ProductCode}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="SẢN PHẨM" Binding="{Binding ProductName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="KH PL (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="BAO PL" Binding="{Binding PlannedBagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="KH THỰC" Binding="{Binding ActualAllocatedWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="KL ĐẶT (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="BAO ĐẶT" Binding="{Binding PlannedBagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="KL THỰC (KG)" Binding="{Binding ActualAllocatedWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="BAO THỰC" Binding="{Binding ActualAllocatedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="TRẠNG THÁI" Binding="{Binding LineStatus, Converter={StaticResource SessionLineStatusDisplay}}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="70"/>
@@ -254,9 +254,9 @@
                             <DataGridTextColumn Header="MÃ ĐKPT" Binding="{Binding ErpVehicleRegistrationId}" Width="120" IsReadOnly="True"/>
                             <DataGridTextColumn Header="KHÁCH HÀNG" Binding="{Binding CustomerName}" Width="220" IsReadOnly="True"/>
                             <DataGridTextColumn Header="SẢN PHẨM" Binding="{Binding ProductName}" Width="220" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="PL (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="BAO PL" Binding="{Binding PlannedBagCount}" Width="80" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="KH THỰC" Binding="{Binding ActualAllocatedWeight, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" Width="110"/>
+                            <DataGridTextColumn Header="KL ĐẶT (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="BAO ĐẶT" Binding="{Binding PlannedBagCount}" Width="80" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="KL THỰC (KG)" Binding="{Binding ActualAllocatedWeight, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" Width="110"/>
                             <DataGridTextColumn Header="BAO THỰC" Binding="{Binding ActualAllocatedBagCount, UpdateSourceTrigger=PropertyChanged}" Width="90" IsReadOnly="True"/>
                         </DataGrid.Columns>
                     </DataGrid>

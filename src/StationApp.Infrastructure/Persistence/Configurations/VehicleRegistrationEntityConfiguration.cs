@@ -53,7 +53,7 @@ public class VehicleRegistrationEntityConfiguration : IEntityTypeConfiguration<V
         builder.Property(e => e.InboundErrorCode).HasMaxLength(50);
         builder.Property(e => e.InboundErrorMessage).HasMaxLength(500);
 
-        builder.Property(e => e.LastInboundAttemptAt);
+
         builder.Property(e => e.LastSyncAttemptAt);
         builder.Property(e => e.LastSyncError).HasMaxLength(500);
 

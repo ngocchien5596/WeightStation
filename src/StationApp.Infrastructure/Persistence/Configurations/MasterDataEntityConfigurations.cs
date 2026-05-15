@@ -92,5 +92,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.HasIndex(e => e.IsPrinted).HasDatabaseName("IX_delivery_tickets_is_printed");
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_delivery_tickets_weighing_session_id");
         builder.HasIndex(e => e.WeighingSessionLineId).HasDatabaseName("IX_delivery_tickets_weighing_session_line_id");
+        builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_delivery_tickets_sync_status");
+        builder.HasIndex(e => e.VehicleRegistrationId).HasDatabaseName("IX_delivery_tickets_vehicle_registration_id");
     }
 }
