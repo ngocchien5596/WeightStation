@@ -65,12 +65,16 @@ public sealed class UpdateScaleDeviceSettingsUseCase
     {
         StationAuthorization.EnsureAdmin(_currentUser, "update scale device settings");
 
-        await _configRepository.SetValueAsync("device_com_port", request.ComPort.Trim(), ct);
-        await _configRepository.SetValueAsync("device_baudrate", request.Baudrate.Trim(), ct);
-        await _configRepository.SetValueAsync("device_parser_type", request.ParserType.Trim(), ct);
-        await _configRepository.SetValueAsync("device_frame_end_char", request.FrameEndChar.Trim(), ct);
-        await _configRepository.SetValueAsync("weight_substring_start", request.WeightSubstringStart.Trim(), ct);
-        await _configRepository.SetValueAsync("weight_substring_length", request.WeightSubstringLength.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceComPort, request.ComPort.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceBaudrate, request.Baudrate.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceParity, request.Parity.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceDataBits, request.DataBits.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceStopBits, request.StopBits.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceParserType, request.ParserType.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceFrameEndChar, request.FrameEndChar.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.DeviceStableCycles, request.StableCycles.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.WeightSubstringStart, request.WeightSubstringStart.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.WeightSubstringLength, request.WeightSubstringLength.Trim(), ct);
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

@@ -46,6 +46,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private bool _isUpdatingOverweightSplitInputs;
     private int _overweightPreviewRequestVersion;
     private bool _hasStartedDeviceAttach;
+    private int _selectedSessionLoadVersion;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -163,7 +164,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     partial void OnSelectedSessionChanged(WeighingSessionListItem? value)
     {
         ClearPendingCapturedWeights();
-        _ = LoadSelectedSessionAsync(value);
+        var loadVersion = ++_selectedSessionLoadVersion;
+        _ = LoadSelectedSessionAsync(value, loadVersion);
     }
 
     public async Task InitializeAsync()
@@ -176,8 +178,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsInitializing = true;
         try
         {
-            EnsureDeviceAttachStarted();
-            await LoadSessionsAsync();
+            using (Helpers.PerformanceLogger.Track("Weighing.Initialize"))
+            {
+                EnsureDeviceAttachStarted();
+                await LoadSessionsAsync();
+            }
         }
         finally
         {
@@ -213,6 +218,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
     private async Task LoadSessionsInternalAsync(bool selectFirstWhenNoSelection)
     {
+        using var perfScope = Helpers.PerformanceLogger.Track("Weighing.LoadSessions");
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -244,7 +250,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task LoadSelectedSessionAsync(WeighingSessionListItem? value)
+    private async Task LoadSelectedSessionAsync(WeighingSessionListItem? value, int loadVersion)
     {
         if (value == null)
         {
@@ -252,10 +258,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
+        using var perfScope = Helpers.PerformanceLogger.Track("Weighing.LoadSelectedSession");
         using var scope = _scopeFactory.CreateScope();
         var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
 
         var lineItems = await sessionRepo.GetLineItemsBySessionIdAsync(value.SessionId, CancellationToken.None);
+
+        if (loadVersion != _selectedSessionLoadVersion)
+        {
+            return;
+        }
 
         SessionNo = value.SessionNo;
         TransactionType = value.TransactionType;
@@ -1202,6 +1214,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
     private async Task AttachDeviceAsync()
     {
+        using var perfScope = Helpers.PerformanceLogger.Track("Weighing.AttachDevice");
         if (_scaleDevice.IsConnected)
         {
             DeviceStatusText = UiText.Weighing.ActiveConnection;

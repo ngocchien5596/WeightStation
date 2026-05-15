@@ -63,13 +63,22 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .ToListAsync(ct);
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
-        var lines = await _db.WeighingSessionLines.AsNoTracking()
+        var lineSummaries = await _db.WeighingSessionLines.AsNoTracking()
             .Where(x => sessionIds.Contains(x.WeighingSessionId))
+            .GroupBy(x => x.WeighingSessionId)
+            .Select(group => new
+            {
+                SessionId = group.Key,
+                LineCount = group.Count(),
+                AllPrinted = group.All(line => line.HasPrintedDeliveryTicket)
+            })
             .ToListAsync(ct);
+
+        var summaryBySessionId = lineSummaries.ToDictionary(x => x.SessionId);
 
         return sessions.Select(session =>
         {
-            var sessionLines = lines.Where(x => x.WeighingSessionId == session.Id).ToList();
+            summaryBySessionId.TryGetValue(session.Id, out var summary);
             return new WeighingSessionListItem(
                 session.Id,
                 session.SessionNo,
@@ -85,9 +94,9 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.OverweightAmount,
                 session.OverweightResolutionStatus,
                 session.SessionStatus,
-                sessionLines.Count,
+                summary?.LineCount ?? 0,
                 session.HasPrintedMasterWeighTicket,
-                sessionLines.Count > 0 && sessionLines.All(x => x.HasPrintedDeliveryTicket),
+                summary?.LineCount > 0 && summary.AllPrinted,
                 session.CreatedAt,
                 session.UpdatedAt);
         }).ToList();

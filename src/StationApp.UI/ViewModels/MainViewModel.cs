@@ -14,6 +14,8 @@ public partial class MainViewModel : ObservableObject
     private readonly ICurrentUserContext _currentUserContext;
     private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
     private Guid? _pendingWeighingSessionId;
+    private bool _isInitialized;
+    private int _navigationVersion;
 
     [ObservableProperty] private object? _currentView;
     [ObservableProperty] private string? _currentDestination;
@@ -44,7 +46,6 @@ public partial class MainViewModel : ObservableObject
     {
         _serviceProvider = serviceProvider;
         _currentUserContext = currentUserContext;
-        _ = NavigateAsync("IncomingVehicles");
 
         _clockTimer = new System.Windows.Threading.DispatcherTimer
         {
@@ -52,6 +53,18 @@ public partial class MainViewModel : ObservableObject
         };
         _clockTimer.Tick += (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
         _clockTimer.Start();
+    }
+
+    public async Task InitializeAsync()
+    {
+        if (_isInitialized)
+        {
+            return;
+        }
+
+        _isInitialized = true;
+        await Task.Yield();
+        await NavigateAsync("IncomingVehicles");
     }
 
     [RelayCommand]
@@ -77,6 +90,7 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            var navigationVersion = ++_navigationVersion;
             CurrentDestination = destination;
             DisposeCurrentViewModel();
 
@@ -86,12 +100,15 @@ public partial class MainViewModel : ObservableObject
                     var weighingVm = _serviceProvider.GetRequiredService<WeighingViewModel>();
                     weighingVm.NavigateToOutgoingRequested += async () => await NavigateAsync("OutgoingVehicles");
                     CurrentView = new WeighingView { DataContext = weighingVm };
-                    await weighingVm.InitializeAsync();
-                    if (_pendingWeighingSessionId.HasValue)
+                    _ = RunViewInitializationAsync(async () =>
                     {
-                        await weighingVm.FocusSessionAsync(_pendingWeighingSessionId.Value);
-                        _pendingWeighingSessionId = null;
-                    }
+                        await weighingVm.InitializeAsync();
+                        if (_pendingWeighingSessionId.HasValue)
+                        {
+                            await weighingVm.FocusSessionAsync(_pendingWeighingSessionId.Value);
+                            _pendingWeighingSessionId = null;
+                        }
+                    }, destination, navigationVersion);
                     break;
                 case "IncomingVehicles":
                     var incomingVm = _serviceProvider.GetRequiredService<IncomingVehicleListViewModel>();
@@ -102,27 +119,42 @@ public partial class MainViewModel : ObservableObject
                     };
                     incomingVm.NavigateToOutgoingRequested += async () => await NavigateAsync("OutgoingVehicles");
                     CurrentView = new IncomingVehicleListView { DataContext = incomingVm };
-                    await incomingVm.InitializeAsync();
+                    _ = RunViewInitializationAsync(
+                        () => incomingVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
                     break;
                 case "OutgoingVehicles":
                     var outgoingVm = _serviceProvider.GetRequiredService<OutgoingVehicleListViewModel>();
                     CurrentView = new OutgoingVehicleListView { DataContext = outgoingVm };
-                    await outgoingVm.InitializeAsync();
+                    _ = RunViewInitializationAsync(
+                        () => outgoingVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
                     break;
                 case "Dashboard":
                     var dashboardVm = _serviceProvider.GetRequiredService<DashboardViewModel>();
                     CurrentView = new DashboardView { DataContext = dashboardVm };
-                    await dashboardVm.InitializeAsync();
+                    _ = RunViewInitializationAsync(
+                        () => dashboardVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
                     break;
                 case "TicketList":
                     var ticketVm = _serviceProvider.GetRequiredService<TicketListViewModel>();
                     CurrentView = new TicketListView { DataContext = ticketVm };
-                    await ticketVm.LoadTicketsAsync();
+                    _ = RunViewInitializationAsync(
+                        () => ticketVm.LoadTicketsAsync(),
+                        destination,
+                        navigationVersion);
                     break;
                 case "Diagnostics":
                     var diagnosticsVm = _serviceProvider.GetRequiredService<DiagnosticsViewModel>();
                     CurrentView = new DiagnosticsView { DataContext = diagnosticsVm };
-                    await diagnosticsVm.InitializeAsync();
+                    _ = RunViewInitializationAsync(
+                        () => diagnosticsVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
                     break;
                 case "Settings":
                 case "Settings_Params":
@@ -134,18 +166,21 @@ public partial class MainViewModel : ObservableObject
                 case "Settings_Accounts":
                     var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
                     CurrentView = new SettingsView { DataContext = settingsVm };
-                    await settingsVm.LoadAsync();
-
-                    settingsVm.SelectedTabIndex = destination switch
+                    var initialSettingsTab = destination switch
                     {
+                        "Settings_Params" => 0,
                         "Settings_Device" => 1,
                         "Settings_Vehicles" => 2,
                         "Settings_Customers" => 3,
                         "Settings_Products" => 4,
                         "Settings_Sync" => 5,
                         "Settings_Accounts" => 6,
-                        _ => settingsVm.SelectedTabIndex
+                        _ => (int?)null
                     };
+                    _ = RunViewInitializationAsync(
+                        () => settingsVm.LoadAsync(initialSettingsTab),
+                        destination,
+                        navigationVersion);
                     break;
                 default:
                     CurrentView = null;
@@ -204,6 +239,32 @@ public partial class MainViewModel : ObservableObject
         if (CurrentView is FrameworkElement { DataContext: IDisposable disposable })
         {
             disposable.Dispose();
+        }
+    }
+
+    private async Task RunViewInitializationAsync(Func<Task> initializeAsync, string destination, int navigationVersion)
+    {
+        try
+        {
+            using var perfScope = Helpers.PerformanceLogger.Track($"Main.NavigateInit.{destination}");
+            await Task.Yield();
+
+            if (navigationVersion != _navigationVersion)
+            {
+                return;
+            }
+
+            await initializeAsync();
+        }
+        catch (Exception ex)
+        {
+            if (navigationVersion != _navigationVersion)
+            {
+                return;
+            }
+
+            var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
+            await dialogService.ShowErrorAsync("Loi He Thong", $"Loi khi tai du lieu man {destination}: {ex.Message}");
         }
     }
 }

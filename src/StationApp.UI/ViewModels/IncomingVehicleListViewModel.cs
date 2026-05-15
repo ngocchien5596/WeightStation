@@ -129,6 +129,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadVehiclesAsync()
     {
+        using var perfScope = Helpers.PerformanceLogger.Track("IncomingVehicles.LoadVehicles");
         IsLoading = true;
         try
         {
@@ -469,7 +470,10 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        await LoadVehiclesAsync();
+        using (Helpers.PerformanceLogger.Track("IncomingVehicles.Initialize"))
+        {
+            await LoadVehiclesAsync();
+        }
     }
 
     private async Task LoadSelectedVehicleDetailsAsync(IncomingVehicleSelectionItem selected)

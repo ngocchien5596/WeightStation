@@ -31,6 +31,7 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
     private Task? _reconnectTask;
     private readonly SemaphoreSlim _connectionGate = new(1, 1);
     private int _reconnectAttempts;
+    private bool _lastFailureCanAutoReconnect = true;
     private const int MaxReconnectAttempts = 10;
     private const int ReconnectBaseDelayMs = 2000;
     private static readonly TimeSpan ReconnectCooldown = TimeSpan.FromMinutes(5);
@@ -68,7 +69,7 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
         }
 
         var connected = await TryOpenPortAsync(isReconnect: false, ct);
-        if (!connected)
+        if (!connected && _lastFailureCanAutoReconnect)
         {
             ScheduleReconnect();
         }
@@ -178,6 +179,13 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
                 return;
             }
 
+            if (!_lastFailureCanAutoReconnect)
+            {
+                ConnectionState = "Faulted";
+                NextReconnectAtUtc = null;
+                return;
+            }
+
             if (_reconnectAttempts < MaxReconnectAttempts)
             {
                 continue;
@@ -234,8 +242,9 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
         }
         catch (Exception ex)
         {
+            _lastFailureCanAutoReconnect = CanAutoReconnect(ex);
             IsConnected = false;
-            ConnectionState = "Disconnected";
+            ConnectionState = _lastFailureCanAutoReconnect ? "Disconnected" : "Faulted";
             LastError = $"{(isReconnect ? "Reconnect" : "Connect")} failed: {ex.Message}";
 
             if (isReconnect)
@@ -279,6 +288,17 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
         }
     }
 
+    private static bool CanAutoReconnect(Exception ex)
+    {
+        return ex switch
+        {
+            UnauthorizedAccessException => false,
+            FileNotFoundException => false,
+            IOException ioEx when ioEx.Message.Contains("semaphore timeout", StringComparison.OrdinalIgnoreCase) => false,
+            _ => true
+        };
+    }
+
     private async Task ApplyConfigurationAsync(CancellationToken ct)
     {
         if (_configurationProvider == null)
@@ -302,7 +322,20 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
             _baudRate = configuration.BaudRate;
         }
 
-        if (_parser is YaohuaWeightFrameParser parser)
+        _parity = ScaleConnectionSettings.ResolveParity(configuration.Parity, _parity);
+        _dataBits = ScaleConnectionSettings.ResolveDataBits(configuration.DataBits, _dataBits);
+        _stopBits = ScaleConnectionSettings.ResolveStopBits(configuration.StopBits, _stopBits);
+        _stabilityDetector.Configure(requiredCycles: configuration.StableCycles);
+
+        if (_parser is ConfigurableWeightFrameParser configurableParser)
+        {
+            configurableParser.ApplyConfiguration(
+                configuration.ParserType,
+                configuration.FrameEndChar,
+                configuration.WeightSubstringStart,
+                configuration.WeightSubstringLength);
+        }
+        else if (_parser is YaohuaWeightFrameParser parser)
         {
             parser.WeightSubstringStart = configuration.WeightSubstringStart;
             parser.WeightSubstringLength = configuration.WeightSubstringLength;
@@ -345,5 +378,11 @@ public sealed class SerialScaleDevice : IScaleDevice, IDisposable
 public sealed record SerialScaleDeviceConfiguration(
     string? ComPort,
     int BaudRate,
+    string? Parity,
+    string? DataBits,
+    string? StopBits,
+    string? ParserType,
+    string? FrameEndChar,
+    int? StableCycles,
     int? WeightSubstringStart,
     int? WeightSubstringLength);

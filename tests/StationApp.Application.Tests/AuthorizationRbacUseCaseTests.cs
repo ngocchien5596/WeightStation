@@ -179,8 +179,33 @@ public class AuthorizationRbacUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             sut.ExecuteAsync(
-                new UpdateScaleDeviceSettingsRequest("COM1", "9600", "DEFAULT", "3", "0", "7"),
+                new UpdateScaleDeviceSettingsRequest("COM1", "9600", "None", "8", "One", "DEFAULT", "CR", "3", "", ""),
                 CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateScaleDeviceSettings_Admin_SavesAllSerialParameters()
+    {
+        var configRepo = Substitute.For<IAppConfigRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        currentUser.RoleCode.Returns("ADMIN");
+
+        var sut = new UpdateScaleDeviceSettingsUseCase(configRepo, uow, currentUser);
+
+        await sut.ExecuteAsync(
+            new UpdateScaleDeviceSettingsRequest("COM6", "9600", "Even", "8", "One", "YAOHUA", "CR", "3", "", ""),
+            CancellationToken.None);
+
+        await configRepo.Received().SetValueAsync("device_com_port", "COM6", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_baudrate", "9600", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_parity", "Even", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_data_bits", "8", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_stop_bits", "One", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_parser_type", "YAOHUA", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_frame_end_char", "CR", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("device_stable_cycles", "3", Arg.Any<CancellationToken>());
+        await uow.Received().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

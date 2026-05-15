@@ -15,6 +15,7 @@ using StationApp.Application.UseCases;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Implementations;
+using StationApp.Domain.Constants;
 using StationApp.Infrastructure.Persistence;
 using StationApp.Infrastructure.Repositories;
 using StationApp.Infrastructure.Services;
@@ -210,11 +211,7 @@ public partial class App : System.Windows.Application
                     services.AddTransient<OutgoingVehicleListViewModel>();
 
                     services.AddSingleton<StabilityDetector>();
-                    services.AddSingleton<IWeightFrameParser>(_ => new YaohuaWeightFrameParser('\r')
-                    {
-                        WeightSubstringStart = 0,
-                        WeightSubstringLength = 7
-                    });
+                    services.AddSingleton<IWeightFrameParser>(_ => new ConfigurableWeightFrameParser());
                     services.AddSingleton<IScaleDevice>(sp =>
                     {
                         var parser = sp.GetRequiredService<IWeightFrameParser>();
@@ -231,19 +228,28 @@ public partial class App : System.Windows.Application
                                 using var scope = sp.CreateScope();
                                 var appRepo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
 
-                                var comPort = await appRepo.GetValueAsync("device_com_port", ct);
-                                var baudRateRaw = await appRepo.GetValueAsync("device_baudrate", ct);
-                                var startRaw = await appRepo.GetValueAsync("weight_substring_start", ct);
-                                var lengthRaw = await appRepo.GetValueAsync("weight_substring_length", ct);
+                                var comPort = await appRepo.GetValueAsync(AppConfigKeys.DeviceComPort, ct);
+                                var baudRateRaw = await appRepo.GetValueAsync(AppConfigKeys.DeviceBaudrate, ct);
+                                var parity = await appRepo.GetValueAsync(AppConfigKeys.DeviceParity, ct);
+                                var dataBits = await appRepo.GetValueAsync(AppConfigKeys.DeviceDataBits, ct);
+                                var stopBits = await appRepo.GetValueAsync(AppConfigKeys.DeviceStopBits, ct);
+                                var parserType = await appRepo.GetValueAsync(AppConfigKeys.DeviceParserType, ct);
+                                var frameEndChar = await appRepo.GetValueAsync(AppConfigKeys.DeviceFrameEndChar, ct);
+                                var stableCyclesRaw = await appRepo.GetValueAsync(AppConfigKeys.DeviceStableCycles, ct);
+                                var startRaw = await appRepo.GetValueAsync(AppConfigKeys.WeightSubstringStart, ct);
+                                var lengthRaw = await appRepo.GetValueAsync(AppConfigKeys.WeightSubstringLength, ct);
 
-                                var baudRate = int.TryParse(baudRateRaw, out var parsedBaudRate) && parsedBaudRate > 0
-                                    ? parsedBaudRate
-                                    : 9600;
-
-                                int? start = int.TryParse(startRaw, out var parsedStart) ? parsedStart : null;
-                                int? length = int.TryParse(lengthRaw, out var parsedLength) ? parsedLength : null;
-
-                                return new SerialScaleDeviceConfiguration(comPort, baudRate, start, length);
+                                return new SerialScaleDeviceConfiguration(
+                                    comPort,
+                                    ScaleConnectionSettings.ResolveBaudRate(baudRateRaw),
+                                    parity,
+                                    dataBits,
+                                    stopBits,
+                                    parserType,
+                                    frameEndChar,
+                                    ScaleConnectionSettings.ResolveStableCycles(stableCyclesRaw),
+                                    ScaleConnectionSettings.ResolveOptionalInt(startRaw),
+                                    ScaleConnectionSettings.ResolveOptionalInt(lengthRaw));
                             });
                     });
 

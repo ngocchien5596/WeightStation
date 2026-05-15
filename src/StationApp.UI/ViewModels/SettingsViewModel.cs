@@ -1,12 +1,7 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
-using StationApp.Device.Abstractions;
-using StationApp.Device.Implementations;
-using StationApp.Domain.Entities;
 
 namespace StationApp.UI.ViewModels;
 
@@ -14,6 +9,7 @@ public partial class SettingsViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICurrentUserContext _currentUserContext;
+    private bool _suppressTabChangedHandler;
 
     public ViewModels.Settings.SystemSettingsViewModel SystemSettingsVM { get; }
     public ViewModels.Settings.ScaleDeviceConfigViewModel ScaleDeviceConfigVM { get; }
@@ -36,6 +32,11 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnSelectedTabIndexChanged(int value)
     {
+        if (_suppressTabChangedHandler)
+        {
+            return;
+        }
+
         _ = HandleTabSelectionAsync(value);
     }
 
@@ -52,11 +53,23 @@ public partial class SettingsViewModel : ObservableObject
         AccountManagementVM = new Settings.AccountManagementViewModel(_scopeFactory);
     }
 
-    public async Task LoadAsync()
+    public async Task LoadAsync(int? preferredTabIndex = null)
     {
-        SelectedTabIndex = GetDefaultAccessibleTabIndex();
-        await LoadMasterDataAsync();
-        await HandleTabSelectionAsync(SelectedTabIndex);
+        var targetTabIndex = preferredTabIndex.HasValue && CanAccessTab(preferredTabIndex.Value)
+            ? preferredTabIndex.Value
+            : GetDefaultAccessibleTabIndex();
+
+        _suppressTabChangedHandler = true;
+        try
+        {
+            SelectedTabIndex = targetTabIndex;
+        }
+        finally
+        {
+            _suppressTabChangedHandler = false;
+        }
+
+        await HandleTabSelectionAsync(targetTabIndex);
     }
 
     private async Task HandleTabSelectionAsync(int tabIndex)
@@ -156,89 +169,4 @@ public partial class SettingsViewModel : ObservableObject
         return 0;
     }
 
-    [ObservableProperty] private string? _stationCode;
-    [ObservableProperty] private string? _ticketPrefix;
-    [ObservableProperty] private string? _toleranceKg;
-    [ObservableProperty] private string? _syncInterval;
-    [ObservableProperty] private string? _centralApiUrl;
-    [ObservableProperty] private string? _centralApiKey;
-    [ObservableProperty] private string? _comPort;
-    [ObservableProperty] private string? _baudrate;
-    [ObservableProperty] private string? _parserType;
-    [ObservableProperty] private string? _frameEndChar;
-    [ObservableProperty] private bool _useSimulator;
-    [ObservableProperty] private string? _weightSubstringStart;
-    [ObservableProperty] private string? _weightSubstringLength;
-    [ObservableProperty] private ObservableCollection<Vehicle> _vehicles = new();
-    [ObservableProperty] private ObservableCollection<Customer> _customers = new();
-    [ObservableProperty] private ObservableCollection<Product> _products = new();
-
-    private async Task LoadMasterDataAsync()
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
-        var customerRepo = scope.ServiceProvider.GetRequiredService<ICustomerRepository>();
-        var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
-
-        var vList = await vehicleRepo.SearchAsync(null, CancellationToken.None);
-        Vehicles = new ObservableCollection<Vehicle>(vList);
-
-        var cList = await customerRepo.SearchAsync(null, CancellationToken.None);
-        Customers = new ObservableCollection<Customer>(cList);
-
-        var pList = await productRepo.SearchAsync(null, CancellationToken.None);
-        Products = new ObservableCollection<Product>(pList);
-    }
-
-    [RelayCommand]
-    private async Task SaveAsync()
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-        if (StationCode != null) await repo.SetValueAsync("station_code", StationCode, CancellationToken.None);
-        if (TicketPrefix != null) await repo.SetValueAsync("ticket_prefix", TicketPrefix, CancellationToken.None);
-        if (ToleranceKg != null) await repo.SetValueAsync("tolerance_kg", ToleranceKg, CancellationToken.None);
-        if (SyncInterval != null) await repo.SetValueAsync("sync_interval", SyncInterval, CancellationToken.None);
-        if (CentralApiUrl != null) await repo.SetValueAsync("central_api_url", CentralApiUrl, CancellationToken.None);
-        if (CentralApiKey != null) await repo.SetValueAsync("central_api_key", CentralApiKey, CancellationToken.None);
-        if (ComPort != null) await repo.SetValueAsync("device_com_port", ComPort, CancellationToken.None);
-        if (Baudrate != null) await repo.SetValueAsync("device_baudrate", Baudrate, CancellationToken.None);
-        if (ParserType != null) await repo.SetValueAsync("device_parser_type", ParserType, CancellationToken.None);
-        if (FrameEndChar != null) await repo.SetValueAsync("device_frame_end_char", FrameEndChar, CancellationToken.None);
-        if (WeightSubstringStart != null) await repo.SetValueAsync("weight_substring_start", WeightSubstringStart, CancellationToken.None);
-        if (WeightSubstringLength != null) await repo.SetValueAsync("weight_substring_length", WeightSubstringLength, CancellationToken.None);
-
-        await repo.SetValueAsync("device_use_simulator", "false", CancellationToken.None);
-        await uow.SaveChangesAsync(CancellationToken.None);
-
-        try
-        {
-            var parser = scope.ServiceProvider.GetService<IWeightFrameParser>() as YaohuaWeightFrameParser;
-            if (parser != null)
-            {
-                if (int.TryParse(WeightSubstringStart, out var startVal))
-                {
-                    parser.WeightSubstringStart = startVal;
-                }
-                else
-                {
-                    parser.WeightSubstringStart = null;
-                }
-
-                if (int.TryParse(WeightSubstringLength, out var lenVal))
-                {
-                    parser.WeightSubstringLength = lenVal;
-                }
-                else
-                {
-                    parser.WeightSubstringLength = null;
-                }
-            }
-        }
-        catch
-        {
-        }
-    }
 }

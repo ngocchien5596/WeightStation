@@ -102,8 +102,12 @@ public sealed record UpdateSystemSettingsRequest(
 public sealed record UpdateScaleDeviceSettingsRequest(
     string ComPort,
     string Baudrate,
+    string Parity,
+    string DataBits,
+    string StopBits,
     string ParserType,
     string FrameEndChar,
+    string StableCycles,
     string WeightSubstringStart,
     string WeightSubstringLength
 );
