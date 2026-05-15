@@ -6,6 +6,10 @@ obj/
 obj_verify/
 Builds/
 _verify_build/
+._tmp_*/
+._wpf_build*/
+._repo_build/
+.codex_build/
 
 # IDE files
 .vs/

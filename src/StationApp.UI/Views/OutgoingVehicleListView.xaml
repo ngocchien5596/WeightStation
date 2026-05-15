@@ -40,6 +40,13 @@
                         </TextBox.InputBindings>
                     </TextBox>
 
+                    <TextBlock Text="{StaticResource Outgoing.Label.CompletedDate}" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <DatePicker SelectedDate="{Binding SelectedCompletedDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Width="168"
+                                SelectedDateFormat="Short"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource StandardDatePickerStyle}"/>
+
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>

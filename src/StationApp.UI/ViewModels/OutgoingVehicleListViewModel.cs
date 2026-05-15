@@ -38,6 +38,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private OutgoingSessionListItem? _selectedVehicle;
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private string? _searchVehiclePlate;
+    [ObservableProperty] private DateTime? _selectedCompletedDate;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isDetailsVisible;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _detailLines = new();
@@ -56,6 +57,17 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         _clock = clock;
         _currentUserContext = currentUserContext;
         _logger = logger;
+        SelectedCompletedDate = _clock.NowLocal.Date;
+    }
+
+    partial void OnSelectedCompletedDateChanged(DateTime? value)
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        _ = ReloadForCompletedDateChangeAsync();
     }
 
     private bool CanShowDetails() => SelectedVehicle != null;
@@ -73,6 +85,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     {
         SearchSessionNo = null;
         SearchVehiclePlate = null;
+        SelectedCompletedDate = _clock.NowLocal.Date;
         IsDetailsVisible = false;
         DetailLines = new ObservableCollection<WeighingSessionLineRow>();
         SelectedVehicle = null;
@@ -86,7 +99,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         {
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-            var list = await repo.SearchCompletedSessionsAsync(null, CancellationToken.None);
+            var list = await repo.SearchCompletedSessionsAsync(null, SelectedCompletedDate, CancellationToken.None);
             var filtered = list.Where(x =>
                 MatchesSearch(x.SessionNo, SearchSessionNo)
                 && MatchesSearch(x.VehiclePlate, SearchVehiclePlate));
@@ -156,6 +169,18 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         await LoadVehiclesAsync();
+    }
+
+    private async Task ReloadForCompletedDateChangeAsync()
+    {
+        try
+        {
+            await LoadVehiclesInternalAsync(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Reload outgoing vehicles on completed date change failed");
+        }
     }
 
     private bool HasSearchFilters()

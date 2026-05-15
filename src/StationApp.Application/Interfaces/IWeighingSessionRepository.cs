@@ -10,7 +10,7 @@ public interface IWeighingSessionRepository
     Task<WeighingSession?> GetByIdAsync(Guid id, CancellationToken ct);
     Task<IReadOnlyList<WeighingSession>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<WeighingSessionListItem>> SearchActiveSessionsAsync(string? keyword, CancellationToken ct);
-    Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, CancellationToken ct);
+    Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct);
 
     Task AddLineAsync(WeighingSessionLine line, CancellationToken ct);
     Task UpdateLineAsync(WeighingSessionLine line, CancellationToken ct);

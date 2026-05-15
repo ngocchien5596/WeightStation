@@ -93,7 +93,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         }).ToList();
     }
 
-    public async Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, CancellationToken ct)
+    public async Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct)
     {
         var query = _db.WeighingSessions.AsNoTracking()
             .Where(x => !x.IsCancelled && x.SessionStatus == WeighingSessionStatus.COMPLETED);
@@ -104,6 +104,15 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 x.SessionNo.Contains(keyword) ||
                 x.VehiclePlate.Contains(keyword) ||
                 (x.MoocNumber != null && x.MoocNumber.Contains(keyword)));
+        }
+
+        if (completedDate.HasValue)
+        {
+            var start = completedDate.Value.Date;
+            var end = start.AddDays(1);
+            query = query.Where(x =>
+                (x.UpdatedAt ?? x.CreatedAt) >= start &&
+                (x.UpdatedAt ?? x.CreatedAt) < end);
         }
 
         var sessions = await query

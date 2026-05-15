@@ -117,6 +117,7 @@
 
     <sys:String x:Key="Outgoing.Title">DANH S&#x00C1;CH XE RA</sys:String>
     <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
+    <sys:String x:Key="Outgoing.Label.CompletedDate">Th&#x1EDD;i gian xong:</sys:String>
     <sys:String x:Key="Outgoing.Action.ViewDetails">XEM CHI TI&#x1EBE;T</sys:String>
     <sys:String x:Key="Outgoing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
