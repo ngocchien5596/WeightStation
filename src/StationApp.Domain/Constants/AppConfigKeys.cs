@@ -18,4 +18,14 @@ public static class AppConfigKeys
 public static class AppConfigDefaults
 {
     public const decimal DefaultOverweightSplitStepWeight = 0.0025m;
+    public const string DefaultDeviceComPort = "COM6";
+    public const string DefaultDeviceBaudrate = "9600";
+    public const string DefaultDeviceParity = "None";
+    public const string DefaultDeviceDataBits = "8";
+    public const string DefaultDeviceStopBits = "One";
+    public const string DefaultDeviceParserType = "AUTO";
+    public const string DefaultDeviceFrameEndChar = "ETX";
+    public const string DefaultDeviceStableCycles = "3";
+    public const string DefaultWeightSubstringStart = "0";
+    public const string DefaultWeightSubstringLength = "7";
 }

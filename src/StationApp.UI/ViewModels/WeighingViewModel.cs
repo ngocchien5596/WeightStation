@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ using StationApp.UI.Converters;
 using StationApp.UI.Printing;
 using StationApp.UI.Resources;
 using StationApp.UI.Services;
+using StationApp.UI.Helpers;
 using StationApp.UI.ViewModels.Dialogs;
 
 namespace StationApp.UI.ViewModels;
@@ -47,6 +49,10 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private int _overweightPreviewRequestVersion;
     private bool _hasStartedDeviceAttach;
     private int _selectedSessionLoadVersion;
+    private readonly object _scaleReadingLock = new();
+    private readonly DispatcherTimer _scaleUiTimer;
+    private LatestScaleReadingSnapshot? _pendingScaleReading;
+    private bool _pendingScaleDeviceConnected;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -133,6 +139,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         _clock = clock;
         _currentUserContext = currentUserContext;
         _logger = logger;
+        _scaleUiTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+        _scaleUiTimer.Tick += OnScaleUiTimerTick;
 
         _scaleDevice.WeightReceived += OnWeightReceived;
     }
@@ -1257,12 +1268,46 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
     private void OnWeightReceived(object? sender, ScaleReading reading)
     {
+        lock (_scaleReadingLock)
+        {
+            _pendingScaleReading = new LatestScaleReadingSnapshot
+            {
+                Weight = reading.Weight,
+                IsStable = reading.IsStable,
+                ReceivedAt = reading.CapturedAt
+            };
+            _pendingScaleDeviceConnected = _scaleDevice.IsConnected;
+        }
+
+        if (!_scaleUiTimer.IsEnabled)
+        {
+            _scaleUiTimer.Start();
+        }
+    }
+
+    private void OnScaleUiTimerTick(object? sender, EventArgs e)
+    {
+        LatestScaleReadingSnapshot? latestReading;
+        bool deviceConnected;
+
+        lock (_scaleReadingLock)
+        {
+            latestReading = _pendingScaleReading;
+            deviceConnected = _pendingScaleDeviceConnected;
+            _pendingScaleReading = null;
+        }
+
+        if (latestReading == null)
+        {
+            return;
+        }
+
         if (IsAutoMode)
         {
-            CurrentWeight = reading.Weight;
-            IsStable = reading.IsStable;
-            StabilityText = reading.IsStable ? "ỔN ĐỊNH" : "CHƯA ỔN ĐỊNH";
-            StabilityBrush = reading.IsStable ? StableBrush : UnstableBrush;
+            CurrentWeight = latestReading.Weight;
+            IsStable = latestReading.IsStable;
+            StabilityText = latestReading.IsStable ? "ỔN ĐỊNH" : "CHƯA ỔN ĐỊNH";
+            StabilityBrush = latestReading.IsStable ? StableBrush : UnstableBrush;
         }
         else
         {
@@ -1271,12 +1316,14 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             StabilityBrush = StableBrush;
         }
 
-        IsDeviceConnected = _scaleDevice.IsConnected;
-        DeviceStatusText = _scaleDevice.IsConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
+        IsDeviceConnected = deviceConnected;
+        DeviceStatusText = deviceConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
     }
 
     public void Dispose()
     {
+        _scaleUiTimer.Stop();
+        _scaleUiTimer.Tick -= OnScaleUiTimerTick;
         _scaleDevice.WeightReceived -= OnWeightReceived;
     }
 

@@ -165,6 +165,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IPrintService, WpfPrintService>();
                     services.AddSingleton<IToastService, WpfToastService>();
                     services.AddSingleton<IDialogService, WpfDialogService>();
+                    services.AddSingleton<ScaleDeviceConfigurationResolver>();
 
                     services.AddScoped<CreateTicketUseCase>();
                     services.AddScoped<CaptureWeight1UseCase>();
@@ -211,46 +212,24 @@ public partial class App : System.Windows.Application
                     services.AddTransient<OutgoingVehicleListViewModel>();
 
                     services.AddSingleton<StabilityDetector>();
-                    services.AddSingleton<IWeightFrameParser>(_ => new ConfigurableWeightFrameParser());
+                    services.AddSingleton<IWeightFrameParser>(_ => new ConfigurableWeightFrameParser(
+                        parserType: AppConfigDefaults.DefaultDeviceParserType,
+                        frameEndChar: AppConfigDefaults.DefaultDeviceFrameEndChar,
+                        weightSubstringStart: int.Parse(AppConfigDefaults.DefaultWeightSubstringStart),
+                        weightSubstringLength: int.Parse(AppConfigDefaults.DefaultWeightSubstringLength)));
                     services.AddSingleton<IScaleDevice>(sp =>
                     {
                         var parser = sp.GetRequiredService<IWeightFrameParser>();
                         var stability = sp.GetRequiredService<StabilityDetector>();
                         var logger = sp.GetRequiredService<ILogger<SerialScaleDevice>>();
+                        var resolver = sp.GetRequiredService<ScaleDeviceConfigurationResolver>();
                         return new SerialScaleDevice(
                             comPort: "COM6",
                             baudRate: 9600,
                             parser: parser,
                             stabilityDetector: stability,
                             logger: logger,
-                            configurationProvider: async ct =>
-                            {
-                                using var scope = sp.CreateScope();
-                                var appRepo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-
-                                var comPort = await appRepo.GetValueAsync(AppConfigKeys.DeviceComPort, ct);
-                                var baudRateRaw = await appRepo.GetValueAsync(AppConfigKeys.DeviceBaudrate, ct);
-                                var parity = await appRepo.GetValueAsync(AppConfigKeys.DeviceParity, ct);
-                                var dataBits = await appRepo.GetValueAsync(AppConfigKeys.DeviceDataBits, ct);
-                                var stopBits = await appRepo.GetValueAsync(AppConfigKeys.DeviceStopBits, ct);
-                                var parserType = await appRepo.GetValueAsync(AppConfigKeys.DeviceParserType, ct);
-                                var frameEndChar = await appRepo.GetValueAsync(AppConfigKeys.DeviceFrameEndChar, ct);
-                                var stableCyclesRaw = await appRepo.GetValueAsync(AppConfigKeys.DeviceStableCycles, ct);
-                                var startRaw = await appRepo.GetValueAsync(AppConfigKeys.WeightSubstringStart, ct);
-                                var lengthRaw = await appRepo.GetValueAsync(AppConfigKeys.WeightSubstringLength, ct);
-
-                                return new SerialScaleDeviceConfiguration(
-                                    comPort,
-                                    ScaleConnectionSettings.ResolveBaudRate(baudRateRaw),
-                                    parity,
-                                    dataBits,
-                                    stopBits,
-                                    parserType,
-                                    frameEndChar,
-                                    ScaleConnectionSettings.ResolveStableCycles(stableCyclesRaw),
-                                    ScaleConnectionSettings.ResolveOptionalInt(startRaw),
-                                    ScaleConnectionSettings.ResolveOptionalInt(lengthRaw));
-                            });
+                            configurationProvider: resolver.GetSavedConfigurationAsync);
                     });
 
                     services.AddTransient<ApiKeyDelegatingHandler>();
@@ -287,6 +266,45 @@ public partial class App : System.Windows.Application
             var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
             var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
             await StationDatabaseInitializer.InitializeAsync(db, loggerFactory, CancellationToken.None);
+            await EnsureDefaultScaleConfigurationAsync(scope.ServiceProvider, CancellationToken.None);
+        }
+    }
+
+    private static async Task EnsureDefaultScaleConfigurationAsync(IServiceProvider serviceProvider, CancellationToken ct)
+    {
+        var repo = serviceProvider.GetRequiredService<IAppConfigRepository>();
+        var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+
+        var defaults = new Dictionary<string, string>
+        {
+            [AppConfigKeys.DeviceComPort] = AppConfigDefaults.DefaultDeviceComPort,
+            [AppConfigKeys.DeviceBaudrate] = AppConfigDefaults.DefaultDeviceBaudrate,
+            [AppConfigKeys.DeviceParity] = AppConfigDefaults.DefaultDeviceParity,
+            [AppConfigKeys.DeviceDataBits] = AppConfigDefaults.DefaultDeviceDataBits,
+            [AppConfigKeys.DeviceStopBits] = AppConfigDefaults.DefaultDeviceStopBits,
+            [AppConfigKeys.DeviceParserType] = AppConfigDefaults.DefaultDeviceParserType,
+            [AppConfigKeys.DeviceFrameEndChar] = AppConfigDefaults.DefaultDeviceFrameEndChar,
+            [AppConfigKeys.DeviceStableCycles] = AppConfigDefaults.DefaultDeviceStableCycles,
+            [AppConfigKeys.WeightSubstringStart] = AppConfigDefaults.DefaultWeightSubstringStart,
+            [AppConfigKeys.WeightSubstringLength] = AppConfigDefaults.DefaultWeightSubstringLength
+        };
+
+        var hasChanges = false;
+        foreach (var entry in defaults)
+        {
+            var currentValue = await repo.GetValueAsync(entry.Key, ct);
+            if (!string.IsNullOrWhiteSpace(currentValue))
+            {
+                continue;
+            }
+
+            await repo.SetValueAsync(entry.Key, entry.Value, ct);
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await unitOfWork.SaveChangesAsync(ct);
         }
     }
 

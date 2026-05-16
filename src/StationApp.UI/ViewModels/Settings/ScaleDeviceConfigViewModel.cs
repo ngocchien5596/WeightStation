@@ -17,21 +17,30 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IScaleDevice _scaleDevice;
 
-    public ScaleDeviceConfigViewModel(IServiceScopeFactory scopeFactory, ICurrentUserContext currentUserContext)
+    public ScaleDeviceConfigViewModel(
+        IServiceScopeFactory scopeFactory,
+        ICurrentUserContext currentUserContext,
+        IScaleDevice scaleDevice)
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
+        _scaleDevice = scaleDevice;
 
         AvailableBaudrates = new ObservableCollection<string>(["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"]);
         AvailableParities = new ObservableCollection<string>(["None", "Even", "Odd", "Mark", "Space"]);
         AvailableDataBits = new ObservableCollection<string>(["7", "8"]);
         AvailableStopBits = new ObservableCollection<string>(["One", "Two"]);
-        AvailableParserTypes = new ObservableCollection<string>([ScaleConnectionSettings.ParserTypeYaohua, ScaleConnectionSettings.ParserTypeDefault]);
+        AvailableParserTypes = new ObservableCollection<string>([
+            ScaleConnectionSettings.ParserTypeAuto,
+            ScaleConnectionSettings.ParserTypeYaohua,
+            ScaleConnectionSettings.ParserTypeDefault
+        ]);
         AvailableFrameEndChars = new ObservableCollection<string>(["CR", "LF", "ETX"]);
         AvailableStableCycles = new ObservableCollection<string>(["2", "3", "4", "5"]);
-        AvailableSubstringStarts = new ObservableCollection<string>(["", "0", "7", "8", "9", "10"]);
-        AvailableSubstringLengths = new ObservableCollection<string>(["", "7", "8", "9", "10"]);
+        AvailableSubstringStarts = new ObservableCollection<string>(Enumerable.Range(0, 33).Select(static x => x.ToString()));
+        AvailableSubstringLengths = new ObservableCollection<string>(Enumerable.Range(1, 32).Select(static x => x.ToString()));
     }
 
     [ObservableProperty] private ObservableCollection<string> _availablePorts = new();
@@ -45,17 +54,17 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<string> _availableSubstringStarts;
     [ObservableProperty] private ObservableCollection<string> _availableSubstringLengths;
 
-    [ObservableProperty] private string _comPort = "COM6";
-    [ObservableProperty] private string _baudrate = "9600";
-    [ObservableProperty] private string _parity = "None";
-    [ObservableProperty] private string _dataBits = "8";
-    [ObservableProperty] private string _stopBits = "One";
-    [ObservableProperty] private string _parserType = ScaleConnectionSettings.ParserTypeYaohua;
-    [ObservableProperty] private string _frameEndChar = "CR";
-    [ObservableProperty] private string _stableCycles = "3";
-    [ObservableProperty] private string _weightSubstringStart = string.Empty;
-    [ObservableProperty] private string _weightSubstringLength = string.Empty;
-    [ObservableProperty] private string _sampleRawFrame = "ST,GS,+  00025350 kg\\r";
+    [ObservableProperty] private string _comPort = AppConfigDefaults.DefaultDeviceComPort;
+    [ObservableProperty] private string _baudrate = AppConfigDefaults.DefaultDeviceBaudrate;
+    [ObservableProperty] private string _parity = AppConfigDefaults.DefaultDeviceParity;
+    [ObservableProperty] private string _dataBits = AppConfigDefaults.DefaultDeviceDataBits;
+    [ObservableProperty] private string _stopBits = AppConfigDefaults.DefaultDeviceStopBits;
+    [ObservableProperty] private string _parserType = AppConfigDefaults.DefaultDeviceParserType;
+    [ObservableProperty] private string _frameEndChar = AppConfigDefaults.DefaultDeviceFrameEndChar;
+    [ObservableProperty] private string _stableCycles = AppConfigDefaults.DefaultDeviceStableCycles;
+    [ObservableProperty] private string _weightSubstringStart = AppConfigDefaults.DefaultWeightSubstringStart;
+    [ObservableProperty] private string _weightSubstringLength = AppConfigDefaults.DefaultWeightSubstringLength;
+    [ObservableProperty] private string _sampleRawFrame = "0025350\\x03";
     [ObservableProperty] private string _parsedStringResult = string.Empty;
     [ObservableProperty] private string _parsedWeightResult = string.Empty;
     [ObservableProperty] private string _connectionTestResult = string.Empty;
@@ -70,16 +79,16 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
         using var scope = _scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
 
-        ComPort = await repo.GetValueAsync(AppConfigKeys.DeviceComPort, CancellationToken.None) ?? FirstOrDefault(AvailablePorts, "COM6");
-        Baudrate = await repo.GetValueAsync(AppConfigKeys.DeviceBaudrate, CancellationToken.None) ?? "9600";
-        Parity = await repo.GetValueAsync(AppConfigKeys.DeviceParity, CancellationToken.None) ?? "None";
-        DataBits = await repo.GetValueAsync(AppConfigKeys.DeviceDataBits, CancellationToken.None) ?? "8";
-        StopBits = await repo.GetValueAsync(AppConfigKeys.DeviceStopBits, CancellationToken.None) ?? "One";
-        ParserType = await repo.GetValueAsync(AppConfigKeys.DeviceParserType, CancellationToken.None) ?? ScaleConnectionSettings.ParserTypeYaohua;
-        FrameEndChar = await repo.GetValueAsync(AppConfigKeys.DeviceFrameEndChar, CancellationToken.None) ?? "CR";
-        StableCycles = await repo.GetValueAsync(AppConfigKeys.DeviceStableCycles, CancellationToken.None) ?? "3";
-        WeightSubstringStart = await repo.GetValueAsync(AppConfigKeys.WeightSubstringStart, CancellationToken.None) ?? string.Empty;
-        WeightSubstringLength = await repo.GetValueAsync(AppConfigKeys.WeightSubstringLength, CancellationToken.None) ?? string.Empty;
+        ComPort = await repo.GetValueAsync(AppConfigKeys.DeviceComPort, CancellationToken.None) ?? FirstOrDefault(AvailablePorts, AppConfigDefaults.DefaultDeviceComPort);
+        Baudrate = await repo.GetValueAsync(AppConfigKeys.DeviceBaudrate, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceBaudrate;
+        Parity = await repo.GetValueAsync(AppConfigKeys.DeviceParity, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceParity;
+        DataBits = await repo.GetValueAsync(AppConfigKeys.DeviceDataBits, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceDataBits;
+        StopBits = await repo.GetValueAsync(AppConfigKeys.DeviceStopBits, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceStopBits;
+        ParserType = await repo.GetValueAsync(AppConfigKeys.DeviceParserType, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceParserType;
+        FrameEndChar = await repo.GetValueAsync(AppConfigKeys.DeviceFrameEndChar, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceFrameEndChar;
+        StableCycles = await repo.GetValueAsync(AppConfigKeys.DeviceStableCycles, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceStableCycles;
+        WeightSubstringStart = await repo.GetValueAsync(AppConfigKeys.WeightSubstringStart, CancellationToken.None) ?? AppConfigDefaults.DefaultWeightSubstringStart;
+        WeightSubstringLength = await repo.GetValueAsync(AppConfigKeys.WeightSubstringLength, CancellationToken.None) ?? AppConfigDefaults.DefaultWeightSubstringLength;
 
         EnsureOption(AvailablePorts, ComPort);
         EnsureOption(AvailableBaudrates, Baudrate);
@@ -122,7 +131,8 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
                     WeightSubstringLength.Trim()),
                 CancellationToken.None);
 
-            await dialogService.ShowInfoAsync("Thông báo", "Lưu tham số thiết bị cân thành công.");
+            await ReconnectScaleDeviceAsync();
+            await dialogService.ShowInfoAsync("Thông báo", "Lưu tham số thiết bị cân thành công và đã áp dụng cấu hình mới.");
         }
         catch (Exception ex)
         {
@@ -157,11 +167,14 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
         try
         {
             var decodedRaw = DecodeDisplayText(SampleRawFrame);
-            var start = TryGetOptionalNonNegativeInt(WeightSubstringStart);
-            var length = TryGetOptionalNonNegativeInt(WeightSubstringLength);
-            var parser = ScaleConnectionSettings.CreateParser(ParserType, FrameEndChar, start, length);
+            var configuration = BuildCurrentConfiguration();
+            var parser = ScaleConnectionSettings.CreateParser(
+                configuration.ParserType,
+                configuration.FrameEndChar,
+                configuration.WeightSubstringStart,
+                configuration.WeightSubstringLength);
 
-            ParsedStringResult = BuildPreviewSlice(decodedRaw, start, length);
+            ParsedStringResult = BuildPreviewSlice(decodedRaw, configuration.WeightSubstringStart, configuration.WeightSubstringLength);
             var parsed = parser.TryParse(decodedRaw, out var isStable);
             ParsedWeightResult = parsed.HasValue
                 ? $"{parsed.Value:N0} kg | {(isStable ? "Ổn định" : "Chưa ổn định")}"
@@ -187,21 +200,22 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
 
         try
         {
+            var configuration = BuildCurrentConfiguration();
             var parser = ScaleConnectionSettings.CreateParser(
-                ParserType,
-                FrameEndChar,
-                TryGetOptionalNonNegativeInt(WeightSubstringStart),
-                TryGetOptionalNonNegativeInt(WeightSubstringLength));
+                configuration.ParserType,
+                configuration.FrameEndChar,
+                configuration.WeightSubstringStart,
+                configuration.WeightSubstringLength);
 
-            var stabilityDetector = new StabilityDetector(requiredCycles: ScaleConnectionSettings.ResolveStableCycles(StableCycles));
+            var stabilityDetector = new StabilityDetector(requiredCycles: configuration.StableCycles ?? ScaleConnectionSettings.ResolveStableCycles(StableCycles));
             using var device = new SerialScaleDevice(
-                ComPort.Trim(),
-                ScaleConnectionSettings.ResolveBaudRate(Baudrate),
+                configuration.ComPort ?? AppConfigDefaults.DefaultDeviceComPort,
+                configuration.BaudRate,
                 parser,
                 stabilityDetector,
-                parity: ScaleConnectionSettings.ResolveParity(Parity),
-                dataBits: ScaleConnectionSettings.ResolveDataBits(DataBits),
-                stopBits: ScaleConnectionSettings.ResolveStopBits(StopBits));
+                parity: ScaleConnectionSettings.ResolveParity(configuration.Parity),
+                dataBits: ScaleConnectionSettings.ResolveDataBits(configuration.DataBits),
+                stopBits: ScaleConnectionSettings.ResolveStopBits(configuration.StopBits));
 
             string? lastRaw = null;
             string? lastError = null;
@@ -312,9 +326,40 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
         return int.TryParse(raw, out var value) && value >= 0 ? value : null;
     }
 
+    private SerialScaleDeviceConfiguration BuildCurrentConfiguration()
+    {
+        return Services.ScaleDeviceConfigurationResolver.BuildConfiguration(
+            ComPort,
+            Baudrate,
+            Parity,
+            DataBits,
+            StopBits,
+            ParserType,
+            FrameEndChar,
+            StableCycles,
+            WeightSubstringStart,
+            WeightSubstringLength);
+    }
+
+    private async Task ReconnectScaleDeviceAsync()
+    {
+        try
+        {
+            await _scaleDevice.DisconnectAsync(CancellationToken.None);
+            await _scaleDevice.ConnectAsync(CancellationToken.None);
+            await _scaleDevice.StartAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // Best-effort reconnect. Use Test Connection for explicit validation.
+        }
+    }
+
     private static string DecodeDisplayText(string raw)
     {
         return raw
+            .Replace("\\x03", ((char)0x03).ToString(), StringComparison.OrdinalIgnoreCase)
+            .Replace("\\u0003", ((char)0x03).ToString(), StringComparison.OrdinalIgnoreCase)
             .Replace("\\r\\n", "\r\n", StringComparison.OrdinalIgnoreCase)
             .Replace("\\r", "\r", StringComparison.OrdinalIgnoreCase)
             .Replace("\\n", "\n", StringComparison.OrdinalIgnoreCase);
@@ -322,7 +367,10 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
 
     private static string ToDisplayText(string raw)
     {
-        return raw.Replace("\r", "\\r").Replace("\n", "\\n");
+        return raw
+            .Replace(((char)0x03).ToString(), "\\x03")
+            .Replace("\r", "\\r")
+            .Replace("\n", "\\n");
     }
 
     private static string BuildPreviewSlice(string raw, int? start, int? length)

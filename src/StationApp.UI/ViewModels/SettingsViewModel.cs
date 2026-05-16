@@ -40,12 +40,12 @@ public partial class SettingsViewModel : ObservableObject
         _ = HandleTabSelectionAsync(value);
     }
 
-    public SettingsViewModel(IServiceScopeFactory scopeFactory, ICurrentUserContext currentUserContext)
+    public SettingsViewModel(IServiceScopeFactory scopeFactory, ICurrentUserContext currentUserContext, Device.Abstractions.IScaleDevice scaleDevice)
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
         SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext);
-        ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext);
+        ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice);
         VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory);
         CustomerMasterVM = new Settings.CustomerMasterViewModel(_scopeFactory);
         ProductMasterVM = new Settings.ProductMasterViewModel(_scopeFactory);

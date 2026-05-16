@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="{Binding Title}"
-        Height="860"
-        Width="1440"
+        Height="700"
+        Width="1100"
         Language="en-US"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -30,7 +30,7 @@
                                Foreground="#64748B"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-                <DocumentViewer Document="{Binding PreviewDocument}" />
+                <DocumentViewer Document="{Binding PreviewDocument}" Zoom="75" />
             </DockPanel>
         </Border>
 
@@ -104,7 +104,7 @@
                                       CanUserAddRows="False"
                                       CanUserDeleteRows="False"
                                       HeadersVisibility="Column"
-                                      Height="320"
+                                      Height="200"
                                       Margin="0,6,0,14"
                                       IsReadOnly="False">
                                 <DataGrid.Columns>

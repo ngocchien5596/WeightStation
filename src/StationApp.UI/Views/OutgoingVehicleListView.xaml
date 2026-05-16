@@ -85,7 +85,7 @@
         </Border>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsDetailsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="3">
-            <Border Style="{StaticResource ModalShellStyle}" Width="1200" MaxWidth="1500" MaxHeight="820" VerticalAlignment="Center" Margin="24">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1100" MaxHeight="680" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

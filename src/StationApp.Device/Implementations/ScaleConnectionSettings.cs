@@ -5,11 +5,17 @@ namespace StationApp.Device.Implementations;
 
 public static class ScaleConnectionSettings
 {
+    public const string ParserTypeAuto = "AUTO";
     public const string ParserTypeDefault = "DEFAULT";
     public const string ParserTypeYaohua = "YAOHUA";
 
     public static string NormalizeParserType(string? parserType)
     {
+        if (string.Equals(parserType?.Trim(), ParserTypeAuto, StringComparison.OrdinalIgnoreCase))
+        {
+            return ParserTypeAuto;
+        }
+
         return string.Equals(parserType?.Trim(), ParserTypeYaohua, StringComparison.OrdinalIgnoreCase)
             ? ParserTypeYaohua
             : ParserTypeDefault;
@@ -65,6 +71,15 @@ public static class ScaleConnectionSettings
         int? weightSubstringLength)
     {
         var normalized = NormalizeParserType(parserType);
+        if (normalized == ParserTypeAuto)
+        {
+            return new ConfigurableWeightFrameParser(
+                parserType: ParserTypeAuto,
+                frameEndChar: frameEndChar ?? "ETX",
+                weightSubstringStart: weightSubstringStart,
+                weightSubstringLength: weightSubstringLength);
+        }
+
         if (normalized == ParserTypeYaohua)
         {
             return new YaohuaWeightFrameParser(ResolveFrameTerminator(frameEndChar))
@@ -74,6 +89,9 @@ public static class ScaleConnectionSettings
             };
         }
 
-        return new DefaultWeightFrameParser();
+        return new LegacyWeightFrameParser(
+            ResolveFrameTerminator(frameEndChar, fallback: (char)0x03),
+            weightSubstringStart,
+            weightSubstringLength);
     }
 }

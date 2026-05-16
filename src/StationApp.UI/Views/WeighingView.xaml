@@ -15,7 +15,9 @@
                 <Setter Property="HorizontalAlignment" Value="Right"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
-            <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}"/>
+            <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="Margin" Value="0,2"/>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -57,25 +59,25 @@
         <Grid Grid.Row="1" Margin="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="520"/>
+                <ColumnDefinition Width="420"/>
             </Grid.ColumnDefinitions>
 
             <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="16" Background="White">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="95"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="120"/>
+                        <ColumnDefinition Width="95"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="40"/>
-                        <RowDefinition Height="40"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="{StaticResource Weighing.Label.SessionNo}" Grid.Row="0" Style="{StaticResource FormLabel}"/>
@@ -120,7 +122,7 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="100"/>
+                        <RowDefinition Height="80"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
@@ -140,7 +142,7 @@
                         <Grid>
                             <TextBox Text="{Binding CurrentWeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:0.###}'}"
                                      IsReadOnly="{Binding IsAutoMode}"
-                                     FontSize="52"
+                                     FontSize="42"
                                      FontWeight="Bold"
                                      FontFamily="Consolas"
                                      HorizontalAlignment="Stretch"
@@ -156,15 +158,15 @@
                         </Grid>
                     </Border>
 
-                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                    <Grid Margin="12,4,12,8" Grid.Row="2">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160"/>
+                            <ColumnDefinition Width="95"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="40"/>
-                            <RowDefinition Height="40"/>
-                            <RowDefinition Height="40"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Text="{StaticResource Weighing.Weight1}" Grid.Row="0" Style="{StaticResource FormLabel}"/>
@@ -180,19 +182,24 @@
             </Border>
         </Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
-            <Button Content="{StaticResource Weighing.Action.CaptureWeight1}" Command="{Binding CaptureWeight1Command}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.CaptureWeight2}" Command="{Binding CaptureWeight2Command}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.Save}" Command="{Binding SaveCapturedWeightCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.Allocate}" Command="{Binding OpenAllocationCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.HandleOverweight}" Command="{Binding ShowOverweightHandlingCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.NoLoad}" Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,6,0"/>
-            <Button Content="{StaticResource Weighing.Action.Cancel}" Command="{Binding CancelCommand}" Style="{StaticResource DangerButtonStyle}"/>
-        </StackPanel>
+        <ItemsControl Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,8">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel HorizontalAlignment="Center"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <Button Content="{StaticResource Weighing.Action.CaptureWeight1}" Command="{Binding CaptureWeight1Command}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.CaptureWeight2}" Command="{Binding CaptureWeight2Command}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.Save}" Command="{Binding SaveCapturedWeightCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.Allocate}" Command="{Binding OpenAllocationCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.HandleOverweight}" Command="{Binding ShowOverweightHandlingCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.NoLoad}" Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.Cancel}" Command="{Binding CancelCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,0,4"/>
+        </ItemsControl>
 
         <Grid Grid.Row="3" Margin="12,0,12,12">
             <Grid.ColumnDefinitions>
@@ -241,7 +248,7 @@
         </Grid>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsAllocationVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Style="{StaticResource ModalShellStyle}" Width="1200" MaxWidth="1500" MaxHeight="820" VerticalAlignment="Center" Margin="24">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1100" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -290,7 +297,7 @@
         </Grid>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsOverweightHandlingVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Style="{StaticResource ModalShellStyle}" Width="1260" MaxWidth="1560" MaxHeight="860" VerticalAlignment="Center" Margin="24">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1100" MaxHeight="700" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -303,7 +310,7 @@
                         <TextBlock Text="{StaticResource Weighing.Dialog.OverweightTitle}" Style="{StaticResource ModalTitleStyle}"/>
                     </Border>
 
-                    <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}" Padding="22,18,22,16">
+                    <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}" Padding="16,12,16,10">
                         <StackPanel>
                             <UniformGrid Columns="4" Margin="0,0,0,16">
                                 <Border Style="{StaticResource ModalMetricCardStyle}">
@@ -376,7 +383,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="2" Style="{StaticResource ModalBodyStyle}" Padding="22,0,22,20">
+                    <Border Grid.Row="2" Style="{StaticResource ModalBodyStyle}" Padding="16,0,16,14">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="340"/>
@@ -435,7 +442,7 @@
         </Grid>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsRelatedTicketsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Style="{StaticResource ModalShellStyle}" Width="1180" MaxWidth="1480" MaxHeight="780" VerticalAlignment="Center" Margin="24">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1060" MaxHeight="680" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

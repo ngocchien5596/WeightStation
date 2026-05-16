@@ -57,7 +57,7 @@
         <Setter Property="Background" Value="{StaticResource SidebarItemBackground}"/>
         <Setter Property="Foreground" Value="{StaticResource SidebarItemForeground}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Height" Value="48"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -103,7 +103,7 @@
     <Style x:Key="HeaderLabelStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource HeaderForeground}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -112,13 +112,13 @@
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13"/>
     </Style>
 
     <Style x:Key="HeaderActionButton" TargetType="Button" BasedOn="{StaticResource WorkflowButtonStyle}">
         <Setter Property="Height" Value="34"/>
         <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="Padding" Value="14,0"/>
         <Setter Property="Background" Value="#F39C12"/>
     </Style>
@@ -142,7 +142,7 @@
     <Style x:Key="ClockTextStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource ClockForeground}"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -167,15 +167,15 @@
         <Setter Property="IsReadOnly" Value="True"/>
         <Setter Property="ClipboardCopyMode" Value="ExcludeHeader"/>
         <Setter Property="helpers:DataGridCellCopyBehavior.EnableCurrentCellCopy" Value="True"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="GridLinesVisibility" Value="All"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDC3C7"/>
         <Setter Property="VerticalGridLinesBrush" Value="#BDC3C7"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="#BDC3C7"/>
-        <Setter Property="RowHeight" Value="38"/>
+        <Setter Property="RowHeight" Value="30"/>
         <Setter Property="CanUserResizeColumns" Value="True"/>
-        <Setter Property="ColumnHeaderHeight" Value="42"/>
+        <Setter Property="ColumnHeaderHeight" Value="34"/>
         <Setter Property="Background" Value="White"/>
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
@@ -186,7 +186,7 @@
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Height" Value="42"/>
         <Setter Property="Padding" Value="10,0"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="BorderThickness" Value="0,0,1,1"/>
         <Setter Property="BorderBrush" Value="#BDC3C7"/>
@@ -230,7 +230,7 @@
     <!-- Grid Text Alignment Styles -->
     <Style x:Key="GridTextCenter" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,6"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Center"/>
@@ -238,7 +238,7 @@
 
     <Style x:Key="GridTextRight" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,6"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Right"/>
@@ -246,7 +246,7 @@
 
     <Style x:Key="GridTextLeft" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,6"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Left"/>
@@ -279,24 +279,24 @@
     <Style x:Key="ModalHeaderStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SidebarBrush}"/>
         <Setter Property="CornerRadius" Value="9,9,0,0"/>
-        <Setter Property="Padding" Value="22,14"/>
+        <Setter Property="Padding" Value="18,10"/>
     </Style>
 
     <Style x:Key="ModalTitleStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontSize" Value="16"/>
         <Setter Property="FontWeight" Value="Bold"/>
     </Style>
 
     <Style x:Key="ModalBodyStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource CardBrush}"/>
-        <Setter Property="Padding" Value="22,20"/>
+        <Setter Property="Padding" Value="16,14"/>
     </Style>
 
     <Style x:Key="ModalFooterStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SubCardBrush}"/>
         <Setter Property="CornerRadius" Value="0,0,9,9"/>
-        <Setter Property="Padding" Value="18,14"/>
+        <Setter Property="Padding" Value="14,10"/>
     </Style>
 
     <Style x:Key="ModalSectionCardStyle" TargetType="Border">
@@ -304,7 +304,7 @@
         <Setter Property="BorderBrush" Value="#D5DFE8"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="Padding" Value="14"/>
+        <Setter Property="Padding" Value="10"/>
     </Style>
 
     <Style x:Key="ModalMetricCardStyle" TargetType="Border" BasedOn="{StaticResource ModalSectionCardStyle}">
@@ -321,7 +321,7 @@
 
     <Style x:Key="ModalMetricValueStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="#1F355C"/>
-        <Setter Property="FontSize" Value="24"/>
+        <Setter Property="FontSize" Value="20"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Margin" Value="0,6,0,0"/>
     </Style>

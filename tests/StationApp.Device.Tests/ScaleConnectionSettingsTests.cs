@@ -18,14 +18,36 @@ public class ScaleConnectionSettingsTests
     }
 
     [Fact]
-    public void CreateParser_Default_IgnoresLegacySubstringAndParsesFullFrame()
+    public void CreateParser_Default_ParsesLegacyNumericFrameWithEtx()
     {
         var parser = ScaleConnectionSettings.CreateParser("DEFAULT", "ETX", 0, 7);
 
-        var result = parser.TryParse("ST,GS,+  00014000 kg", out var isStable);
+        var result = parser.TryParse($"0014000{(char)0x03}", out var isStable);
 
         Assert.Equal(14000m, result);
-        Assert.True(isStable);
+        Assert.False(isStable);
+    }
+
+    [Fact]
+    public void CreateParser_Auto_ParsesLegacyNumericFrameWithEtx()
+    {
+        var parser = ScaleConnectionSettings.CreateParser("AUTO", "ETX", 0, 7);
+
+        var result = parser.TryParse($"0025350{(char)0x03}", out var isStable);
+
+        Assert.Equal(25350m, result);
+        Assert.False(isStable);
+    }
+
+    [Fact]
+    public void CreateParser_Auto_ParsesLegacyDisplayedFrameWithoutRawEtxCharacter()
+    {
+        var parser = ScaleConnectionSettings.CreateParser("AUTO", "ETX", 0, 7);
+
+        var result = parser.TryParse("+018670013", out var isStable);
+
+        Assert.Equal(18670m, result);
+        Assert.False(isStable);
     }
 
     [Theory]

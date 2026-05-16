@@ -5,7 +5,7 @@
     <!-- 1. FIELD LABEL STYLE -->
     <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="#1F2D3D"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -15,14 +15,14 @@
     <!-- 2. STANDARD TEXTBOX STYLE -->
     <Style x:Key="StandardTextBoxStyle" TargetType="TextBox">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="Foreground" Value="#111827"/>
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="BorderBrush" Value="#9AA4AA"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="Padding" Value="6,2"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Height" Value="32"/>
+        <Setter Property="Height" Value="26"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -68,15 +68,15 @@
     <!-- 3. STANDARD COMBOBOX STYLE -->
     <Style x:Key="StandardComboBoxStyle" TargetType="ComboBox">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="Foreground" Value="#111827"/>
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="BorderBrush" Value="#9AA4AA"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="Padding" Value="6,2"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        <Setter Property="Height" Value="32"/>
+        <Setter Property="Height" Value="26"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
@@ -389,12 +389,12 @@
 
     <Style x:Key="StandardDatePickerStyle" TargetType="DatePicker">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="Foreground" Value="#111827"/>
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="BorderBrush" Value="#9AA4AA"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Height" Value="32"/>
+        <Setter Property="Height" Value="26"/>
         <Setter Property="Language" Value="en-GB"/>
         <Setter Property="SelectedDateFormat" Value="Short"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -506,7 +506,7 @@
     <!-- 5. STANDARD CHECKBOX STYLE -->
     <Style x:Key="StandardCheckBoxStyle" TargetType="CheckBox">
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 

@@ -117,20 +117,16 @@
                           SelectedItem="{Binding StableCycles, UpdateSourceTrigger=PropertyChanged}"
                           Style="{StaticResource FormCombo}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="4" Text="C&#x1EAF;t - b&#x1EAF;t &#x111;&#x1EA7;u" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="4" Text="V&#x1ECB; tr&#xED; b&#x1EAF;t &#x111;&#x1EA7;u" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
                 <ComboBox Grid.Column="1" Grid.Row="4"
                           ItemsSource="{Binding AvailableSubstringStarts}"
-                          Text="{Binding WeightSubstringStart, UpdateSourceTrigger=PropertyChanged}"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
+                          SelectedItem="{Binding WeightSubstringStart, UpdateSourceTrigger=PropertyChanged}"
                           Style="{StaticResource FormCombo}" Margin="0,0,16,12"/>
 
-                <TextBlock Grid.Column="2" Grid.Row="4" Text="C&#x1EAF;t - &#x111;&#x1ED9; d&#xE0;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
+                <TextBlock Grid.Column="2" Grid.Row="4" Text="&#x110;&#x1ED9; d&#xE0;i chu&#x1ED7;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
                 <ComboBox Grid.Column="3" Grid.Row="4"
                           ItemsSource="{Binding AvailableSubstringLengths}"
-                          Text="{Binding WeightSubstringLength, UpdateSourceTrigger=PropertyChanged}"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
+                          SelectedItem="{Binding WeightSubstringLength, UpdateSourceTrigger=PropertyChanged}"
                           Style="{StaticResource FormCombo}" Margin="0,0,0,12"/>
 
                 <TextBlock Grid.Column="0" Grid.Row="5" Text="Tr&#x1EA1;ng th&#xE1;i test" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,12"/>
