@@ -44,7 +44,7 @@ public sealed class InboundMasterDataWorker : BackgroundService
                 {
                     await ReportStatusAsync(
                         "Cooldown",
-                        $"Tam dung dong bo master-data den {_cooldownUntilLocal.Value:O} sau {_consecutiveFailures} lan that bai lien tiep.",
+                        $"Tạm dừng đồng bộ master-data đến {_cooldownUntilLocal.Value:O} sau {_consecutiveFailures} lần thất bại liên tiếp.",
                         stoppingToken);
                 }
                 else

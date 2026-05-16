@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
+using StationApp.Application.Security;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -237,7 +238,9 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 template,
                 preview,
                 printerDiscovery.GetInstalledPrinters(),
-                renderer);
+                renderer,
+                templateProvider,
+                StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode));
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -321,7 +324,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             {
                 Kind = kind,
                 Title = splitConfirmed ? "In phiếu cân tách tải" : UiText.Weighing.PrintPreviewWeighMaster,
-                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal)).Cast<PrintPreviewPageModel>().ToList()
+                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName)).Cast<PrintPreviewPageModel>().ToList()
             };
         }
 
@@ -348,7 +351,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal));
+            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName));
         }
 
         return new PrintBatchPreviewModel

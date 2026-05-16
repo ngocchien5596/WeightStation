@@ -75,31 +75,31 @@
                 </ControlTemplate>
             </TabControl.Template>
 
-            <TabItem Header="THAM SO HE THONG" Visibility="{Binding CanAccessSystemSettings, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="THAM SỐ HỆ THỐNG" Visibility="{Binding CanAccessSystemSettings, Converter={StaticResource BoolToVis}}">
                 <settings:SystemSettingsView DataContext="{Binding SystemSettingsVM}"/>
             </TabItem>
 
-            <TabItem Header="THIET BI CAN" Visibility="{Binding CanAccessScaleDeviceConfig, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="THIẾT BỊ CÂN" Visibility="{Binding CanAccessScaleDeviceConfig, Converter={StaticResource BoolToVis}}">
                 <settings:ScaleDeviceConfigView DataContext="{Binding ScaleDeviceConfigVM}"/>
             </TabItem>
 
-            <TabItem Header="MASTER XE" Visibility="{Binding CanAccessVehicleMaster, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="DANH MỤC XE" Visibility="{Binding CanAccessVehicleMaster, Converter={StaticResource BoolToVis}}">
                 <settings:VehicleMasterView DataContext="{Binding VehicleMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="KHACH HANG" Visibility="{Binding CanAccessCustomerMaster, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="KHÁCH HÀNG" Visibility="{Binding CanAccessCustomerMaster, Converter={StaticResource BoolToVis}}">
                 <settings:CustomerMasterView DataContext="{Binding CustomerMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="SAN PHAM" Visibility="{Binding CanAccessProductMaster, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="SẢN PHẨM" Visibility="{Binding CanAccessProductMaster, Converter={StaticResource BoolToVis}}">
                 <settings:ProductMasterView DataContext="{Binding ProductMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="DONG BO" Visibility="{Binding CanAccessSyncInfo, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="ĐỒNG BỘ" Visibility="{Binding CanAccessSyncInfo, Converter={StaticResource BoolToVis}}">
                 <settings:SyncInfoView DataContext="{Binding SyncInfoVM}"/>
             </TabItem>
 
-            <TabItem Header="QUAN LY TAI KHOAN" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="QUẢN LÝ TÀI KHOẢN" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
                 <settings:AccountManagementView DataContext="{Binding AccountManagementVM}"/>
             </TabItem>
         </TabControl>

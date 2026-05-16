@@ -30,7 +30,7 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
     public async Task<OverweightSplitPreviewDto> ExecuteAsync(PreviewWeighingSessionOverweightSplitRequest request, CancellationToken ct)
     {
         var session = await _sessionRepo.GetByIdAsync(request.SessionId, ct)
-            ?? throw new InvalidOperationException("Khong tim thay luot can.");
+            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
         var lines = await _sessionRepo.GetLinesBySessionIdAsync(request.SessionId, ct);
 
         EnsureSessionPendingOverweight(session);
@@ -92,7 +92,7 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
 
         if (!session.IsOverweight || session.OverweightResolutionStatus != OverweightResolutionStatus.PENDING)
         {
-            throw new InvalidOperationException("Luot can hien tai khong con o trang thai cho xu ly qua tai.");
+            throw new InvalidOperationException("Lượt cân hiện tại không còn ở trạng thái chờ xử lý quá tải.");
         }
     }
 }
@@ -140,14 +140,14 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
     public async Task ExecuteAsync(ResolveWeighingSessionOverweightSplitRequest request, CancellationToken ct)
     {
         var session = await _sessionRepo.GetByIdAsync(request.SessionId, ct)
-            ?? throw new InvalidOperationException("Khong tim thay luot can.");
+            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
         PreviewWeighingSessionOverweightSplitUseCase.EnsureSessionPendingOverweight(session);
 
         var lines = await _sessionRepo.GetLinesBySessionIdAsync(request.SessionId, ct);
         var weighTickets = await _weighRepo.GetByWeighingSessionIdAsync(request.SessionId, ct);
         var deliveryTickets = await _deliveryRepo.GetByWeighingSessionIdAsync(request.SessionId, ct);
         var masterTicket = weighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted)
-            ?? throw new InvalidOperationException("Khong tim thay phieu can tong cua luot can.");
+            ?? throw new InvalidOperationException("Không tìm thấy phiếu cân tổng của lượt cân.");
         var normalDeliveryByLineId = deliveryTickets
             .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted && x.WeighingSessionLineId.HasValue)
             .GroupBy(x => x.WeighingSessionLineId!.Value)
@@ -261,7 +261,7 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
 
         if (!decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
         {
-            throw new InvalidOperationException("Cau hinh OverweightSplitStepWeight khong hop le.");
+            throw new InvalidOperationException("Cấu hình OverweightSplitStepWeight không hợp lệ.");
         }
 
         return value;
@@ -428,7 +428,7 @@ public sealed class ResolveWeighingSessionOverweightNoSplitUseCase
     public async Task ExecuteAsync(Guid sessionId, CancellationToken ct)
     {
         var session = await _sessionRepo.GetByIdAsync(sessionId, ct)
-            ?? throw new InvalidOperationException("Khong tim thay luot can.");
+            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
         PreviewWeighingSessionOverweightSplitUseCase.EnsureSessionPendingOverweight(session);
 
         var now = _clock.NowLocal;

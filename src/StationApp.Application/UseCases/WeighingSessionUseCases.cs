@@ -173,7 +173,7 @@ public sealed class MarkRegistrationsNoLoadUseCase
         var registrations = await _regRepo.GetByIdsAsync(request.RegistrationIds, ct);
         if (registrations.Count != request.RegistrationIds.Count)
         {
-            throw new InvalidOperationException("Co dang ky khong con ton tai hoac da bi thay doi.");
+            throw new InvalidOperationException("Có đăng ký không còn tồn tại hoặc đã bị thay đổi.");
         }
 
         var first = registrations[0];
@@ -191,12 +191,12 @@ public sealed class MarkRegistrationsNoLoadUseCase
 
             if (registration.ProcessingStage != ProcessingStage.IN_YARD || registration.RegistrationStatus != RegistrationStatus.REGISTERED)
             {
-                throw new InvalidOperationException($"Dang ky {registration.ErpVehicleRegistrationId ?? registration.VehiclePlate} khong con o hang xe vao.");
+                throw new InvalidOperationException($"Đăng ký {registration.ErpVehicleRegistrationId ?? registration.VehiclePlate} không còn ở hàng xe vào.");
             }
 
             if (registration.TransactionType != primaryRegistration.TransactionType)
             {
-                throw new InvalidOperationException("Khong the xu ly nhieu dang ky khac loai trong cung mot luot xe ra.");
+                throw new InvalidOperationException("Không thể xử lý nhiều đăng ký khác loại trong cùng một lượt xe ra.");
             }
         }
 
@@ -386,7 +386,7 @@ public sealed class CaptureSessionWeight1UseCase
         session.UpdatedAt = now;
         session.UpdatedBy = _userContext.Username;
 
-        var masterTicket = ticket ?? throw new InvalidOperationException("Khong the khoi tao phieu can tong.");
+        var masterTicket = ticket ?? throw new InvalidOperationException("Không thể khởi tạo phiếu cân tổng.");
         _ticketSyncService.SyncMasterTicketFromSession(
             session,
             masterTicket,
@@ -749,11 +749,11 @@ public sealed class MarkWeighingSessionNoLoadUseCase
     public async Task ExecuteAsync(MarkWeighingSessionNoLoadRequest request, CancellationToken ct)
     {
         var session = await _sessionRepo.GetByIdAsync(request.SessionId, ct)
-            ?? throw new InvalidOperationException("Khong tim thay luot can.");
+            ?? throw new InvalidOperationException("Không tìm thấy lượt cân.");
 
         if (session.SessionStatus is WeighingSessionStatus.COMPLETED or WeighingSessionStatus.CANCELLED)
         {
-            throw new InvalidOperationException("Luot can hien tai khong the chuyen xe ra theo luong khong lay hang.");
+            throw new InvalidOperationException("Lượt cân hiện tại không thể chuyển xe ra theo luồng không lấy hàng.");
         }
 
         var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);

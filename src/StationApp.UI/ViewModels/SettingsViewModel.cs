@@ -20,7 +20,7 @@ public partial class SettingsViewModel : ObservableObject
     public ViewModels.Settings.AccountManagementViewModel AccountManagementVM { get; }
 
     [ObservableProperty] private int _selectedTabIndex;
-    [ObservableProperty] private string _viewTitle = "THAM SO HE THONG";
+    [ObservableProperty] private string _viewTitle = "THAM SỐ HỆ THỐNG";
 
     public bool CanAccessSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanAccessScaleDeviceConfig => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
@@ -87,14 +87,14 @@ public partial class SettingsViewModel : ObservableObject
 
         ViewTitle = tabIndex switch
         {
-            0 => "THAM SO HE THONG",
-            1 => "THIET BI CAN",
-            2 => "MASTER XE",
-            3 => "KHACH HANG",
-            4 => "SAN PHAM",
-            5 => "DONG BO",
-            6 => "QUAN LY TAI KHOAN",
-            _ => "CAU HINH HE THONG"
+            0 => "THAM SỐ HỆ THỐNG",
+            1 => "THIẾT BỊ CÂN",
+            2 => "DANH MỤC XE",
+            3 => "KHÁCH HÀNG",
+            4 => "SẢN PHẨM",
+            5 => "ĐỒNG BỘ",
+            6 => "QUẢN LÝ TÀI KHOẢN",
+            _ => "CẤU HÌNH HỆ THỐNG"
         };
 
         try

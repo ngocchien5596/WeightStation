@@ -8,7 +8,7 @@ public sealed class WeighingSessionOverweightService
     private const decimal MinRandomSplitFactor = 0.0001m;
     private const decimal MinPositiveWeight = 0.001m;
     private const int MaxRandomSuggestionAttempts = 50;
-    private const string InvalidSplitMessage = "Luot can nay khong the tach hop le thanh 2 phieu voi nguong TTCP 10% hien tai. Vui long chon Khong tach hoac kiem tra lai tham so tach tai.";
+    private const string InvalidSplitMessage = "Lượt cân này không thể tách hợp lệ thành 2 phiếu với ngưỡng TTCP 10% hiện tại. Vui lòng chọn Không tách hoặc kiểm tra lại tham số tách tải.";
 
     public decimal ResolveTtcp10Threshold(decimal? baseTtcpWeight, IReadOnlyCollection<WeighingSessionLine> lines)
     {
@@ -85,13 +85,13 @@ public sealed class WeighingSessionOverweightService
     {
         if (!session.NetWeight.HasValue || !session.Ttcp10WeightSnapshot.HasValue)
         {
-            throw new InvalidOperationException("Luot can chua du du lieu de lap phuong an tach qua tai.");
+            throw new InvalidOperationException("Lượt cân chưa đủ dữ liệu để lập phương án tách quá tải.");
         }
 
         var target = session.Ttcp10WeightSnapshot.Value;
         if (target <= 0m)
         {
-            throw new InvalidOperationException("Nguong TTCP 10% khong hop le.");
+            throw new InvalidOperationException("Ngưỡng TTCP 10% không hợp lệ.");
         }
 
         var sourceLines = lines
@@ -101,7 +101,7 @@ public sealed class WeighingSessionOverweightService
 
         if (sourceLines.Count == 0)
         {
-            throw new InvalidOperationException("Khong co dong phan bo thuc giao de tach qua tai.");
+            throw new InvalidOperationException("Không có dòng phân bổ thực giao để tách quá tải.");
         }
 
         if (!TryGetFeasibleWeightRange(session.NetWeight.Value, target, out var lowerBound, out var upperBound))
@@ -125,7 +125,7 @@ public sealed class WeighingSessionOverweightService
         {
             if (splitStepWeight < MinRandomSplitFactor || splitStepWeight >= 1m)
             {
-                throw new InvalidOperationException("Tham so buoc tach qua tai khong hop le.");
+                throw new InvalidOperationException("Tham số bước tách quá tải không hợp lệ.");
             }
 
             if (firstSplitNetWeight.HasValue)
@@ -166,7 +166,7 @@ public sealed class WeighingSessionOverweightService
 
                 if (partWeight <= 0m)
                 {
-                    throw new InvalidOperationException("Khong the tao phuong an tach qua tai hop le.");
+                    throw new InvalidOperationException("Không thể tạo phương án tách quá tải hợp lệ.");
                 }
 
                 parts.Add(new MutableSplitPart(

@@ -407,7 +407,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             && _pendingCapturedWeight2.HasValue
             && _pendingCapturedWeight2.Value > SelectedSession.Weight1.Value)
         {
-            _toastService.ShowWarning("\u0043\u00e2n l\u1ea7n 1 ph\u1ea3i l\u1edbn h\u01a1n ho\u1eb7c b\u1eb1ng c\u00e2n l\u1ea7n 2 \u0111\u1ed1i v\u1edbi phi\u1ebf\u0075 nh\u1eadp h\u00e0ng.");
+            _toastService.ShowWarning("Cân lần 1 phải lớn hơn hoặc bằng cân lần 2 đối với phiếu nhập hàng.");
             return;
         }
 
@@ -453,7 +453,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Save captured weight failed");
-            _toastService.ShowError("\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u006c\u01b0\u0075 \u0073\u1ed1 \u0063\u00e2n. \u0056\u0075\u0069 \u006c\u00f2\u006e\u0067 \u0074\u0068\u1eed \u006c\u1ea1\u0069.");
+            _toastService.ShowError("Không thể lưu số cân. Vui lòng thử lại.");
         }
     }
 
@@ -632,7 +632,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
         if (!TryParseOverweightSplitWeight(value, out var editedWeight))
         {
-            SetOverweightSplitValidation("Khoi luong tach phai la so hop le.");
+            SetOverweightSplitValidation("Khối lượng tách phải là số hợp lệ.");
             return;
         }
 
@@ -988,7 +988,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 template,
                 preview,
                 printerDiscovery.GetInstalledPrinters(),
-                renderer);
+                renderer,
+                templateProvider,
+                StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode));
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -1062,7 +1064,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             {
                 Kind = kind,
                 Title = splitConfirmed ? "In phiếu cân tách tải" : UiText.Weighing.PrintPreviewWeighMaster,
-                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal)).Cast<PrintPreviewPageModel>().ToList()
+                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName)).Cast<PrintPreviewPageModel>().ToList()
             };
         }
 
@@ -1091,7 +1093,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal));
+            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName));
         }
 
         return new PrintBatchPreviewModel

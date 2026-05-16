@@ -23,7 +23,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
 
     public string CurrentUserDisplayName =>
-        string.IsNullOrWhiteSpace(_currentUserContext.DisplayName) ? "Chua dang nhap" : _currentUserContext.DisplayName;
+        string.IsNullOrWhiteSpace(_currentUserContext.DisplayName) ? "Chưa đăng nhập" : _currentUserContext.DisplayName;
 
     public string CurrentUserRoleCode => _currentUserContext.RoleCode;
 
@@ -84,7 +84,7 @@ public partial class MainViewModel : ObservableObject
         if (!CanNavigateTo(destination))
         {
             var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
-            await dialogService.ShowWarningAsync("Khong du quyen", $"Ban khong co quyen truy cap {destination}.");
+            await dialogService.ShowWarningAsync("Không đủ quyền", $"Bạn không có quyền truy cập {destination}.");
             return;
         }
 
@@ -190,7 +190,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
-            await dialogService.ShowErrorAsync("Loi He Thong", $"Loi khi chuyen huong den {destination}: {ex.Message}");
+            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi chuyển hướng đến {destination}: {ex.Message}");
         }
     }
 
@@ -264,7 +264,7 @@ public partial class MainViewModel : ObservableObject
             }
 
             var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
-            await dialogService.ShowErrorAsync("Loi He Thong", $"Loi khi tai du lieu man {destination}: {ex.Message}");
+            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi tải dữ liệu màn {destination}: {ex.Message}");
         }
     }
 }

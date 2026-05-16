@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:converters="clr-namespace:StationApp.UI.Converters">
+                    xmlns:converters="clr-namespace:StationApp.UI.Converters"
+                    xmlns:helpers="clr-namespace:StationApp.UI.Helpers">
 
     <converters:MultiStringEqualityToBoolConverter x:Key="MultiStringEqToBool"/>
     <converters:OverweightToForegroundConverter x:Key="OverweightToFore"/>
@@ -156,9 +157,16 @@
     </Style>
 
     <!-- 6. SYSTEM DATAGRID STYLES (Standardized from WeighingView) -->
+    <Style TargetType="DataGrid">
+        <Setter Property="ClipboardCopyMode" Value="ExcludeHeader"/>
+        <Setter Property="helpers:DataGridCellCopyBehavior.EnableCurrentCellCopy" Value="True"/>
+    </Style>
+
     <Style x:Key="SystemDataGridStyle" TargetType="DataGrid">
         <Setter Property="AutoGenerateColumns" Value="False"/>
         <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="ClipboardCopyMode" Value="ExcludeHeader"/>
+        <Setter Property="helpers:DataGridCellCopyBehavior.EnableCurrentCellCopy" Value="True"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="GridLinesVisibility" Value="All"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDC3C7"/>

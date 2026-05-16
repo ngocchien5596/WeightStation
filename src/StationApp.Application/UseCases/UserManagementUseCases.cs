@@ -85,7 +85,7 @@ public sealed class CreateUserAccountUseCase
 
         if (await _userRepository.ExistsByUsernameAsync(username, ct))
         {
-            return OperationResult<User>.Fail("Username da ton tai.");
+            return OperationResult<User>.Fail("Username đã tồn tại.");
         }
 
         var now = _clock.NowLocal;
@@ -120,22 +120,22 @@ public sealed class CreateUserAccountUseCase
     {
         if (string.IsNullOrWhiteSpace(username))
         {
-            return "Username la bat buoc.";
+            return "Username là bắt buộc.";
         }
 
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            return "Ten hien thi la bat buoc.";
+            return "Tên hiển thị là bắt buộc.";
         }
 
         if (string.IsNullOrWhiteSpace(roleCode))
         {
-            return "Vai tro la bat buoc.";
+            return "Vai trò là bắt buộc.";
         }
 
         if (!StationAuthorization.IsSupportedRole(roleCode))
         {
-            return "Vai tro khong hop le.";
+            return "Vai trò không hợp lệ.";
         }
 
         return ValidatePassword(password, confirmPassword);
@@ -145,22 +145,22 @@ public sealed class CreateUserAccountUseCase
     {
         if (string.IsNullOrWhiteSpace(password))
         {
-            return "Mat khau la bat buoc.";
+            return "Mật khẩu là bắt buộc.";
         }
 
         if (string.IsNullOrWhiteSpace(confirmPassword))
         {
-            return "Xac nhan mat khau la bat buoc.";
+            return "Xác nhận mật khẩu là bắt buộc.";
         }
 
         if (password.Length < 8)
         {
-            return "Mat khau phai co it nhat 8 ky tu.";
+            return "Mật khẩu phải có ít nhất 8 ký tự.";
         }
 
         if (!string.Equals(password, confirmPassword, StringComparison.Ordinal))
         {
-            return "Mat khau xac nhan khong khop.";
+            return "Mật khẩu xác nhận không khớp.";
         }
 
         return null;
@@ -201,24 +201,24 @@ public sealed class UpdateUserAccountUseCase
         var user = await _userRepository.GetByIdAsync(request.UserId, ct);
         if (user == null)
         {
-            return OperationResult<User>.Fail("Khong tim thay tai khoan.");
+            return OperationResult<User>.Fail("Không tìm thấy tài khoản.");
         }
 
         var displayName = request.DisplayName.Trim();
         var roleCode = request.RoleCode.Trim();
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            return OperationResult<User>.Fail("Ten hien thi la bat buoc.");
+            return OperationResult<User>.Fail("Tên hiển thị là bắt buộc.");
         }
 
         if (string.IsNullOrWhiteSpace(roleCode))
         {
-            return OperationResult<User>.Fail("Vai tro la bat buoc.");
+            return OperationResult<User>.Fail("Vai trò là bắt buộc.");
         }
 
         if (!StationAuthorization.IsSupportedRole(roleCode))
         {
-            return OperationResult<User>.Fail("Vai tro khong hop le.");
+            return OperationResult<User>.Fail("Vai trò không hợp lệ.");
         }
 
         if (string.Equals(user.RoleCode, StationRoles.Admin, StringComparison.OrdinalIgnoreCase)
@@ -228,7 +228,7 @@ public sealed class UpdateUserAccountUseCase
             var activeAdminCount = await _userRepository.CountActiveAdminsAsync(ct);
             if (activeAdminCount <= 1)
             {
-                return OperationResult<User>.Fail("Phai luon con it nhat 1 tai khoan ADMIN dang hoat dong.");
+                return OperationResult<User>.Fail("Phải luôn còn ít nhất 1 tài khoản ADMIN đang hoạt động.");
             }
         }
 
@@ -279,7 +279,7 @@ public sealed class SetUserActiveStatusUseCase
         var user = await _userRepository.GetByIdAsync(request.UserId, ct);
         if (user == null)
         {
-            return OperationResult<User>.Fail("Khong tim thay tai khoan.");
+            return OperationResult<User>.Fail("Không tìm thấy tài khoản.");
         }
 
         if (!request.IsActive
@@ -289,7 +289,7 @@ public sealed class SetUserActiveStatusUseCase
             var activeAdminCount = await _userRepository.CountActiveAdminsAsync(ct);
             if (activeAdminCount <= 1)
             {
-                return OperationResult<User>.Fail("Phai luon con it nhat 1 tai khoan ADMIN dang hoat dong.");
+                return OperationResult<User>.Fail("Phải luôn còn ít nhất 1 tài khoản ADMIN đang hoạt động.");
             }
         }
 
@@ -346,7 +346,7 @@ public sealed class ResetUserPasswordUseCase
         var user = await _userRepository.GetByIdAsync(request.UserId, ct);
         if (user == null)
         {
-            return OperationResult<User>.Fail("Khong tim thay tai khoan.");
+            return OperationResult<User>.Fail("Không tìm thấy tài khoản.");
         }
 
         var validationError = CreateUserAccountUseCase.ValidatePassword(request.NewPassword, request.ConfirmPassword);

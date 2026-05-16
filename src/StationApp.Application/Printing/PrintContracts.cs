@@ -45,6 +45,7 @@ public sealed record PrintFieldDefinition(
     PrintWrapMode WrapMode = PrintWrapMode.Trim);
 
 public sealed record PrintFieldValue(string FieldKey, string? Value);
+public sealed record PrintFieldPosition(string FieldKey, double X, double Y);
 
 public sealed class PrintTemplateDefinition
 {
@@ -93,6 +94,8 @@ public sealed class PrintOptionsModel
     public int CopyCount { get; init; } = 1;
     public double OffsetXmm { get; init; }
     public double OffsetYmm { get; init; }
+    public IReadOnlyList<PrintFieldPosition> FieldPositions { get; init; } = [];
+    public string? SelectedFieldKey { get; init; }
 }
 
 public sealed record PrintDocumentResult(Guid DocumentId, string DisplayNumber, bool Success, string? ErrorMessage = null);
@@ -105,7 +108,12 @@ public sealed class PrintExecutionResult
 
 public interface IWeighTicketPrintComposer
 {
-    WeighTicketPrintModel Compose(VehicleRegistration registration, WeighTicket ticket, Vehicle? vehicle, DateTime printedAtLocal);
+    WeighTicketPrintModel Compose(
+        VehicleRegistration registration,
+        WeighTicket ticket,
+        Vehicle? vehicle,
+        DateTime printedAtLocal,
+        string? printedByDisplayName);
 }
 
 public interface IDeliveryTicketPrintComposer
@@ -116,12 +124,19 @@ public interface IDeliveryTicketPrintComposer
         WeighTicket? weighTicket,
         WeighingSessionLine? sessionLine,
         Vehicle? vehicle,
-        DateTime printedAtLocal);
+        DateTime printedAtLocal,
+        string? printedByDisplayName);
 }
 
 public interface IPrintTemplateProvider
 {
     Task<PrintTemplateDefinition> GetTemplateAsync(PrintDocumentKind kind, CancellationToken ct);
+    Task SaveLayoutAsync(
+        PrintDocumentKind kind,
+        double offsetXmm,
+        double offsetYmm,
+        IReadOnlyList<PrintFieldPosition> fieldPositions,
+        CancellationToken ct);
 }
 
 public interface IPrinterDiscoveryService
@@ -141,24 +156,31 @@ public interface IPrintService
 
 public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
 {
-    public WeighTicketPrintModel Compose(VehicleRegistration registration, WeighTicket ticket, Vehicle? vehicle, DateTime printedAtLocal)
+    public WeighTicketPrintModel Compose(
+        VehicleRegistration registration,
+        WeighTicket ticket,
+        Vehicle? vehicle,
+        DateTime printedAtLocal,
+        string? printedByDisplayName)
     {
         var emptyWeight = ticket.TransactionType == TransactionType.OUTBOUND ? ticket.Weight1 : ticket.Weight2;
         var grossWeight = ticket.TransactionType == TransactionType.OUTBOUND ? ticket.Weight2 : ticket.Weight1;
+        var vehicleLine = BuildVehicleLine(
+            FirstNonEmpty(ticket.VehiclePlate, registration.VehiclePlate),
+            FirstNonEmpty(ticket.MoocNumber, registration.MoocNumber));
 
         return new WeighTicketPrintModel
         {
             DocumentId = ticket.Id,
             DisplayNumber = ticket.TicketNo,
             TicketNo = ticket.TicketNo,
-            VehiclePlate = ticket.VehiclePlate,
+            VehiclePlate = vehicleLine,
             MoocNumber = ticket.MoocNumber ?? registration.MoocNumber,
             NetWeight = ticket.NetWeight,
             Fields = new[]
             {
                 Field("TicketNo", ticket.TicketNo),
-                Field("VehiclePlate", FirstNonEmpty(ticket.VehiclePlate, registration.VehiclePlate)),
-                Field("MoocNumber", FirstNonEmpty(ticket.MoocNumber, registration.MoocNumber)),
+                Field("VehiclePlate", vehicleLine),
                 Field("VehicleRegistrationNo", FirstNonEmpty(ticket.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(ticket.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
                 Field("CustomerName", FirstNonEmpty(ticket.CustomerName, registration.CustomerName)),
@@ -166,21 +188,35 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
                 Field("LotNo", registration.LotNo),
                 Field("RepresentativeName", registration.RepresentativeName),
                 Field("Notes", FirstNonEmpty(ticket.Notes, registration.Notes)),
-                Field("Weight1Time", FormatDateTime(ticket.Weight1Time)),
-                Field("Weight2Time", FormatDateTime(ticket.Weight2Time)),
+                Field("Weight1DateTime", FormatDateTimeWithSeconds(ticket.Weight1Time)),
+                Field("Weight2DateTime", FormatDateTimeWithSeconds(ticket.Weight2Time)),
                 Field("EmptyWeight", FormatWeight(emptyWeight)),
                 Field("GrossWeight", FormatWeight(grossWeight)),
                 Field("NetWeight", FormatWeight(ticket.NetWeight)),
-                Field("PrintedAt", FormatDateTime(printedAtLocal))
+                Field("PrintedAt", FormatDateTimePrinted(printedAtLocal)),
+                Field("PrintedBy", printedByDisplayName)
             }
         };
     }
 
     private static PrintFieldValue Field(string key, string? value) => new(key, value);
     private static string? FirstNonEmpty(params string?[] values) => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-    private static string? FormatDateTime(DateTime? value) => value?.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-    private static string? FormatDateTime(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-    private static string? FormatWeight(decimal? value) => value.HasValue ? value.Value.ToString("N0", CultureInfo.InvariantCulture) : null;
+    private static string BuildVehicleLine(string? vehiclePlate, string? moocNumber)
+    {
+        if (string.IsNullOrWhiteSpace(moocNumber))
+        {
+            return vehiclePlate ?? string.Empty;
+        }
+
+        return string.IsNullOrWhiteSpace(vehiclePlate)
+            ? moocNumber
+            : $"{vehiclePlate} ({moocNumber})";
+    }
+
+    private static string? FormatDateTimeWithSeconds(DateTime? value) => value?.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+    private static string? FormatDateTimePrinted(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+    private static string? FormatWeight(decimal? value)
+        => value.HasValue ? (value.Value / 1000m).ToString("0.0", CultureInfo.InvariantCulture) : null;
 }
 
 public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
@@ -191,9 +227,10 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         WeighTicket? weighTicket,
         WeighingSessionLine? sessionLine,
         Vehicle? vehicle,
-        DateTime printedAtLocal)
+        DateTime printedAtLocal,
+        string? printedByDisplayName)
     {
-        var vehicleLine = string.Join(" / ", new[] { FirstNonEmpty(weighTicket?.VehiclePlate, registration.VehiclePlate), FirstNonEmpty(weighTicket?.MoocNumber, registration.MoocNumber) }
+        var vehicleLine = string.Join(Environment.NewLine, new[] { FirstNonEmpty(weighTicket?.VehiclePlate, registration.VehiclePlate), FirstNonEmpty(weighTicket?.MoocNumber, registration.MoocNumber) }
             .Where(v => !string.IsNullOrWhiteSpace(v)));
         var actualWeight = deliveryTicket.AllocatedWeight ?? sessionLine?.ActualAllocatedWeight ?? weighTicket?.NetWeight;
         var actualBagCount = (deliveryTicket.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount)?.ToString(CultureInfo.InvariantCulture);
@@ -225,16 +262,25 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
                 Field("VehicleRegistrationNo", FirstNonEmpty(weighTicket?.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(weighTicket?.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
                 Field("Notes", FirstNonEmpty(deliveryTicket.Notes, registration.Notes)),
-                Field("Weight1Time", FormatDateTime(weighTicket?.Weight1Time)),
-                Field("Weight2Time", FormatDateTime(weighTicket?.Weight2Time)),
-                Field("PrintedAt", FormatDateTime(printedAtLocal))
+                Field("Weight1Hour", FormatHour(weighTicket?.Weight1Time)),
+                Field("Weight1Minute", FormatMinute(weighTicket?.Weight1Time)),
+                Field("Weight1Date", FormatDateOnly(weighTicket?.Weight1Time)),
+                Field("Weight2Hour", FormatHour(weighTicket?.Weight2Time)),
+                Field("Weight2Minute", FormatMinute(weighTicket?.Weight2Time)),
+                Field("Weight2Date", FormatDateOnly(weighTicket?.Weight2Time)),
+                Field("PrintedDate", FormatDateOnly(printedAtLocal)),
+                Field("PrintedTime", printedAtLocal.ToString("HH:mm", CultureInfo.InvariantCulture)),
+                Field("PrintedBy", printedByDisplayName)
             }
         };
     }
 
     private static PrintFieldValue Field(string key, string? value) => new(key, value);
     private static string? FirstNonEmpty(params string?[] values) => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-    private static string? FormatDateTime(DateTime? value) => value?.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-    private static string? FormatDateTime(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-    private static string? FormatWeight(decimal? value) => value.HasValue ? value.Value.ToString("N0", CultureInfo.InvariantCulture) : null;
+    private static string? FormatHour(DateTime? value) => value?.ToString("HH", CultureInfo.InvariantCulture);
+    private static string? FormatMinute(DateTime? value) => value?.ToString("mm", CultureInfo.InvariantCulture);
+    private static string? FormatDateOnly(DateTime? value) => value?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+    private static string? FormatDateOnly(DateTime value) => value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+    private static string? FormatWeight(decimal? value)
+        => value.HasValue ? (value.Value / 1000m).ToString("0.0", CultureInfo.InvariantCulture) : null;
 }

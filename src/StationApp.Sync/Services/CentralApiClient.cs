@@ -42,7 +42,7 @@ public sealed class CentralApiClient : ICentralApiClient
                 {
                     Success = false,
                     ErrorCode = "CONFIG_INVALID",
-                    ErrorMessage = "Central API URL chua duoc cau hinh hop le."
+                    ErrorMessage = "Central API URL chưa được cấu hình hợp lệ."
                 };
             }
 
@@ -121,7 +121,7 @@ public sealed class CentralApiClient : ICentralApiClient
                 return new InboundMasterDataResponse
                 {
                     Success = false,
-                    ErrorMessage = "Central API URL chua duoc cau hinh hop le."
+                    ErrorMessage = "Central API URL chưa được cấu hình hợp lệ."
                 };
             }
 

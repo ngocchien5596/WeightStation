@@ -49,7 +49,7 @@ public class PrintComposerTests
             MoocRegistrationNoSnapshot = "DK-MOOC-SNAPSHOT"
         };
 
-        var model = composer.Compose(registration, ticket, vehicle, new DateTime(2026, 4, 27, 9, 30, 0));
+        var model = composer.Compose(registration, ticket, vehicle, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("PC0001", model.TicketNo);
         Assert.Equal("DK-XE-SNAPSHOT", model.Fields.Single(x => x.FieldKey == "VehicleRegistrationNo").Value);
@@ -102,7 +102,7 @@ public class PrintComposerTests
             MoocRegistrationNoSnapshot = "DK-MOOC-SNAPSHOT"
         };
 
-        var model = composer.Compose(registration, ticket, weigh, sessionLine: null, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
+        var model = composer.Compose(registration, ticket, weigh, sessionLine: null, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("PGN0001", model.DeliveryNo);
         Assert.Equal("ERP-001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
@@ -150,7 +150,7 @@ public class PrintComposerTests
             ActualAllocatedBagCount = 200
         };
 
-        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
+        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("10,250", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Equal("200", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
@@ -196,7 +196,7 @@ public class PrintComposerTests
             ActualAllocatedBagCount = 200
         };
 
-        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0));
+        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("2,500", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Equal("50", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);

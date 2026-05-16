@@ -51,24 +51,36 @@ public sealed class PrintOverlayRenderer
             }
 
             var values = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
-            foreach (var field in template.Fields)
+            var positionedFields = ApplyFieldPositions(template.Fields, options.FieldPositions);
+
+            foreach (var field in positionedFields)
             {
                 var value = values.GetValueOrDefault(field.FieldKey);
-                if (string.IsNullOrWhiteSpace(value))
+                var isSelected = string.Equals(field.FieldKey, options.SelectedFieldKey, StringComparison.OrdinalIgnoreCase);
+
+                if (previewMode)
+                {
+                    fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected));
+                }
+
+                if (string.IsNullOrWhiteSpace(value) && !previewMode)
                 {
                     continue;
                 }
 
                 var text = new TextBlock
                 {
-                    Text = value,
+                    Text = string.IsNullOrWhiteSpace(value) && previewMode ? $"[{field.FieldKey}]" : value,
                     Width = MmToDip(field.Width),
                     FontSize = field.FontSize,
                     FontWeight = ToFontWeight(field.FontWeight),
                     TextAlignment = ToTextAlignment(field.Alignment),
                     TextWrapping = field.WrapMode == PrintWrapMode.Wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
                     TextTrimming = field.WrapMode == PrintWrapMode.Trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
-                    Foreground = Brushes.Black,
+                    Foreground = string.IsNullOrWhiteSpace(value) && previewMode
+                        ? new SolidColorBrush(Color.FromRgb(148, 163, 184))
+                        : Brushes.Black,
+                    Opacity = string.IsNullOrWhiteSpace(value) && previewMode ? 0.9 : 1,
                     Background = Brushes.Transparent
                 };
 
@@ -91,6 +103,43 @@ public sealed class PrintOverlayRenderer
     }
 
     private static double MmToDip(double mm) => mm * 96d / 25.4d;
+
+    private static IReadOnlyList<PrintFieldDefinition> ApplyFieldPositions(
+        IReadOnlyList<PrintFieldDefinition> fields,
+        IReadOnlyList<PrintFieldPosition> positions)
+    {
+        if (positions.Count == 0)
+        {
+            return fields;
+        }
+
+        var map = positions.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
+        return fields
+            .Select(field => map.TryGetValue(field.FieldKey, out var position)
+                ? field with { X = position.X, Y = position.Y }
+                : field)
+            .ToList();
+    }
+
+    private static FrameworkElement BuildFieldOutline(PrintFieldDefinition field, PrintOptionsModel options, bool isSelected)
+    {
+        var border = new Border
+        {
+            Width = MmToDip(field.Width),
+            Height = Math.Max(MmToDip(5.5d * field.MaxLines), field.FontSize * 1.9 * field.MaxLines),
+            BorderBrush = isSelected
+                ? new SolidColorBrush(Color.FromRgb(239, 68, 68))
+                : new SolidColorBrush(Color.FromArgb(110, 148, 163, 184)),
+            BorderThickness = isSelected ? new Thickness(1.4) : new Thickness(0.8),
+            Background = isSelected
+                ? new SolidColorBrush(Color.FromArgb(20, 239, 68, 68))
+                : new SolidColorBrush(Color.FromArgb(10, 148, 163, 184))
+        };
+
+        FixedPage.SetLeft(border, MmToDip(field.X + options.OffsetXmm));
+        FixedPage.SetTop(border, MmToDip(field.Y + options.OffsetYmm));
+        return border;
+    }
 
     private static TextAlignment ToTextAlignment(PrintFieldAlignment alignment) => alignment switch
     {

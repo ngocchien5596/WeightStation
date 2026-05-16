@@ -5,65 +5,164 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="{Binding Title}"
-        Height="760"
-        Width="1100"
+        Height="860"
+        Width="1440"
+        Language="en-US"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="CanResize"
         Background="#F4F7FB">
     <Grid Margin="18">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*"/>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="4.6*"/>
+            <ColumnDefinition Width="420"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="White" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="8" Padding="12">
+        <Border Grid.Column="0" Background="White" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="10" Padding="12">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top"
-                           Text="Preview overlay lên mẫu giấy in sẵn"
-                           FontSize="16"
-                           FontWeight="Bold"
-                           Foreground="#203B73"
-                           Margin="0,0,0,12"/>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding PreviewHeader}"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="#203B73"/>
+                    <TextBlock Text="{Binding PreviewDescription}"
+                               Margin="0,4,0,0"
+                               Foreground="#64748B"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
                 <DocumentViewer Document="{Binding PreviewDocument}" />
             </DockPanel>
         </Border>
 
-        <Border Grid.Column="1" Margin="16,0,0,0" Background="White" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="8" Padding="16">
-            <StackPanel>
-                <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="#203B73"/>
-                <TextBlock Text="Loại phiếu đã được xác định bởi nút IN PC / IN PGN, modal này chỉ cấu hình in."
-                           Margin="0,8,0,16"
-                           TextWrapping="Wrap"
-                           Foreground="#475569"/>
+        <Border Grid.Column="1" Margin="16,0,0,0" Background="White" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="10" Padding="16">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+                    <Border Background="#ECFDF5" BorderBrush="#86EFAC" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10"
+                            Visibility="{Binding LayoutMessage, Converter={StaticResource StringToVis}}">
+                        <TextBlock Text="{Binding LayoutMessage}" Foreground="#166534" TextWrapping="Wrap"/>
+                    </Border>
 
-                <TextBlock Text="Máy in" FontWeight="SemiBold"/>
-                <ComboBox ItemsSource="{Binding Printers}"
-                          SelectedItem="{Binding SelectedPrinter}"
-                          DisplayMemberPath="Name"
-                          Margin="0,6,0,14"/>
+                    <Border Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10"
+                            Visibility="{Binding ValidationMessage, Converter={StaticResource StringToVis}}">
+                        <TextBlock Text="{Binding ValidationMessage}" Foreground="#9A3412" TextWrapping="Wrap"/>
+                    </Border>
 
-                <TextBlock Text="Số lượng bản in / mỗi phiếu" FontWeight="SemiBold"/>
-                <TextBox Text="{Binding CopyCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
-
-                <TextBlock Text="Offset X (mm)" FontWeight="SemiBold"/>
-                <TextBox Text="{Binding OffsetXmm, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:0.##}}" Margin="0,6,0,14"/>
-
-                <TextBlock Text="Offset Y (mm)" FontWeight="SemiBold"/>
-                <TextBox Text="{Binding OffsetYmm, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:0.##}}" Margin="0,6,0,14"/>
-
-                <Border Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="6" Padding="10"
-                        Visibility="{Binding ValidationMessage, Converter={StaticResource StringToVis}}">
-                    <TextBlock Text="{Binding ValidationMessage}" Foreground="#9A3412" TextWrapping="Wrap"/>
-                </Border>
-
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                    <Button Content="Hủy" Width="110" Height="36" Margin="0,0,10,0" Command="{Binding CancelCommand}"
-                            Background="#CBD5E1" Foreground="#0F172A" BorderThickness="0"/>
-                    <Button Content="In" Width="110" Height="36" Command="{Binding PrintCommand}"
-                            Background="#1D4ED8" Foreground="White" BorderThickness="0"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="L&#x1B0;u layout" Width="120" Height="36" Margin="0,0,10,0"
+                                Command="{Binding SaveLayoutCommand}"
+                                Visibility="{Binding CanManageLayout, Converter={StaticResource BoolToVis}}"
+                                Background="#0F766E" Foreground="White" BorderThickness="0"/>
+                        <Button Content="H&#x1EE7;y" Width="110" Height="36" Margin="0,0,10,0" Command="{Binding CancelCommand}"
+                                Background="#CBD5E1" Foreground="#0F172A" BorderThickness="0"/>
+                        <Button Content="In" Width="110" Height="36" Command="{Binding PrintCommand}"
+                                Background="#1D4ED8" Foreground="White" BorderThickness="0"/>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="#203B73"/>
+                        <TextBlock Text="{Binding RoleAwareDescription}"
+                                   Margin="0,8,0,16"
+                                   TextWrapping="Wrap"
+                                   Foreground="#475569"/>
+                        <Border Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,14"
+                                Visibility="{Binding CanManageLayout, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="T&#x00E0;i kho&#x1EA3;n OPERATOR ch&#x1EC9; &#x0111;&#x01B0;&#x1EE3;c preview v&#x00E0; in. Ch&#x1EE9;c n&#x0103;ng canh ch&#x1EC9;nh / l&#x01B0;u layout ch&#x1EC9; d&#x00E0;nh cho ADMIN."
+                                       Foreground="#1D4ED8"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+
+                        <TextBlock Text="M&#x00E1;y in" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding Printers}"
+                                  SelectedItem="{Binding SelectedPrinter}"
+                                  DisplayMemberPath="Name"
+                                  Margin="0,6,0,14"/>
+
+                        <TextBlock Text="S&#x1ED1; l&#x01B0;&#x1EE3;ng b&#x1EA3;n in / m&#x1ED7;i phi&#x1EBF;u" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding CopyCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
+
+                        <StackPanel Visibility="{Binding CanManageLayout, Converter={StaticResource BoolToVis}}">
+                            <UniformGrid Columns="2" Margin="0,0,0,14">
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="Offset X (mm)" FontWeight="SemiBold"/>
+                                    <TextBox Text="{Binding OffsetXmmText, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
+                                </StackPanel>
+                                <StackPanel Margin="8,0,0,0">
+                                    <TextBlock Text="Offset Y (mm)" FontWeight="SemiBold"/>
+                                    <TextBox Text="{Binding OffsetYmmText, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="B&#x01B0;&#x1EDB;c d&#x1ECB;ch (mm)" FontWeight="SemiBold"/>
+                            <TextBox Text="{Binding NudgeStepMmText, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
+
+                            <TextBlock Text="Danh s&#x00E1;ch text c&#x1EA7;n canh ch&#x1EC9;nh" FontWeight="SemiBold"/>
+                            <DataGrid ItemsSource="{Binding Fields}"
+                                      SelectedItem="{Binding SelectedField}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      HeadersVisibility="Column"
+                                      Height="320"
+                                      Margin="0,6,0,14"
+                                      IsReadOnly="False">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Text" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2.3*"/>
+                                    <DataGridTextColumn Header="X" Binding="{Binding XText, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                    <DataGridTextColumn Header="Y" Binding="{Binding YText, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width}" IsReadOnly="True" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Border Background="#F8FAFC" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="8" Padding="12">
+                                <StackPanel>
+                                    <TextBlock Text="Canh ch&#x1EC9;nh nhanh field &#x0111;ang ch&#x1ECD;n" FontWeight="Bold" Foreground="#203B73"/>
+                                    <TextBlock Text="{Binding SelectedField.DisplayName, TargetNullValue=Ch&#x01B0;a ch&#x1ECD;n text}"
+                                               Margin="0,8,0,12"
+                                               Foreground="#475569"/>
+
+                                    <UniformGrid Columns="2" Margin="0,0,0,10">
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock Text="X (mm)" FontWeight="SemiBold"/>
+                                            <TextBox Text="{Binding SelectedField.XText, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="8,0,0,0">
+                                            <TextBlock Text="Y (mm)" FontWeight="SemiBold"/>
+                                            <TextBox Text="{Binding SelectedField.YText, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
+                                        </StackPanel>
+                                    </UniformGrid>
+
+                                    <UniformGrid Columns="2" Margin="0,0,0,10">
+                                        <Button Content="Tr&#x00E1;i"
+                                                Command="{Binding NudgeLeftCommand}"
+                                                Margin="0,0,8,8"
+                                                Height="34"/>
+                                        <Button Content="Ph&#x1EA3;i"
+                                                Command="{Binding NudgeRightCommand}"
+                                                Margin="8,0,0,8"
+                                                Height="34"/>
+                                        <Button Content="L&#x00EA;n"
+                                                Command="{Binding NudgeUpCommand}"
+                                                Margin="0,0,8,0"
+                                                Height="34"/>
+                                        <Button Content="Xu&#x1ED1;ng"
+                                                Command="{Binding NudgeDownCommand}"
+                                                Margin="8,0,0,0"
+                                                Height="34"/>
+                                    </UniformGrid>
+
+                                    <Button Content="Reset v&#x1EC1; v&#x1ECB; tr&#x00ED; &#x0111;ang l&#x01B0;u"
+                                            Command="{Binding ResetSelectedFieldCommand}"
+                                            Height="34"
+                                            HorizontalAlignment="Left"
+                                            Padding="16,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

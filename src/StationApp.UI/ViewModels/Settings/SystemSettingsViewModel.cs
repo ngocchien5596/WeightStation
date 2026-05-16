@@ -69,7 +69,7 @@ public partial class SystemSettingsViewModel : ObservableObject
                     OverweightSplitStepWeight,
                     PilotModeEnabled),
                 CancellationToken.None);
-            await dialogService.ShowInfoAsync("Thong bao", "Luu tham so he thong thanh cong!");
+            await dialogService.ShowInfoAsync("Thông báo", "Lưu tham số hệ thống thành công!");
         }
         catch (InvalidOperationException ex)
         {
@@ -77,7 +77,7 @@ public partial class SystemSettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            await dialogService.ShowErrorAsync("Loi he thong", $"Loi khi luu cau hinh: {ex.Message}");
+            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi lưu cấu hình: {ex.Message}");
         }
     }
 }
