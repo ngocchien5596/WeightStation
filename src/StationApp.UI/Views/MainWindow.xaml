@@ -9,173 +9,159 @@
         Background="{DynamicResource BackgroundBrush}">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="210"/>
+            <ColumnDefinition Width="{Binding SidebarWidth}"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource SidebarContainerStyle}" CornerRadius="0">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="64"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource SidebarTopBackground}" Height="64" Padding="18,0">
+                <Border Grid.Row="0" Background="{StaticResource SidebarTopBackground}" Padding="12,0">
                     <Grid>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBlock Text="{Binding CurrentTimeDisplay}" FontSize="17" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#8899BB" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"/>
+                        <TextBlock Text="{Binding CurrentTimeDisplay}"
+                                   FontSize="17"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}"/>
+                        <Button Command="{Binding ToggleSidebarCommand}"
+                                Width="28"
+                                Height="28"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                ToolTip="Thu gọn / Mở rộng menu">
+                            <TextBlock Text="&#xE700;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="18"
+                                       Foreground="#D7E0F0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Button>
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Background="{StaticResource SidebarBackground}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" Background="Transparent" BorderThickness="0">
+                <Border Grid.Row="1"
+                        Background="{StaticResource SidebarBackground}"
+                        Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  PanningMode="VerticalOnly"
+                                  Background="Transparent"
+                                  BorderThickness="0">
                         <StackPanel Background="{StaticResource SidebarItemBackground}">
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewDashboard, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Dashboard">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Dashboard}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Dashboard}" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewIncomingVehicles, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="IncomingVehicles">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE77F;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Incoming}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Incoming}" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewWeighing, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Weighing">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Weighing}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Weighing}" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewOutgoingVehicles, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="OutgoingVehicles">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE783;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Outgoing}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Outgoing}" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewTicketList, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="TicketList">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE8A4;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Tickets}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Tickets}" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewDiagnostics, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Diagnostics">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Diagnostics}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{StaticResource MainWindow.Nav.Diagnostics}" VerticalAlignment="Center"/>
                             </Button>
 
                             <Button Style="{StaticResource SidebarExpandableItemStyle}"
                                     Visibility="{Binding CanViewSettingsMenu, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding ToggleSettingsSubmenuCommand}">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{StaticResource MainWindow.Nav.Settings}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.Settings}" VerticalAlignment="Center"/>
+                                    <TextBlock DockPanel.Dock="Right"
+                                               Margin="10,0,0,0"
+                                               Text="&#xE70D;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="11"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                               VerticalAlignment="Center"/>
+                                </DockPanel>
                             </Button>
 
                             <StackPanel Visibility="{Binding IsSettingsSubmenuVisible, Converter={StaticResource BoolToVis}}">
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsParams, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Params">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsParams}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsParams}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsDevice, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Device">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsDevice}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsDevice}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsVehicles, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Vehicles">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsVehicles}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsVehicles}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsCustomers, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Customers">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsCustomers}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsCustomers}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsProducts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Products">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsProducts}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsProducts}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsSync, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Sync">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsSync}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsSync}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="36,0,12,0"
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsAccounts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Accounts">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Width="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{StaticResource MainWindow.Nav.SettingsAccounts}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsAccounts}" VerticalAlignment="Center"/>
                                 </Button>
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
 
-                <Border Grid.Row="2" Background="{StaticResource SidebarBackground}">
+                <Border Grid.Row="2"
+                        Background="{StaticResource SidebarBackground}"
+                        Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}">
                     <StackPanel Background="{StaticResource SidebarFooterBackground}">
-                        <Button Style="{StaticResource SidebarMenuItemStyle}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                <StackPanel Margin="10,0,0,0">
-                                    <TextBlock Text="{Binding CurrentUserDisplayName}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding CurrentUserRoleCode}" FontSize="11" Foreground="#9FB0C3"/>
-                                </StackPanel>
+                        <Border Background="{StaticResource SidebarItemBackground}" Padding="20,12,12,12">
+                            <StackPanel>
+                                <TextBlock Text="{Binding CurrentUserDisplayName}" FontWeight="Bold" Foreground="{StaticResource SidebarItemForeground}"/>
+                                <TextBlock Text="{Binding CurrentUserRoleCode}" FontSize="11" Foreground="#9FB0C3" Margin="0,4,0,0"/>
                             </StackPanel>
-                        </Button>
+                        </Border>
                         <Button Style="{StaticResource SidebarMenuItemStyle}" Command="{Binding LogoutCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="24" VerticalAlignment="Center"/>
-                                <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
+                            <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
                 </Border>

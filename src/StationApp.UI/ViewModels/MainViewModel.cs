@@ -20,10 +20,13 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private object? _currentView;
     [ObservableProperty] private string? _currentDestination;
     [ObservableProperty] private bool _isSettingsSubmenuVisible;
+    [ObservableProperty] private bool _isSidebarCollapsed;
     [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
 
+    public GridLength SidebarWidth => IsSidebarCollapsed ? new GridLength(56) : new GridLength(176);
+
     public string CurrentUserDisplayName =>
-        string.IsNullOrWhiteSpace(_currentUserContext.DisplayName) ? "Chưa đăng nhập" : _currentUserContext.DisplayName;
+        string.IsNullOrWhiteSpace(_currentUserContext.DisplayName) ? "\u0043\u0068\u01B0\u0061\u0020\u0111\u0103\u006E\u0067\u0020\u006E\u0068\u1EAD\u0070" : _currentUserContext.DisplayName;
 
     public string CurrentUserRoleCode => _currentUserContext.RoleCode;
 
@@ -70,7 +73,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleSettingsSubmenu()
     {
-        if (!CanViewSettingsMenu)
+        if (!CanViewSettingsMenu || IsSidebarCollapsed)
         {
             return;
         }
@@ -79,12 +82,20 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+    }
+
+    [RelayCommand]
     private async Task NavigateAsync(string destination)
     {
         if (!CanNavigateTo(destination))
         {
             var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
-            await dialogService.ShowWarningAsync("Không đủ quyền", $"Bạn không có quyền truy cập {destination}.");
+            await dialogService.ShowWarningAsync(
+                "\u004B\u0068\u00F4\u006E\u0067\u0020\u0111\u1EE7\u0020\u0071\u0075\u0079\u1EC1\u006E",
+                $"\u0042\u1EA1\u006E\u0020\u006B\u0068\u00F4\u006E\u0067\u0020\u0063\u00F3\u0020\u0071\u0075\u0079\u1EC1\u006E\u0020\u0074\u0072\u0075\u0079\u0020\u0063\u1EAD\u0070\u0020{destination}.");
             return;
         }
 
@@ -190,7 +201,9 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
-            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi chuyển hướng đến {destination}: {ex.Message}");
+            await dialogService.ShowErrorAsync(
+                "\u004C\u1ED7\u0069\u0020\u0068\u1EC7\u0020\u0074\u0068\u1ED1\u006E\u0067",
+                $"\u004C\u1ED7\u0069\u0020\u006B\u0068\u0069\u0020\u0063\u0068\u0075\u0079\u1EC3\u006E\u0020\u0068\u01B0\u1EDB\u006E\u0067\u0020\u0111\u1EBF\u006E\u0020{destination}: {ex.Message}");
         }
     }
 
@@ -199,10 +212,10 @@ public partial class MainViewModel : ObservableObject
     {
         var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
         var confirmed = await dialogService.ShowConfirmAsync(
-            "Xac nhan dang xuat",
-            "Ban co chac muon dang xuat khong?",
-            "Dang xuat",
-            "Khong");
+            "\u0058\u00E1\u0063\u0020\u006E\u0068\u1EAD\u006E\u0020\u0111\u0103\u006E\u0067\u0020\u0078\u0075\u1EA5\u0074",
+            "\u0042\u1EA1\u006E\u0020\u0063\u00F3\u0020\u0063\u0068\u1EAF\u0063\u0020\u006D\u0075\u1ED1\u006E\u0020\u0111\u0103\u006E\u0067\u0020\u0078\u0075\u1EA5\u0074\u0020\u006B\u0068\u00F4\u006E\u0067\u003F",
+            "\u0110\u0103\u006E\u0067\u0020\u0078\u0075\u1EA5\u0074",
+            "\u004B\u0068\u00F4\u006E\u0067");
 
         if (!confirmed)
         {
@@ -264,7 +277,18 @@ public partial class MainViewModel : ObservableObject
             }
 
             var dialogService = _serviceProvider.GetRequiredService<Services.IDialogService>();
-            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi tải dữ liệu màn {destination}: {ex.Message}");
+            await dialogService.ShowErrorAsync(
+                "\u004C\u1ED7\u0069\u0020\u0068\u1EC7\u0020\u0074\u0068\u1ED1\u006E\u0067",
+                $"\u004C\u1ED7\u0069\u0020\u006B\u0068\u0069\u0020\u0074\u1EA3\u0069\u0020\u0064\u1EEF\u0020\u006C\u0069\u1EC7\u0075\u0020\u006D\u00E0\u006E\u0020{destination}: {ex.Message}");
+        }
+    }
+
+    partial void OnIsSidebarCollapsedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SidebarWidth));
+        if (value)
+        {
+            IsSettingsSubmenuVisible = false;
         }
     }
 }

@@ -10,6 +10,7 @@ using StationApp.Application.Interfaces;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Implementations;
 using StationApp.Device.Models;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 using StationApp.UI.Resources;
@@ -225,9 +226,36 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
         LastSyncSuccessAt = FormatTimestamp(lastSuccess?.UpdatedAt ?? lastSuccess?.CreatedAt);
 
         CentralApiUrl = await appConfig.GetValueAsync("central_api_url", CancellationToken.None) ?? UiText.Diagnostics.CentralApiNotConfigured;
-        LastMasterDataSync = await appConfig.GetValueAsync("master_data_last_sync", CancellationToken.None) ?? UiText.Diagnostics.MasterDataNotSynced;
-        MasterDataSyncStatus = await appConfig.GetValueAsync("master_data_sync_status", CancellationToken.None) ?? "Unknown";
-        MasterDataSyncError = await appConfig.GetValueAsync("master_data_sync_error", CancellationToken.None);
+
+        var lastMasterSuccess = await context.SyncOutbox.AsNoTracking()
+            .Where(o =>
+                (o.AggregateType == SyncAggregateTypes.Vehicle
+                || o.AggregateType == SyncAggregateTypes.Customer
+                || o.AggregateType == SyncAggregateTypes.Product)
+                && o.Status == OutboxStatus.SUCCESS)
+            .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
+            .FirstOrDefaultAsync(CancellationToken.None);
+        var lastMasterFailure = await context.SyncOutbox.AsNoTracking()
+            .Where(o =>
+                (o.AggregateType == SyncAggregateTypes.Vehicle
+                || o.AggregateType == SyncAggregateTypes.Customer
+                || o.AggregateType == SyncAggregateTypes.Product)
+                && !string.IsNullOrWhiteSpace(o.LastError))
+            .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
+            .FirstOrDefaultAsync(CancellationToken.None);
+        var pendingMasterCount = await context.SyncOutbox.AsNoTracking()
+            .Where(o =>
+                (o.AggregateType == SyncAggregateTypes.Vehicle
+                || o.AggregateType == SyncAggregateTypes.Customer
+                || o.AggregateType == SyncAggregateTypes.Product)
+                && (o.Status == OutboxStatus.PENDING || o.Status == OutboxStatus.FAILED_RETRYABLE || o.Status == OutboxStatus.PROCESSING))
+            .CountAsync(CancellationToken.None);
+
+        LastMasterDataSync = lastMasterSuccess == null
+            ? UiText.Diagnostics.MasterDataNotSynced
+            : FormatTimestamp(lastMasterSuccess.UpdatedAt ?? lastMasterSuccess.CreatedAt);
+        MasterDataSyncStatus = pendingMasterCount > 0 ? $"Pending outbound ({pendingMasterCount})" : "No pending";
+        MasterDataSyncError = lastMasterFailure?.LastError;
     }
 
     private void LoadAppVersion()

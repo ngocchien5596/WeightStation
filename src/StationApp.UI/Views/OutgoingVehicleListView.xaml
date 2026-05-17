@@ -61,6 +61,7 @@
             <Button Content="{StaticResource Outgoing.Action.ViewDetails}" Command="{Binding ShowDetailsCommand}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}"/>
+            <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="6,0,0,0"/>
         </StackPanel>
 
         <Border Grid.Row="2" Margin="12,0,12,12">
@@ -126,6 +127,48 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="{StaticResource Workflow.CloseButton}" Command="{Binding CloseDetailsCommand}" Style="{StaticResource UtilityButtonStyle}"/>
                         </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsRelatedTicketsVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="3">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1060" MaxHeight="680" VerticalAlignment="Center" Margin="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Style="{StaticResource ModalHeaderStyle}">
+                        <TextBlock Text="{StaticResource Weighing.Dialog.RelatedTitle}" Style="{StaticResource ModalTitleStyle}"/>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}">
+                        <Border Style="{StaticResource ModalSectionCardStyle}">
+                            <DataGrid ItemsSource="{Binding RelatedTickets}" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Style="{StaticResource SystemDataGridStyle}"
+                                      ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                                      RowStyle="{StaticResource SystemDataGridRowStyle}"
+                                      CellStyle="{StaticResource SystemDataGridCellStyle}"
+                                      Background="Transparent"
+                                      BorderThickness="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Type}" Binding="{Binding DocumentType}" Width="180"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.WeighTicketNo}" Binding="{Binding TicketNo}" Width="140"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.DeliveryNo}" Binding="{Binding DeliveryNo}" Width="140"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Role}" Binding="{Binding RecordRole, Converter={StaticResource RecordRoleDisplay}}" Width="180"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Weight1}" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="110"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="110"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="110"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.CreatedAt}" Binding="{Binding CreatedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Width="150"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Border>
+
+                    <Border Grid.Row="2" Style="{StaticResource ModalFooterStyle}">
+                        <Button Content="{StaticResource Workflow.CloseButton}" Command="{Binding CloseRelatedTicketsCommand}" Style="{StaticResource UtilityButtonStyle}" Width="100" HorizontalAlignment="Right"/>
                     </Border>
                 </Grid>
             </Border>

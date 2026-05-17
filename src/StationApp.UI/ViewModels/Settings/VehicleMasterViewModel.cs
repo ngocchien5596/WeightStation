@@ -10,6 +10,7 @@ using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
 using StationApp.UI.Services;
 using StationApp.Domain.Enums;
+using StationApp.Domain.Constants;
 
 namespace StationApp.UI.ViewModels.Settings
 {
@@ -115,6 +116,8 @@ namespace StationApp.UI.ViewModels.Settings
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var clock = scope.ServiceProvider.GetRequiredService<IClock>();
             var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
+            var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
+            var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
 
             if (string.IsNullOrWhiteSpace(EditVehiclePlate))
             {
@@ -151,6 +154,7 @@ namespace StationApp.UI.ViewModels.Settings
                         CreatedBy = "Operator"
                     };
                     await repo.AddAsync(newVehicle, CancellationToken.None);
+                    await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, newVehicle, clock.NowLocal);
                 }
                 else
                 {
@@ -182,10 +186,12 @@ namespace StationApp.UI.ViewModels.Settings
                         existing.UpdatedAt = clock.NowLocal;
                         existing.UpdatedBy = "Operator";
                         await repo.UpdateAsync(existing, CancellationToken.None);
+                        await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, existing, clock.NowLocal);
                     }
                     else
                     {
                         await repo.UpdateAsync(SelectedVehicle, CancellationToken.None);
+                        await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, SelectedVehicle, clock.NowLocal);
                     }
                 }
 
@@ -220,15 +226,39 @@ namespace StationApp.UI.ViewModels.Settings
             {
                 var repo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+                var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
+                var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
 
                 SelectedVehicle.IsActive = false;
                 await repo.UpdateAsync(SelectedVehicle, CancellationToken.None);
+                await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, SelectedVehicle, clock.NowLocal);
                 await uow.SaveChangesAsync(CancellationToken.None);
 
                 await dialogService.ShowInfoAsync("Thông báo", "Đã chuyển đổi trạng thái ngừng sử dụng.");
                 ResetForm();
                 await SearchAsync();
             }
+        }
+
+        private static async Task EnqueueMasterSyncAsync(
+            ISyncOutboxRepository outboxRepo,
+            ISyncPayloadFactory payloadFactory,
+            Vehicle vehicle,
+            DateTime now)
+        {
+            await outboxRepo.EnqueueAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                AggregateId = vehicle.Id,
+                AggregateType = SyncAggregateTypes.Vehicle,
+                PayloadJson = payloadFactory.CreatePayload(vehicle),
+                IdempotencyKey = vehicle.Id,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, CancellationToken.None);
         }
     }
 }

@@ -36,13 +36,16 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ShowDetailsCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
     private OutgoingSessionListItem? _selectedVehicle;
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private DateTime? _selectedCompletedDate;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isDetailsVisible;
+    [ObservableProperty] private bool _isRelatedTicketsVisible;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _detailLines = new();
+    [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
 
     public OutgoingVehicleListViewModel(
         IServiceScopeFactory scopeFactory,
@@ -74,6 +77,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private bool CanShowDetails() => SelectedVehicle != null;
     private bool CanPrintWeighTicket() => SelectedVehicle != null;
     private bool CanPrintDeliveryTicket() => SelectedVehicle != null;
+    private bool CanShowRelatedTickets() => SelectedVehicle != null;
 
     [RelayCommand]
     private async Task LoadVehiclesAsync()
@@ -88,7 +92,9 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         SearchVehiclePlate = null;
         SelectedCompletedDate = _clock.NowLocal.Date;
         IsDetailsVisible = false;
+        IsRelatedTicketsVisible = false;
         DetailLines = new ObservableCollection<WeighingSessionLineRow>();
+        RelatedTickets = new ObservableCollection<RelatedDocumentListItem>();
         SelectedVehicle = null;
         await LoadVehiclesInternalAsync(false);
     }
@@ -143,6 +149,54 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private void CloseDetails()
     {
         IsDetailsVisible = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanShowRelatedTickets))]
+    private async Task ShowRelatedTicketsAsync()
+    {
+        if (SelectedVehicle == null)
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
+        var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
+        var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(SelectedVehicle.SessionId, CancellationToken.None);
+        var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(SelectedVehicle.SessionId, CancellationToken.None);
+
+        RelatedTickets = new ObservableCollection<RelatedDocumentListItem>(
+            weighTickets.Select(ticket => new RelatedDocumentListItem(
+                    UiText.Weighing.RelatedWeighTicket,
+                    ticket.TicketNo,
+                    null,
+                    ticket.RecordRole,
+                    ticket.SplitSequence,
+                    ticket.Weight1,
+                    ticket.Weight2,
+                    ticket.NetWeight,
+                    ticket.CreatedAt))
+                .Concat(deliveryTickets.Select(ticket => new RelatedDocumentListItem(
+                    UiText.Weighing.RelatedDeliveryTicket,
+                    null,
+                    ticket.DeliveryNo,
+                    ticket.RecordRole,
+                    ticket.SplitSequence,
+                    null,
+                    null,
+                    ticket.AllocatedWeight,
+                    ticket.CreatedAt)))
+                .OrderBy(x => x.DocumentType)
+                .ThenBy(x => x.SplitSequence ?? byte.MaxValue)
+                .ThenBy(x => x.CreatedAt));
+
+        IsRelatedTicketsVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseRelatedTickets()
+    {
+        IsRelatedTicketsVisible = false;
     }
 
     [RelayCommand(CanExecute = nameof(CanPrintWeighTicket))]

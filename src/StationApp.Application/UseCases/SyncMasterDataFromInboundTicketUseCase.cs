@@ -1,5 +1,7 @@
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 
 namespace StationApp.Application.UseCases;
 
@@ -9,6 +11,8 @@ public class SyncMasterDataFromInboundTicketUseCase
     private readonly ICustomerRepository _customerRepo;
     private readonly IProductRepository _productRepo;
     private readonly IUnitOfWork _uow;
+    private readonly ISyncOutboxRepository _outboxRepo;
+    private readonly ISyncPayloadFactory _payloadFactory;
     private readonly IClock _clock;
     private readonly ICurrentUserContext _currentUser;
 
@@ -17,6 +21,8 @@ public class SyncMasterDataFromInboundTicketUseCase
         ICustomerRepository customerRepo,
         IProductRepository productRepo,
         IUnitOfWork uow,
+        ISyncOutboxRepository outboxRepo,
+        ISyncPayloadFactory payloadFactory,
         IClock clock,
         ICurrentUserContext currentUser)
     {
@@ -24,6 +30,8 @@ public class SyncMasterDataFromInboundTicketUseCase
         _customerRepo = customerRepo;
         _productRepo = productRepo;
         _uow = uow;
+        _outboxRepo = outboxRepo;
+        _payloadFactory = payloadFactory;
         _clock = clock;
         _currentUser = currentUser;
     }
@@ -42,12 +50,14 @@ public class SyncMasterDataFromInboundTicketUseCase
         if (vehicle != null)
         {
             if (!string.IsNullOrEmpty(vehicle.DriverName)) ticket.DriverName = vehicle.DriverName;
-            if (!string.IsNullOrEmpty(vehicle.TransportMethod)) ticket.TransportMethod = Enum.TryParse<Domain.Enums.TransportMethod>(vehicle.TransportMethod, out var tm) ? tm : ticket.TransportMethod;
+            if (!string.IsNullOrEmpty(vehicle.TransportMethod)) ticket.TransportMethod = Enum.TryParse<TransportMethod>(vehicle.TransportMethod, out var tm) ? tm : ticket.TransportMethod;
         }
 
         if (customer != null && !string.IsNullOrEmpty(customer.CustomerName)) ticket.CustomerName = customer.CustomerName;
         if (product != null && !string.IsNullOrEmpty(product.ProductName)) ticket.ProductName = product.ProductName;
 
+        await _uow.SaveChangesAsync(ct);
+        await EnqueueMasterSyncAsync(vehicle, customer, product, ct);
         await _uow.SaveChangesAsync(ct);
     }
 
@@ -60,13 +70,68 @@ public class SyncMasterDataFromInboundTicketUseCase
         if (vehicle != null)
         {
             if (!string.IsNullOrEmpty(vehicle.DriverName)) reg.ReceiverName = vehicle.DriverName;
-            if (!string.IsNullOrEmpty(vehicle.TransportMethod)) reg.TransportMethod = Enum.TryParse<Domain.Enums.TransportMethod>(vehicle.TransportMethod, out var tm) ? tm : reg.TransportMethod;
+            if (!string.IsNullOrEmpty(vehicle.TransportMethod)) reg.TransportMethod = Enum.TryParse<TransportMethod>(vehicle.TransportMethod, out var tm) ? tm : reg.TransportMethod;
         }
 
         if (customer != null && !string.IsNullOrEmpty(customer.CustomerName)) reg.CustomerName = customer.CustomerName;
         if (product != null && !string.IsNullOrEmpty(product.ProductName)) reg.ProductName = product.ProductName;
 
         await _uow.SaveChangesAsync(ct);
+        await EnqueueMasterSyncAsync(vehicle, customer, product, ct);
+        await _uow.SaveChangesAsync(ct);
+    }
+
+    private async Task EnqueueMasterSyncAsync(Vehicle? vehicle, Customer? customer, Product? product, CancellationToken ct)
+    {
+        var now = _clock.NowLocal;
+
+        if (vehicle != null)
+        {
+            await _outboxRepo.EnqueueAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                AggregateId = vehicle.Id,
+                AggregateType = SyncAggregateTypes.Vehicle,
+                PayloadJson = _payloadFactory.CreatePayload(vehicle),
+                IdempotencyKey = vehicle.Id,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, ct);
+        }
+
+        if (customer != null)
+        {
+            await _outboxRepo.EnqueueAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                AggregateId = customer.Id,
+                AggregateType = SyncAggregateTypes.Customer,
+                PayloadJson = _payloadFactory.CreatePayload(customer),
+                IdempotencyKey = customer.Id,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, ct);
+        }
+
+        if (product != null)
+        {
+            await _outboxRepo.EnqueueAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                AggregateId = product.Id,
+                AggregateType = SyncAggregateTypes.Product,
+                PayloadJson = _payloadFactory.CreatePayload(product),
+                IdempotencyKey = product.Id,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, ct);
+        }
     }
 
     private async Task<Vehicle?> UpsertVehicleAsync(string? plate, string? mooc, string? driver, Domain.Enums.TransportMethod? transportMethod, CancellationToken ct)

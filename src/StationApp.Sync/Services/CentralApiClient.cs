@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.Interfaces;
@@ -11,7 +10,6 @@ public interface ICentralApiClient
 {
     Task<SyncWeighTicketResponse> PushAggregateAsync(string aggregateType, string payloadJson, Guid idempotencyKey, CancellationToken ct);
     Task<SyncWeighTicketResponse> PushTicketAsync(string payloadJson, Guid idempotencyKey, CancellationToken ct);
-    Task<InboundMasterDataResponse> PullMasterDataAsync(DateTime? lastSyncAt, CancellationToken ct);
 }
 
 public sealed class CentralApiClient : ICentralApiClient
@@ -27,10 +25,6 @@ public sealed class CentralApiClient : ICentralApiClient
         _logger = logger;
     }
 
-    /// <summary>
-    /// Pushes a sync aggregate to Central API (Outbound).
-    /// X-Api-Key header is set via HttpClient message handler in DI config.
-    /// </summary>
     public async Task<SyncWeighTicketResponse> PushAggregateAsync(string aggregateType, string payloadJson, Guid idempotencyKey, CancellationToken ct)
     {
         try
@@ -108,72 +102,6 @@ public sealed class CentralApiClient : ICentralApiClient
     public Task<SyncWeighTicketResponse> PushTicketAsync(string payloadJson, Guid idempotencyKey, CancellationToken ct)
         => PushAggregateAsync(SyncAggregateTypes.WeighTicket, payloadJson, idempotencyKey, ct);
 
-    /// <summary>
-    /// Pulls latest master data from Central API (Inbound).
-    /// </summary>
-    public async Task<InboundMasterDataResponse> PullMasterDataAsync(DateTime? lastSyncAt, CancellationToken ct)
-    {
-        try
-        {
-            var baseUri = await ResolveBaseUriAsync(ct);
-            if (baseUri == null)
-            {
-                return new InboundMasterDataResponse
-                {
-                    Success = false,
-                    ErrorMessage = "Central API URL chưa được cấu hình hợp lệ."
-                };
-            }
-
-            var url = "api/master-data";
-            if (lastSyncAt.HasValue)
-                url += $"?since={lastSyncAt.Value:O}";
-
-            _logger?.LogDebug("Pulling master data from Central API. Since: {Since}", lastSyncAt);
-
-            var response = await _httpClient.GetAsync(new Uri(baseUri, url), ct);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var data = await response.Content.ReadFromJsonAsync<InboundMasterDataResponse>(ct);
-                if (data != null)
-                {
-                    data.Success = true;
-                    _logger?.LogInformation(
-                        "Master data pulled: {Vehicles} vehicles, {Customers} customers, {Products} products",
-                        data.Vehicles.Count, data.Customers.Count, data.Products.Count);
-                    return data;
-                }
-            }
-
-            var body = await response.Content.ReadAsStringAsync(ct);
-            _logger?.LogWarning("Pull master data failed. Status: {Status}", response.StatusCode);
-            return new InboundMasterDataResponse
-            {
-                Success = false,
-                ErrorMessage = $"HTTP {response.StatusCode}: {body}"
-            };
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger?.LogError(ex, "Network error pulling master data");
-            return new InboundMasterDataResponse
-            {
-                Success = false,
-                ErrorMessage = $"Network error: {ex.Message}"
-            };
-        }
-        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-        {
-            _logger?.LogError(ex, "Timeout pulling master data");
-            return new InboundMasterDataResponse
-            {
-                Success = false,
-                ErrorMessage = "Request timed out"
-            };
-        }
-    }
-
     private async Task<Uri?> ResolveBaseUriAsync(CancellationToken ct)
     {
         var configuredUrl = await TryGetConfiguredBaseUrlAsync(ct);
@@ -231,6 +159,9 @@ public sealed class CentralApiClient : ICentralApiClient
             SyncAggregateTypes.VehicleRegistration => "api/vehicle-registrations",
             SyncAggregateTypes.WeighTicket => "api/weigh-tickets",
             SyncAggregateTypes.DeliveryTicket => "api/delivery-tickets",
+            SyncAggregateTypes.Vehicle => "api/vehicles",
+            SyncAggregateTypes.Customer => "api/customers",
+            SyncAggregateTypes.Product => "api/products",
             _ => throw new InvalidOperationException($"Unsupported sync aggregate type: {aggregateType}")
         };
     }

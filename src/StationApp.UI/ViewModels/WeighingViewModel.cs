@@ -295,7 +295,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         SessionStatusText = SessionStatusMapper.ToDisplayString(value.SessionStatus);
         OverweightResolutionText = OverweightResolutionStatusMapper.ToDisplayString(value.OverweightResolutionStatus);
         CustomerSummary = string.Join(" / ", lineItems.Select(x => x.CustomerName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
-        ProductSummary = string.Join(" / ", lineItems.Select(x => x.ProductName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+        ProductSummary = BuildProductSummary(lineItems);
         SessionLines = new ObservableCollection<WeighingSessionLineRow>(lineItems.Select(x => new WeighingSessionLineRow(x)));
     }
 
@@ -1202,6 +1202,33 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
         return !string.IsNullOrWhiteSpace(source)
             && source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? BuildProductSummary(IEnumerable<WeighingSessionLineItem> lineItems)
+    {
+        var productGroups = lineItems
+            .Where(x => !string.IsNullOrWhiteSpace(x.ProductName))
+            .GroupBy(
+                x => new
+                {
+                    ProductCode = (x.ProductCode ?? string.Empty).Trim(),
+                    ProductName = (x.ProductName ?? string.Empty).Trim()
+                })
+            .Select(group => new
+            {
+                group.Key.ProductName,
+                PlannedWeight = group.Sum(x => x.PlannedWeight ?? 0m)
+            })
+            .ToList();
+
+        if (productGroups.Count == 0)
+        {
+            return null;
+        }
+
+        return string.Join(
+            " / ",
+            productGroups.Select(x => $"{x.ProductName} ({x.PlannedWeight:N0})"));
     }
 
     private void ClearPendingCapturedWeights()

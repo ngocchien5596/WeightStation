@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -74,6 +75,8 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
         var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
         var customerRepo = scope.ServiceProvider.GetRequiredService<ICustomerRepository>();
         var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+        var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
+        var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
         var audit = scope.ServiceProvider.GetRequiredService<IAuditService>();
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
         var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
@@ -92,7 +95,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
         {
             try
             {
-                await ProcessSingleRegistrationAsync(reg, regRepo, vehicleRepo, customerRepo, productRepo, uow, audit, clock, ct);
+                await ProcessSingleRegistrationAsync(reg, regRepo, vehicleRepo, customerRepo, productRepo, outboxRepo, payloadFactory, uow, audit, clock, ct);
             }
             catch (Exception ex)
             {
@@ -107,6 +110,8 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
         IVehicleRepository vehicleRepo,
         ICustomerRepository customerRepo,
         IProductRepository productRepo,
+        ISyncOutboxRepository outboxRepo,
+        ISyncPayloadFactory payloadFactory,
         IUnitOfWork uow,
         IAuditService audit,
         IClock clock,
@@ -162,6 +167,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
 
             // A. Upsert Vehicle
             var existingVehicle = await vehicleRepo.GetByPlateAndMoocAsync(reg.VehiclePlate, reg.MoocNumber, innerCt);
+            var vehicleChanged = false;
             if (existingVehicle == null)
             {
                 existingVehicle = new Vehicle
@@ -175,6 +181,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
                     CreatedBy = "SYSTEM_INBOUND_PROCESSOR"
                 };
                 await vehicleRepo.AddAsync(existingVehicle, innerCt);
+                vehicleChanged = true;
             }
             else
             {
@@ -182,10 +189,12 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
                 if (reg.TransportMethod.HasValue) existingVehicle.TransportMethod = reg.TransportMethod.Value.ToString();
                 existingVehicle.UpdatedAt = now;
                 existingVehicle.UpdatedBy = "SYSTEM_INBOUND_PROCESSOR";
+                vehicleChanged = true;
             }
 
             // B. Upsert Customer
             var existingCustomer = await customerRepo.GetByCodeAsync(reg.CustomerCode, innerCt);
+            var customerChanged = false;
             if (existingCustomer == null)
             {
                 existingCustomer = new Customer
@@ -197,16 +206,19 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
                     CreatedBy = "SYSTEM_INBOUND_PROCESSOR"
                 };
                 await customerRepo.AddAsync(existingCustomer, innerCt);
+                customerChanged = true;
             }
             else
             {
                 if (!string.IsNullOrWhiteSpace(reg.CustomerName)) existingCustomer.CustomerName = reg.CustomerName;
                 existingCustomer.UpdatedAt = now;
                 existingCustomer.UpdatedBy = "SYSTEM_INBOUND_PROCESSOR";
+                customerChanged = true;
             }
 
             // C. Upsert Product
             var existingProduct = await productRepo.GetByCodeAsync(reg.ProductCode, innerCt);
+            var productChanged = false;
             if (existingProduct == null)
             {
                 existingProduct = new Product
@@ -218,12 +230,29 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
                     CreatedBy = "SYSTEM_INBOUND_PROCESSOR"
                 };
                 await productRepo.AddAsync(existingProduct, innerCt);
+                productChanged = true;
             }
             else
             {
                 if (!string.IsNullOrWhiteSpace(reg.ProductName)) existingProduct.ProductName = reg.ProductName;
                 existingProduct.UpdatedAt = now;
                 existingProduct.UpdatedBy = "SYSTEM_INBOUND_PROCESSOR";
+                productChanged = true;
+            }
+
+            if (vehicleChanged)
+            {
+                await EnqueueMasterSyncAsync(outboxRepo, existingVehicle.Id, SyncAggregateTypes.Vehicle, payloadFactory.CreatePayload(existingVehicle), now, innerCt);
+            }
+
+            if (customerChanged)
+            {
+                await EnqueueMasterSyncAsync(outboxRepo, existingCustomer.Id, SyncAggregateTypes.Customer, payloadFactory.CreatePayload(existingCustomer), now, innerCt);
+            }
+
+            if (productChanged)
+            {
+                await EnqueueMasterSyncAsync(outboxRepo, existingProduct.Id, SyncAggregateTypes.Product, payloadFactory.CreatePayload(existingProduct), now, innerCt);
             }
 
             // D. Set Root Data
@@ -248,6 +277,28 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
         }, ct);
 
         _logger.LogInformation("Successfully processed ERP Registration {Id}", reg.Id);
+    }
+
+    private static async Task EnqueueMasterSyncAsync(
+        ISyncOutboxRepository outboxRepo,
+        Guid aggregateId,
+        string aggregateType,
+        string payloadJson,
+        DateTime now,
+        CancellationToken ct)
+    {
+        await outboxRepo.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = aggregateId,
+            AggregateType = aggregateType,
+            PayloadJson = payloadJson,
+            IdempotencyKey = aggregateId,
+            Status = OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now
+        }, ct);
     }
 
     private void LogPerf(string operation, double durationMs)

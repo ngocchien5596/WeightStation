@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -13,6 +14,8 @@ public sealed class EnsureInboundMasterDataUseCase
     private readonly IVehicleRepository _vehicleRepository;
     private readonly ICustomerRepository _customerRepository;
     private readonly IProductRepository _productRepository;
+    private readonly ISyncOutboxRepository _syncOutboxRepository;
+    private readonly ISyncPayloadFactory _syncPayloadFactory;
     private readonly IClock _clock;
     private readonly ICurrentUserContext _currentUserContext;
 
@@ -20,12 +23,16 @@ public sealed class EnsureInboundMasterDataUseCase
         IVehicleRepository vehicleRepository,
         ICustomerRepository customerRepository,
         IProductRepository productRepository,
+        ISyncOutboxRepository syncOutboxRepository,
+        ISyncPayloadFactory syncPayloadFactory,
         IClock clock,
         ICurrentUserContext currentUserContext)
     {
         _vehicleRepository = vehicleRepository;
         _customerRepository = customerRepository;
         _productRepository = productRepository;
+        _syncOutboxRepository = syncOutboxRepository;
+        _syncPayloadFactory = syncPayloadFactory;
         _clock = clock;
         _currentUserContext = currentUserContext;
     }
@@ -46,9 +53,17 @@ public sealed class EnsureInboundMasterDataUseCase
         string? moocRegistrationNo = null,
         DateTime? moocRegistrationExpiryDate = null)
     {
-        await EnsureVehicleAsync(vehiclePlate, moocNumber, driverName, transportMethod,
-            ttcpWeight, vehicleRegistrationNo, vehicleRegistrationExpiryDate,
-            moocRegistrationNo, moocRegistrationExpiryDate, ct);
+        await EnsureVehicleAsync(
+            vehiclePlate,
+            moocNumber,
+            driverName,
+            transportMethod,
+            ttcpWeight,
+            vehicleRegistrationNo,
+            vehicleRegistrationExpiryDate,
+            moocRegistrationNo,
+            moocRegistrationExpiryDate,
+            ct);
         await EnsureCustomerAsync(customerCode, customerName, ct);
         await EnsureProductAsync(productCode, productName, ct);
     }
@@ -76,8 +91,9 @@ public sealed class EnsureInboundMasterDataUseCase
         var normalizedTransportMethod = transportMethod?.ToString();
         var normalizedVehicleRegNo = NormalizeOptional(vehicleRegistrationNo);
         var normalizedMoocRegNo = NormalizeOptional(moocRegistrationNo);
+        var now = _clock.NowLocal;
 
-        Vehicle? existing = null;
+        Vehicle? existing;
         var byPlate = await _vehicleRepository.GetByPlateAsync(normalizedPlate, ct);
 
         if (!string.IsNullOrWhiteSpace(normalizedMooc))
@@ -92,7 +108,7 @@ public sealed class EnsureInboundMasterDataUseCase
 
         if (existing == null)
         {
-            await _vehicleRepository.AddAsync(new Vehicle
+            existing = new Vehicle
             {
                 Id = Guid.NewGuid(),
                 VehiclePlate = normalizedPlate,
@@ -105,9 +121,11 @@ public sealed class EnsureInboundMasterDataUseCase
                 MoocRegistrationNo = normalizedMoocRegNo,
                 MoocRegistrationExpiryDate = moocRegistrationExpiryDate,
                 IsActive = true,
-                CreatedAt = _clock.NowLocal,
+                CreatedAt = now,
                 CreatedBy = _currentUserContext.Username
-            }, ct);
+            };
+            await _vehicleRepository.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Vehicle, _syncPayloadFactory.CreatePayload(existing), now, ct);
             return;
         }
 
@@ -171,9 +189,10 @@ public sealed class EnsureInboundMasterDataUseCase
             return;
         }
 
-        existing.UpdatedAt = _clock.NowLocal;
+        existing.UpdatedAt = now;
         existing.UpdatedBy = _currentUserContext.Username;
         await _vehicleRepository.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Vehicle, _syncPayloadFactory.CreatePayload(existing), now, ct);
     }
 
     private async Task EnsureCustomerAsync(string? customerCode, string? customerName, CancellationToken ct)
@@ -185,6 +204,7 @@ public sealed class EnsureInboundMasterDataUseCase
             return;
         }
 
+        var now = _clock.NowLocal;
         var existing = await _customerRepository.GetByCodeAsync(normalizedCode, ct);
         if (existing == null)
         {
@@ -193,15 +213,17 @@ public sealed class EnsureInboundMasterDataUseCase
                 return;
             }
 
-            await _customerRepository.AddAsync(new Customer
+            existing = new Customer
             {
                 Id = Guid.NewGuid(),
                 CustomerCode = normalizedCode,
                 CustomerName = normalizedName,
                 IsActive = true,
-                CreatedAt = _clock.NowLocal,
+                CreatedAt = now,
                 CreatedBy = _currentUserContext.Username
-            }, ct);
+            };
+            await _customerRepository.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
             return;
         }
 
@@ -223,9 +245,10 @@ public sealed class EnsureInboundMasterDataUseCase
             return;
         }
 
-        existing.UpdatedAt = _clock.NowLocal;
+        existing.UpdatedAt = now;
         existing.UpdatedBy = _currentUserContext.Username;
         await _customerRepository.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
     }
 
     private async Task EnsureProductAsync(string? productCode, string? productName, CancellationToken ct)
@@ -237,6 +260,7 @@ public sealed class EnsureInboundMasterDataUseCase
             return;
         }
 
+        var now = _clock.NowLocal;
         var existing = await _productRepository.GetByCodeAsync(normalizedCode, ct);
         if (existing == null)
         {
@@ -245,15 +269,17 @@ public sealed class EnsureInboundMasterDataUseCase
                 return;
             }
 
-            await _productRepository.AddAsync(new Product
+            existing = new Product
             {
                 Id = Guid.NewGuid(),
                 ProductCode = normalizedCode,
                 ProductName = normalizedName,
                 IsActive = true,
-                CreatedAt = _clock.NowLocal,
+                CreatedAt = now,
                 CreatedBy = _currentUserContext.Username
-            }, ct);
+            };
+            await _productRepository.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Product, _syncPayloadFactory.CreatePayload(existing), now, ct);
             return;
         }
 
@@ -275,9 +301,31 @@ public sealed class EnsureInboundMasterDataUseCase
             return;
         }
 
-        existing.UpdatedAt = _clock.NowLocal;
+        existing.UpdatedAt = now;
         existing.UpdatedBy = _currentUserContext.Username;
         await _productRepository.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Product, _syncPayloadFactory.CreatePayload(existing), now, ct);
+    }
+
+    private async Task EnqueueMasterSyncAsync(
+        Guid aggregateId,
+        string aggregateType,
+        string payloadJson,
+        DateTime now,
+        CancellationToken ct)
+    {
+        await _syncOutboxRepository.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = aggregateId,
+            AggregateType = aggregateType,
+            PayloadJson = payloadJson,
+            IdempotencyKey = aggregateId,
+            Status = OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now
+        }, ct);
     }
 
     private static string? NormalizeOptional(string? value)

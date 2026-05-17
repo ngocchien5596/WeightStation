@@ -11,6 +11,7 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Resources/MonitoringTextResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <Style x:Key="FormLabel" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
                 <Setter Property="Margin" Value="0,0,20,0"/>
@@ -32,7 +33,7 @@
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Mã ĐKPT:" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
+                    <TextBlock Text="{StaticResource Incoming.SearchRegistrationCodeLabel}" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
                     <TextBox Width="168" Style="{StaticResource StandardTextBoxStyle}"
                              Text="{Binding SearchErpVehicleRegistrationId, UpdateSourceTrigger=PropertyChanged}">
                         <TextBox.InputBindings>
@@ -40,7 +41,7 @@
                         </TextBox.InputBindings>
                     </TextBox>
 
-                    <TextBlock Text="Số PTVC:" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBlock Text="{StaticResource Incoming.SearchVehiclePlateLabel}" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
                     <controls:AutocompleteTextBox Width="168"
                                                   State="{Binding SearchVehiclePlateInput}"
                                                   TextBoxStyle="{StaticResource StandardTextBoxStyle}">
@@ -48,7 +49,6 @@
                             <KeyBinding Key="Enter" Command="{Binding RefreshCommand}"/>
                         </controls:AutocompleteTextBox.InputBindings>
                     </controls:AutocompleteTextBox>
-
 
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
                         <StackPanel Orientation="Horizontal">
@@ -88,14 +88,14 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="Mã ĐKPT" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="M&#xE3; &#x110;KPT" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="0" Grid.Column="1"
                              Text="{Binding FormErpVehicleRegistrationId, Mode=OneWay}"
                              IsReadOnly="True"
                              Style="{StaticResource FormBox}"
                              Background="#F8F9F9"/>
 
-                    <TextBlock Text="Số PTVC" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="{StaticResource Incoming.VehiclePlateLabel}" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="1"
                                                   State="{Binding FormVehiclePlateInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"/>
@@ -110,16 +110,16 @@
                               SelectedValue="{Binding FormTransportMethod, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValuePath="Tag"
                               Style="{StaticResource StandardComboBoxStyle}">
-                        <ComboBoxItem Content="Đường bộ" Tag="{x:Static enums:TransportMethod.ROAD}"/>
-                        <ComboBoxItem Content="Đường thủy" Tag="{x:Static enums:TransportMethod.WATERWAY}"/>
+                        <ComboBoxItem Content="&#x110;&#x1B0;&#x1EDD;ng b&#x1ED9;" Tag="{x:Static enums:TransportMethod.ROAD}"/>
+                        <ComboBoxItem Content="&#x110;&#x1B0;&#x1EDD;ng th&#x1EE7;y" Tag="{x:Static enums:TransportMethod.WATERWAY}"/>
                     </ComboBox>
 
-                    <TextBlock Text="Số ĐK Xe" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="S&#x1ED1; &#x110;K Xe" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="2" Grid.Column="1"
                              Text="{Binding VehicleRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Số ĐK Mooc" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="S&#x1ED1; &#x110;K Mooc" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="2" Grid.Column="3"
                              Text="{Binding MoocRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource FormBox}"/>
@@ -129,57 +129,57 @@
                              Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus, ConverterCulture='vi-VN'}"
                              Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Hạn ĐK Xe" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <DatePicker Grid.Row="3" Grid.Column="1"
                                 SelectedDate="{Binding VehicleRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 Style="{StaticResource FormDatePicker}"/>
 
-                    <TextBlock Text="Hạn ĐK Mooc" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="H&#x1EA1;n &#x110;K Mooc" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <DatePicker Grid.Row="3" Grid.Column="3"
                                 SelectedDate="{Binding MoocRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 Style="{StaticResource FormDatePicker}"/>
 
-                    <TextBlock Text="Tên tài xế" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="{StaticResource Incoming.DriverLabel}" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="5"
                                                   State="{Binding FormDriverInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Loại" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="Lo&#x1EA1;i" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="3"
                               SelectedValue="{Binding FormTransactionType, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValuePath="Tag"
                               Style="{StaticResource StandardComboBoxStyle}">
-                        <ComboBoxItem Content="Nhập hàng" Tag="{x:Static enums:TransactionType.INBOUND}"/>
-                        <ComboBoxItem Content="Xuất hàng" Tag="{x:Static enums:TransactionType.OUTBOUND}"/>
+                        <ComboBoxItem Content="Nh&#x1EAD;p h&#xE0;ng" Tag="{x:Static enums:TransactionType.INBOUND}"/>
+                        <ComboBoxItem Content="Xu&#x1EA5;t h&#xE0;ng" Tag="{x:Static enums:TransactionType.OUTBOUND}"/>
                     </ComboBox>
 
-                    <TextBlock Text="Mã KH" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="M&#xE3; KH" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="4" Grid.Column="1"
                              Text="{Binding FormCustomerCode, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="SL đặt" Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="SL &#x111;&#x1EB7;t" Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding FormPlannedWeight, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Số bao" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="S&#x1ED1; bao" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="3" Text="{Binding FormBagCount, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Khách hàng" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="{StaticResource Incoming.CustomerLabel}" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="3"
                                                   State="{Binding FormCustomerInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Mã SP" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="M&#xE3; SP" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="5"
                                                   State="{Binding FormProductCodeInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Tên sản phẩm" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="{StaticResource Incoming.ProductLabel}" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="5" Grid.Column="5"
                                                   State="{Binding FormProductNameInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="Ghi chú" Grid.Row="6" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="6" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="5" Text="{Binding FormNotes}" Style="{StaticResource FormBox}"/>
 
                     <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
@@ -192,19 +192,19 @@
                         <Button Command="{Binding ResetDetailCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="HOÀN TÁC" VerticalAlignment="Center"/>
+                                <TextBlock Text="{StaticResource Incoming.Complete}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding ConfirmEnterWeighingCommand}" Style="{StaticResource WorkflowButtonStyle}" IsEnabled="{Binding CanConfirmEnterWeighing}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="TẠO LƯỢT CÂN" VerticalAlignment="Center"/>
+                                <TextBlock Text="{StaticResource Incoming.CreateSession}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="12,0,0,0" IsEnabled="{Binding CanMarkNoLoad}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="KHÔNG LẤY HÀNG" VerticalAlignment="Center"/>
+                                <TextBlock Text="{StaticResource Incoming.NoLoad}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -219,7 +219,7 @@
                       RowStyle="{StaticResource SystemDataGridRowStyle}"
                       CellStyle="{StaticResource SystemDataGridCellStyle}">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="CHỌN" Width="60">
+                    <DataGridTemplateColumn Header="CH&#x1ECC;N" Width="60">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <CheckBox HorizontalAlignment="Center"
@@ -228,18 +228,18 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="MÃ ĐKPT" Binding="{Binding ErpVehicleRegistrationId}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="LOẠI" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Incoming.ColRegistrationCode}" Binding="{Binding ErpVehicleRegistrationId}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="LO&#x1EA0;I" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="SỐ PTVC" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Incoming.VehiclePlateLabel}" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="TÊN TÀI XẾ" Binding="{Binding ReceiverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="KHÁCH HÀNG" Binding="{Binding CustomerName}" Width="320" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="MÃ SP" Binding="{Binding ProductCode}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="SẢN PHẨM" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="SL ĐẶT (KG)" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="SỐ BAO" Binding="{Binding BagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="THỜI GIAN TẠO" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Incoming.DriverLabel}" Binding="{Binding ReceiverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="320" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="{StaticResource Incoming.ColProductCode}" Binding="{Binding ProductCode}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Incoming.ProductLabel}" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="SL &#x110;&#x1EB6;T (KG)" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="S&#x1ED0; BAO" Binding="{Binding BagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="TH&#x1EDC;I GIAN T&#x1EA0;O" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

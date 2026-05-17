@@ -270,6 +270,10 @@ public sealed class SyncOutboxWorker : BackgroundService
                 }
                 break;
             }
+            case SyncAggregateTypes.Vehicle:
+            case SyncAggregateTypes.Customer:
+            case SyncAggregateTypes.Product:
+                break;
         }
     }
 
@@ -319,6 +323,10 @@ public sealed class SyncOutboxWorker : BackgroundService
                 }
                 break;
             }
+            case SyncAggregateTypes.Vehicle:
+            case SyncAggregateTypes.Customer:
+            case SyncAggregateTypes.Product:
+                break;
         }
     }
 

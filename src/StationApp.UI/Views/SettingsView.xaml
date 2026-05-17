@@ -1,4 +1,4 @@
-<UserControl x:Class="StationApp.UI.Views.SettingsView"
+﻿<UserControl x:Class="StationApp.UI.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="clr-namespace:StationApp.UI.Views.Settings"
@@ -75,31 +75,31 @@
                 </ControlTemplate>
             </TabControl.Template>
 
-            <TabItem Header="THAM SỐ HỆ THỐNG" Visibility="{Binding CanAccessSystemSettings, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="THAM S&#x1ED0; H&#x1EC6; TH&#x1ED0;NG" Visibility="{Binding CanAccessSystemSettings, Converter={StaticResource BoolToVis}}">
                 <settings:SystemSettingsView DataContext="{Binding SystemSettingsVM}"/>
             </TabItem>
 
-            <TabItem Header="THIẾT BỊ CÂN" Visibility="{Binding CanAccessScaleDeviceConfig, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="THI&#x1EBE;T B&#x1ECA; C&#xC2;N" Visibility="{Binding CanAccessScaleDeviceConfig, Converter={StaticResource BoolToVis}}">
                 <settings:ScaleDeviceConfigView DataContext="{Binding ScaleDeviceConfigVM}"/>
             </TabItem>
 
-            <TabItem Header="DANH MỤC XE" Visibility="{Binding CanAccessVehicleMaster, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="DANH M&#x1EE4;C XE" Visibility="{Binding CanAccessVehicleMaster, Converter={StaticResource BoolToVis}}">
                 <settings:VehicleMasterView DataContext="{Binding VehicleMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="KHÁCH HÀNG" Visibility="{Binding CanAccessCustomerMaster, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="KH&#xC1;CH H&#xC0;NG" Visibility="{Binding CanAccessCustomerMaster, Converter={StaticResource BoolToVis}}">
                 <settings:CustomerMasterView DataContext="{Binding CustomerMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="SẢN PHẨM" Visibility="{Binding CanAccessProductMaster, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="S&#x1EA2;N PH&#x1EA8;M" Visibility="{Binding CanAccessProductMaster, Converter={StaticResource BoolToVis}}">
                 <settings:ProductMasterView DataContext="{Binding ProductMasterVM}"/>
             </TabItem>
 
-            <TabItem Header="ĐỒNG BỘ" Visibility="{Binding CanAccessSyncInfo, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="&#x110;&#x1ED2;NG B&#x1ED8;" Visibility="{Binding CanAccessSyncInfo, Converter={StaticResource BoolToVis}}">
                 <settings:SyncInfoView DataContext="{Binding SyncInfoVM}"/>
             </TabItem>
 
-            <TabItem Header="QUẢN LÝ TÀI KHOẢN" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="QU&#x1EA2;N L&#xDD; T&#xC0;I KHO&#x1EA2;N" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
                 <settings:AccountManagementView DataContext="{Binding AccountManagementVM}"/>
             </TabItem>
         </TabControl>

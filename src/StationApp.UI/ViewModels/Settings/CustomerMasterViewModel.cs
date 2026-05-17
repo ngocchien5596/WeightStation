@@ -8,7 +8,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 using StationApp.UI.Services;
 
 namespace StationApp.UI.ViewModels.Settings
@@ -93,6 +95,8 @@ namespace StationApp.UI.ViewModels.Settings
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var clock = scope.ServiceProvider.GetRequiredService<IClock>();
             var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
+            var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
+            var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
 
             if (string.IsNullOrWhiteSpace(EditCode) || string.IsNullOrWhiteSpace(EditName))
             {
@@ -121,6 +125,7 @@ namespace StationApp.UI.ViewModels.Settings
                         CreatedBy = "Operator"
                     };
                     await repo.AddAsync(newCustomer, CancellationToken.None);
+                    await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, newCustomer, clock.NowLocal);
                 }
                 else
                 {
@@ -138,10 +143,12 @@ namespace StationApp.UI.ViewModels.Settings
                         existing.UpdatedAt = clock.NowLocal;
                         existing.UpdatedBy = "Operator";
                         await repo.UpdateAsync(existing, CancellationToken.None);
+                        await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, existing, clock.NowLocal);
                     }
                     else
                     {
                         await repo.UpdateAsync(SelectedCustomer, CancellationToken.None);
+                        await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, SelectedCustomer, clock.NowLocal);
                     }
                 }
 
@@ -176,15 +183,39 @@ namespace StationApp.UI.ViewModels.Settings
             {
                 var repo = scope.ServiceProvider.GetRequiredService<ICustomerRepository>();
                 var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+                var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
+                var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
 
                 SelectedCustomer.IsActive = false;
                 await repo.UpdateAsync(SelectedCustomer, CancellationToken.None);
+                await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, SelectedCustomer, clock.NowLocal);
                 await uow.SaveChangesAsync(CancellationToken.None);
 
                 await dialogService.ShowInfoAsync("Thông báo", "Đã chuyển đổi trạng thái ngừng sử dụng.");
                 ResetForm();
                 await SearchAsync();
             }
+        }
+
+        private static async Task EnqueueMasterSyncAsync(
+            ISyncOutboxRepository outboxRepo,
+            ISyncPayloadFactory payloadFactory,
+            Customer customer,
+            DateTime now)
+        {
+            await outboxRepo.EnqueueAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                AggregateId = customer.Id,
+                AggregateType = SyncAggregateTypes.Customer,
+                PayloadJson = payloadFactory.CreatePayload(customer),
+                IdempotencyKey = customer.Id,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, CancellationToken.None);
         }
     }
 }

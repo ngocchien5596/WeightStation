@@ -16,19 +16,22 @@ public sealed class CreateWeighingSessionUseCase
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
+    private readonly IWeighingSessionNumberGenerator _sessionNoGen;
 
     public CreateWeighingSessionUseCase(
         IVehicleRegistrationRepository regRepo,
         IWeighingSessionRepository sessionRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
-        IClock clock)
+        IClock clock,
+        IWeighingSessionNumberGenerator sessionNoGen)
     {
         _regRepo = regRepo;
         _sessionRepo = sessionRepo;
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
+        _sessionNoGen = sessionNoGen;
     }
 
     public async Task<CreateWeighingSessionResult> ExecuteAsync(CreateWeighingSessionRequest request, CancellationToken ct)
@@ -76,7 +79,7 @@ public sealed class CreateWeighingSessionUseCase
         var session = new WeighingSession
         {
             Id = Guid.NewGuid(),
-            SessionNo = $"WS-{now:yyyyMMddHHmmss}-{Random.Shared.Next(100, 999)}",
+            SessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, ct),
             TransactionType = primaryRegistration.TransactionType,
             VehiclePlate = primaryRegistration.VehiclePlate,
             MoocNumber = primaryRegistration.MoocNumber,
@@ -148,19 +151,22 @@ public sealed class MarkRegistrationsNoLoadUseCase
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
+    private readonly IWeighingSessionNumberGenerator _sessionNoGen;
 
     public MarkRegistrationsNoLoadUseCase(
         IVehicleRegistrationRepository regRepo,
         IWeighingSessionRepository sessionRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
-        IClock clock)
+        IClock clock,
+        IWeighingSessionNumberGenerator sessionNoGen)
     {
         _regRepo = regRepo;
         _sessionRepo = sessionRepo;
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
+        _sessionNoGen = sessionNoGen;
     }
 
     public async Task<Guid> ExecuteAsync(MarkRegistrationsNoLoadRequest request, CancellationToken ct)
@@ -204,7 +210,7 @@ public sealed class MarkRegistrationsNoLoadUseCase
         var session = new WeighingSession
         {
             Id = Guid.NewGuid(),
-            SessionNo = $"WS-{now:yyyyMMddHHmmss}-{Random.Shared.Next(100, 999)}",
+            SessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, ct),
             TransactionType = primaryRegistration.TransactionType,
             VehiclePlate = primaryRegistration.VehiclePlate,
             MoocNumber = primaryRegistration.MoocNumber,

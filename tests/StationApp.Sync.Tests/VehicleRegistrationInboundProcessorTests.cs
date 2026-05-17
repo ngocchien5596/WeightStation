@@ -24,6 +24,8 @@ public class VehicleRegistrationInboundProcessorTests
     private readonly IVehicleRepository _vehicleRepo;
     private readonly ICustomerRepository _customerRepo;
     private readonly IProductRepository _productRepo;
+    private readonly ISyncOutboxRepository _outboxRepo;
+    private readonly ISyncPayloadFactory _payloadFactory;
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly IClock _clock;
@@ -40,6 +42,8 @@ public class VehicleRegistrationInboundProcessorTests
         _vehicleRepo = Substitute.For<IVehicleRepository>();
         _customerRepo = Substitute.For<ICustomerRepository>();
         _productRepo = Substitute.For<IProductRepository>();
+        _outboxRepo = Substitute.For<ISyncOutboxRepository>();
+        _payloadFactory = Substitute.For<ISyncPayloadFactory>();
         _uow = Substitute.For<IUnitOfWork>();
         _audit = Substitute.For<IAuditService>();
         _clock = Substitute.For<IClock>();
@@ -53,11 +57,16 @@ public class VehicleRegistrationInboundProcessorTests
         _serviceProvider.GetService(typeof(IVehicleRepository)).Returns(_vehicleRepo);
         _serviceProvider.GetService(typeof(ICustomerRepository)).Returns(_customerRepo);
         _serviceProvider.GetService(typeof(IProductRepository)).Returns(_productRepo);
+        _serviceProvider.GetService(typeof(ISyncOutboxRepository)).Returns(_outboxRepo);
+        _serviceProvider.GetService(typeof(ISyncPayloadFactory)).Returns(_payloadFactory);
         _serviceProvider.GetService(typeof(IAuditService)).Returns(_audit);
         _serviceProvider.GetService(typeof(IClock)).Returns(_clock);
         _serviceProvider.GetService(typeof(IAppConfigRepository)).Returns(_appConfig);
 
         _clock.NowLocal.Returns(new DateTime(2026, 4, 25, 0, 0, 0, DateTimeKind.Unspecified));
+        _payloadFactory.CreatePayload(Arg.Any<Vehicle>()).Returns("{}");
+        _payloadFactory.CreatePayload(Arg.Any<Customer>()).Returns("{}");
+        _payloadFactory.CreatePayload(Arg.Any<Product>()).Returns("{}");
     }
 
     [Fact]
@@ -94,6 +103,7 @@ public class VehicleRegistrationInboundProcessorTests
         Assert.Equal("30A-12345", registration.VehiclePlate);
 
         await _vehicleRepo.Received(1).AddAsync(Arg.Is<Vehicle>(v => v.VehiclePlate == "30A-12345"), Arg.Any<CancellationToken>());
+        await _outboxRepo.Received(3).EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -132,6 +142,7 @@ public class VehicleRegistrationInboundProcessorTests
         await _customerRepo.DidNotReceive().AddAsync(Arg.Any<Customer>(), Arg.Any<CancellationToken>());
         await _productRepo.DidNotReceive().AddAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>());
         Assert.True(registration.IsInboundProcessed);
+        await _outboxRepo.Received(3).EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -162,6 +173,7 @@ public class VehicleRegistrationInboundProcessorTests
         Assert.False(registration.IsInboundProcessed);
         Assert.Equal("VALIDATION_FAILED", registration.InboundErrorCode);
         await _audit.Received(1).LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(VehicleRegistration), registration.Id, Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await _outboxRepo.DidNotReceive().EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -193,6 +205,7 @@ public class VehicleRegistrationInboundProcessorTests
         Assert.True(registration.IsInboundProcessed);
         Assert.Equal(RegistrationStatus.CANCELLED, registration.RegistrationStatus);
         await _vehicleRepo.Received(1).AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+        await _outboxRepo.Received(3).EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -223,6 +236,7 @@ public class VehicleRegistrationInboundProcessorTests
 
         Assert.False(registration.IsInboundProcessed);
         await _audit.Received(1).LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(VehicleRegistration), registration.Id, Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await _outboxRepo.DidNotReceive().EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
     private class TestableVehicleRegistrationInboundProcessor : VehicleRegistrationInboundProcessor

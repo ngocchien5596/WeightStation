@@ -10,6 +10,13 @@
         Background="Transparent"
         AllowsTransparency="True"
         WindowStyle="None">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StationApp.UI;component/Resources/MonitoringTextResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
     <Border Background="White" CornerRadius="10" BorderBrush="#1B3263" BorderThickness="1" Margin="10">
         <Grid>
             <Grid.RowDefinitions>
@@ -54,19 +61,19 @@
                           RowStyle="{StaticResource SystemDataGridRowStyle}"
                           CellStyle="{StaticResource SystemDataGridCellStyle}">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="MÃ ĐKPT" Binding="{Binding ErpVehicleRegistrationId}" Width="140"/>
-                        <DataGridTextColumn Header="SỐ PTVC" Binding="{Binding VehiclePlate}" Width="140"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColRegistrationCode}" Binding="{Binding ErpVehicleRegistrationId}" Width="140"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="140"/>
                         <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="130"/>
-                        <DataGridTextColumn Header="TÀI XẾ" Binding="{Binding DriverName}" Width="180"/>
-                        <DataGridTextColumn Header="TẠO LÚC" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColDriver}" Binding="{Binding DriverName}" Width="180"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColCreatedAt}" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
 
             <Border Grid.Row="3" Background="#F3F6FA" CornerRadius="0,0,9,9" Padding="16,12">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Hủy" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,10,0" Command="{Binding CancelCommand}"/>
-                    <Button Content="Xác nhận" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConfirmCommand}"/>
+                    <Button Content="{StaticResource VehicleRep.Cancel}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,10,0" Command="{Binding CancelCommand}"/>
+                    <Button Content="{StaticResource VehicleRep.Confirm}" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConfirmCommand}"/>
                 </StackPanel>
             </Border>
         </Grid>

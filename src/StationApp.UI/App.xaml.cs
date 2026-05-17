@@ -148,6 +148,7 @@ public partial class App : System.Windows.Application
 
                     services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                     services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
+                    services.AddScoped<IWeighingSessionNumberGenerator, WeighingSessionNumberGenerator>();
                     services.AddScoped<IUserPasswordHasher, BcryptUserPasswordHasher>();
                     services.AddSingleton<IAppVersionProvider, AppVersionProvider>();
                     services.AddSingleton<IClock, SystemClock>();
@@ -239,7 +240,6 @@ public partial class App : System.Windows.Application
                     }).AddHttpMessageHandler<ApiKeyDelegatingHandler>();
 
                     services.AddHostedService<SyncOutboxWorker>();
-                    services.AddHostedService<InboundMasterDataWorker>();
                     services.AddHostedService<VehicleRegistrationInboundProcessor>();
 
                     services.AddTransient<LoginViewModel>();

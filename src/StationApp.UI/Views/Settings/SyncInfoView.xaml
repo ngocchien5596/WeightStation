@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="600"
-             d:DesignWidth="800"
+             d:DesignHeight="720"
+             d:DesignWidth="1200"
              Background="Transparent">
 
     <UserControl.Resources>
@@ -15,101 +15,237 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Resources/MonitoringTextResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <Style x:Key="MetricLabel" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="Foreground" Value="#555555"/>
-                <Setter Property="Margin" Value="0,0,0,4"/>
+
+            <Style x:Key="SyncMetricCardStyle" TargetType="Border" BasedOn="{StaticResource ModalMetricCardStyle}">
+                <Setter Property="Margin" Value="0,0,0,0"/>
             </Style>
-            <Style x:Key="MetricValue" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="24"/>
-                <Setter Property="FontWeight" Value="Bold"/>
-                <Setter Property="Foreground" Value="#123B6B"/>
-                <Setter Property="Margin" Value="0,0,0,16"/>
+
+            <Style x:Key="SyncMetricTimeValueStyle" TargetType="TextBlock" BasedOn="{StaticResource ModalMetricValueStyle}">
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+
+            <Style x:Key="SyncErrorBodyStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#A61E1E"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Background="#FFFFFF">
-        <StackPanel Margin="24">
-            <TextBlock Text="TRẠNG THÁI ĐỒNG BỘ DỮ LIỆU"
+    <Grid Background="#FFFFFF" Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="{StaticResource Sync.Title}"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="#123B6B"
-                       Margin="0,0,0,24"/>
+                       VerticalAlignment="Center"/>
 
-            <Grid MaxWidth="980" HorizontalAlignment="Left">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="230"/>
-                    <ColumnDefinition Width="230"/>
-                    <ColumnDefinition Width="230"/>
-                    <ColumnDefinition Width="230"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Command="{Binding ShowMetricsCommand}"
+                        Style="{StaticResource WorkflowButtonStyle}"
+                        Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE9D2;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Text="CHI TI&#x1EBE;T TH&#x1ED0;NG K&#xCA;" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
-                <StackPanel Grid.Column="0" Grid.Row="0">
-                    <TextBlock Text="ĐKPT chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding PendingRegistrationsCount}" Style="{StaticResource MetricValue}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Grid.Row="0">
-                    <TextBlock Text="Phiếu cân chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding PendingTicketsCount}" Style="{StaticResource MetricValue}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Grid.Row="0">
-                    <TextBlock Text="Phiếu thực giao chờ đồng bộ" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding PendingDeliveryTicketsCount}" Style="{StaticResource MetricValue}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="3" Grid.Row="0">
-                    <TextBlock Text="Bản ghi sync lỗi" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding FailedSyncCount}" Style="{StaticResource MetricValue}" Foreground="#BD2730"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="0" Grid.Row="1">
-                    <TextBlock Text="ĐKPT chưa xử lý inbound" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding UnprocessedInboundCount}" Style="{StaticResource MetricValue}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Grid.Row="1">
-                    <TextBlock Text="Sync thành công gần nhất" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding LastSyncSuccessAt}" Style="{StaticResource MetricValue}" FontSize="16"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Grid.Row="1">
-                    <TextBlock Text="Sync lỗi gần nhất" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding LastSyncFailureAt}" Style="{StaticResource MetricValue}" Foreground="#BD2730" FontSize="16"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="3" Grid.Row="1">
-                    <TextBlock Text="Lỗi đồng bộ gần nhất" Style="{StaticResource MetricLabel}"/>
-                    <TextBlock Text="{Binding LastSyncError}" Style="{StaticResource MetricValue}" Foreground="#BD2730" FontSize="14" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Grid>
-
-            <Separator Background="#E8EFF7" Margin="0,12,0,24"/>
-
-            <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding RefreshCommand}"
                         Style="{StaticResource UtilityButtonStyle}"
                         Margin="0,0,12,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
+                        <TextBlock Text="{StaticResource Sync.Refresh}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+
                 <Button Command="{Binding ForceSyncCommand}"
                         Style="{StaticResource WorkflowButtonStyle}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="ĐỒNG BỘ NGAY" VerticalAlignment="Center"/>
+                        <TextBlock Text="{StaticResource Sync.Force}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
-        </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="320"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ComboBox Grid.Column="0"
+                          ItemsSource="{Binding AggregateTypeOptions}"
+                          SelectedItem="{Binding SelectedAggregateType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Style="{StaticResource StandardComboBoxStyle}"
+                          Margin="0,0,12,0"/>
+
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding OutboxStatusOptions}"
+                          SelectedItem="{Binding SelectedOutboxStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Style="{StaticResource StandardComboBoxStyle}"
+                          Margin="0,0,12,0"/>
+
+                <TextBox Grid.Column="2"
+                         Text="{Binding SearchKeyword, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource SearchTextBoxStyle}"
+                         Margin="0,0,12,0"/>
+
+                <Button Grid.Column="3"
+                        Command="{Binding RefreshCommand}"
+                        Style="{StaticResource HeaderActionButton}">
+                    <TextBlock Text="{StaticResource Sync.Reload}"/>
+                </Button>
+            </Grid>
+
+            <Border Grid.Row="1" BorderBrush="#D7E3F0" BorderThickness="1" CornerRadius="6">
+                <DataGrid ItemsSource="{Binding SyncItems}"
+                          AutoGenerateColumns="False"
+                          Style="{StaticResource SystemDataGridStyle}"
+                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                          RowStyle="{StaticResource SystemDataGridRowStyle}"
+                          CellStyle="{StaticResource SystemDataGridCellStyle}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColAggregate}" Binding="{Binding AggregateType}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColBusinessNo}" Binding="{Binding BusinessNo}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColSessionNo}" Binding="{Binding SessionNo}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Sync entity" Binding="{Binding EntitySyncStatus}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Outbox" Binding="{Binding OutboxStatus}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Retry" Binding="{Binding RetryCount}" Width="60" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColCreatedAt}" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="145" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColUpdatedAt}" Binding="{Binding UpdatedAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="145" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColNextRetry}" Binding="{Binding NextRetryAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="145" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Sync.ColLastError}" Binding="{Binding LastError}" Width="*" ElementStyle="{StaticResource GridTextLeft}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.RowSpan="2"
+              Style="{StaticResource ModalOverlayStyle}"
+              Visibility="{Binding IsMetricsVisible, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource ModalShellStyle}"
+                    Width="860"
+                    MaxWidth="860"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource ModalHeaderStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="CHI TI&#x1EBE;T TH&#x1ED0;NG K&#xCA; &#x110;&#x1ED2;NG B&#x1ED8;"
+                                       Style="{StaticResource ModalTitleStyle}"
+                                       VerticalAlignment="Center"/>
+
+                            <Button Grid.Column="1"
+                                    Command="{Binding CloseMetricsCommand}"
+                                    Width="34"
+                                    Height="34"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="White">
+                                <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource SyncMetricCardStyle}" Margin="0,0,8,12">
+                                <StackPanel>
+                                    <TextBlock Text="S&#x1ED0; B&#x1EA2;N GHI SYNC B&#x1ECA; L&#x1ED6;I" Style="{StaticResource ModalMetricLabelStyle}"/>
+                                    <TextBlock Text="{Binding FailedSyncCount}" Style="{StaticResource ModalMetricValueStyle}" Foreground="#BD2730"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource SyncMetricCardStyle}" Margin="8,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="S&#x1ED0; B&#x1EA2;N GHI SYNC TH&#xC0;NH C&#xD4;NG" Style="{StaticResource ModalMetricLabelStyle}"/>
+                                    <TextBlock Text="{Binding SuccessSyncCount}" Style="{StaticResource ModalMetricValueStyle}" Foreground="#0C8A43"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource SyncMetricCardStyle}" Margin="0,0,8,12">
+                                <StackPanel>
+                                    <TextBlock Text="SYNC L&#x1ED6;I G&#x1EA6;N NH&#x1EA4;T" Style="{StaticResource ModalMetricLabelStyle}"/>
+                                    <TextBlock Text="{Binding LastSyncFailureAt}" Style="{StaticResource SyncMetricTimeValueStyle}" Foreground="#BD2730"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource SyncMetricCardStyle}" Margin="8,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="SYNC TH&#xC0;NH C&#xD4;NG G&#x1EA6;N NH&#x1EA4;T" Style="{StaticResource ModalMetricLabelStyle}"/>
+                                    <TextBlock Text="{Binding LastSyncSuccessAt}" Style="{StaticResource SyncMetricTimeValueStyle}" Foreground="#0C8A43"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource ModalSectionCardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="N&#x1ED8;I DUNG L&#x1ED6;I G&#x1EA6;N NH&#x1EA4;T" Style="{StaticResource ModalMetricLabelStyle}"/>
+                                    <TextBlock Text="{Binding LastSyncError}" Style="{StaticResource SyncErrorBodyStyle}" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="2" Style="{StaticResource ModalFooterStyle}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Command="{Binding CloseMetricsCommand}"
+                                    Style="{StaticResource UtilityButtonStyle}">
+                                <TextBlock Text="&#x110;&#xD3;NG"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

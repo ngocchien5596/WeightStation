@@ -1,11 +1,18 @@
+using System;
+using System.Linq;
 using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
 using StationApp.Device.Abstractions;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
+using StationApp.Infrastructure.Persistence;
 
 namespace StationApp.UI.ViewModels;
 
@@ -61,28 +68,43 @@ public partial class DashboardViewModel : ObservableObject
     private async Task LoadCountersAsync()
     {
         using var scope = _scopeFactory.CreateScope();
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
         var ticketRepo = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
         var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
         var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<StationDbContext>();
 
-        var created = await ticketRepo.GetByStatusAsync(TicketStatus.TICKET_CREATED, CancellationToken.None);
-        PendingTicketsCount = created.Count;
+        var activeSessions = await sessionRepo.SearchActiveSessionsAsync(null, CancellationToken.None);
+        PendingTicketsCount = activeSessions.Count(x => x.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1);
+        InProgressTicketsCount = activeSessions.Count(x =>
+            x.SessionStatus is WeighingSessionStatus.PENDING_WEIGHT2
+                or WeighingSessionStatus.ALLOCATION_PENDING
+                or WeighingSessionStatus.READY_TO_COMPLETE);
+        OverweightTicketsCount = activeSessions.Count(x => x.IsOverweight);
 
-        var loading = await ticketRepo.GetByStatusAsync(TicketStatus.LOADING_STARTED, CancellationToken.None);
-        InProgressTicketsCount = loading.Count;
+        var primaryTickets = await ticketRepo.GetPrimaryDisplayTicketsAsync(null, CancellationToken.None);
+        UnsyncedTicketsCount = primaryTickets.Count(t => t.SyncStatus != SyncStatus.SYNC_SUCCESS);
 
-        var all = await ticketRepo.SearchAsync(null, null, CancellationToken.None);
-        OverweightTicketsCount = all.Count(t => t.IsOverWeight);
-        UnsyncedTicketsCount = all.Count(t => t.SyncStatus != SyncStatus.SYNC_SUCCESS);
-        CompletedTodayCount = all.Count(t => t.Status == TicketStatus.TICKET_COMPLETED
-            && t.CreatedAt.Date == clock.TodayLocal);
+        var completedToday = await sessionRepo.SearchCompletedSessionsAsync(null, clock.TodayLocal, CancellationToken.None);
+        CompletedTodayCount = completedToday.Count;
 
         var vehicles = await vehicleRepo.SearchAsync(null, CancellationToken.None);
         TotalVehiclesCount = vehicles.Count;
 
+        var lastMasterSuccess = await dbContext.SyncOutbox.AsNoTracking()
+            .Where(x =>
+                (x.AggregateType == SyncAggregateTypes.Vehicle
+                || x.AggregateType == SyncAggregateTypes.Customer
+                || x.AggregateType == SyncAggregateTypes.Product)
+                && x.Status == OutboxStatus.SUCCESS)
+            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .FirstOrDefaultAsync(CancellationToken.None);
+
         StationCode = await appConfig.GetValueAsync("station_code", CancellationToken.None) ?? "N/A";
-        LastSyncTime = await appConfig.GetValueAsync("master_data_last_sync", CancellationToken.None) ?? "Chưa đồng bộ";
+        LastSyncTime = lastMasterSuccess == null
+            ? "Chưa đồng bộ"
+            : (lastMasterSuccess.UpdatedAt ?? lastMasterSuccess.CreatedAt).ToString("dd/MM/yyyy HH:mm:ss");
     }
 
     private void CheckDeviceStatus()

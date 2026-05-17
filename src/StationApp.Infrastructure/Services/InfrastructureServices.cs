@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -75,6 +76,47 @@ public class DeliveryNumberGenerator : IDeliveryNumberGenerator
         }
 
         return $"{deliveryPrefix}{nextSeq:D4}";
+    }
+}
+
+public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
+{
+    private readonly StationDbContext _db;
+    private readonly IAppConfigRepository _configRepo;
+    private readonly IClock _clock;
+
+    public WeighingSessionNumberGenerator(StationDbContext db, IAppConfigRepository configRepo, IClock clock)
+    {
+        _db = db;
+        _configRepo = configRepo;
+        _clock = clock;
+    }
+
+    public async Task<string> GenerateAsync(TransactionType transactionType, CancellationToken ct)
+    {
+        var configKey = transactionType == TransactionType.OUTBOUND ? "delivery_prefix" : "ticket_prefix";
+        var fallbackPrefix = transactionType == TransactionType.OUTBOUND ? "PGN" : "PC";
+        var prefix = await _configRepo.GetValueAsync(configKey, ct) ?? fallbackPrefix;
+        var now = _clock.NowLocal;
+        var yearMonth = now.ToString("yyMM");
+        var sessionPrefix = $"{prefix}{yearMonth}";
+
+        var lastSessionNo = await _db.WeighingSessions
+            .Where(s => s.SessionNo.StartsWith(sessionPrefix))
+            .OrderByDescending(s => s.SessionNo)
+            .Select(s => s.SessionNo)
+            .FirstOrDefaultAsync(ct);
+
+        var nextSeq = 1;
+        if (lastSessionNo != null && lastSessionNo.Length > sessionPrefix.Length)
+        {
+            if (int.TryParse(lastSessionNo[sessionPrefix.Length..], out var lastSeq))
+            {
+                nextSeq = lastSeq + 1;
+            }
+        }
+
+        return $"{sessionPrefix}{nextSeq:D4}";
     }
 }
 
@@ -210,4 +252,13 @@ public class SyncPayloadFactory : ISyncPayloadFactory
 
     public string CreatePayload(DeliveryTicket ticket)
         => JsonSerializer.Serialize(ticket, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(Vehicle vehicle)
+        => JsonSerializer.Serialize(vehicle, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(Customer customer)
+        => JsonSerializer.Serialize(customer, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(Product product)
+        => JsonSerializer.Serialize(product, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }

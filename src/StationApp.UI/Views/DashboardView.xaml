@@ -9,6 +9,7 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Resources/MonitoringTextResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -18,73 +19,64 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        
-        <!-- Header -->
+
         <DockPanel Margin="0,0,0,24">
             <TextBlock Text="DASHBOARD" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}"/>
-            <Button Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}" 
+            <Button Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}"
                     HorizontalAlignment="Right" DockPanel.Dock="Right">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBlock Text="Làm mới" VerticalAlignment="Center"/>
+                    <TextBlock Text="{StaticResource Dashboard.Refresh}" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,0">
-                <TextBlock Text="Trạm: " Foreground="Gray" VerticalAlignment="Center"/>
+                <TextBlock Text="{StaticResource Dashboard.Station}" Foreground="Gray" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding StationCode, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
             </StackPanel>
         </DockPanel>
-        
-        <!-- KPI Cards Row 1 -->
+
         <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
-            <!-- Phiếu chờ cân -->
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
-                    <TextBlock Text="PHIẾU CHỜ CÂN" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Dashboard.PendingTitle}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding PendingTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                    <TextBlock Text="Đang đợi xử lý" Foreground="Gray" FontSize="11"/>
+                    <TextBlock Text="{StaticResource Dashboard.PendingDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
-            
-            <!-- Đang xử lý -->
+
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
-                    <TextBlock Text="ĐANG XỬ LÝ" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Dashboard.ProcessingTitle}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding InProgressTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="#3498db"/>
-                    <TextBlock Text="Xe đang trên cân" Foreground="Gray" FontSize="11"/>
+                    <TextBlock Text="{StaticResource Dashboard.ProcessingDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
-            
-            <!-- Hoàn thành hôm nay -->
+
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
-                    <TextBlock Text="HOÀN THÀNH HÔM NAY" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Dashboard.CompletedTitle}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding CompletedTodayCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="#2ecc71"/>
-                    <TextBlock Text="Phiếu đã xong" Foreground="Gray" FontSize="11"/>
+                    <TextBlock Text="{StaticResource Dashboard.CompletedDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
-            
-            <!-- Quá tải -->
+
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
-                    <TextBlock Text="QUÁ TẢI" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Dashboard.OverweightTitle}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding OverweightTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="#e74c3c"/>
-                    <TextBlock Text="Phiếu vượt TTCP" Foreground="Gray" FontSize="11"/>
+                    <TextBlock Text="{StaticResource Dashboard.OverweightDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
-        
-        <!-- Status Row -->
+
         <UniformGrid Grid.Row="2" Columns="4" VerticalAlignment="Top">
-            <!-- Chưa đồng bộ -->
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
-                    <TextBlock Text="CHƯA ĐỒNG BỘ" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Dashboard.UnsyncedTitle}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding UnsyncedTicketsCount, Mode=OneWay}" FontSize="36" FontWeight="Bold" Foreground="#f1c40f"/>
                 </StackPanel>
             </Border>
-            
-            <!-- Master Data -->
+
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="MASTER DATA" Foreground="Gray" FontSize="12"/>
@@ -92,19 +84,17 @@
                     <TextBlock Text="{Binding LastSyncTime, Mode=OneWay, StringFormat='Sync: {0}'}" Foreground="Gray" FontSize="11" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
-            
-            <!-- Mạng -->
+
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="CENTRAL API" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding NetworkStatus, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{Binding NetworkStatusBrush}" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
-            
-            <!-- Thiết bị -->
+
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
-                    <TextBlock Text="THIẾT BỊ CÂN" Foreground="Gray" FontSize="12"/>
+                    <TextBlock Text="{StaticResource Dashboard.ScaleTitle}" Foreground="Gray" FontSize="12"/>
                     <TextBlock Text="{Binding DeviceStatus, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{Binding DeviceStatusBrush}" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
