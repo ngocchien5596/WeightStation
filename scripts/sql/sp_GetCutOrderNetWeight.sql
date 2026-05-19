@@ -10,7 +10,7 @@ BEGIN
 
     IF (@ErpCutOrderId IS NULL OR LTRIM(RTRIM(@ErpCutOrderId)) = '')
     BEGIN
-        THROW 50001, N'Phải truyền @ErpCutOrderId.', 1;
+        THROW 50001, N'Phai truyen @ErpCutOrderId.', 1;
     END;
 
     SELECT *
@@ -19,14 +19,19 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM #Result)
     BEGIN
-        THROW 50002, N'Không tìm thấy cắt lệnh tương ứng trong DB cân.', 1;
+        THROW 50002, N'Khong tim thay cat lenh tuong ung trong DB can.', 1;
     END;
 
-    IF EXISTS (SELECT 1 FROM #Result WHERE ISNULL(NetWeightKg, 0) <= 0)
+    IF EXISTS (SELECT 1 FROM #Result WHERE ISNULL(NetWeightTon, 0) <= 0)
     BEGIN
-        THROW 50003, N'Cắt lệnh chưa có netweight hợp lệ hoặc netweight <= 0.', 1;
+        THROW 50003, N'Cat lenh chua co netweight hop le hoac netweight <= 0.', 1;
     END;
 
-    SELECT NetWeightKg
+    SELECT
+        NetWeightTon,
+        Weight1Timestamp,
+        Weight2Timestamp,
+        PickupTimestamp
     FROM #Result;
 END;
+GO
