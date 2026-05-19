@@ -20,24 +20,9 @@ RETURN
             END
             AS decimal(18,3)
         ) AS NetWeightTon,
-        CASE
-            WHEN sessionAgg.Weight1Time IS NULL THEN NULL
-            ELSE
-                CAST(DATEDIFF(SECOND, CAST('1970-01-01T00:00:00' AS datetime2), DATEADD(HOUR, -7, CAST(sessionAgg.Weight1Time AS datetime2))) AS bigint) * 1000
-                + DATEPART(MILLISECOND, CAST(sessionAgg.Weight1Time AS datetime2))
-        END AS Weight1Timestamp,
-        CASE
-            WHEN sessionAgg.Weight2Time IS NULL THEN NULL
-            ELSE
-                CAST(DATEDIFF(SECOND, CAST('1970-01-01T00:00:00' AS datetime2), DATEADD(HOUR, -7, CAST(sessionAgg.Weight2Time AS datetime2))) AS bigint) * 1000
-                + DATEPART(MILLISECOND, CAST(sessionAgg.Weight2Time AS datetime2))
-        END AS Weight2Timestamp,
-        CASE
-            WHEN sessionAgg.Weight2Time IS NULL THEN NULL
-            ELSE
-                CAST(DATEDIFF(SECOND, CAST('1970-01-01T00:00:00' AS datetime2), DATEADD(HOUR, -7, CAST(sessionAgg.Weight2Time AS datetime2))) AS bigint) * 1000
-                + DATEPART(MILLISECOND, CAST(sessionAgg.Weight2Time AS datetime2))
-        END AS PickupTimestamp
+        CAST(sessionAgg.Weight1Time AS datetime2(7)) AS Weight1Time,
+        CAST(sessionAgg.Weight2Time AS datetime2(7)) AS Weight2Time,
+        CAST(sessionAgg.Weight2Time AS datetime2(7)) AS PickupTime
     FROM cut_orders co
     OUTER APPLY
     (

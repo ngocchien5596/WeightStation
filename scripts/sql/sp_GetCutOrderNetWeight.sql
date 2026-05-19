@@ -29,9 +29,9 @@ BEGIN
 
     SELECT
         NetWeightTon,
-        Weight1Timestamp,
-        Weight2Timestamp,
-        PickupTimestamp
+        Weight1Time,
+        Weight2Time,
+        PickupTime
     FROM #Result;
 END;
 GO
