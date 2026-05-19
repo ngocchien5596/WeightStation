@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -272,8 +272,23 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         using var perfScope = Helpers.PerformanceLogger.Track("Weighing.LoadSelectedSession");
         using var scope = _scopeFactory.CreateScope();
         var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+        var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
 
-        var lineItems = await sessionRepo.GetLineItemsBySessionIdAsync(value.SessionId, CancellationToken.None);
+        var rawLineItems = await sessionRepo.GetLineItemsBySessionIdAsync(value.SessionId, CancellationToken.None);
+        var lineItems = new List<WeighingSessionLineItem>();
+        foreach (var item in rawLineItems)
+        {
+            if (string.IsNullOrWhiteSpace(item.ProductType) && !string.IsNullOrWhiteSpace(item.ProductCode))
+            {
+                var product = await productRepo.GetByCodeAsync(item.ProductCode, CancellationToken.None);
+                if (product != null && !string.IsNullOrWhiteSpace(product.ProductType))
+                {
+                    lineItems.Add(item with { ProductType = product.ProductType });
+                    continue;
+                }
+            }
+            lineItems.Add(item);
+        }
 
         if (loadVersion != _selectedSessionLoadVersion)
         {
@@ -336,7 +351,21 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             WeighingSessionStatus.PENDING_WEIGHT2 => _pendingCapturedWeight2.HasValue,
             _ => false
         };
-    private bool CanOpenAllocation() => SelectedSession?.SessionStatus is WeighingSessionStatus.ALLOCATION_PENDING or WeighingSessionStatus.READY_TO_COMPLETE;
+    private bool CanOpenAllocation()
+    {
+        if (SelectedSession == null)
+        {
+            return false;
+        }
+
+        if (SelectedSession.SessionStatus == WeighingSessionStatus.ALLOCATION_PENDING)
+        {
+            return true;
+        }
+
+        return SelectedSession.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
+               && SessionLines.Count > 1;
+    }
     private bool CanShowOverweightHandling() =>
         SelectedSession != null
         && SelectedSession.IsOverweight
@@ -814,7 +843,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedSession.SessionId, "phiếu giao nhận");
+        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedSession.SessionId, "phiáº¿u giao nháº­n");
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveToOutYard))]
@@ -986,7 +1015,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
             var printService = scope.ServiceProvider.GetRequiredService<IPrintService>();
             var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+            var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
             var template = await templateProvider.GetTemplateAsync(kind, CancellationToken.None);
+            var profiles = await templateProvider.GetProfilesAsync(kind, CancellationToken.None);
             var preview = BuildPrintBatchPreview(scope, context, kind);
             if (preview.Pages.Count == 0)
             {
@@ -994,14 +1025,23 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            var printerKey = kind == PrintDocumentKind.WeighTicket
+                ? AppConfigKeys.DefaultWeighTicketPrinter
+                : AppConfigKeys.DefaultDeliveryTicketPrinter;
+            var preferredPrinter = await appConfig.GetValueAsync(printerKey, CancellationToken.None);
+            var printers = PrinterSelectionHelper.ApplyPreferredPrinter(
+                printerDiscovery.GetInstalledPrinters(),
+                preferredPrinter);
+
             var dialogVm = new PrintOptionsDialogViewModel(
                 kind == PrintDocumentKind.WeighTicket ? UiText.Weighing.PrintDialogWeighTicket : UiText.Weighing.PrintDialogDeliveryTicket,
                 template,
                 preview,
-                printerDiscovery.GetInstalledPrinters(),
+                profiles,
+                printers,
                 renderer,
                 templateProvider,
-                StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode));
+                false);
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -1031,10 +1071,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private async Task<SessionPrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid sessionId)
     {
         var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-        var regRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+        var regRepo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
         var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
         var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
         var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
+        var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
 
         var session = await sessionRepo.GetByIdAsync(sessionId, CancellationToken.None);
         if (session == null)
@@ -1044,6 +1085,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
         var lines = await sessionRepo.GetLinesBySessionIdAsync(sessionId, CancellationToken.None);
         var registrations = await regRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
+
+        foreach (var registration in registrations.Where(x => string.IsNullOrWhiteSpace(x.ProductType) && !string.IsNullOrWhiteSpace(x.ProductCode)))
+        {
+            var product = await productRepo.GetByCodeAsync(registration.ProductCode!, CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(product?.ProductType))
+            {
+                registration.ProductType = product.ProductType;
+            }
+        }
+
         var registrationsById = registrations.ToDictionary(x => x.Id);
         var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
         var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
@@ -1068,14 +1119,37 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             }
 
             var ticketsToPrint = splitConfirmed
-                ? context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && !x.IsDeleted).OrderBy(x => x.SplitSequence).ToList()
+                ? context.WeighTickets
+                    .Where(x => (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.SplitDerived) && !x.IsDeleted)
+                    .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                    .ThenBy(x => x.SplitSequence)
+                    .ToList()
                 : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted).Take(1).ToList();
+
+            var weighPages = ticketsToPrint
+                .Select(ticket =>
+                {
+                    var page = composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+                    {
+                        page.PreviewGroupKey = "weigh-master";
+                        page.PreviewGroupName = "Phiếu tổng";
+                    }
+                    else if (ticket.RecordRole == WeighTicketRecordRoles.SplitDerived)
+                    {
+                        page.PreviewGroupKey = "weigh-split";
+                        page.PreviewGroupName = "Phiếu tách tải";
+                    }
+
+                    return (PrintPreviewPageModel)page;
+                })
+                .ToList();
 
             return new PrintBatchPreviewModel
             {
                 Kind = kind,
                 Title = splitConfirmed ? "In phiếu cân tách tải" : UiText.Weighing.PrintPreviewWeighMaster,
-                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName)).Cast<PrintPreviewPageModel>().ToList()
+                Pages = weighPages
             };
         }
 
@@ -1095,7 +1169,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             }
 
             var line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
-            if (line == null || !context.RegistrationsById.TryGetValue(line.VehicleRegistrationId, out var registration))
+            if (line == null || !context.RegistrationsById.TryGetValue(line.CutOrderId, out var registration))
             {
                 continue;
             }
@@ -1104,7 +1178,19 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName));
+            var page = deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            if (ticket.RecordRole == DeliveryTicketRecordRoles.Normal)
+            {
+                page.PreviewGroupKey = "delivery-master";
+                page.PreviewGroupName = "Phiếu tổng";
+            }
+            else if (ticket.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
+            {
+                page.PreviewGroupKey = "delivery-split";
+                page.PreviewGroupName = "Phiếu tách tải";
+            }
+
+            pages.Add(page);
         }
 
         return new PrintBatchPreviewModel
@@ -1357,7 +1443,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private sealed record SessionPrintContext(
         WeighingSession MasterSession,
         IReadOnlyList<WeighingSessionLine> Lines,
-        IReadOnlyDictionary<Guid, VehicleRegistration> RegistrationsById,
+        IReadOnlyDictionary<Guid, CutOrder> RegistrationsById,
         IReadOnlyList<WeighTicket> WeighTickets,
         IReadOnlyList<DeliveryTicket> DeliveryTickets,
         Vehicle? Vehicle);
@@ -1370,17 +1456,21 @@ public partial class WeighingSessionLineRow : ObservableObject
     public WeighingSessionLineRow(WeighingSessionLineItem item)
     {
         SessionLineId = item.SessionLineId;
-        VehicleRegistrationId = item.VehicleRegistrationId;
+        CutOrderId = item.CutOrderId;
         SequenceNo = item.SequenceNo;
-        ErpVehicleRegistrationId = item.ErpVehicleRegistrationId;
+        ErpCutOrderId = item.ErpCutOrderId;
         CustomerName = item.CustomerName;
         DistributorName = item.DistributorName;
         ProductCode = item.ProductCode;
         ProductName = item.ProductName;
+        ProductType = item.ProductType;
         PlannedWeight = item.PlannedWeight;
-        PlannedBagCount = item.PlannedBagCount;
+
+        var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+        PlannedBagCount = isBagged ? item.PlannedBagCount : null;
         ActualAllocatedWeight = item.ActualAllocatedWeight;
-        ActualAllocatedBagCount = item.ActualAllocatedBagCount;
+        ActualAllocatedBagCount = isBagged ? item.ActualAllocatedBagCount : null;
+
         LineStatus = item.LineStatus;
         HasPrintedDeliveryTicket = item.HasPrintedDeliveryTicket;
     }
@@ -1389,13 +1479,14 @@ public partial class WeighingSessionLineRow : ObservableObject
     [ObservableProperty] private int? _actualAllocatedBagCount;
 
     public Guid SessionLineId { get; }
-    public Guid VehicleRegistrationId { get; }
+    public Guid CutOrderId { get; }
     public int SequenceNo { get; }
-    public string? ErpVehicleRegistrationId { get; }
+    public string? ErpCutOrderId { get; }
     public string? CustomerName { get; }
     public string? DistributorName { get; }
     public string? ProductCode { get; }
     public string? ProductName { get; }
+    public string? ProductType { get; }
     public decimal? PlannedWeight { get; }
     public int? PlannedBagCount { get; }
     public WeighingSessionLineStatus LineStatus { get; }
@@ -1403,6 +1494,13 @@ public partial class WeighingSessionLineRow : ObservableObject
 
     partial void OnActualAllocatedWeightChanged(decimal? value)
     {
+        var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+        if (!isBagged)
+        {
+            ActualAllocatedBagCount = null;
+            return;
+        }
+
         if (!value.HasValue || value <= 0)
         {
             ActualAllocatedBagCount = null;
@@ -1416,9 +1514,9 @@ public partial class WeighingSessionLineRow : ObservableObject
     {
         return new WeighingSessionLineRow(new WeighingSessionLineItem(
             SessionLineId,
-            VehicleRegistrationId,
+            CutOrderId,
             SequenceNo,
-            ErpVehicleRegistrationId,
+            ErpCutOrderId,
             CustomerName,
             DistributorName,
             ProductCode,
@@ -1428,6 +1526,9 @@ public partial class WeighingSessionLineRow : ObservableObject
             ActualAllocatedWeight,
             ActualAllocatedBagCount,
             LineStatus,
-            HasPrintedDeliveryTicket));
+            HasPrintedDeliveryTicket,
+            ProductType));
     }
 }
+
+

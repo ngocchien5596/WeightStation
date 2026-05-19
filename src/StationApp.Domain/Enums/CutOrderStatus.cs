@@ -1,6 +1,6 @@
-namespace StationApp.Domain.Enums;
+﻿namespace StationApp.Domain.Enums;
 
-public enum RegistrationStatus
+public enum CutOrderStatus
 {
     REGISTERED = 1,
     IN_SESSION = 2,
@@ -8,3 +8,4 @@ public enum RegistrationStatus
     COMPLETED = 4,
     CANCELLED = 5
 }
+

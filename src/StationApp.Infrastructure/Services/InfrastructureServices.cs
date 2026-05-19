@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using StationApp.Application.Interfaces;
@@ -94,12 +94,10 @@ public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
 
     public async Task<string> GenerateAsync(TransactionType transactionType, CancellationToken ct)
     {
-        var configKey = transactionType == TransactionType.OUTBOUND ? "delivery_prefix" : "ticket_prefix";
-        var fallbackPrefix = transactionType == TransactionType.OUTBOUND ? "PGN" : "PC";
-        var prefix = await _configRepo.GetValueAsync(configKey, ct) ?? fallbackPrefix;
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
-        var sessionPrefix = $"{prefix}{yearMonth}";
+        const string sessionPrefixBase = "LC";
+        var sessionPrefix = $"{sessionPrefixBase}{yearMonth}";
 
         var lastSessionNo = await _db.WeighingSessions
             .Where(s => s.SessionNo.StartsWith(sessionPrefix))
@@ -247,7 +245,7 @@ public class SyncPayloadFactory : ISyncPayloadFactory
     public string CreatePayload(WeighTicket ticket)
         => JsonSerializer.Serialize(ticket, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
-    public string CreatePayload(VehicleRegistration registration)
+    public string CreatePayload(CutOrder registration)
         => JsonSerializer.Serialize(registration, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
     public string CreatePayload(DeliveryTicket ticket)
@@ -262,3 +260,4 @@ public class SyncPayloadFactory : ISyncPayloadFactory
     public string CreatePayload(Product product)
         => JsonSerializer.Serialize(product, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }
+

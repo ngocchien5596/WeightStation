@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -73,7 +73,7 @@ public partial class SyncInfoViewModel : ObservableObject
 
         try
         {
-            PendingRegistrationsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.VehicleRegistration);
+            PendingRegistrationsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.CutOrder);
             PendingTicketsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.WeighTicket);
             PendingDeliveryTicketsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.DeliveryTicket);
             FailedSyncCount = await context.SyncOutbox
@@ -83,7 +83,7 @@ public partial class SyncInfoViewModel : ObservableObject
                 .Where(o => o.Status == OutboxStatus.SUCCESS)
                 .CountAsync(CancellationToken.None);
 
-            UnprocessedInboundCount = await context.VehicleRegistrations
+            UnprocessedInboundCount = await context.CutOrders
                 .Where(r => !r.IsInboundProcessed)
                 .CountAsync(CancellationToken.None);
 
@@ -203,7 +203,7 @@ public partial class SyncInfoViewModel : ObservableObject
         {
             var aggregateType = SelectedAggregateType switch
             {
-                "\u0110\u004b\u0050\u0054" => SyncAggregateTypes.VehicleRegistration,
+                "\u0110\u004b\u0050\u0054" => SyncAggregateTypes.CutOrder,
                 "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e" => SyncAggregateTypes.WeighTicket,
                 "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e" => SyncAggregateTypes.DeliveryTicket,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065" => SyncAggregateTypes.Vehicle,
@@ -229,14 +229,14 @@ public partial class SyncInfoViewModel : ObservableObject
             .Take(300)
             .ToListAsync(CancellationToken.None);
 
-        var registrationIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.VehicleRegistration).Select(x => x.AggregateId).Distinct().ToList();
+        var registrationIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.CutOrder).Select(x => x.AggregateId).Distinct().ToList();
         var weighTicketIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighTicket).Select(x => x.AggregateId).Distinct().ToList();
         var deliveryTicketIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.DeliveryTicket).Select(x => x.AggregateId).Distinct().ToList();
         var vehicleIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Vehicle).Select(x => x.AggregateId).Distinct().ToList();
         var customerIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Customer).Select(x => x.AggregateId).Distinct().ToList();
         var productIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Product).Select(x => x.AggregateId).Distinct().ToList();
 
-        var registrations = await context.VehicleRegistrations.AsNoTracking()
+        var registrations = await context.CutOrders.AsNoTracking()
             .Where(x => registrationIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var weighTickets = await context.WeighTickets.AsNoTracking()
@@ -273,9 +273,9 @@ public partial class SyncInfoViewModel : ObservableObject
             var vehiclePlate = string.Empty;
             var entitySyncStatus = "-";
 
-            if (item.AggregateType == SyncAggregateTypes.VehicleRegistration && registrations.TryGetValue(item.AggregateId, out var registration))
+            if (item.AggregateType == SyncAggregateTypes.CutOrder && registrations.TryGetValue(item.AggregateId, out var registration))
             {
-                businessNo = registration.ErpVehicleRegistrationId ?? registration.OrderCode ?? registration.Id.ToString("N")[..8];
+                businessNo = registration.ErpCutOrderId ?? registration.OrderCode ?? registration.Id.ToString("N")[..8];
                 vehiclePlate = registration.VehiclePlate;
                 entitySyncStatus = registration.SyncStatus.ToString();
                 if (registration.WeighingSessionId.HasValue && sessions.TryGetValue(registration.WeighingSessionId.Value, out var registrationSession))
@@ -352,7 +352,7 @@ public partial class SyncInfoViewModel : ObservableObject
     {
         return aggregateType switch
         {
-            SyncAggregateTypes.VehicleRegistration => "\u0110\u004b\u0050\u0054",
+            SyncAggregateTypes.CutOrder => "\u0110\u004b\u0050\u0054",
             SyncAggregateTypes.WeighTicket => "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e",
             SyncAggregateTypes.DeliveryTicket => "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e",
             SyncAggregateTypes.Vehicle => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065",
@@ -376,3 +376,4 @@ public sealed record SyncOutboxListItem(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     DateTime? NextRetryAt);
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -10,9 +10,9 @@ namespace StationApp.Application.UseCases;
 
 public class GetWeightViewTicketsUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
 
-    public GetWeightViewTicketsUseCase(IVehicleRegistrationRepository regRepo)
+    public GetWeightViewTicketsUseCase(ICutOrderRepository regRepo)
     {
         _regRepo = regRepo;
     }
@@ -36,8 +36,8 @@ public class GetRelatedTicketsUseCase
 
     public async Task<IReadOnlyList<RelatedDocumentListItem>> ExecuteAsync(Guid registrationId, CancellationToken ct)
     {
-        var weighTickets = await _ticketRepo.GetByVehicleRegistrationIdAsync(registrationId, ct);
-        var deliveryTickets = await _deliveryTicketRepo.GetByVehicleRegistrationIdAsync(registrationId, ct);
+        var weighTickets = await _ticketRepo.GetByCutOrderIdAsync(registrationId, ct);
+        var deliveryTickets = await _deliveryTicketRepo.GetByCutOrderIdAsync(registrationId, ct);
 
         var items = weighTickets
             .Select(ticket => new RelatedDocumentListItem(
@@ -68,3 +68,5 @@ public class GetRelatedTicketsUseCase
         return items.AsReadOnly();
     }
 }
+
+

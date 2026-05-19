@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,14 +13,14 @@ using Xunit;
 
 namespace StationApp.Sync.Tests;
 
-public class VehicleRegistrationInboundProcessorTests
+public class CutOrderInboundProcessorTests
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IServiceScope _scope;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<VehicleRegistrationInboundProcessor> _logger;
+    private readonly ILogger<CutOrderInboundProcessor> _logger;
 
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IVehicleRepository _vehicleRepo;
     private readonly ICustomerRepository _customerRepo;
     private readonly IProductRepository _productRepo;
@@ -31,14 +31,14 @@ public class VehicleRegistrationInboundProcessorTests
     private readonly IClock _clock;
     private readonly IAppConfigRepository _appConfig;
 
-    public VehicleRegistrationInboundProcessorTests()
+    public CutOrderInboundProcessorTests()
     {
         _scopeFactory = Substitute.For<IServiceScopeFactory>();
         _scope = Substitute.For<IServiceScope>();
         _serviceProvider = Substitute.For<IServiceProvider>();
-        _logger = Substitute.For<ILogger<VehicleRegistrationInboundProcessor>>();
+        _logger = Substitute.For<ILogger<CutOrderInboundProcessor>>();
 
-        _regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        _regRepo = Substitute.For<ICutOrderRepository>();
         _vehicleRepo = Substitute.For<IVehicleRepository>();
         _customerRepo = Substitute.For<ICustomerRepository>();
         _productRepo = Substitute.For<IProductRepository>();
@@ -53,7 +53,7 @@ public class VehicleRegistrationInboundProcessorTests
         _scope.ServiceProvider.Returns(_serviceProvider);
 
         _serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_uow);
-        _serviceProvider.GetService(typeof(IVehicleRegistrationRepository)).Returns(_regRepo);
+        _serviceProvider.GetService(typeof(ICutOrderRepository)).Returns(_regRepo);
         _serviceProvider.GetService(typeof(IVehicleRepository)).Returns(_vehicleRepo);
         _serviceProvider.GetService(typeof(ICustomerRepository)).Returns(_customerRepo);
         _serviceProvider.GetService(typeof(IProductRepository)).Returns(_productRepo);
@@ -72,10 +72,10 @@ public class VehicleRegistrationInboundProcessorTests
     [Fact]
     public async Task T1_Process_HappyPath_UpdatesStatusAndUpsertsMasters()
     {
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
-            RegistrationSource = RegistrationSource.ERP,
+            CutOrderSource = CutOrderSource.ERP,
             VehiclePlate = " 30A-12345 ",
             CustomerCode = "C001",
             CustomerName = "Customer 1",
@@ -85,7 +85,7 @@ public class VehicleRegistrationInboundProcessorTests
         };
 
         _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<VehicleRegistration> { registration });
+            .Returns(new List<CutOrder> { registration });
 
         _uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(async callInfo =>
@@ -94,12 +94,12 @@ public class VehicleRegistrationInboundProcessorTests
                 await action(callInfo.ArgAt<CancellationToken>(1));
             });
 
-        var processor = new TestableVehicleRegistrationInboundProcessor(_scopeFactory, _logger);
+        var processor = new TestableCutOrderInboundProcessor(_scopeFactory, _logger);
 
         await processor.RunCycleAsync(CancellationToken.None);
 
         Assert.True(registration.IsInboundProcessed);
-        Assert.Equal(RegistrationStatus.REGISTERED, registration.RegistrationStatus);
+        Assert.Equal(CutOrderStatus.REGISTERED, registration.CutOrderStatus);
         Assert.Equal("30A-12345", registration.VehiclePlate);
 
         await _vehicleRepo.Received(1).AddAsync(Arg.Is<Vehicle>(v => v.VehiclePlate == "30A-12345"), Arg.Any<CancellationToken>());
@@ -109,10 +109,10 @@ public class VehicleRegistrationInboundProcessorTests
     [Fact]
     public async Task T2_3_4_MasterExisted_DoesNotDuplicate()
     {
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
-            RegistrationSource = RegistrationSource.ERP,
+            CutOrderSource = CutOrderSource.ERP,
             VehiclePlate = "30A-12345",
             CustomerCode = "C001",
             ProductCode = "P001"
@@ -122,7 +122,7 @@ public class VehicleRegistrationInboundProcessorTests
         var existingCustomer = new Customer { Id = Guid.NewGuid(), CustomerCode = "C001" };
         var existingProduct = new Product { Id = Guid.NewGuid(), ProductCode = "P001" };
 
-        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<VehicleRegistration> { registration });
+        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<CutOrder> { registration });
         _vehicleRepo.GetByPlateAndMoocAsync("30A-12345", Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(existingVehicle);
         _customerRepo.GetByCodeAsync("C001", Arg.Any<CancellationToken>()).Returns(existingCustomer);
         _productRepo.GetByCodeAsync("P001", Arg.Any<CancellationToken>()).Returns(existingProduct);
@@ -134,7 +134,7 @@ public class VehicleRegistrationInboundProcessorTests
                 await action(callInfo.ArgAt<CancellationToken>(1));
             });
 
-        var processor = new TestableVehicleRegistrationInboundProcessor(_scopeFactory, _logger);
+        var processor = new TestableCutOrderInboundProcessor(_scopeFactory, _logger);
 
         await processor.RunCycleAsync(CancellationToken.None);
 
@@ -148,16 +148,16 @@ public class VehicleRegistrationInboundProcessorTests
     [Fact]
     public async Task T5_ValidationFailed_LogsAndDoesNotUpsert()
     {
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
-            RegistrationSource = RegistrationSource.ERP,
+            CutOrderSource = CutOrderSource.ERP,
             VehiclePlate = "   ", 
             CustomerCode = "C001",
             ProductCode = "P001"
         };
 
-        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<VehicleRegistration> { registration });
+        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<CutOrder> { registration });
 
         _uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(async callInfo =>
@@ -166,30 +166,30 @@ public class VehicleRegistrationInboundProcessorTests
                 await action(callInfo.ArgAt<CancellationToken>(1));
             });
 
-        var processor = new TestableVehicleRegistrationInboundProcessor(_scopeFactory, _logger);
+        var processor = new TestableCutOrderInboundProcessor(_scopeFactory, _logger);
 
         await processor.RunCycleAsync(CancellationToken.None);
 
         Assert.False(registration.IsInboundProcessed);
         Assert.Equal("VALIDATION_FAILED", registration.InboundErrorCode);
-        await _audit.Received(1).LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(VehicleRegistration), registration.Id, Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await _audit.Received(1).LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(CutOrder), registration.Id, Arg.Any<object>(), Arg.Any<CancellationToken>());
         await _outboxRepo.DidNotReceive().EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task T6_CancelledValidRecord_SetsCancelled()
     {
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
-            RegistrationSource = RegistrationSource.ERP,
+            CutOrderSource = CutOrderSource.ERP,
             VehiclePlate = "30A-12345",
             CustomerCode = "C001",
             ProductCode = "P001",
             IsCancelled = true
         };
 
-        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<VehicleRegistration> { registration });
+        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<CutOrder> { registration });
 
         _uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(async callInfo =>
@@ -198,12 +198,12 @@ public class VehicleRegistrationInboundProcessorTests
                 await action(callInfo.ArgAt<CancellationToken>(1));
             });
 
-        var processor = new TestableVehicleRegistrationInboundProcessor(_scopeFactory, _logger);
+        var processor = new TestableCutOrderInboundProcessor(_scopeFactory, _logger);
 
         await processor.RunCycleAsync(CancellationToken.None);
 
         Assert.True(registration.IsInboundProcessed);
-        Assert.Equal(RegistrationStatus.CANCELLED, registration.RegistrationStatus);
+        Assert.Equal(CutOrderStatus.CANCELLED, registration.CutOrderStatus);
         await _vehicleRepo.Received(1).AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
         await _outboxRepo.Received(3).EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
@@ -211,17 +211,17 @@ public class VehicleRegistrationInboundProcessorTests
     [Fact]
     public async Task T7_CancelledInvalidRecord_Rejects()
     {
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
-            RegistrationSource = RegistrationSource.ERP,
+            CutOrderSource = CutOrderSource.ERP,
             VehiclePlate = "", 
             CustomerCode = "C001",
             ProductCode = "P001",
             IsCancelled = true
         };
 
-        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<VehicleRegistration> { registration });
+        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>()).Returns(new List<CutOrder> { registration });
 
         _uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(async callInfo =>
@@ -230,27 +230,28 @@ public class VehicleRegistrationInboundProcessorTests
                 await action(callInfo.ArgAt<CancellationToken>(1));
             });
 
-        var processor = new TestableVehicleRegistrationInboundProcessor(_scopeFactory, _logger);
+        var processor = new TestableCutOrderInboundProcessor(_scopeFactory, _logger);
 
         await processor.RunCycleAsync(CancellationToken.None);
 
         Assert.False(registration.IsInboundProcessed);
-        await _audit.Received(1).LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(VehicleRegistration), registration.Id, Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await _audit.Received(1).LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(CutOrder), registration.Id, Arg.Any<object>(), Arg.Any<CancellationToken>());
         await _outboxRepo.DidNotReceive().EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
     }
 
-    private class TestableVehicleRegistrationInboundProcessor : VehicleRegistrationInboundProcessor
+    private class TestableCutOrderInboundProcessor : CutOrderInboundProcessor
     {
-        public TestableVehicleRegistrationInboundProcessor(IServiceScopeFactory scopeFactory, ILogger<VehicleRegistrationInboundProcessor> logger)
+        public TestableCutOrderInboundProcessor(IServiceScopeFactory scopeFactory, ILogger<CutOrderInboundProcessor> logger)
             : base(scopeFactory, logger)
         {
         }
 
         public async Task RunCycleAsync(CancellationToken ct)
         {
-            var method = typeof(VehicleRegistrationInboundProcessor)
+            var method = typeof(CutOrderInboundProcessor)
                 .GetMethod("ProcessPendingInboundAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             await (Task)method!.Invoke(this, new object[] { ct })!;
         }
     }
 }
+

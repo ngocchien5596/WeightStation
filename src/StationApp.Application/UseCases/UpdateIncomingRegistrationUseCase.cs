@@ -1,6 +1,7 @@
-using StationApp.Application.DTOs;
+﻿using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases.MasterData;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -8,7 +9,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class UpdateIncomingRegistrationUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
@@ -16,7 +17,7 @@ public sealed class UpdateIncomingRegistrationUseCase
     private readonly EnsureInboundMasterDataUseCase _ensureInboundMasterDataUseCase;
 
     public UpdateIncomingRegistrationUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock,
@@ -31,22 +32,22 @@ public sealed class UpdateIncomingRegistrationUseCase
         _ensureInboundMasterDataUseCase = ensureInboundMasterDataUseCase;
     }
 
-    public async Task<OperationResult<VehicleRegistration>> ExecuteAsync(UpdateIncomingRegistrationRequest request, CancellationToken ct)
+    public async Task<OperationResult<CutOrder>> ExecuteAsync(UpdateIncomingRegistrationRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.VehiclePlate))
         {
-            return OperationResult<VehicleRegistration>.Fail("Số PTVC không được để trống.");
+            return OperationResult<CutOrder>.Fail("Số PTVC không được để trống.");
         }
 
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct);
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct);
         if (reg == null)
         {
-            return OperationResult<VehicleRegistration>.Fail("Không tìm thấy phiếu xe vào.");
+            return OperationResult<CutOrder>.Fail("Không tìm thấy phiếu xe vào.");
         }
 
         if (reg.ProcessingStage != ProcessingStage.IN_YARD)
         {
-            return OperationResult<VehicleRegistration>.Fail("Chỉ được sửa phiếu đang ở Danh sách xe vào.");
+            return OperationResult<CutOrder>.Fail("Chỉ được sửa phiếu đang ở Danh sách xe vào.");
         }
 
         reg.TransactionType = request.TransactionType;
@@ -58,6 +59,7 @@ public sealed class UpdateIncomingRegistrationUseCase
         reg.CustomerName = request.CustomerName?.Trim();
         reg.ProductCode = request.ProductCode?.Trim();
         reg.ProductName = request.ProductName?.Trim();
+        reg.ProductType = ProductTypes.Normalize(request.ProductType) ?? ProductTypes.InferForTransaction(request.TransactionType);
         reg.PlannedWeight = request.PlannedWeight;
         reg.BagCount = request.BagCount;
         reg.Notes = request.Notes?.Trim();
@@ -77,6 +79,8 @@ public sealed class UpdateIncomingRegistrationUseCase
                 reg.CustomerName,
                 reg.ProductCode,
                 reg.ProductName,
+                reg.ProductType,
+                reg.TransactionType,
                 innerCt,
                 request.TtcpWeight,
                 request.VehicleRegistrationNo,
@@ -87,11 +91,13 @@ public sealed class UpdateIncomingRegistrationUseCase
 
         await _audit.LogAsync(
             "UPDATE_INCOMING_REGISTRATION",
-            nameof(VehicleRegistration),
+            nameof(CutOrder),
             reg.Id,
             new { reg.VehiclePlate, reg.TransactionType, reg.IsCancelled },
             ct);
 
-        return OperationResult<VehicleRegistration>.Ok(reg);
+        return OperationResult<CutOrder>.Ok(reg);
     }
 }
+
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -106,10 +106,12 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         {
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-            var list = await repo.SearchCompletedSessionsAsync(null, SelectedCompletedDate, CancellationToken.None);
-            var filtered = list.Where(x =>
-                MatchesSearch(x.SessionNo, SearchSessionNo)
-                && MatchesSearch(x.VehiclePlate, SearchVehiclePlate));
+            var sessions = await repo.SearchCompletedSessionsAsync(null, SelectedCompletedDate, CancellationToken.None);
+            var filtered = sessions
+                .Where(x => string.IsNullOrWhiteSpace(SearchSessionNo) || x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.IsNullOrWhiteSpace(SearchVehiclePlate) || x.VehiclePlate.Contains(SearchVehiclePlate, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
             Vehicles = new ObservableCollection<OutgoingSessionListItem>(filtered);
 
             if (keepSelection && SelectedVehicle != null)
@@ -117,7 +119,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 SelectedVehicle = Vehicles.FirstOrDefault(x => x.SessionId == SelectedVehicle.SessionId);
             }
 
-            if (list.Count == 0 && HasSearchFilters())
+            if (filtered.Count == 0 && HasSearchFilters())
             {
                 _toastService.ShowInfo(UiText.Common.NoMatchingData);
             }
@@ -244,22 +246,28 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             || !string.IsNullOrWhiteSpace(SearchVehiclePlate);
     }
 
-    private static bool MatchesSearch(string? source, string? keyword)
-    {
-        if (string.IsNullOrWhiteSpace(keyword))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrWhiteSpace(source)
-            && source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
-    }
-
     private async Task LoadSessionDetailsAsync(Guid sessionId)
     {
         using var scope = _scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-        var lines = await repo.GetLineItemsBySessionIdAsync(sessionId, CancellationToken.None);
+        var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+
+        var rawLines = await repo.GetLineItemsBySessionIdAsync(sessionId, CancellationToken.None);
+        var lines = new List<WeighingSessionLineItem>();
+        foreach (var item in rawLines)
+        {
+            if (string.IsNullOrWhiteSpace(item.ProductType) && !string.IsNullOrWhiteSpace(item.ProductCode))
+            {
+                var product = await productRepo.GetByCodeAsync(item.ProductCode, CancellationToken.None);
+                if (product != null && !string.IsNullOrWhiteSpace(product.ProductType))
+                {
+                    lines.Add(item with { ProductType = product.ProductType });
+                    continue;
+                }
+            }
+            lines.Add(item);
+        }
+
         DetailLines = new ObservableCollection<WeighingSessionLineRow>(lines.Select(x => new WeighingSessionLineRow(x)));
     }
 
@@ -279,7 +287,9 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
             var printService = scope.ServiceProvider.GetRequiredService<IPrintService>();
             var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+            var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
             var template = await templateProvider.GetTemplateAsync(kind, CancellationToken.None);
+            var profiles = await templateProvider.GetProfilesAsync(kind, CancellationToken.None);
             var preview = BuildPrintBatchPreview(scope, context, kind);
             if (preview.Pages.Count == 0)
             {
@@ -287,14 +297,23 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 return;
             }
 
+            var printerKey = kind == PrintDocumentKind.WeighTicket
+                ? AppConfigKeys.DefaultWeighTicketPrinter
+                : AppConfigKeys.DefaultDeliveryTicketPrinter;
+            var preferredPrinter = await appConfig.GetValueAsync(printerKey, CancellationToken.None);
+            var printers = PrinterSelectionHelper.ApplyPreferredPrinter(
+                printerDiscovery.GetInstalledPrinters(),
+                preferredPrinter);
+
             var dialogVm = new PrintOptionsDialogViewModel(
                 kind == PrintDocumentKind.WeighTicket ? UiText.Weighing.PrintDialogWeighTicket : UiText.Weighing.PrintDialogDeliveryTicket,
                 template,
                 preview,
-                printerDiscovery.GetInstalledPrinters(),
+                profiles,
+                printers,
                 renderer,
                 templateProvider,
-                StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode));
+                false);
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -323,9 +342,14 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
     private async Task ReloadAndReselectAsync(Guid sessionId)
     {
+        var currentSessionId = SelectedVehicle?.SessionId;
         await LoadVehiclesAsync();
-        SelectedVehicle = Vehicles.FirstOrDefault(x => x.SessionId == sessionId);
-        if (IsDetailsVisible && SelectedVehicle != null)
+        if (currentSessionId.HasValue)
+        {
+            SelectedVehicle = Vehicles.FirstOrDefault(x => x.SessionId == currentSessionId.Value);
+        }
+
+        if (IsDetailsVisible && SelectedVehicle?.SessionId == sessionId)
         {
             await LoadSessionDetailsAsync(sessionId);
         }
@@ -334,10 +358,11 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private async Task<SessionPrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid sessionId)
     {
         var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-        var regRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+        var regRepo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
         var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
         var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
         var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
+        var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
 
         var session = await sessionRepo.GetByIdAsync(sessionId, CancellationToken.None);
         if (session == null)
@@ -347,6 +372,16 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
         var lines = await sessionRepo.GetLinesBySessionIdAsync(sessionId, CancellationToken.None);
         var registrations = await regRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
+
+        foreach (var registration in registrations.Where(x => string.IsNullOrWhiteSpace(x.ProductType) && !string.IsNullOrWhiteSpace(x.ProductCode)))
+        {
+            var product = await productRepo.GetByCodeAsync(registration.ProductCode!, CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(product?.ProductType))
+            {
+                registration.ProductType = product.ProductType;
+            }
+        }
+
         var registrationsById = registrations.ToDictionary(x => x.Id);
         var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
         var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(sessionId, CancellationToken.None);
@@ -371,14 +406,36 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             }
 
             var ticketsToPrint = splitConfirmed
-                ? context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && !x.IsDeleted).OrderBy(x => x.SplitSequence)
+                ? context.WeighTickets
+                    .Where(x => (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.SplitDerived) && !x.IsDeleted)
+                    .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                    .ThenBy(x => x.SplitSequence)
                 : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted).Take(1);
+
+            var weighPages = ticketsToPrint
+                .Select(ticket =>
+                {
+                    var page = composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+                    {
+                        page.PreviewGroupKey = "weigh-master";
+                        page.PreviewGroupName = "Phiếu tổng";
+                    }
+                    else if (ticket.RecordRole == WeighTicketRecordRoles.SplitDerived)
+                    {
+                        page.PreviewGroupKey = "weigh-split";
+                        page.PreviewGroupName = "Phiếu tách tải";
+                    }
+
+                    return (PrintPreviewPageModel)page;
+                })
+                .ToList();
 
             return new PrintBatchPreviewModel
             {
                 Kind = kind,
                 Title = splitConfirmed ? "In phiếu cân tách tải" : UiText.Weighing.PrintPreviewWeighMaster,
-                Pages = ticketsToPrint.Select(ticket => composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName)).Cast<PrintPreviewPageModel>().ToList()
+                Pages = weighPages
             };
         }
 
@@ -396,7 +453,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             }
 
             var line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
-            if (line == null || !context.RegistrationsById.TryGetValue(line.VehicleRegistrationId, out var registration))
+            if (line == null || !context.RegistrationsById.TryGetValue(line.CutOrderId, out var registration))
             {
                 continue;
             }
@@ -405,7 +462,19 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            pages.Add(deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName));
+            var page = deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            if (ticket.RecordRole == DeliveryTicketRecordRoles.Normal)
+            {
+                page.PreviewGroupKey = "delivery-master";
+                page.PreviewGroupName = "Phiếu tổng";
+            }
+            else if (ticket.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
+            {
+                page.PreviewGroupKey = "delivery-split";
+                page.PreviewGroupName = "Phiếu tách tải";
+            }
+
+            pages.Add(page);
         }
 
         return new PrintBatchPreviewModel
@@ -492,8 +561,11 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private sealed record SessionPrintContext(
         WeighingSession MasterSession,
         IReadOnlyList<WeighingSessionLine> Lines,
-        IReadOnlyDictionary<Guid, VehicleRegistration> RegistrationsById,
+        IReadOnlyDictionary<Guid, CutOrder> RegistrationsById,
         IReadOnlyList<WeighTicket> WeighTickets,
         IReadOnlyList<DeliveryTicket> DeliveryTickets,
-        Vehicle? Vehicle);
+        Vehicle? Vehicle
+    );
 }
+
+

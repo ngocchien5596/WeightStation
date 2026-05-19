@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StationApp.Domain.Entities;
 
 namespace StationApp.Infrastructure.Persistence;
@@ -14,26 +14,26 @@ public sealed class WeighTicketPrimaryRepairService
 
     public async Task ExecuteAsync(CancellationToken ct)
     {
-        var registrations = await _dbContext.VehicleRegistrations
-            .Where(vr => vr.CurrentPrimaryWeighTicketId != null || vr.HasOverweightCase)
+        var cutOrders = await _dbContext.CutOrders
+            .Where(x => x.CurrentPrimaryWeighTicketId != null || x.HasOverweightCase)
             .ToListAsync(ct);
 
-        if (registrations.Count == 0)
+        if (cutOrders.Count == 0)
         {
             return;
         }
 
-        var registrationIds = registrations.Select(r => r.Id).ToList();
+        var cutOrderIds = cutOrders.Select(x => x.Id).ToList();
         var weighTickets = await _dbContext.WeighTickets
-            .Where(wt => registrationIds.Contains(wt.VehicleRegistrationId))
+            .Where(wt => cutOrderIds.Contains(wt.CutOrderId))
             .ToListAsync(ct);
 
         var hasChanges = false;
 
-        foreach (var registration in registrations)
+        foreach (var cutOrder in cutOrders)
         {
             var relatedTickets = weighTickets
-                .Where(wt => wt.VehicleRegistrationId == registration.Id && string.Equals(wt.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase))
+                .Where(wt => wt.CutOrderId == cutOrder.Id && string.Equals(wt.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (relatedTickets.Count == 0)
@@ -57,9 +57,9 @@ public sealed class WeighTicketPrimaryRepairService
                 }
             }
 
-            if (registration.CurrentPrimaryWeighTicketId != canonicalPrimary.Id)
+            if (cutOrder.CurrentPrimaryWeighTicketId != canonicalPrimary.Id)
             {
-                registration.CurrentPrimaryWeighTicketId = canonicalPrimary.Id;
+                cutOrder.CurrentPrimaryWeighTicketId = canonicalPrimary.Id;
                 hasChanges = true;
             }
         }
@@ -93,3 +93,5 @@ public sealed class WeighTicketPrimaryRepairService
             .FirstOrDefault();
     }
 }
+
+

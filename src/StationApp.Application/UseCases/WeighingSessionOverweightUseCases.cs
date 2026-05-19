@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -60,7 +60,7 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
                 return new OverweightSplitPreviewLineItem(
                     line.SessionLineId,
                     line.SequenceNo,
-                    source.ErpVehicleRegistrationId,
+                    source.ErpCutOrderId,
                     source.CustomerName,
                     source.ProductName,
                     group.SplitSequence,
@@ -87,7 +87,7 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
     {
         if (session.SessionStatus != WeighingSessionStatus.READY_TO_COMPLETE)
         {
-            throw new InvalidOperationException("Luot can chua o trang thai san sang xu ly qua tai.");
+            throw new InvalidOperationException("Lượt cân chưa ở trạng thái sẵn sàng xử lý quá tải.");
         }
 
         if (!session.IsOverweight || session.OverweightResolutionStatus != OverweightResolutionStatus.PENDING)
@@ -195,11 +195,11 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
                 splitDeliveryTickets.Add(new DeliveryTicket
                 {
                     Id = Guid.NewGuid(),
-                    VehicleRegistrationId = line.VehicleRegistrationId,
+                    CutOrderId = line.CutOrderId,
                     WeighingSessionId = session.Id,
                     WeighingSessionLineId = line.Id,
                     DeliveryNo = nextDeliveryNumbers.Dequeue(),
-                    ErpVehicleRegistrationId = sourceDeliveryTicket?.ErpVehicleRegistrationId ?? string.Empty,
+                    ErpCutOrderId = sourceDeliveryTicket?.ErpCutOrderId ?? string.Empty,
                     CustomerCode = sourceDeliveryTicket?.CustomerCode ?? line.CustomerCode,
                     ProductCode = sourceDeliveryTicket?.ProductCode ?? line.ProductCode,
                     Notes = sourceDeliveryTicket?.Notes,
@@ -329,10 +329,10 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         return new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = masterTicket.VehicleRegistrationId,
+            CutOrderId = masterTicket.CutOrderId,
             WeighingSessionId = session.Id,
             TicketNo = ticketNo,
-            ErpVehicleRegistrationId = masterTicket.ErpVehicleRegistrationId,
+            ErpCutOrderId = masterTicket.ErpCutOrderId,
             VehiclePlate = masterTicket.VehiclePlate,
             MoocNumber = masterTicket.MoocNumber,
             DriverName = masterTicket.DriverName,
@@ -443,3 +443,5 @@ public sealed class ResolveWeighingSessionOverweightNoSplitUseCase
             ct);
     }
 }
+
+

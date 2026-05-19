@@ -1,4 +1,4 @@
-using NSubstitute;
+﻿using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -14,22 +14,24 @@ public class NoLoadUseCaseTests
     [Fact]
     public async Task MarkRegistrationsNoLoad_CreatesCompletedSessionAndMovesRegistrationsOut()
     {
-        var regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var uow = Substitute.For<IUnitOfWork>();
         var currentUser = Substitute.For<ICurrentUserContext>();
         var clock = Substitute.For<IClock>();
+        var sessionNoGen = Substitute.For<IWeighingSessionNumberGenerator>();
         currentUser.Username.Returns("tester");
         clock.NowLocal.Returns(new DateTime(2026, 5, 14, 9, 0, 0));
+        sessionNoGen.GenerateAsync(Arg.Any<TransactionType>(), Arg.Any<CancellationToken>()).Returns("LC26050001");
 
         var registrations = new[]
         {
-            new VehicleRegistration
+            new CutOrder
             {
                 Id = Guid.NewGuid(),
                 VehiclePlate = "51C-12345",
                 TransactionType = TransactionType.OUTBOUND,
-                RegistrationStatus = RegistrationStatus.REGISTERED,
+                CutOrderStatus = CutOrderStatus.REGISTERED,
                 ProcessingStage = ProcessingStage.IN_YARD,
                 PlannedWeight = 1000m,
                 BagCount = 20,
@@ -46,7 +48,7 @@ public class NoLoadUseCaseTests
                 await action(call.ArgAt<CancellationToken>(1));
             });
 
-        var sut = new MarkRegistrationsNoLoadUseCase(regRepo, sessionRepo, uow, currentUser, clock);
+        var sut = new MarkRegistrationsNoLoadUseCase(regRepo, sessionRepo, uow, currentUser, clock, sessionNoGen);
 
         var sessionId = await sut.ExecuteAsync(
             new MarkRegistrationsNoLoadRequest(new[] { registrations[0].Id }, registrations[0].Id),
@@ -66,8 +68,8 @@ public class NoLoadUseCaseTests
                 x.ActualAllocatedWeight == 0m),
             Arg.Any<CancellationToken>());
         await regRepo.Received(1).UpdateAsync(
-            Arg.Is<VehicleRegistration>(x =>
-                x.RegistrationStatus == RegistrationStatus.COMPLETED &&
+            Arg.Is<CutOrder>(x =>
+                x.CutOrderStatus == CutOrderStatus.COMPLETED &&
                 x.ProcessingStage == ProcessingStage.OUT_YARD &&
                 x.SyncStatus == SyncStatus.SYNC_QUEUED &&
                 x.WeighingSessionId == sessionId),
@@ -78,7 +80,7 @@ public class NoLoadUseCaseTests
     public async Task MarkWeighingSessionNoLoad_CompletesSessionAndCancelsExistingDocuments()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
-        var regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var uow = Substitute.For<IUnitOfWork>();
@@ -98,14 +100,14 @@ public class NoLoadUseCaseTests
         {
             Id = Guid.NewGuid(),
             WeighingSessionId = session.Id,
-            VehicleRegistrationId = Guid.NewGuid(),
+            CutOrderId = Guid.NewGuid(),
             SequenceNo = 1,
             LineStatus = WeighingSessionLineStatus.PENDING
         };
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
-            Id = line.VehicleRegistrationId,
-            RegistrationStatus = RegistrationStatus.IN_SESSION,
+            Id = line.CutOrderId,
+            CutOrderStatus = CutOrderStatus.IN_SESSION,
             ProcessingStage = ProcessingStage.WEIGHING
         };
         var weighTicket = new WeighTicket
@@ -149,8 +151,10 @@ public class NoLoadUseCaseTests
         Assert.Equal(0m, session.NetWeight);
         await sessionRepo.Received(1).UpdateAsync(Arg.Is<WeighingSession>(x => x.SessionStatus == WeighingSessionStatus.COMPLETED), Arg.Any<CancellationToken>());
         await sessionRepo.Received(1).UpdateLineAsync(Arg.Is<WeighingSessionLine>(x => x.LineStatus == WeighingSessionLineStatus.ALLOCATED && x.ActualAllocatedWeight == 0m), Arg.Any<CancellationToken>());
-        await regRepo.Received(1).UpdateAsync(Arg.Is<VehicleRegistration>(x => x.RegistrationStatus == RegistrationStatus.COMPLETED && x.ProcessingStage == ProcessingStage.OUT_YARD && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
+        await regRepo.Received(1).UpdateAsync(Arg.Is<CutOrder>(x => x.CutOrderStatus == CutOrderStatus.COMPLETED && x.ProcessingStage == ProcessingStage.OUT_YARD && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
         await weighRepo.Received(1).UpdateAsync(Arg.Is<WeighTicket>(x => x.IsDeleted && x.IsCancelled && x.Status == TicketStatus.TICKET_CANCELLED && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
         await deliveryRepo.Received(1).UpdateAsync(Arg.Is<DeliveryTicket>(x => x.IsDeleted && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
     }
 }
+
+

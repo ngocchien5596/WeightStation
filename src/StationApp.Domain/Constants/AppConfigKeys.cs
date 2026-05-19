@@ -13,6 +13,8 @@ public static class AppConfigKeys
     public const string DeviceStableCycles = "device_stable_cycles";
     public const string WeightSubstringStart = "weight_substring_start";
     public const string WeightSubstringLength = "weight_substring_length";
+    public const string DefaultWeighTicketPrinter = "default_weigh_ticket_printer";
+    public const string DefaultDeliveryTicketPrinter = "default_delivery_ticket_printer";
 }
 
 public static class AppConfigDefaults
@@ -28,4 +30,6 @@ public static class AppConfigDefaults
     public const string DefaultDeviceStableCycles = "3";
     public const string DefaultWeightSubstringStart = "0";
     public const string DefaultWeightSubstringLength = "7";
+    public const string DefaultWeighTicketPrinter = "";
+    public const string DefaultDeliveryTicketPrinter = "";
 }

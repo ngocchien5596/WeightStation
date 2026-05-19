@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Text;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
@@ -133,7 +133,7 @@ public partial class App : System.Windows.Application
 
                     services.AddScoped<ITicketRepository, TicketRepository>();
                     services.AddScoped<IWeighTicketRepository, TicketRepository>();
-                    services.AddScoped<IVehicleRegistrationRepository, VehicleRegistrationRepository>();
+                    services.AddScoped<ICutOrderRepository, CutOrderRepository>();
                     services.AddScoped<IWeighingSessionRepository, WeighingSessionRepository>();
                     services.AddScoped<ISyncOutboxRepository, SyncOutboxRepository>();
                     services.AddScoped<IAuditLogRepository, AuditLogRepository>();
@@ -240,7 +240,7 @@ public partial class App : System.Windows.Application
                     }).AddHttpMessageHandler<ApiKeyDelegatingHandler>();
 
                     services.AddHostedService<SyncOutboxWorker>();
-                    services.AddHostedService<VehicleRegistrationInboundProcessor>();
+                    services.AddHostedService<CutOrderInboundProcessor>();
 
                     services.AddTransient<LoginViewModel>();
                     services.AddTransient<MainViewModel>();
@@ -412,3 +412,4 @@ internal class ApiKeyDelegatingHandler : DelegatingHandler
         return await base.SendAsync(request, cancellationToken);
     }
 }
+

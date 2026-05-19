@@ -1,4 +1,4 @@
-using NSubstitute;
+﻿using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -57,7 +57,7 @@ public class AuthorizationRbacUseCaseTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Vai tro khong hop le.", result.ErrorMessage);
+        Assert.Equal("Vai trÃ² khÃ´ng há»£p lá»‡.", result.ErrorMessage);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class AuthorizationRbacUseCaseTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Phai luon con it nhat 1 tai khoan ADMIN dang hoat dong.", result.ErrorMessage);
+        Assert.Equal("Pháº£i luÃ´n cÃ²n Ã­t nháº¥t 1 tÃ i khoáº£n ADMIN Ä‘ang hoáº¡t Ä‘á»™ng.", result.ErrorMessage);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class AuthorizationRbacUseCaseTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Phai luon con it nhat 1 tai khoan ADMIN dang hoat dong.", result.ErrorMessage);
+        Assert.Equal("Pháº£i luÃ´n cÃ²n Ã­t nháº¥t 1 tÃ i khoáº£n ADMIN Ä‘ang hoáº¡t Ä‘á»™ng.", result.ErrorMessage);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class AuthorizationRbacUseCaseTests
         var result = await sut.ExecuteAsync(new SetUserActiveStatusRequest(adminUser.Id, false), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Phai luon con it nhat 1 tai khoan ADMIN dang hoat dong.", result.ErrorMessage);
+        Assert.Equal("Pháº£i luÃ´n cÃ²n Ã­t nháº¥t 1 tÃ i khoáº£n ADMIN Ä‘ang hoáº¡t Ä‘á»™ng.", result.ErrorMessage);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class AuthorizationRbacUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             sut.ExecuteAsync(
-                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025", true),
+                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025"),
                 CancellationToken.None));
     }
 
@@ -212,7 +212,7 @@ public class AuthorizationRbacUseCaseTests
     public async Task CaptureSessionWeight1_Operator_CannotUseManualMode()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
-        var regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var vehicleRepo = Substitute.For<IVehicleRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var ticketNoGen = Substitute.For<ITicketNumberGenerator>();
@@ -243,7 +243,12 @@ public class AuthorizationRbacUseCaseTests
     public async Task CaptureSessionWeight2_Operator_CannotUseManualMode()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
         var ticketSyncService = new WeighingSessionTicketSyncService();
         var uow = Substitute.For<IUnitOfWork>();
         var currentUser = Substitute.For<ICurrentUserContext>();
@@ -252,7 +257,12 @@ public class AuthorizationRbacUseCaseTests
 
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
+            regRepo,
             weighRepo,
+            deliveryRepo,
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
             ticketSyncService,
             uow,
             currentUser,
@@ -264,3 +274,4 @@ public class AuthorizationRbacUseCaseTests
                 CancellationToken.None));
     }
 }
+

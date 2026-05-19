@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -9,14 +9,14 @@ namespace StationApp.Application.UseCases;
 
 public sealed class ConfirmEnterWeighingUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
     private readonly IAuditService _audit;
 
     public ConfirmEnterWeighingUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock,
@@ -31,8 +31,8 @@ public sealed class ConfirmEnterWeighingUseCase
 
     public async Task ExecuteAsync(ConfirmEnterWeighingRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
         if (reg.ProcessingStage != ProcessingStage.IN_YARD)
             throw new InvalidOperationException($"Xe không ở trạng thái IN_YARD, hiện tại: {reg.ProcessingStage}");
@@ -50,7 +50,10 @@ public sealed class ConfirmEnterWeighingUseCase
             await _regRepo.UpdateAsync(reg, innerCt);
         }, ct);
 
-        await _audit.LogAsync("CONFIRM_ENTER_WEIGHING", nameof(Domain.Entities.VehicleRegistration), reg.Id,
+        await _audit.LogAsync("CONFIRM_ENTER_WEIGHING", nameof(Domain.Entities.CutOrder), reg.Id,
             new { reg.VehiclePlate, reg.ProcessingStage }, ct);
     }
 }
+
+
+

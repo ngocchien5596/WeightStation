@@ -1,4 +1,4 @@
-using StationApp.Domain.Enums;
+﻿using StationApp.Domain.Enums;
 
 namespace StationApp.Application.DTOs;
 
@@ -6,27 +6,28 @@ public sealed record CreateTicketRequest(
     string VehiclePlate,
     TransactionType TransactionType,
     TransportMethod? TransportMethod = null,
-    string? ErpVehicleRegistrationId = null,
+    string? ErpCutOrderId = null,
     string? MoocNumber = null,
     string? DriverName = null,
     string? CustomerCode = null,
     string? CustomerName = null,
     string? ProductCode = null,
     string? ProductName = null,
+    string? ProductType = null,
     decimal? PlannedWeight = null,
     int? BagCount = null,
     string? Notes = null
 );
 
 public sealed record CaptureWeightRequest(
-    Guid RegistrationId,
+    Guid CutOrderId,
     decimal Weight,
     bool IsStable,
     WeightMode Mode
 );
 
 public sealed record SplitOverweightTicketRequest(
-    Guid RegistrationId,
+    Guid CutOrderId,
     decimal Weight2,
     bool IsStable,
     WeightMode Mode
@@ -34,11 +35,11 @@ public sealed record SplitOverweightTicketRequest(
 
 
 public sealed record CompleteTicketRequest(
-    Guid RegistrationId
+    Guid CutOrderId
 );
 
 public sealed record CancelTicketRequest(
-    Guid RegistrationId
+    Guid CutOrderId
 );
 
 public sealed record SearchUsersRequest(
@@ -95,8 +96,7 @@ public sealed record UpdateSystemSettingsRequest(
     string ToleranceKg,
     string SyncIntervalSeconds,
     string RegistrationInboundPollSeconds,
-    string OverweightSplitStepWeight,
-    bool PilotModeEnabled
+    string OverweightSplitStepWeight
 );
 
 public sealed record UpdateScaleDeviceSettingsRequest(
@@ -141,7 +141,7 @@ public sealed record TicketListItemDto(
 public sealed record TicketDetailDto(
     Guid Id,
     string TicketNo,
-    string? ErpVehicleRegistrationId,
+    string? ErpCutOrderId,
     string VehiclePlate,
     string? MoocNumber,
     string? DriverName,
@@ -173,13 +173,13 @@ public sealed record TicketDetailDto(
 );
 
 public sealed record WeightViewListItem(
-    Guid RegistrationId,
+    Guid CutOrderId,
     string? TicketNo,
-    string? ErpVehicleRegistrationId,
+    string? ErpCutOrderId,
     string VehiclePlate,
     string? CustomerName,
     string? ProductName,
-    RegistrationStatus RegistrationStatus,
+    CutOrderStatus CutOrderStatus,
     decimal? Weight1,
     decimal? Weight2,
     int? BagCount,
@@ -206,12 +206,12 @@ public sealed record RelatedDocumentListItem(
     DateTime CreatedAt
 );
 
-public sealed record CreateVehicleRegistrationRequest(
+public sealed record CreateCutOrderRequest(
     string VehiclePlate,
-    RegistrationSource RegistrationSource,
+    CutOrderSource CutOrderSource,
     TransactionType TransactionType,
     TransportMethod? TransportMethod = null,
-    string? ErpVehicleRegistrationId = null,
+    string? ErpCutOrderId = null,
     string? MoocNumber = null,
     string? ReceiverName = null,
     string? ReceiverIdNo = null,
@@ -219,6 +219,7 @@ public sealed record CreateVehicleRegistrationRequest(
     string? CustomerName = null,
     string? ProductCode = null,
     string? ProductName = null,
+    string? ProductType = null,
     string? CutOrderCode = null,
     string? OrderCode = null,
     string? LotNo = null,
@@ -248,7 +249,7 @@ public sealed class OperationResult<T>
 public sealed record OperationWarning(string Code, string Message);
 
 public sealed record IncomingVehicleListFilter(
-    string? ErpVehicleRegistrationId,
+    string? ErpCutOrderId,
     string? VehiclePlate,
     string? MoocNumber,
     string? ReceiverName,
@@ -258,16 +259,18 @@ public sealed record IncomingVehicleListFilter(
 );
 
 public sealed record OutgoingVehicleListFilter(
-    string? ErpVehicleRegistrationId,
+    string? SessionNo,
+    string? ErpCutOrderId,
     string? VehiclePlate,
     string? MoocNumber,
     string? ReceiverName,
-    string? CustomerName
+    string? CustomerName,
+    DateTime? CompletedDate
 );
 
 public sealed record IncomingVehicleListItem(
-    Guid RegistrationId,
-    string? ErpVehicleRegistrationId,
+    Guid CutOrderId,
+    string? ErpCutOrderId,
     TransactionType TransactionType,
     string VehiclePlate,
     string? MoocNumber,
@@ -277,20 +280,26 @@ public sealed record IncomingVehicleListItem(
     string? ProductName,
     decimal? PlannedWeight,
     int? BagCount,
-    RegistrationStatus RegistrationStatus,
+    CutOrderStatus CutOrderStatus,
     TransportMethod? TransportMethod,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? ProductType = null
 );
 
 public sealed record OutgoingVehicleListItem(
-    Guid RegistrationId,
-    string? ErpVehicleRegistrationId,
+    Guid CutOrderId,
+    Guid? WeighingSessionId,
+    string? SessionNo,
+    string? ErpCutOrderId,
     TransactionType TransactionType,
     string VehiclePlate,
     string? MoocNumber,
     string? ReceiverName,
     string? CustomerName,
     string? ProductName,
+    string? DriverName,
+    decimal? Weight1,
+    decimal? Weight2,
     decimal? NetWeight,
     DateTime? CompletedAt,
     TransportMethod? TransportMethod,
@@ -299,7 +308,7 @@ public sealed record OutgoingVehicleListItem(
 );
 
 public sealed record ConfirmEnterWeighingRequest(
-    Guid RegistrationId
+    Guid CutOrderId
 );
 
 public sealed record CreateInboundRegistrationRequest(
@@ -312,6 +321,7 @@ public sealed record CreateInboundRegistrationRequest(
     string? CustomerName = null,
     string? ProductCode = null,
     string? ProductName = null,
+    string? ProductType = null,
     decimal? PlannedWeight = null,
     int? BagCount = null,
     string? Notes = null,
@@ -323,7 +333,7 @@ public sealed record CreateInboundRegistrationRequest(
 );
 
 public sealed record UpdateIncomingRegistrationRequest(
-    Guid RegistrationId,
+    Guid CutOrderId,
     string VehiclePlate,
     TransactionType TransactionType,
     TransportMethod? TransportMethod = null,
@@ -333,6 +343,7 @@ public sealed record UpdateIncomingRegistrationRequest(
     string? CustomerName = null,
     string? ProductCode = null,
     string? ProductName = null,
+    string? ProductType = null,
     decimal? PlannedWeight = null,
     int? BagCount = null,
     string? Notes = null,
@@ -345,13 +356,13 @@ public sealed record UpdateIncomingRegistrationRequest(
 );
 
 public sealed record CreateWeighingSessionRequest(
-    IReadOnlyList<Guid> RegistrationIds,
-    Guid? PrimaryRegistrationId = null
+    IReadOnlyList<Guid> CutOrderIds,
+    Guid? PrimaryCutOrderId = null
 );
 
 public sealed record MarkRegistrationsNoLoadRequest(
-    IReadOnlyList<Guid> RegistrationIds,
-    Guid? PrimaryRegistrationId = null
+    IReadOnlyList<Guid> CutOrderIds,
+    Guid? PrimaryCutOrderId = null
 );
 
 public sealed record CreateWeighingSessionResult(
@@ -408,9 +419,9 @@ public sealed record WeighingSessionListItem(
 
 public sealed record WeighingSessionLineItem(
     Guid SessionLineId,
-    Guid VehicleRegistrationId,
+    Guid CutOrderId,
     int SequenceNo,
-    string? ErpVehicleRegistrationId,
+    string? ErpCutOrderId,
     string? CustomerName,
     string? DistributorName,
     string? ProductCode,
@@ -420,7 +431,8 @@ public sealed record WeighingSessionLineItem(
     decimal? ActualAllocatedWeight,
     int? ActualAllocatedBagCount,
     WeighingSessionLineStatus LineStatus,
-    bool HasPrintedDeliveryTicket
+    bool HasPrintedDeliveryTicket,
+    string? ProductType = null
 );
 
 public sealed record OverweightSplitPreviewGroupItem(
@@ -445,7 +457,7 @@ public sealed record ResolveWeighingSessionOverweightSplitRequest(
 public sealed record OverweightSplitPreviewLineItem(
     Guid SessionLineId,
     int SequenceNo,
-    string? ErpVehicleRegistrationId,
+    string? ErpCutOrderId,
     string? CustomerName,
     string? ProductName,
     byte SplitSequence,
@@ -474,6 +486,9 @@ public sealed record OutgoingSessionListItem(
     string VehiclePlate,
     string? MoocNumber,
     string? DriverName,
+    string RegistrationSummary,
+    decimal? Weight1,
+    decimal? Weight2,
     decimal? NetWeight,
     int LineCount,
     bool HasPrintedMasterWeighTicket,
@@ -509,7 +524,8 @@ public sealed record AutocompletePayload(
     string? CustomerCode = null,
     string? CustomerName = null,
     string? ProductCode = null,
-    string? ProductName = null
+    string? ProductName = null,
+    string? ProductType = null
 );
 
 public sealed record AutocompleteItem(
@@ -548,5 +564,9 @@ public sealed record CustomerAutocompleteSource(
 public sealed record ProductAutocompleteSource(
     string ProductCode,
     string ProductName,
+    string? ProductType,
     string Source
 );
+
+
+

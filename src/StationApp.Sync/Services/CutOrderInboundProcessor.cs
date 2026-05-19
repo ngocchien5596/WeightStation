@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,15 +13,15 @@ using StationApp.Domain.Enums;
 namespace StationApp.Sync.Services;
 
 /// <summary>
-/// Background processor handling post-insert logic for VehicleRegistrations directly inserted by ERP.
+/// Background processor handling post-insert logic for CutOrders directly inserted by ERP.
 /// </summary>
-public class VehicleRegistrationInboundProcessor : BackgroundService
+public class CutOrderInboundProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<VehicleRegistrationInboundProcessor> _logger;
+    private readonly ILogger<CutOrderInboundProcessor> _logger;
     private int _pollSeconds = 5;
 
-    public VehicleRegistrationInboundProcessor(IServiceScopeFactory scopeFactory, ILogger<VehicleRegistrationInboundProcessor> logger)
+    public CutOrderInboundProcessor(IServiceScopeFactory scopeFactory, ILogger<CutOrderInboundProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
@@ -29,7 +29,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("VehicleRegistrationInboundProcessor started.");
+        _logger.LogInformation("CutOrderInboundProcessor started.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -57,7 +57,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred in VehicleRegistrationInboundProcessor execution cycle.");
+                _logger.LogError(ex, "Error occurred in CutOrderInboundProcessor execution cycle.");
             }
             sw.Stop();
             LogPerf("Inbound processor cycle", sw.Elapsed.TotalMilliseconds);
@@ -71,7 +71,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
     {
         using var scope = _scopeFactory.CreateFactoryScope();
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var regRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+        var regRepo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
         var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
         var customerRepo = scope.ServiceProvider.GetRequiredService<ICustomerRepository>();
         var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
@@ -99,14 +99,14 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process inbound VehicleRegistration {Id}", reg.Id);
+                _logger.LogError(ex, "Failed to process inbound CutOrder {Id}", reg.Id);
             }
         }
     }
 
     private async Task ProcessSingleRegistrationAsync(
-        VehicleRegistration reg,
-        IVehicleRegistrationRepository regRepo,
+        CutOrder reg,
+        ICutOrderRepository regRepo,
         IVehicleRepository vehicleRepo,
         ICustomerRepository customerRepo,
         IProductRepository productRepo,
@@ -154,7 +154,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
                 await regRepo.UpdateAsync(reg, innerCt);
             }, ct);
 
-            await audit.LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(VehicleRegistration), reg.Id, 
+            await audit.LogAsync("ERP_INBOUND_VALIDATION_FAILED", nameof(CutOrder), reg.Id, 
                 new { reg.VehiclePlate, reg.CustomerCode, reg.ProductCode }, ct);
 
             return;
@@ -226,6 +226,7 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
                     Id = Guid.NewGuid(),
                     ProductCode = reg.ProductCode,
                     ProductName = reg.ProductName ?? string.Empty,
+                    ProductType = ResolveProductType(reg.ProductType, reg.TransactionType),
                     CreatedAt = now,
                     CreatedBy = "SYSTEM_INBOUND_PROCESSOR"
                 };
@@ -235,6 +236,8 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
             else
             {
                 if (!string.IsNullOrWhiteSpace(reg.ProductName)) existingProduct.ProductName = reg.ProductName;
+                var resolvedProductType = ResolveProductType(reg.ProductType, reg.TransactionType);
+                if (!string.IsNullOrWhiteSpace(resolvedProductType)) existingProduct.ProductType = resolvedProductType;
                 existingProduct.UpdatedAt = now;
                 existingProduct.UpdatedBy = "SYSTEM_INBOUND_PROCESSOR";
                 productChanged = true;
@@ -266,11 +269,11 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
 
             if (reg.IsCancelled)
             {
-                reg.RegistrationStatus = RegistrationStatus.CANCELLED; 
+                reg.CutOrderStatus = CutOrderStatus.CANCELLED; 
             }
             else
             {
-                reg.RegistrationStatus = RegistrationStatus.REGISTERED;
+                reg.CutOrderStatus = CutOrderStatus.REGISTERED;
             }
 
             await regRepo.UpdateAsync(reg, innerCt);
@@ -321,6 +324,9 @@ public class VehicleRegistrationInboundProcessor : BackgroundService
         }
         catch { }
     }
+
+    private static string? ResolveProductType(string? productType, TransactionType transactionType)
+        => ProductTypes.Normalize(productType) ?? ProductTypes.InferForTransaction(transactionType);
 }
 
 
@@ -331,3 +337,4 @@ public static class ServiceScopeFactoryExtensions
         return factory.CreateScope();
     }
 }
+

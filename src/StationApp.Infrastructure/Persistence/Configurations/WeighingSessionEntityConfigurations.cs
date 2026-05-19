@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StationApp.Domain.Entities;
 
@@ -64,10 +64,11 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_weighing_session_lines_session_id");
-        builder.HasIndex(e => e.VehicleRegistrationId).HasDatabaseName("IX_weighing_session_lines_registration_id");
+        builder.HasIndex(e => e.CutOrderId).HasDatabaseName("IX_weighing_session_lines_registration_id");
 
-        builder.HasIndex(e => new { e.WeighingSessionId, e.VehicleRegistrationId })
+        builder.HasIndex(e => new { e.WeighingSessionId, e.CutOrderId })
             .IsUnique()
             .HasDatabaseName("UX_weighing_session_lines_session_registration");
     }
 }
+

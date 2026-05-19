@@ -1,4 +1,4 @@
-using StationApp.Domain.Enums;
+﻿using StationApp.Domain.Enums;
 
 namespace StationApp.Domain.Entities;
 
@@ -6,7 +6,7 @@ public class WeighingSessionLine
 {
     public Guid Id { get; set; }
     public Guid WeighingSessionId { get; set; }
-    public Guid VehicleRegistrationId { get; set; }
+    public Guid CutOrderId { get; set; }
     public int SequenceNo { get; set; }
 
     public string? CustomerCode { get; set; }
@@ -30,3 +30,4 @@ public class WeighingSessionLine
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
 }
+

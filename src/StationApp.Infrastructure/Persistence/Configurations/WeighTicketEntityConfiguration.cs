@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -11,11 +11,11 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
     {
         builder.ToTable("weigh_tickets");
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.VehicleRegistrationId).IsRequired();
+        builder.Property(e => e.CutOrderId).IsRequired();
         builder.Property(e => e.WeighingSessionId);
 
         builder.Property(e => e.TicketNo).HasMaxLength(20).IsRequired();
-        builder.Property(e => e.ErpVehicleRegistrationId).HasMaxLength(50);
+        builder.Property(e => e.ErpCutOrderId).HasMaxLength(50);
         builder.Property(e => e.VehiclePlate).HasMaxLength(30).IsRequired();
         builder.Property(e => e.MoocNumber).HasMaxLength(30);
         builder.Property(e => e.DriverName).HasMaxLength(100);
@@ -68,7 +68,7 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         // Indexes per Phase 0 spec section 9.1
         builder.HasIndex(e => e.TicketNo).IsUnique().HasDatabaseName("UX_weigh_tickets_ticket_no");
         builder.HasIndex(e => e.IdempotencyKey).IsUnique().HasDatabaseName("UX_weigh_tickets_idempotency_key");
-        builder.HasIndex(e => e.ErpVehicleRegistrationId).HasDatabaseName("IX_weigh_tickets_erp_vehicle_registration_id");
+        builder.HasIndex(e => e.ErpCutOrderId).HasDatabaseName("IX_weigh_tickets_erp_vehicle_registration_id");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_weigh_tickets_vehicle_plate");
         builder.HasIndex(e => e.Status).HasDatabaseName("IX_weigh_tickets_status");
         builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_weigh_tickets_sync_status");
@@ -76,3 +76,5 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_weigh_tickets_weighing_session_id");
     }
 }
+
+

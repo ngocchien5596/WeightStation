@@ -109,3 +109,27 @@ public class UserEntityConfiguration : IEntityTypeConfiguration<User>
         });
     }
 }
+
+public class PrintTemplateProfileEntityConfiguration : IEntityTypeConfiguration<PrintTemplateProfile>
+{
+    public void Configure(EntityTypeBuilder<PrintTemplateProfile> builder)
+    {
+        builder.ToTable("print_template_profiles");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.TemplateKind).HasMaxLength(30).IsRequired();
+        builder.Property(e => e.ProfileKey).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.DisplayName).HasMaxLength(150).IsRequired();
+        builder.Property(e => e.IsDefault).IsRequired();
+        builder.Property(e => e.OffsetXmm).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.OffsetYmm).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.TemplateVersion).IsRequired();
+        builder.Property(e => e.LayoutJson).HasColumnType("nvarchar(max)").IsRequired();
+        builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.UpdatedAt).IsRequired();
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100).IsRequired();
+
+        builder.HasIndex(e => new { e.TemplateKind, e.ProfileKey }).IsUnique();
+        builder.HasIndex(e => new { e.TemplateKind, e.IsDefault });
+    }
+}

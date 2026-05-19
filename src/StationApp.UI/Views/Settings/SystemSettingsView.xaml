@@ -49,7 +49,6 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Column="0" Grid.Row="0" Text="M&#xE3; tr&#x1EA1;m (Station Code)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
@@ -73,9 +72,7 @@
                 <TextBlock Grid.Column="0" Grid.Row="6" Text="B&#x1B0;&#x1EDB;c t&#xE1;ch qu&#xE1; t&#x1EA3;i (t&#x1EF7; l&#x1EC7;)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding OverweightSplitStepWeight, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <CheckBox Grid.Column="1" Grid.Row="7" Content="B&#x1EAD;t ch&#x1EBF; &#x111;&#x1ED9; Pilot" IsChecked="{Binding PilotModeEnabled}" VerticalAlignment="Center" Margin="0,4,0,16" FontWeight="SemiBold"/>
-
-                <StackPanel Grid.Column="1" Grid.Row="8" Orientation="Horizontal" Margin="0,12,0,0">
+                <StackPanel Grid.Column="1" Grid.Row="7" Orientation="Horizontal" Margin="0,12,0,0">
                     <Button Command="{Binding LoadCommand}"
                             Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
                         <StackPanel Orientation="Horizontal">

@@ -73,6 +73,34 @@
                                        TextWrapping="Wrap"/>
                         </Border>
 
+                        <StackPanel Visibility="{Binding CanManageLayout, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="M&#x1EAB;u in" FontWeight="SemiBold"/>
+                            <ComboBox ItemsSource="{Binding Profiles}"
+                                      SelectedItem="{Binding SelectedProfile}"
+                                      DisplayMemberPath="DisplayName"
+                                      Margin="0,6,0,10"/>
+
+                            <TextBlock Text="T&#x1EA1;o version m&#x1EDB;i" FontWeight="SemiBold"/>
+                            <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,10"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                <Button Content="T&#x1EA1;o version"
+                                        Width="120"
+                                        Height="34"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding CreateProfileCommand}"/>
+                                <Button Content="&#x110;&#x1EB7;t m&#x1EB7;c &#x0111;&#x1ECB;nh"
+                                        Width="120"
+                                        Height="34"
+                                        Command="{Binding SetDefaultProfileCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Text="Phi&#x1EBF;u &#x0111;ang preview" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding PreviewItems}"
+                                  SelectedItem="{Binding SelectedPreviewItem}"
+                                  DisplayMemberPath="DisplayName"
+                                  Margin="0,6,0,14"/>
+
                         <TextBlock Text="M&#x00E1;y in" FontWeight="SemiBold"/>
                         <ComboBox ItemsSource="{Binding Printers}"
                                   SelectedItem="{Binding SelectedPrinter}"
@@ -111,7 +139,7 @@
                                     <DataGridTextColumn Header="Text" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2.3*"/>
                                     <DataGridTextColumn Header="X" Binding="{Binding XText, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
                                     <DataGridTextColumn Header="Y" Binding="{Binding YText, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width}" IsReadOnly="True" Width="*"/>
+                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
 
@@ -132,6 +160,9 @@
                                             <TextBox Text="{Binding SelectedField.YText, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
                                         </StackPanel>
                                     </UniformGrid>
+
+                                    <TextBlock Text="R&#x1ED9;ng (mm)" FontWeight="SemiBold"/>
+                                    <TextBox Text="{Binding SelectedField.Width, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,10"/>
 
                                     <UniformGrid Columns="2" Margin="0,0,0,10">
                                         <Button Content="Tr&#x00E1;i"

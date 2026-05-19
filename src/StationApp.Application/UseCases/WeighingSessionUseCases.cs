@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
@@ -11,7 +11,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class CreateWeighingSessionUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighingSessionRepository _sessionRepo;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
@@ -19,7 +19,7 @@ public sealed class CreateWeighingSessionUseCase
     private readonly IWeighingSessionNumberGenerator _sessionNoGen;
 
     public CreateWeighingSessionUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighingSessionRepository sessionRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
@@ -36,20 +36,20 @@ public sealed class CreateWeighingSessionUseCase
 
     public async Task<CreateWeighingSessionResult> ExecuteAsync(CreateWeighingSessionRequest request, CancellationToken ct)
     {
-        if (request.RegistrationIds.Count == 0)
+        if (request.CutOrderIds.Count == 0)
         {
-            throw new InvalidOperationException("Vui lòng chọn ít nhất một đăng ký để tạo lượt cân.");
+            throw new InvalidOperationException("Vui lòng chọn ít nhất một cắt lệnh để tạo lượt cân.");
         }
 
-        var registrations = await _regRepo.GetByIdsAsync(request.RegistrationIds, ct);
-        if (registrations.Count != request.RegistrationIds.Count)
+        var registrations = await _regRepo.GetByIdsAsync(request.CutOrderIds, ct);
+        if (registrations.Count != request.CutOrderIds.Count)
         {
-            throw new InvalidOperationException("Có đăng ký không còn tồn tại hoặc đã bị thay đổi.");
+            throw new InvalidOperationException("Có cắt lệnh không còn tồn tại hoặc đã bị thay đổi.");
         }
 
         var first = registrations[0];
-        var primaryRegistration = request.PrimaryRegistrationId.HasValue
-            ? registrations.FirstOrDefault(x => x.Id == request.PrimaryRegistrationId.Value)
+        var primaryRegistration = request.PrimaryCutOrderId.HasValue
+            ? registrations.FirstOrDefault(x => x.Id == request.PrimaryCutOrderId.Value)
             : null;
         primaryRegistration ??= first;
         if (primaryRegistration.TransactionType == TransactionType.INBOUND && registrations.Count > 1)
@@ -61,17 +61,17 @@ public sealed class CreateWeighingSessionUseCase
         {
             if (registration.IsCancelled)
             {
-                throw new InvalidOperationException($"Đăng ký {registration.ErpVehicleRegistrationId ?? registration.VehiclePlate} đã bị hủy.");
+                throw new InvalidOperationException($"Cắt lệnh {registration.ErpCutOrderId ?? registration.VehiclePlate} đã bị hủy.");
             }
 
-            if (registration.ProcessingStage != ProcessingStage.IN_YARD || registration.RegistrationStatus != RegistrationStatus.REGISTERED)
+            if (registration.ProcessingStage != ProcessingStage.IN_YARD || registration.CutOrderStatus != CutOrderStatus.REGISTERED)
             {
-                throw new InvalidOperationException($"Đăng ký {registration.ErpVehicleRegistrationId ?? registration.VehiclePlate} không còn ở hàng xe vào.");
+                throw new InvalidOperationException($"Cắt lệnh {registration.ErpCutOrderId ?? registration.VehiclePlate} không còn ở hàng xe vào.");
             }
 
             if (registration.TransactionType != primaryRegistration.TransactionType)
             {
-                throw new InvalidOperationException("Không thể gộp đăng ký nhập và xuất trong cùng một lượt cân.");
+                throw new InvalidOperationException("Không thể gộp cắt lệnh nhập và xuất trong cùng một lượt cân.");
             }
         }
 
@@ -95,14 +95,14 @@ public sealed class CreateWeighingSessionUseCase
 
         var orderedRegistrations = registrations
             .OrderBy(x => x.CreatedAt)
-            .ThenBy(x => x.ErpVehicleRegistrationId)
+            .ThenBy(x => x.ErpCutOrderId)
             .ToList();
 
         var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
         {
             Id = Guid.NewGuid(),
             WeighingSessionId = session.Id,
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             SequenceNo = index + 1,
             CustomerCode = registration.CustomerCode,
             CustomerName = registration.CustomerName,
@@ -119,7 +119,7 @@ public sealed class CreateWeighingSessionUseCase
 
         foreach (var registration in orderedRegistrations)
         {
-            registration.RegistrationStatus = RegistrationStatus.IN_SESSION;
+            registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
             registration.ProcessingStage = ProcessingStage.WEIGHING;
             registration.WeighingSessionId = session.Id;
             registration.UpdatedAt = now;
@@ -146,7 +146,7 @@ public sealed class CreateWeighingSessionUseCase
 
 public sealed class MarkRegistrationsNoLoadUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighingSessionRepository _sessionRepo;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
@@ -154,7 +154,7 @@ public sealed class MarkRegistrationsNoLoadUseCase
     private readonly IWeighingSessionNumberGenerator _sessionNoGen;
 
     public MarkRegistrationsNoLoadUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighingSessionRepository sessionRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
@@ -171,20 +171,20 @@ public sealed class MarkRegistrationsNoLoadUseCase
 
     public async Task<Guid> ExecuteAsync(MarkRegistrationsNoLoadRequest request, CancellationToken ct)
     {
-        if (request.RegistrationIds.Count == 0)
+        if (request.CutOrderIds.Count == 0)
         {
-            throw new InvalidOperationException("Vui long chon it nhat mot dang ky de chuyen xe ra.");
+            throw new InvalidOperationException("Vui lòng chọn ít nhất một cắt lệnh để chuyển xe ra.");
         }
 
-        var registrations = await _regRepo.GetByIdsAsync(request.RegistrationIds, ct);
-        if (registrations.Count != request.RegistrationIds.Count)
+        var registrations = await _regRepo.GetByIdsAsync(request.CutOrderIds, ct);
+        if (registrations.Count != request.CutOrderIds.Count)
         {
-            throw new InvalidOperationException("Có đăng ký không còn tồn tại hoặc đã bị thay đổi.");
+            throw new InvalidOperationException("Có cắt lệnh không còn tồn tại hoặc đã bị thay đổi.");
         }
 
         var first = registrations[0];
-        var primaryRegistration = request.PrimaryRegistrationId.HasValue
-            ? registrations.FirstOrDefault(x => x.Id == request.PrimaryRegistrationId.Value)
+        var primaryRegistration = request.PrimaryCutOrderId.HasValue
+            ? registrations.FirstOrDefault(x => x.Id == request.PrimaryCutOrderId.Value)
             : null;
         primaryRegistration ??= first;
 
@@ -192,17 +192,17 @@ public sealed class MarkRegistrationsNoLoadUseCase
         {
             if (registration.IsCancelled)
             {
-                throw new InvalidOperationException($"Dang ky {registration.ErpVehicleRegistrationId ?? registration.VehiclePlate} da bi huy.");
+                throw new InvalidOperationException($"Cắt lệnh {registration.ErpCutOrderId ?? registration.VehiclePlate} đã bị hủy.");
             }
 
-            if (registration.ProcessingStage != ProcessingStage.IN_YARD || registration.RegistrationStatus != RegistrationStatus.REGISTERED)
+            if (registration.ProcessingStage != ProcessingStage.IN_YARD || registration.CutOrderStatus != CutOrderStatus.REGISTERED)
             {
-                throw new InvalidOperationException($"Đăng ký {registration.ErpVehicleRegistrationId ?? registration.VehiclePlate} không còn ở hàng xe vào.");
+                throw new InvalidOperationException($"Cắt lệnh {registration.ErpCutOrderId ?? registration.VehiclePlate} không còn ở hàng xe vào.");
             }
 
             if (registration.TransactionType != primaryRegistration.TransactionType)
             {
-                throw new InvalidOperationException("Không thể xử lý nhiều đăng ký khác loại trong cùng một lượt xe ra.");
+                throw new InvalidOperationException("Không thể xử lý nhiều cắt lệnh khác loại trong cùng một lượt xe ra.");
             }
         }
 
@@ -234,14 +234,14 @@ public sealed class MarkRegistrationsNoLoadUseCase
 
         var orderedRegistrations = registrations
             .OrderBy(x => x.CreatedAt)
-            .ThenBy(x => x.ErpVehicleRegistrationId)
+            .ThenBy(x => x.ErpCutOrderId)
             .ToList();
 
         var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
         {
             Id = Guid.NewGuid(),
             WeighingSessionId = session.Id,
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             SequenceNo = index + 1,
             CustomerCode = registration.CustomerCode,
             CustomerName = registration.CustomerName,
@@ -262,7 +262,7 @@ public sealed class MarkRegistrationsNoLoadUseCase
 
         foreach (var registration in orderedRegistrations)
         {
-            registration.RegistrationStatus = RegistrationStatus.COMPLETED;
+            registration.CutOrderStatus = CutOrderStatus.COMPLETED;
             registration.ProcessingStage = ProcessingStage.OUT_YARD;
             registration.WeighingSessionId = session.Id;
             registration.SyncStatus = SyncStatus.SYNC_QUEUED;
@@ -291,7 +291,7 @@ public sealed class MarkRegistrationsNoLoadUseCase
 public sealed class CaptureSessionWeight1UseCase
 {
     private readonly IWeighingSessionRepository _sessionRepo;
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IVehicleRepository _vehicleRepo;
     private readonly IWeighTicketRepository _weighRepo;
     private readonly WeighingSessionTicketSyncService _ticketSyncService;
@@ -302,7 +302,7 @@ public sealed class CaptureSessionWeight1UseCase
 
     public CaptureSessionWeight1UseCase(
         IWeighingSessionRepository sessionRepo,
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IVehicleRepository vehicleRepo,
         IWeighTicketRepository weighRepo,
         WeighingSessionTicketSyncService ticketSyncService,
@@ -336,7 +336,7 @@ public sealed class CaptureSessionWeight1UseCase
 
         var registrations = await _regRepo.GetByWeighingSessionIdAsync(session.Id, ct);
         var primaryRegistration = registrations.OrderBy(x => x.CreatedAt).FirstOrDefault()
-            ?? throw new InvalidOperationException("Lượt cân chưa có dòng đăng ký.");
+            ?? throw new InvalidOperationException("Lượt cân chưa có dòng cắt lệnh.");
 
         var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
         var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(session.VehiclePlate, session.MoocNumber ?? string.Empty, ct)
@@ -353,10 +353,10 @@ public sealed class CaptureSessionWeight1UseCase
             ticket = new WeighTicket
             {
                 Id = Guid.NewGuid(),
-                VehicleRegistrationId = primaryRegistration.Id,
+                CutOrderId = primaryRegistration.Id,
                 WeighingSessionId = session.Id,
                 TicketNo = await _ticketNoGen.GenerateAsync(ct),
-                ErpVehicleRegistrationId = primaryRegistration.ErpVehicleRegistrationId,
+                ErpCutOrderId = primaryRegistration.ErpCutOrderId,
                 VehiclePlate = session.VehiclePlate,
                 MoocNumber = session.MoocNumber,
                 DriverName = session.DriverName,
@@ -393,6 +393,10 @@ public sealed class CaptureSessionWeight1UseCase
         session.UpdatedBy = _userContext.Username;
 
         var masterTicket = ticket ?? throw new InvalidOperationException("Không thể khởi tạo phiếu cân tổng.");
+        masterTicket.VehicleRegistrationNoSnapshot = vehicle?.VehicleRegistrationNo;
+        masterTicket.VehicleRegistrationExpirySnapshot = vehicle?.VehicleRegistrationExpiryDate;
+        masterTicket.MoocRegistrationNoSnapshot = vehicle?.MoocRegistrationNo;
+        masterTicket.MoocRegistrationExpirySnapshot = vehicle?.MoocRegistrationExpiryDate;
         _ticketSyncService.SyncMasterTicketFromSession(
             session,
             masterTicket,
@@ -425,8 +429,15 @@ public sealed class CaptureSessionWeight1UseCase
 
 public sealed class CaptureSessionWeight2UseCase
 {
+    private const decimal DefaultBagWeightKg = 50m;
+
     private readonly IWeighingSessionRepository _sessionRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _weighRepo;
+    private readonly IDeliveryTicketRepository _deliveryRepo;
+    private readonly IDeliveryNumberGenerator _deliveryNoGen;
+    private readonly IToleranceProvider _toleranceProvider;
+    private readonly WeighingSessionOverweightService _overweightService;
     private readonly WeighingSessionTicketSyncService _ticketSyncService;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
@@ -434,14 +445,24 @@ public sealed class CaptureSessionWeight2UseCase
 
     public CaptureSessionWeight2UseCase(
         IWeighingSessionRepository sessionRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository weighRepo,
+        IDeliveryTicketRepository deliveryRepo,
+        IDeliveryNumberGenerator deliveryNoGen,
+        IToleranceProvider toleranceProvider,
+        WeighingSessionOverweightService overweightService,
         WeighingSessionTicketSyncService ticketSyncService,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock)
     {
         _sessionRepo = sessionRepo;
+        _regRepo = regRepo;
         _weighRepo = weighRepo;
+        _deliveryRepo = deliveryRepo;
+        _deliveryNoGen = deliveryNoGen;
+        _toleranceProvider = toleranceProvider;
+        _overweightService = overweightService;
         _ticketSyncService = ticketSyncService;
         _uow = uow;
         _userContext = userContext;
@@ -462,11 +483,14 @@ public sealed class CaptureSessionWeight2UseCase
 
         var now = _clock.NowLocal;
         var netWeight = Math.Abs(session.Weight1.Value - request.Weight);
+        var registrations = await _regRepo.GetByWeighingSessionIdAsync(session.Id, ct);
 
         if (session.TransactionType == TransactionType.INBOUND && session.Weight1.Value < request.Weight)
         {
             throw new InvalidOperationException("Phiếu nhập hàng yêu cầu Cân lần 1 phải lớn hơn hoặc bằng Cân lần 2.");
         }
+
+        await ValidateBaggedWeightToleranceAsync(registrations, netWeight, ct);
 
         session.Weight2 = request.Weight;
         session.Weight2Time = now;
@@ -483,6 +507,74 @@ public sealed class CaptureSessionWeight2UseCase
         var ticket = await _weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, ct)
             ?? throw new InvalidOperationException("Chưa có phiếu cân tổng để cập nhật.");
 
+        var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
+        var lineToAutoAllocate = lines.Count == 1 ? lines[0] : null;
+        var deliveryTicketToCreate = (DeliveryTicket?)null;
+        var deliveryTicketToUpdate = (DeliveryTicket?)null;
+
+        if (lineToAutoAllocate != null)
+        {
+            var registration = registrations.First(x => x.Id == lineToAutoAllocate.CutOrderId);
+            var sessionDeliveryTickets = await _deliveryRepo.GetByWeighingSessionIdAsync(session.Id, ct);
+            var actualAllocatedWeight = session.NetWeight ?? 0m;
+            var actualAllocatedBagCount = CalculateAutoBagCount(actualAllocatedWeight);
+
+            lineToAutoAllocate.ActualAllocatedWeight = actualAllocatedWeight;
+            lineToAutoAllocate.ActualAllocatedBagCount = actualAllocatedBagCount;
+            lineToAutoAllocate.LineStatus = WeighingSessionLineStatus.ALLOCATED;
+            lineToAutoAllocate.UpdatedAt = now;
+            lineToAutoAllocate.UpdatedBy = _userContext.Username;
+
+            var deliveryTicket = sessionDeliveryTickets
+                .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal)
+                .FirstOrDefault(x => x.WeighingSessionLineId == lineToAutoAllocate.Id);
+            if (deliveryTicket == null)
+            {
+                deliveryTicket = new DeliveryTicket
+                {
+                    Id = Guid.NewGuid(),
+                    CutOrderId = registration.Id,
+                    WeighingSessionId = session.Id,
+                    WeighingSessionLineId = lineToAutoAllocate.Id,
+                    DeliveryNo = await _deliveryNoGen.GenerateAsync(ct),
+                    ErpCutOrderId = registration.ErpCutOrderId ?? string.Empty,
+                    CustomerCode = registration.CustomerCode,
+                    ProductCode = registration.ProductCode,
+                    Notes = registration.Notes,
+                    RecordRole = DeliveryTicketRecordRoles.Normal,
+                    SyncStatus = SyncStatus.SYNC_QUEUED,
+                    CreatedAt = now,
+                    CreatedBy = _userContext.Username,
+                    UpdatedAt = now,
+                    UpdatedBy = _userContext.Username
+                };
+                deliveryTicketToCreate = deliveryTicket;
+                sessionDeliveryTickets = [.. sessionDeliveryTickets, deliveryTicket];
+            }
+            else
+            {
+                deliveryTicketToUpdate = deliveryTicket;
+            }
+
+            deliveryTicket.AllocatedWeight = actualAllocatedWeight;
+            deliveryTicket.AllocatedBagCount = actualAllocatedBagCount;
+            deliveryTicket.IsOverWeight = false;
+            deliveryTicket.UpdatedAt = now;
+            deliveryTicket.UpdatedBy = _userContext.Username;
+            lineToAutoAllocate.DeliveryTicketId = deliveryTicket.Id;
+
+            _overweightService.RefreshSessionOverweightState(
+                session,
+                lines,
+                [ticket],
+                sessionDeliveryTickets,
+                now,
+                _userContext.Username);
+
+            deliveryTicket.IsOverWeight = session.IsOverweight;
+            session.SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE;
+        }
+
         _ticketSyncService.SyncMasterTicketFromSession(
             session,
             ticket,
@@ -493,8 +585,72 @@ public sealed class CaptureSessionWeight2UseCase
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
             await _sessionRepo.UpdateAsync(session, innerCt);
+            if (lineToAutoAllocate != null)
+            {
+                await _sessionRepo.UpdateLineAsync(lineToAutoAllocate, innerCt);
+                if (deliveryTicketToCreate != null)
+                {
+                    await _deliveryRepo.AddAsync(deliveryTicketToCreate, innerCt);
+                }
+                else if (deliveryTicketToUpdate != null)
+                {
+                    await _deliveryRepo.UpdateAsync(deliveryTicketToUpdate, innerCt);
+                }
+            }
             await _weighRepo.UpdateAsync(ticket, innerCt);
         }, ct);
+    }
+
+    private async Task ValidateBaggedWeightToleranceAsync(
+        IReadOnlyList<CutOrder> registrations,
+        decimal netWeight,
+        CancellationToken ct)
+    {
+        if (registrations.Count == 0)
+        {
+            return;
+        }
+
+        var normalizedTypes = registrations
+            .Select(x => ProductTypes.Normalize(x.ProductType))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedTypes.Count != 1
+            || !string.Equals(normalizedTypes[0], ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var plannedWeight = registrations.Sum(x => x.PlannedWeight ?? 0m);
+        if (plannedWeight <= 0m || netWeight <= plannedWeight)
+        {
+            return;
+        }
+
+        var toleranceKg = await _toleranceProvider.GetToleranceKgAsync(ct);
+        if (toleranceKg < 0m)
+        {
+            toleranceKg = 0m;
+        }
+
+        var allowedWeight = plannedWeight + toleranceKg;
+        if (netWeight > allowedWeight)
+        {
+            throw new InvalidOperationException(
+                $"Khối lượng hàng {netWeight:N0} kg vượt khối lượng kế hoạch {plannedWeight:N0} kg và vượt dung sai cho phép {toleranceKg:N0} kg.");
+        }
+    }
+
+    private static int CalculateAutoBagCount(decimal actualWeight)
+    {
+        if (actualWeight <= 0m)
+        {
+            return 0;
+        }
+
+        return (int)decimal.Round(actualWeight / DefaultBagWeightKg, 0, MidpointRounding.AwayFromZero);
     }
 
     private void EnsureManualPermission(WeightMode mode)
@@ -509,7 +665,7 @@ public sealed class CaptureSessionWeight2UseCase
 public sealed class AllocateWeighingSessionUseCase
 {
     private readonly IWeighingSessionRepository _sessionRepo;
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _weighRepo;
     private readonly IDeliveryTicketRepository _deliveryRepo;
     private readonly IDeliveryNumberGenerator _deliveryNoGen;
@@ -521,7 +677,7 @@ public sealed class AllocateWeighingSessionUseCase
 
     public AllocateWeighingSessionUseCase(
         IWeighingSessionRepository sessionRepo,
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository weighRepo,
         IDeliveryTicketRepository deliveryRepo,
         IDeliveryNumberGenerator deliveryNoGen,
@@ -596,18 +752,18 @@ public sealed class AllocateWeighingSessionUseCase
             line.UpdatedAt = now;
             line.UpdatedBy = _userContext.Username;
 
-            var registration = registrations.First(x => x.Id == line.VehicleRegistrationId);
+            var registration = registrations.First(x => x.Id == line.CutOrderId);
             var deliveryTicket = deliveryTicketByLineId.GetValueOrDefault(line.Id);
             if (deliveryTicket == null)
             {
                 deliveryTicket = new DeliveryTicket
                 {
                     Id = Guid.NewGuid(),
-                    VehicleRegistrationId = registration.Id,
+                    CutOrderId = registration.Id,
                     WeighingSessionId = session.Id,
                     WeighingSessionLineId = line.Id,
                     DeliveryNo = nextDeliveryNumbers.Dequeue(),
-                    ErpVehicleRegistrationId = registration.ErpVehicleRegistrationId ?? string.Empty,
+                    ErpCutOrderId = registration.ErpCutOrderId ?? string.Empty,
                     CustomerCode = registration.CustomerCode,
                     ProductCode = registration.ProductCode,
                     Notes = registration.Notes,
@@ -724,7 +880,7 @@ public sealed class AllocateWeighingSessionUseCase
 public sealed class MarkWeighingSessionNoLoadUseCase
 {
     private readonly IWeighingSessionRepository _sessionRepo;
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _weighRepo;
     private readonly IDeliveryTicketRepository _deliveryRepo;
     private readonly WeighingSessionTicketSyncService _ticketSyncService;
@@ -734,7 +890,7 @@ public sealed class MarkWeighingSessionNoLoadUseCase
 
     public MarkWeighingSessionNoLoadUseCase(
         IWeighingSessionRepository sessionRepo,
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository weighRepo,
         IDeliveryTicketRepository deliveryRepo,
         WeighingSessionTicketSyncService ticketSyncService,
@@ -797,7 +953,7 @@ public sealed class MarkWeighingSessionNoLoadUseCase
 
         foreach (var registration in registrations)
         {
-            registration.RegistrationStatus = RegistrationStatus.COMPLETED;
+            registration.CutOrderStatus = CutOrderStatus.COMPLETED;
             registration.ProcessingStage = ProcessingStage.OUT_YARD;
             registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             registration.CurrentPrimaryWeighTicketId = null;
@@ -866,14 +1022,14 @@ public sealed class MarkWeighingSessionNoLoadUseCase
 public sealed class CompleteWeighingSessionUseCase
 {
     private readonly IWeighingSessionRepository _sessionRepo;
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
 
     public CompleteWeighingSessionUseCase(
         IWeighingSessionRepository sessionRepo,
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock)
@@ -925,7 +1081,7 @@ public sealed class CompleteWeighingSessionUseCase
 
         foreach (var registration in registrations)
         {
-            registration.RegistrationStatus = RegistrationStatus.COMPLETED;
+            registration.CutOrderStatus = CutOrderStatus.COMPLETED;
             registration.ProcessingStage = ProcessingStage.OUT_YARD;
             registration.UpdatedAt = now;
             registration.UpdatedBy = _userContext.Username;
@@ -945,7 +1101,7 @@ public sealed class CompleteWeighingSessionUseCase
 public sealed class CancelWeighingSessionUseCase
 {
     private readonly IWeighingSessionRepository _sessionRepo;
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _weighRepo;
     private readonly IDeliveryTicketRepository _deliveryRepo;
     private readonly IUnitOfWork _uow;
@@ -954,7 +1110,7 @@ public sealed class CancelWeighingSessionUseCase
 
     public CancelWeighingSessionUseCase(
         IWeighingSessionRepository sessionRepo,
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository weighRepo,
         IDeliveryTicketRepository deliveryRepo,
         IUnitOfWork uow,
@@ -1000,7 +1156,7 @@ public sealed class CancelWeighingSessionUseCase
 
         foreach (var registration in registrations)
         {
-            registration.RegistrationStatus = RegistrationStatus.REGISTERED;
+            registration.CutOrderStatus = CutOrderStatus.REGISTERED;
             registration.ProcessingStage = ProcessingStage.IN_YARD;
             registration.WeighingSessionId = null;
             registration.UpdatedAt = now;
@@ -1067,3 +1223,7 @@ public sealed class GetWeighingSessionsUseCase
         return _sessionRepo.SearchActiveSessionsAsync(keyword, ct);
     }
 }
+
+
+
+

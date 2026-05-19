@@ -83,6 +83,10 @@
                 <settings:ScaleDeviceConfigView DataContext="{Binding ScaleDeviceConfigVM}"/>
             </TabItem>
 
+            <TabItem Header="C&#x1EA4;U H&#x00CC;NH IN" Visibility="{Binding CanAccessPrintConfig, Converter={StaticResource BoolToVis}}">
+                <settings:PrintConfigView DataContext="{Binding PrintConfigVM}"/>
+            </TabItem>
+
             <TabItem Header="DANH M&#x1EE4;C XE" Visibility="{Binding CanAccessVehicleMaster, Converter={StaticResource BoolToVis}}">
                 <settings:VehicleMasterView DataContext="{Binding VehicleMasterVM}"/>
             </TabItem>

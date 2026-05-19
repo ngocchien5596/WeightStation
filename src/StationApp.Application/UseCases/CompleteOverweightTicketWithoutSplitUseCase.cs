@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -10,7 +10,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class CompleteOverweightTicketWithoutSplitUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _ticketRepo;
     private readonly IDeliveryTicketRepository _deliveryTicketRepo;
     private readonly EnsurePrimaryDeliveryTicketUseCase _ensurePrimaryDeliveryTicketUseCase;
@@ -23,7 +23,7 @@ public sealed class CompleteOverweightTicketWithoutSplitUseCase
     private readonly ISyncPayloadFactory _payloadFactory;
 
     public CompleteOverweightTicketWithoutSplitUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository ticketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         EnsurePrimaryDeliveryTicketUseCase ensurePrimaryDeliveryTicketUseCase,
@@ -50,21 +50,21 @@ public sealed class CompleteOverweightTicketWithoutSplitUseCase
 
     public async Task<OperationResult<WeighTicket>> ExecuteAsync(CompleteOverweightTicketWithoutSplitRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
-        if (reg.RegistrationStatus != RegistrationStatus.LOADING_IN_PROGRESS)
+        if (reg.CutOrderStatus != CutOrderStatus.LOADING_IN_PROGRESS)
         {
-            throw new InvalidOperationException($"Cannot complete overweight registration when status is {reg.RegistrationStatus}");
+            throw new InvalidOperationException($"Cannot complete overweight registration when status is {reg.CutOrderStatus}");
         }
 
         if (reg.CurrentPrimaryWeighTicketId == null)
             throw new InvalidOperationException("No primary weigh ticket found for this registration.");
 
-        var ticket = await _ticketRepo.GetPrimaryByVehicleRegistrationIdAsync(reg.Id, ct)
+        var ticket = await _ticketRepo.GetPrimaryByCutOrderIdAsync(reg.Id, ct)
             ?? throw new Exception($"Weigh Ticket {reg.CurrentPrimaryWeighTicketId} not found");
 
-        var deliveryTicket = await _deliveryTicketRepo.GetPrimaryByVehicleRegistrationIdAsync(reg.Id, ct);
+        var deliveryTicket = await _deliveryTicketRepo.GetPrimaryByCutOrderIdAsync(reg.Id, ct);
 
         var now = _clock.NowLocal;
 
@@ -92,7 +92,7 @@ public sealed class CompleteOverweightTicketWithoutSplitUseCase
         }
 
         // Update Registration
-        reg.RegistrationStatus = RegistrationStatus.COMPLETED;
+        reg.CutOrderStatus = CutOrderStatus.COMPLETED;
         reg.HasOverweightCase = true;
         reg.SyncStatus = SyncStatus.SYNC_QUEUED;
         reg.UpdatedAt = now;
@@ -112,7 +112,7 @@ public sealed class CompleteOverweightTicketWithoutSplitUseCase
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = reg.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
@@ -136,7 +136,7 @@ public sealed class CompleteOverweightTicketWithoutSplitUseCase
             await _ensurePrimaryDeliveryTicketUseCase.ExecuteAsync(reg.Id, ct);
         }
 
-        await _audit.LogAsync("COMPLETE_OVERWEIGHT_WITHOUT_SPLIT", nameof(VehicleRegistration), reg.Id,
+        await _audit.LogAsync("COMPLETE_OVERWEIGHT_WITHOUT_SPLIT", nameof(CutOrder), reg.Id,
             new { ticket.Weight2, ticket.NetWeight }, ct);
 
         return OperationResult<WeighTicket>.Ok(ticket);
@@ -144,7 +144,11 @@ public sealed class CompleteOverweightTicketWithoutSplitUseCase
 }
 
 public sealed record CompleteOverweightTicketWithoutSplitRequest(
-    Guid RegistrationId,
+    Guid CutOrderId,
     decimal Weight,
     bool IsStable,
     WeightMode Mode);
+
+
+
+

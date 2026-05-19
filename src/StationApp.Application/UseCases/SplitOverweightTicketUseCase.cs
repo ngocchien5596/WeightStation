@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -10,7 +10,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class SplitOverweightTicketUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _ticketRepo;
     private readonly IDeliveryTicketRepository _deliveryTicketRepo;
     private readonly ISyncOutboxRepository _outboxRepo;
@@ -26,7 +26,7 @@ public sealed class SplitOverweightTicketUseCase
     private readonly IVehicleRepository _vehicleRepo;
 
     public SplitOverweightTicketUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository ticketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         ISyncOutboxRepository outboxRepo,
@@ -59,16 +59,16 @@ public sealed class SplitOverweightTicketUseCase
 
     public async Task<OperationResult<WeighTicket>> ExecuteAsync(SplitOverweightTicketRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
         if (reg.CurrentPrimaryWeighTicketId == null)
             throw new InvalidOperationException("No primary weigh ticket found for this registration.");
 
-        var ticket1 = await _ticketRepo.GetPrimaryByVehicleRegistrationIdAsync(reg.Id, ct)
+        var ticket1 = await _ticketRepo.GetPrimaryByCutOrderIdAsync(reg.Id, ct)
             ?? throw new Exception($"Weigh Ticket {reg.CurrentPrimaryWeighTicketId} not found");
 
-        var deliveryTicket1 = await _deliveryTicketRepo.GetPrimaryByVehicleRegistrationIdAsync(reg.Id, ct);
+        var deliveryTicket1 = await _deliveryTicketRepo.GetPrimaryByCutOrderIdAsync(reg.Id, ct);
 
         // Fetch overweight_split_residual_ratio from config
         decimal splitRatio = 0m;
@@ -122,7 +122,7 @@ public sealed class SplitOverweightTicketUseCase
         var ticket2 = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = reg.Id,
+            CutOrderId = reg.Id,
             TicketNo = await _ticketNoGen.GenerateAsync(ct),
             TransactionType = reg.TransactionType,
             TransportMethod = reg.TransportMethod,
@@ -178,9 +178,9 @@ public sealed class SplitOverweightTicketUseCase
             deliveryTicket2 = new DeliveryTicket
             {
                 Id = Guid.NewGuid(),
-                VehicleRegistrationId = reg.Id,
+                CutOrderId = reg.Id,
                 DeliveryNo = await _deliveryNoGen.GenerateAsync(ct),
-                ErpVehicleRegistrationId = deliveryTicket1.ErpVehicleRegistrationId,
+                ErpCutOrderId = deliveryTicket1.ErpCutOrderId,
                 CustomerCode = deliveryTicket1.CustomerCode,
                 ProductCode = deliveryTicket1.ProductCode,
                 Notes = deliveryTicket1.Notes,
@@ -196,8 +196,8 @@ public sealed class SplitOverweightTicketUseCase
             };
         }
 
-        // Update VehicleRegistration
-        reg.RegistrationStatus = RegistrationStatus.COMPLETED;
+        // Update CutOrder
+        reg.CutOrderStatus = CutOrderStatus.COMPLETED;
         reg.HasOverweightCase = true;
         reg.CurrentPrimaryWeighTicketId = ticket1.Id;
         if (deliveryTicket1 != null)
@@ -221,12 +221,12 @@ public sealed class SplitOverweightTicketUseCase
 
             await _regRepo.UpdateAsync(reg, innerCt);
 
-            // Enqueue Outbox for VehicleRegistration
+            // Enqueue Outbox for CutOrder
             await _outboxRepo.EnqueueAsync(new SyncOutbox
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = Guid.NewGuid(),
                 Status = OutboxStatus.PENDING,
@@ -259,9 +259,13 @@ public sealed class SplitOverweightTicketUseCase
 
         }, ct);
 
-        await _audit.LogAsync("SPLIT_OVERWEIGHT_TICKET", nameof(VehicleRegistration), reg.Id,
+        await _audit.LogAsync("SPLIT_OVERWEIGHT_TICKET", nameof(CutOrder), reg.Id,
             new { ticket1Net = ticket1.NetWeight, ticket2Net = ticket2.NetWeight, allowedThreshold }, ct);
 
         return OperationResult<WeighTicket>.Ok(ticket2);
     }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -11,7 +11,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class CaptureWeight2UseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _ticketRepo;
     private readonly ISyncOutboxRepository _outboxRepo;
     private readonly IUnitOfWork _uow;
@@ -22,7 +22,7 @@ public sealed class CaptureWeight2UseCase
     private readonly ISyncPayloadFactory _payloadFactory;
 
     public CaptureWeight2UseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository ticketRepo,
         ISyncOutboxRepository outboxRepo,
         IUnitOfWork uow,
@@ -45,19 +45,19 @@ public sealed class CaptureWeight2UseCase
 
     public async Task<OperationResult<WeighTicket>> ExecuteAsync(CaptureWeightRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
         if (reg.CurrentPrimaryWeighTicketId == null)
             throw new InvalidOperationException("No primary weigh ticket found for this registration. Capture Weight 1 first.");
 
-        var ticket = await _ticketRepo.GetPrimaryByVehicleRegistrationIdAsync(reg.Id, ct)
+        var ticket = await _ticketRepo.GetPrimaryByCutOrderIdAsync(reg.Id, ct)
             ?? throw new Exception($"Weigh Ticket {reg.CurrentPrimaryWeighTicketId} not found");
 
         // Guard
-        if (reg.RegistrationStatus != RegistrationStatus.LOADING_IN_PROGRESS)
+        if (reg.CutOrderStatus != CutOrderStatus.LOADING_IN_PROGRESS)
         {
-            throw new InvalidOperationException($"Cannot capture Weight 2 when status is {reg.RegistrationStatus}");
+            throw new InvalidOperationException($"Cannot capture Weight 2 when status is {reg.CutOrderStatus}");
         }
 
         var now = _clock.NowLocal;
@@ -89,12 +89,12 @@ public sealed class CaptureWeight2UseCase
             await _ticketRepo.UpdateAsync(ticket, innerCt);
             await _regRepo.UpdateAsync(reg, innerCt);
 
-            // VehicleRegistration outbox
+            // CutOrder outbox
             await _outboxRepo.EnqueueAsync(new SyncOutbox
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = reg.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
@@ -114,9 +114,13 @@ public sealed class CaptureWeight2UseCase
             }, innerCt);
         }, ct);
 
-        await _audit.LogAsync("CAPTURE_WEIGHT_2", nameof(VehicleRegistration), reg.Id,
+        await _audit.LogAsync("CAPTURE_WEIGHT_2", nameof(CutOrder), reg.Id,
             new { ticket.Weight2, ticket.Weight2IsStable, ticket.Weight2Mode, isOverweight = false }, ct);
 
         return OperationResult<WeighTicket>.Ok(ticket);
     }
 }
+
+
+
+

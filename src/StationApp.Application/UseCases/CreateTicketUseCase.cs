@@ -1,4 +1,4 @@
-using StationApp.Application.DTOs;
+﻿using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -45,7 +45,7 @@ public sealed class CreateTicketUseCase
         {
             Id = Guid.NewGuid(),
             TicketNo = await _ticketNoGen.GenerateAsync(ct),
-            ErpVehicleRegistrationId = request.ErpVehicleRegistrationId,
+            ErpCutOrderId = request.ErpCutOrderId,
             VehiclePlate = request.VehiclePlate,
             MoocNumber = request.MoocNumber,
             DriverName = request.DriverName,
@@ -90,3 +90,4 @@ public sealed class CreateTicketUseCase
         return OperationResult<WeighTicket>.Ok(ticket);
     }
 }
+

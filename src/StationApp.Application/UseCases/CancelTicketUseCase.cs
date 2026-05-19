@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -10,7 +10,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class CancelTicketUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _ticketRepo;
     private readonly IDeliveryTicketRepository _deliveryTicketRepo;
     private readonly ISyncOutboxRepository _outboxRepo;
@@ -22,7 +22,7 @@ public sealed class CancelTicketUseCase
     private readonly ISyncPayloadFactory _payloadFactory;
 
     public CancelTicketUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository ticketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         ISyncOutboxRepository outboxRepo,
@@ -45,33 +45,33 @@ public sealed class CancelTicketUseCase
         _payloadFactory = payloadFactory;
     }
 
-    public async Task<OperationResult<VehicleRegistration>> ExecuteAsync(CancelTicketRequest request, CancellationToken ct)
+    public async Task<OperationResult<CutOrder>> ExecuteAsync(CancelTicketRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
-        if (reg.RegistrationStatus == RegistrationStatus.CANCELLED)
+        if (reg.CutOrderStatus == CutOrderStatus.CANCELLED)
         {
             throw new InvalidOperationException("Phiếu đã hủy.");
         }
 
-        if (reg.RegistrationStatus == RegistrationStatus.COMPLETED)
+        if (reg.CutOrderStatus == CutOrderStatus.COMPLETED)
         {
             throw new InvalidOperationException("Phiếu đã hoàn thành, không thể hủy.");
         }
 
-        if (reg.RegistrationStatus != RegistrationStatus.REGISTERED
-            && reg.RegistrationStatus != RegistrationStatus.LOADING_IN_PROGRESS)
+        if (reg.CutOrderStatus != CutOrderStatus.REGISTERED
+            && reg.CutOrderStatus != CutOrderStatus.LOADING_IN_PROGRESS)
         {
             throw new InvalidOperationException("Phiếu ở trạng thái hiện tại không thể hủy.");
         }
 
         var now = _clock.NowLocal;
         var currentUser = _userContext.Username;
-        var weighTickets = await _ticketRepo.GetAllByVehicleRegistrationIdAsync(reg.Id, ct);
-        var deliveryTickets = await _deliveryTicketRepo.GetAllByVehicleRegistrationIdAsync(reg.Id, ct);
+        var weighTickets = await _ticketRepo.GetAllByCutOrderIdAsync(reg.Id, ct);
+        var deliveryTickets = await _deliveryTicketRepo.GetAllByCutOrderIdAsync(reg.Id, ct);
 
-        reg.RegistrationStatus = RegistrationStatus.CANCELLED;
+        reg.CutOrderStatus = CutOrderStatus.CANCELLED;
         reg.IsCancelled = true;
         reg.SyncStatus = SyncStatus.SYNC_QUEUED;
         reg.CurrentPrimaryWeighTicketId = null;
@@ -114,12 +114,12 @@ public sealed class CancelTicketUseCase
                 await _deliveryTicketRepo.UpdateAsync(ticket, innerCt);
             }
 
-            // Outbox for VehicleRegistration
+            // Outbox for CutOrder
             await _outboxRepo.EnqueueAsync(new SyncOutbox
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = reg.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
@@ -141,9 +141,13 @@ public sealed class CancelTicketUseCase
             }
         }, ct);
 
-        await _audit.LogAsync("CANCEL_VEHICLE_REGISTRATION", nameof(VehicleRegistration), reg.Id,
+        await _audit.LogAsync("CANCEL_VEHICLE_REGISTRATION", nameof(CutOrder), reg.Id,
             new { Reason = "User cancelled" }, ct);
 
-        return OperationResult<VehicleRegistration>.Ok(reg);
+        return OperationResult<CutOrder>.Ok(reg);
     }
 }
+
+
+
+

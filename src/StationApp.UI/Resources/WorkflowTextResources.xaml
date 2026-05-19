@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
@@ -10,7 +10,7 @@
     <sys:String x:Key="Workflow.SearchButton">T&#x00CC;M KI&#x1EBE;M</sys:String>
     <sys:String x:Key="Workflow.RefreshButton">L&#x00C0;M M&#x1EDA;I</sys:String>
     <sys:String x:Key="Workflow.CloseButton">&#x0110;&#x00D3;NG</sys:String>
-    <sys:String x:Key="Workflow.Label.RegistrationId">M&#x00E3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Workflow.Label.CutOrderId">M&#x00E3; c&#x1EAF;t l&#x1EC7;nh</sys:String>
     <sys:String x:Key="Workflow.Label.VehiclePlate">S&#x1ED1; PTVC</sys:String>
     <sys:String x:Key="Workflow.Label.Mooc">Mooc</sys:String>
     <sys:String x:Key="Workflow.Label.DriverName">T&#x00EA;n t&#x00E0;i x&#x1EBF;</sys:String>
@@ -37,7 +37,7 @@
     <sys:String x:Key="Incoming.Action.Reset">HO&#x00C0;N T&#x00C1;C</sys:String>
 
     <sys:String x:Key="Incoming.Column.Select">CH&#x1ECC;N</sys:String>
-    <sys:String x:Key="Incoming.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Incoming.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Incoming.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Incoming.Column.TransportMethod">HTVC</sys:String>
     <sys:String x:Key="Incoming.Column.VehiclePlate">S&#x1ED0; PTVC</sys:String>
@@ -96,7 +96,7 @@
     <sys:String x:Key="Weighing.Column.Status">TR&#x1EA0;NG TH&#x00C1;I</sys:String>
     <sys:String x:Key="Weighing.Column.Net">NET</sys:String>
     <sys:String x:Key="Weighing.Column.SequenceNo">STT</sys:String>
-    <sys:String x:Key="Weighing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Weighing.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Weighing.Column.Customer">KH&#x00C1;CH H&#x00C0;NG</sys:String>
     <sys:String x:Key="Weighing.Column.ProductCode">M&#x00C3; SP</sys:String>
     <sys:String x:Key="Weighing.Column.Product">S&#x1EA2;N PH&#x1EA8;M</sys:String>
@@ -119,14 +119,17 @@
     <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
     <sys:String x:Key="Outgoing.Label.CompletedDate">Th&#x1EDD;i gian xong:</sys:String>
     <sys:String x:Key="Outgoing.Action.ViewDetails">XEM CHI TI&#x1EBE;T</sys:String>
-    <sys:String x:Key="Outgoing.Column.RegistrationId">M&#x00C3; &#x0110;KPT</sys:String>
+    <sys:String x:Key="Outgoing.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Outgoing.Column.TransportMethod">HTVC</sys:String>
     <sys:String x:Key="Outgoing.Column.VehiclePlate">S&#x1ED0; PTVC</sys:String>
     <sys:String x:Key="Outgoing.Column.Mooc">MOOC</sys:String>
     <sys:String x:Key="Outgoing.Column.DriverName">T&#x00CA;N T&#x00C0;I X&#x1EBE;</sys:String>
+    <sys:String x:Key="Outgoing.Column.RegistrationList">DANH S&#x00C1;CH C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Outgoing.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
+    <sys:String x:Key="Outgoing.Column.Weight1">C&#x00C2;N L&#x1EA6;N 1 (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.Weight2">C&#x00C2;N L&#x1EA6;N 2 (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.NetWeight">TL H&#x00C0;NG (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.LineCount">S&#x1ED0; D&#x00D2;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.CompletedAt">TH&#x1EDC;I GIAN XONG</sys:String>
@@ -160,6 +163,7 @@
     <sys:String x:Key="MainWindow.Nav.Settings">C&#x1EA5;u h&#x00EC;nh h&#x1EC7; th&#x1ED1;ng</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsParams">Tham s&#x1ED1; h&#x1EC7; th&#x1ED1;ng</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsDevice">C&#x1EA5;u h&#x00EC;nh C&#x00E2;n</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsPrint">C&#x1EA5;u h&#x00EC;nh in</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsVehicles">Danh m&#x1EE5;c Xe</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsCustomers">Danh m&#x1EE5;c Kh&#x00E1;ch h&#x00E0;ng</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsProducts">Danh m&#x1EE5;c S&#x1EA3;n ph&#x1EA9;m</sys:String>
@@ -167,3 +171,4 @@
     <sys:String x:Key="MainWindow.Nav.SettingsAccounts">Qu&#x1EA3;n l&#x00FD; t&#x00E0;i kho&#x1EA3;n</sys:String>
     <sys:String x:Key="MainWindow.Nav.Logout">&#x0110;&#x0103;ng xu&#x1EA5;t</sys:String>
 </ResourceDictionary>
+

@@ -27,7 +27,6 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _syncIntervalSeconds = "30";
     [ObservableProperty] private string _registrationInboundPollSeconds = "15";
     [ObservableProperty] private string _overweightSplitStepWeight = "0.0025";
-    [ObservableProperty] private bool _pilotModeEnabled;
 
     public bool CanManageSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
 
@@ -44,9 +43,6 @@ public partial class SystemSettingsViewModel : ObservableObject
         RegistrationInboundPollSeconds = await repo.GetValueAsync("registration_inbound_poll_seconds", CancellationToken.None) ?? "15";
         OverweightSplitStepWeight = await repo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, CancellationToken.None)
             ?? AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
-
-        var pilotStr = await repo.GetValueAsync("pilot_mode_enabled", CancellationToken.None);
-        PilotModeEnabled = pilotStr == "true";
     }
 
     [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
@@ -66,8 +62,7 @@ public partial class SystemSettingsViewModel : ObservableObject
                     ToleranceKg,
                     SyncIntervalSeconds,
                     RegistrationInboundPollSeconds,
-                    OverweightSplitStepWeight,
-                    PilotModeEnabled),
+                    OverweightSplitStepWeight),
                 CancellationToken.None);
             await dialogService.ShowInfoAsync("Thông báo", "Lưu tham số hệ thống thành công!");
         }

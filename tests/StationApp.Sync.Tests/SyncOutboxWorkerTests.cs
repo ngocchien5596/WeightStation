@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +22,7 @@ public class SyncOutboxWorkerTests
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SyncOutboxWorker> _logger;
     private readonly ISyncOutboxRepository _outboxRepo;
-    private readonly IVehicleRegistrationRepository _registrationRepo;
+    private readonly ICutOrderRepository _registrationRepo;
     private readonly IWeighTicketRepository _weighTicketRepo;
     private readonly IDeliveryTicketRepository _deliveryTicketRepo;
     private readonly ISyncPayloadFactory _payloadFactory;
@@ -37,7 +37,7 @@ public class SyncOutboxWorkerTests
         _serviceProvider = Substitute.For<IServiceProvider>();
         _logger = Substitute.For<ILogger<SyncOutboxWorker>>();
         _outboxRepo = Substitute.For<ISyncOutboxRepository>();
-        _registrationRepo = Substitute.For<IVehicleRegistrationRepository>();
+        _registrationRepo = Substitute.For<ICutOrderRepository>();
         _weighTicketRepo = Substitute.For<IWeighTicketRepository>();
         _deliveryTicketRepo = Substitute.For<IDeliveryTicketRepository>();
         _payloadFactory = Substitute.For<ISyncPayloadFactory>();
@@ -62,7 +62,7 @@ public class SyncOutboxWorkerTests
         _outboxRepo.GetPendingAsync(Arg.Any<DateTime>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<SyncOutbox>());
         _registrationRepo.GetBySyncStatusAsync(Arg.Any<SyncStatus>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<VehicleRegistration>());
+            .Returns(Array.Empty<CutOrder>());
         _weighTicketRepo.GetBySyncStatusAsync(Arg.Any<SyncStatus>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<WeighTicket>());
         _deliveryTicketRepo.GetBySyncStatusAsync(Arg.Any<SyncStatus>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
@@ -72,7 +72,7 @@ public class SyncOutboxWorkerTests
     [Fact]
     public async Task T1_ProcessBatch_RecoversQueuedEntitiesIntoOutbox()
     {
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
             IdempotencyKey = Guid.NewGuid(),
@@ -111,7 +111,7 @@ public class SyncOutboxWorkerTests
         await _outboxRepo.Received(1).EnqueueAsync(
             Arg.Is<SyncOutbox>(m =>
                 m.AggregateId == registration.Id &&
-                m.AggregateType == SyncAggregateTypes.VehicleRegistration &&
+                m.AggregateType == SyncAggregateTypes.CutOrder &&
                 m.IdempotencyKey == registration.IdempotencyKey &&
                 m.PayloadJson == "{\"kind\":\"registration\"}" &&
                 m.Status == OutboxStatus.PENDING),
@@ -139,7 +139,7 @@ public class SyncOutboxWorkerTests
     [Fact]
     public async Task T2_ProcessBatch_PushSuccess_MarksAllAggregateTypesAsSynced()
     {
-        var registration = new VehicleRegistration { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
+        var registration = new CutOrder { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
         var weighTicket = new WeighTicket { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
         var deliveryTicket = new DeliveryTicket { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
         var pendingMessages = new[]
@@ -148,7 +148,7 @@ public class SyncOutboxWorkerTests
             {
                 Id = Guid.NewGuid(),
                 AggregateId = registration.Id,
-                AggregateType = SyncAggregateTypes.VehicleRegistration,
+                AggregateType = SyncAggregateTypes.CutOrder,
                 IdempotencyKey = Guid.NewGuid(),
                 PayloadJson = "{}",
                 RetryCount = 0,
@@ -192,7 +192,7 @@ public class SyncOutboxWorkerTests
 
         await _outboxRepo.Received(3).MarkSuccessAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _registrationRepo.Received(1).UpdateAsync(
-            Arg.Is<VehicleRegistration>(x =>
+            Arg.Is<CutOrder>(x =>
                 x.SyncStatus == SyncStatus.SYNC_SUCCESS &&
                 x.LastSyncAttemptAt == _clock.NowLocal &&
                 x.LastSyncError == null),
@@ -208,7 +208,7 @@ public class SyncOutboxWorkerTests
     [Fact]
     public async Task T3_ProcessBatch_PushFailure_MarksAllAggregateTypesAsFailed()
     {
-        var registration = new VehicleRegistration { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
+        var registration = new CutOrder { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
         var weighTicket = new WeighTicket { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
         var deliveryTicket = new DeliveryTicket { Id = Guid.NewGuid(), SyncStatus = SyncStatus.SYNC_QUEUED };
         var pendingMessages = new[]
@@ -217,7 +217,7 @@ public class SyncOutboxWorkerTests
             {
                 Id = Guid.NewGuid(),
                 AggregateId = registration.Id,
-                AggregateType = SyncAggregateTypes.VehicleRegistration,
+                AggregateType = SyncAggregateTypes.CutOrder,
                 IdempotencyKey = Guid.NewGuid(),
                 PayloadJson = "{}",
                 RetryCount = 0,
@@ -265,7 +265,7 @@ public class SyncOutboxWorkerTests
             Arg.Any<DateTime>(),
             Arg.Any<CancellationToken>());
         await _registrationRepo.Received(1).UpdateAsync(
-            Arg.Is<VehicleRegistration>(x =>
+            Arg.Is<CutOrder>(x =>
                 x.SyncStatus == SyncStatus.SYNC_FAILED &&
                 x.LastSyncAttemptAt == _clock.NowLocal &&
                 x.LastSyncError == "central api down"),
@@ -290,3 +290,4 @@ public class SyncOutboxWorkerTests
         await (Task)method!.Invoke(worker, new object[] { ct })!;
     }
 }
+

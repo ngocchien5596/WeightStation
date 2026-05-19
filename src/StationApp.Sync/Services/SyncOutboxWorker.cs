@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.Interfaces;
@@ -64,7 +64,7 @@ public sealed class SyncOutboxWorker : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var outboxRepo = scope.ServiceProvider.GetRequiredService<ISyncOutboxRepository>();
-        var registrationRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+        var registrationRepo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
         var weighTicketRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
         var deliveryTicketRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
         var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
@@ -146,7 +146,7 @@ public sealed class SyncOutboxWorker : BackgroundService
 
     private static async Task EnsureQueuedAggregateMessagesAsync(
         ISyncOutboxRepository outboxRepo,
-        IVehicleRegistrationRepository registrationRepo,
+        ICutOrderRepository registrationRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         ISyncPayloadFactory payloadFactory,
@@ -160,7 +160,7 @@ public sealed class SyncOutboxWorker : BackgroundService
                 outboxRepo,
                 payloadFactory.CreatePayload(registration),
                 registration.Id,
-                SyncAggregateTypes.VehicleRegistration,
+                SyncAggregateTypes.CutOrder,
                 registration.IdempotencyKey,
                 now,
                 ct);
@@ -228,14 +228,14 @@ public sealed class SyncOutboxWorker : BackgroundService
     private static async Task MarkAggregateSyncSuccessAsync(
         SyncOutbox message,
         DateTime now,
-        IVehicleRegistrationRepository registrationRepo,
+        ICutOrderRepository registrationRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         CancellationToken ct)
     {
         switch (message.AggregateType)
         {
-            case SyncAggregateTypes.VehicleRegistration:
+            case SyncAggregateTypes.CutOrder:
             {
                 var registration = await registrationRepo.GetByIdAsync(message.AggregateId, ct);
                 if (registration != null)
@@ -281,14 +281,14 @@ public sealed class SyncOutboxWorker : BackgroundService
         SyncOutbox message,
         DateTime now,
         string error,
-        IVehicleRegistrationRepository registrationRepo,
+        ICutOrderRepository registrationRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         CancellationToken ct)
     {
         switch (message.AggregateType)
         {
-            case SyncAggregateTypes.VehicleRegistration:
+            case SyncAggregateTypes.CutOrder:
             {
                 var registration = await registrationRepo.GetByIdAsync(message.AggregateId, ct);
                 if (registration != null)
@@ -352,3 +352,4 @@ public sealed class SyncOutboxWorker : BackgroundService
         catch { }
     }
 }
+

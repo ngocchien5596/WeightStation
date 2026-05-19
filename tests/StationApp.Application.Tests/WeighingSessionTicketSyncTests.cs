@@ -1,4 +1,4 @@
-using NSubstitute;
+﻿using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -16,7 +16,7 @@ public class WeighingSessionTicketSyncTests
     public async Task CaptureSessionWeight1_SyncsMasterTicketFromSession()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
-        var regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var vehicleRepo = Substitute.For<IVehicleRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var ticketNoGen = Substitute.For<ITicketNumberGenerator>();
@@ -36,7 +36,7 @@ public class WeighingSessionTicketSyncTests
             VehiclePlate = "51C-12345",
             TransactionType = TransactionType.OUTBOUND
         };
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
             CreatedAt = now.AddMinutes(-10),
@@ -52,7 +52,7 @@ public class WeighingSessionTicketSyncTests
         {
             Id = Guid.NewGuid(),
             WeighingSessionId = session.Id,
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             PlannedWeight = 10_000m
         };
 
@@ -102,7 +102,12 @@ public class WeighingSessionTicketSyncTests
     public async Task CaptureSessionWeight2_SyncsMasterTicketFromSession()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
         var uow = Substitute.For<IUnitOfWork>();
         var currentUser = Substitute.For<ICurrentUserContext>();
         var clock = Substitute.For<IClock>();
@@ -111,6 +116,7 @@ public class WeighingSessionTicketSyncTests
         currentUser.Username.Returns("tester");
         currentUser.RoleCode.Returns("ADMIN");
         clock.NowLocal.Returns(now);
+        toleranceProvider.GetToleranceKgAsync(Arg.Any<CancellationToken>()).Returns(500m);
 
         var session = new WeighingSession
         {
@@ -127,9 +133,30 @@ public class WeighingSessionTicketSyncTests
             WeighingSessionId = session.Id,
             RecordRole = WeighTicketRecordRoles.MasterSession
         };
+        var line = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            CutOrderId = Guid.NewGuid(),
+            SequenceNo = 1,
+            LineStatus = WeighingSessionLineStatus.PENDING
+        };
+        var registration = new CutOrder
+        {
+            Id = line.CutOrderId,
+            ErpCutOrderId = "ERP-001",
+            CustomerCode = "C1",
+            ProductCode = "P1",
+            ProductType = ProductTypes.Bagged,
+            PlannedWeight = 22_000m
+        };
 
         sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { line });
+        regRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { registration });
         weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+        deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(Array.Empty<DeliveryTicket>());
+        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DT-0001");
         uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {
@@ -139,7 +166,12 @@ public class WeighingSessionTicketSyncTests
 
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
+            regRepo,
             weighRepo,
+            deliveryRepo,
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
             ticketSyncService,
             uow,
             currentUser,
@@ -162,13 +194,280 @@ public class WeighingSessionTicketSyncTests
                 x.Ttcp10WeightSnapshot == 27_500m &&
                 x.IsOverWeight == false),
             Arg.Any<CancellationToken>());
+
+        await sessionRepo.Received(1).UpdateLineAsync(
+            Arg.Is<WeighingSessionLine>(x =>
+                x.Id == line.Id &&
+                x.LineStatus == WeighingSessionLineStatus.ALLOCATED &&
+                x.ActualAllocatedWeight == 22_000m &&
+                x.ActualAllocatedBagCount == 440),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CaptureSessionWeight2_AutoAllocatesSingleLineAndMovesSessionReadyToComplete()
+    {
+        var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
+        var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
+        var ticketSyncService = new WeighingSessionTicketSyncService();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var now = new DateTime(2026, 5, 16, 8, 30, 0);
+        currentUser.Username.Returns("tester");
+        currentUser.RoleCode.Returns("ADMIN");
+        clock.NowLocal.Returns(now);
+        toleranceProvider.GetToleranceKgAsync(Arg.Any<CancellationToken>()).Returns(500m);
+
+        var session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            TransactionType = TransactionType.OUTBOUND,
+            Weight1 = 31_000m,
+            Weight1Time = now.AddMinutes(-20),
+            Ttcp10WeightSnapshot = 25_000m
+        };
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            RecordRole = WeighTicketRecordRoles.MasterSession
+        };
+        var line = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            CutOrderId = Guid.NewGuid(),
+            SequenceNo = 1,
+            LineStatus = WeighingSessionLineStatus.PENDING
+        };
+        var registration = new CutOrder
+        {
+            Id = line.CutOrderId,
+            ErpCutOrderId = "ERP-002",
+            CustomerCode = "C2",
+            ProductCode = "P2",
+            ProductType = ProductTypes.Bagged,
+            PlannedWeight = 21_000m,
+            Notes = "note"
+        };
+
+        sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { line });
+        regRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { registration });
+        weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+        deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(Array.Empty<DeliveryTicket>());
+        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DT-0002");
+        uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                var action = call.ArgAt<Func<CancellationToken, Task>>(0);
+                await action(call.ArgAt<CancellationToken>(1));
+            });
+
+        var sut = new CaptureSessionWeight2UseCase(
+            sessionRepo,
+            regRepo,
+            weighRepo,
+            deliveryRepo,
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
+            ticketSyncService,
+            uow,
+            currentUser,
+            clock);
+
+        await sut.ExecuteAsync(
+            new CaptureSessionWeightRequest(session.Id, 10_000m, true, WeightMode.AUTO),
+            CancellationToken.None);
+
+        Assert.Equal(WeighingSessionStatus.READY_TO_COMPLETE, session.SessionStatus);
+        await deliveryRepo.Received(1).AddAsync(
+            Arg.Is<DeliveryTicket>(x =>
+                x.RecordRole == DeliveryTicketRecordRoles.Normal &&
+                x.WeighingSessionLineId == line.Id &&
+                x.AllocatedWeight == 21_000m &&
+                x.AllocatedBagCount == 420),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CaptureSessionWeight2_AllowsBaggedWeightWithinTolerance()
+    {
+        var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
+        var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
+        var ticketSyncService = new WeighingSessionTicketSyncService();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var now = new DateTime(2026, 5, 19, 8, 0, 0);
+        currentUser.Username.Returns("tester");
+        currentUser.RoleCode.Returns("ADMIN");
+        clock.NowLocal.Returns(now);
+        toleranceProvider.GetToleranceKgAsync(Arg.Any<CancellationToken>()).Returns(500m);
+
+        var session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            TransactionType = TransactionType.OUTBOUND,
+            Weight1 = 31_000m,
+            Ttcp10WeightSnapshot = 30_000m
+        };
+        var line = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            CutOrderId = Guid.NewGuid(),
+            SequenceNo = 1,
+            LineStatus = WeighingSessionLineStatus.PENDING
+        };
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            RecordRole = WeighTicketRecordRoles.MasterSession
+        };
+        var registration = new CutOrder
+        {
+            Id = line.CutOrderId,
+            ProductType = ProductTypes.Bagged,
+            PlannedWeight = 20_000m,
+            ErpCutOrderId = "ERP-BAG-OK",
+            CustomerCode = "C1",
+            ProductCode = "P1"
+        };
+
+        sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { line });
+        regRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { registration });
+        weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+        deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(Array.Empty<DeliveryTicket>());
+        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DT-OK");
+        uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                var action = call.ArgAt<Func<CancellationToken, Task>>(0);
+                await action(call.ArgAt<CancellationToken>(1));
+            });
+
+        var sut = new CaptureSessionWeight2UseCase(
+            sessionRepo,
+            regRepo,
+            weighRepo,
+            deliveryRepo,
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
+            ticketSyncService,
+            uow,
+            currentUser,
+            clock);
+
+        await sut.ExecuteAsync(
+            new CaptureSessionWeightRequest(session.Id, 10_600m, true, WeightMode.AUTO),
+            CancellationToken.None);
+
+        await sessionRepo.Received(1).UpdateAsync(Arg.Any<WeighingSession>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CaptureSessionWeight2_BlocksBaggedWeightExceedingTolerance()
+    {
+        var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
+        var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
+        var ticketSyncService = new WeighingSessionTicketSyncService();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var now = new DateTime(2026, 5, 19, 8, 5, 0);
+        currentUser.Username.Returns("tester");
+        currentUser.RoleCode.Returns("ADMIN");
+        clock.NowLocal.Returns(now);
+        toleranceProvider.GetToleranceKgAsync(Arg.Any<CancellationToken>()).Returns(500m);
+
+        var session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            TransactionType = TransactionType.OUTBOUND,
+            Weight1 = 31_000m,
+            Ttcp10WeightSnapshot = 30_000m
+        };
+        var line = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            CutOrderId = Guid.NewGuid(),
+            SequenceNo = 1,
+            LineStatus = WeighingSessionLineStatus.PENDING
+        };
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            RecordRole = WeighTicketRecordRoles.MasterSession
+        };
+        var registration = new CutOrder
+        {
+            Id = line.CutOrderId,
+            ProductType = ProductTypes.Bagged,
+            PlannedWeight = 20_000m,
+            ErpCutOrderId = "ERP-BAG-BLOCK",
+            CustomerCode = "C1",
+            ProductCode = "P1"
+        };
+
+        sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { line });
+        regRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { registration });
+        weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+
+        var sut = new CaptureSessionWeight2UseCase(
+            sessionRepo,
+            regRepo,
+            weighRepo,
+            deliveryRepo,
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
+            ticketSyncService,
+            uow,
+            currentUser,
+            clock);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            sut.ExecuteAsync(
+                new CaptureSessionWeightRequest(session.Id, 10_400m, true, WeightMode.AUTO),
+                CancellationToken.None));
+
+        Assert.Contains("vượt dung sai cho phép", ex.Message);
+        await sessionRepo.DidNotReceive().UpdateAsync(Arg.Any<WeighingSession>(), Arg.Any<CancellationToken>());
+        await uow.DidNotReceive().ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task AllocateWeighingSession_SyncsOverweightStateToMasterTicket()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
-        var regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
@@ -195,13 +494,13 @@ public class WeighingSessionTicketSyncTests
         {
             Id = Guid.NewGuid(),
             WeighingSessionId = session.Id,
-            VehicleRegistrationId = Guid.NewGuid(),
+            CutOrderId = Guid.NewGuid(),
             SequenceNo = 1,
             LineStatus = WeighingSessionLineStatus.PENDING
         };
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
-            Id = line.VehicleRegistrationId,
+            Id = line.CutOrderId,
             CustomerCode = "C1",
             ProductCode = "P1"
         };
@@ -259,3 +558,5 @@ public class WeighingSessionTicketSyncTests
             Arg.Any<CancellationToken>());
     }
 }
+
+

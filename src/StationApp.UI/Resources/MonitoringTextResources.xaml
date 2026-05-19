@@ -14,11 +14,11 @@
     <sys:String x:Key="Dashboard.ScaleTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">THI&#x1EBE;T B&#x1ECA; C&#xC2;N</sys:String>
 
     <sys:String x:Key="Sync.Title" xmlns:sys="clr-namespace:System;assembly=mscorlib">TR&#x1EA0;NG TH&#xC1;I &#x110;&#x1ED2;NG B&#x1ED8; D&#x1EEE; LI&#x1EC6;U</sys:String>
-    <sys:String x:Key="Sync.PendingRegistrations" xmlns:sys="clr-namespace:System;assembly=mscorlib">&#x110;KPT ch&#x1EDD; &#x111;&#x1ED3;ng b&#x1ED9;</sys:String>
+    <sys:String x:Key="Sync.PendingRegistrations" xmlns:sys="clr-namespace:System;assembly=mscorlib">C&#x1EAF;t l&#x1EC7;nh ch&#x1EDD; &#x111;&#x1ED3;ng b&#x1ED9;</sys:String>
     <sys:String x:Key="Sync.PendingWeighTickets" xmlns:sys="clr-namespace:System;assembly=mscorlib">Phi&#x1EBF;u c&#xE2;n ch&#x1EDD; &#x111;&#x1ED3;ng b&#x1ED9;</sys:String>
     <sys:String x:Key="Sync.PendingDeliveryTickets" xmlns:sys="clr-namespace:System;assembly=mscorlib">Phi&#x1EBF;u th&#x1EF1;c giao ch&#x1EDD; &#x111;&#x1ED3;ng b&#x1ED9;</sys:String>
     <sys:String x:Key="Sync.FailedCount" xmlns:sys="clr-namespace:System;assembly=mscorlib">B&#x1EA3;n ghi sync l&#x1ED7;i</sys:String>
-    <sys:String x:Key="Sync.UnprocessedInbound" xmlns:sys="clr-namespace:System;assembly=mscorlib">&#x110;KPT ch&#x1B0;a x&#x1EED; l&#xFD; inbound</sys:String>
+    <sys:String x:Key="Sync.UnprocessedInbound" xmlns:sys="clr-namespace:System;assembly=mscorlib">C&#x1EAF;t l&#x1EC7;nh ch&#x1B0;a x&#x1EED; l&#xFD; inbound</sys:String>
     <sys:String x:Key="Sync.LastSuccess" xmlns:sys="clr-namespace:System;assembly=mscorlib">Sync th&#xE0;nh c&#xF4;ng g&#x1EA7;n nh&#x1EA5;t</sys:String>
     <sys:String x:Key="Sync.LastFailure" xmlns:sys="clr-namespace:System;assembly=mscorlib">Sync l&#x1ED7;i g&#x1EA7;n nh&#x1EA5;t</sys:String>
     <sys:String x:Key="Sync.LastError" xmlns:sys="clr-namespace:System;assembly=mscorlib">L&#x1ED7;i &#x111;&#x1ED3;ng b&#x1ED9; g&#x1EA7;n nh&#x1EA5;t</sys:String>
@@ -36,9 +36,9 @@
     <sys:String x:Key="Sync.ColNextRetry" xmlns:sys="clr-namespace:System;assembly=mscorlib">Retry ti&#x1EBF;p</sys:String>
     <sys:String x:Key="Sync.ColLastError" xmlns:sys="clr-namespace:System;assembly=mscorlib">L&#x1ED7;i cu&#x1ED1;i</sys:String>
 
-    <sys:String x:Key="Incoming.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; &#x110;KPT</sys:String>
+    <sys:String x:Key="Incoming.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh</sys:String>
     <sys:String x:Key="Incoming.ColProductCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; SP</sys:String>
-    <sys:String x:Key="Incoming.SearchRegistrationCodeLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; &#x110;KPT:</sys:String>
+    <sys:String x:Key="Incoming.SearchRegistrationCodeLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh:</sys:String>
     <sys:String x:Key="Incoming.SearchVehiclePlateLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1ED1; PTVC:</sys:String>
     <sys:String x:Key="Incoming.VehiclePlateLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1ED1; PTVC</sys:String>
     <sys:String x:Key="Incoming.DriverLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#xEA;n t&#xE0;i x&#x1EBF;</sys:String>
@@ -48,7 +48,7 @@
     <sys:String x:Key="Incoming.CreateSession" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#x1EA0;O L&#x1AF;&#x1EE2;T C&#xC2;N</sys:String>
     <sys:String x:Key="Incoming.NoLoad" xmlns:sys="clr-namespace:System;assembly=mscorlib">KH&#xD4;NG L&#x1EA4;Y H&#xC0;NG</sys:String>
 
-    <sys:String x:Key="VehicleRep.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; &#x110;KPT</sys:String>
+    <sys:String x:Key="VehicleRep.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh</sys:String>
     <sys:String x:Key="VehicleRep.ColVehiclePlate" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1ED0; PTVC</sys:String>
     <sys:String x:Key="VehicleRep.ColDriver" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#xC0;I X&#x1EBE;</sys:String>
     <sys:String x:Key="VehicleRep.ColCreatedAt" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#x1EA0;O L&#xDA;C</sys:String>

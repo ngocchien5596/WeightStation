@@ -1,4 +1,4 @@
-using StationApp.Application.DTOs;
+﻿using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 
 namespace StationApp.Application.UseCases.MasterData;
@@ -6,13 +6,13 @@ namespace StationApp.Application.UseCases.MasterData;
 public class AutocompleteService : IAutocompleteService
 {
     private readonly IVehicleRepository _vehicleRepository;
-    private readonly IVehicleRegistrationRepository _vehicleRegistrationRepository;
+    private readonly ICutOrderRepository _vehicleRegistrationRepository;
     private readonly ICustomerRepository _customerRepository;
     private readonly IProductRepository _productRepository;
 
     public AutocompleteService(
         IVehicleRepository vehicleRepository,
-        IVehicleRegistrationRepository vehicleRegistrationRepository,
+        ICutOrderRepository vehicleRegistrationRepository,
         ICustomerRepository customerRepository,
         IProductRepository productRepository)
     {
@@ -178,7 +178,8 @@ public class AutocompleteService : IAutocompleteService
                 AutocompleteFieldType.ProductCode,
                 new AutocompletePayload(
                     ProductCode: x.ProductCode,
-                    ProductName: x.ProductName)))
+                    ProductName: x.ProductName,
+                    ProductType: x.ProductType)))
             .ToList()
             .AsReadOnly();
     }
@@ -203,7 +204,8 @@ public class AutocompleteService : IAutocompleteService
                 AutocompleteFieldType.ProductName,
                 new AutocompletePayload(
                     ProductCode: x.ProductCode,
-                    ProductName: x.ProductName)))
+                    ProductName: x.ProductName,
+                    ProductType: x.ProductType)))
             .ToList()
             .AsReadOnly();
     }
@@ -223,3 +225,4 @@ public class AutocompleteService : IAutocompleteService
         return parts.Length == 0 ? null : string.Join(separator, parts);
     }
 }
+

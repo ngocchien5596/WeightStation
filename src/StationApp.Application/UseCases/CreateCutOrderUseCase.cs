@@ -1,16 +1,17 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Application.UseCases;
 
-public sealed class CreateVehicleRegistrationUseCase
+public sealed class CreateCutOrderUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly ISyncOutboxRepository _outboxRepo;
     private readonly IUnitOfWork _uow;
     private readonly IAppVersionProvider _versionProvider;
@@ -19,8 +20,8 @@ public sealed class CreateVehicleRegistrationUseCase
     private readonly IAuditService _audit;
     private readonly ISyncPayloadFactory _payloadFactory;
 
-    public CreateVehicleRegistrationUseCase(
-        IVehicleRegistrationRepository regRepo,
+    public CreateCutOrderUseCase(
+        ICutOrderRepository regRepo,
         ISyncOutboxRepository outboxRepo,
         IUnitOfWork uow,
         IAppVersionProvider versionProvider,
@@ -39,14 +40,14 @@ public sealed class CreateVehicleRegistrationUseCase
         _payloadFactory = payloadFactory;
     }
 
-    public async Task<OperationResult<VehicleRegistration>> ExecuteAsync(CreateVehicleRegistrationRequest request, CancellationToken ct)
+    public async Task<OperationResult<CutOrder>> ExecuteAsync(CreateCutOrderRequest request, CancellationToken ct)
     {
-        var reg = new VehicleRegistration
+        var reg = new CutOrder
         {
             Id = Guid.NewGuid(),
-            ErpVehicleRegistrationId = request.ErpVehicleRegistrationId,
-            RegistrationSource = request.RegistrationSource,
-            RegistrationStatus = RegistrationStatus.REGISTERED,
+            ErpCutOrderId = request.ErpCutOrderId,
+            CutOrderSource = request.CutOrderSource,
+            CutOrderStatus = CutOrderStatus.REGISTERED,
             TransactionType = request.TransactionType,
             TransportMethod = request.TransportMethod,
             VehiclePlate = request.VehiclePlate,
@@ -57,6 +58,7 @@ public sealed class CreateVehicleRegistrationUseCase
             CustomerName = request.CustomerName,
             ProductCode = request.ProductCode,
             ProductName = request.ProductName,
+            ProductType = ProductTypes.Normalize(request.ProductType) ?? ProductTypes.InferForTransaction(request.TransactionType),
             CutOrderCode = request.CutOrderCode,
             OrderCode = request.OrderCode,
             LotNo = request.LotNo,
@@ -85,7 +87,7 @@ public sealed class CreateVehicleRegistrationUseCase
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = reg.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
@@ -95,8 +97,10 @@ public sealed class CreateVehicleRegistrationUseCase
             await _outboxRepo.EnqueueAsync(outbox, innerCt);
         }, ct);
 
-        await _audit.LogAsync("CREATE_VEHICLE_REGISTRATION", nameof(VehicleRegistration), reg.Id, new { reg.VehiclePlate }, ct);
+        await _audit.LogAsync("CREATE_VEHICLE_REGISTRATION", nameof(CutOrder), reg.Id, new { reg.VehiclePlate }, ct);
 
-        return OperationResult<VehicleRegistration>.Ok(reg);
+        return OperationResult<CutOrder>.Ok(reg);
     }
 }
+
+

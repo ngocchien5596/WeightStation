@@ -1,4 +1,4 @@
-using NSubstitute;
+﻿using NSubstitute;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
 using StationApp.Application.UseCases;
@@ -77,8 +77,8 @@ public class WeighingSessionOverweightServiceTests
         {
             Id = Guid.NewGuid(),
             DeliveryNo = "PGN000123",
-            ErpVehicleRegistrationId = "ERP-001",
-            VehicleRegistrationId = Guid.NewGuid(),
+            ErpCutOrderId = "ERP-001",
+            CutOrderId = Guid.NewGuid(),
             RecordRole = DeliveryTicketRecordRoles.SplitDerived,
             CreatedAt = now.AddHours(-1),
             CreatedBy = "tester"
@@ -197,7 +197,7 @@ public class WeighingSessionOverweightServiceTests
 
         var ex = Assert.Throws<InvalidOperationException>(() => service.BuildSplitPlan(session, lines, 0.0025m));
 
-        Assert.Contains("khong the tach hop le thanh 2 phieu", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("khÃ´ng thá»ƒ tÃ¡ch", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public class WeighingSessionOverweightServiceTests
         var masterTicket = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration1,
+            CutOrderId = registration1,
             WeighingSessionId = session.Id,
             TicketNo = "QN26050001",
             VehiclePlate = session.VehiclePlate,
@@ -289,11 +289,11 @@ public class WeighingSessionOverweightServiceTests
         var normalDelivery1 = new DeliveryTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration1,
+            CutOrderId = registration1,
             WeighingSessionId = session.Id,
             WeighingSessionLineId = line1Id,
             DeliveryNo = "DN26050001",
-            ErpVehicleRegistrationId = "ERP-1",
+            ErpCutOrderId = "ERP-1",
             CustomerCode = "C1",
             ProductCode = "P1",
             RecordRole = DeliveryTicketRecordRoles.Normal,
@@ -304,11 +304,11 @@ public class WeighingSessionOverweightServiceTests
         var normalDelivery2 = new DeliveryTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration2,
+            CutOrderId = registration2,
             WeighingSessionId = session.Id,
             WeighingSessionLineId = line2Id,
             DeliveryNo = "DN26050002",
-            ErpVehicleRegistrationId = "ERP-2",
+            ErpCutOrderId = "ERP-2",
             CustomerCode = "C2",
             ProductCode = "P2",
             RecordRole = DeliveryTicketRecordRoles.Normal,
@@ -405,13 +405,13 @@ public class WeighingSessionOverweightServiceTests
     private static WeighingSessionLine CreateAllocatedLine(int sequenceNo, decimal weight, int? bagCount)
         => CreateAllocatedLine(Guid.NewGuid(), sequenceNo, weight, bagCount);
 
-    private static WeighingSessionLine CreateAllocatedLine(Guid lineId, int sequenceNo, decimal weight, int? bagCount, Guid vehicleRegistrationId)
+    private static WeighingSessionLine CreateAllocatedLine(Guid lineId, int sequenceNo, decimal weight, int? bagCount, Guid vehicleCutOrderId)
     {
         return new WeighingSessionLine
         {
             Id = lineId,
             WeighingSessionId = Guid.NewGuid(),
-            VehicleRegistrationId = vehicleRegistrationId,
+            CutOrderId = vehicleCutOrderId,
             SequenceNo = sequenceNo,
             ActualAllocatedWeight = weight,
             ActualAllocatedBagCount = bagCount,
@@ -427,7 +427,7 @@ public class WeighingSessionOverweightServiceTests
         {
             Id = lineId,
             WeighingSessionId = Guid.NewGuid(),
-            VehicleRegistrationId = Guid.NewGuid(),
+            CutOrderId = Guid.NewGuid(),
             SequenceNo = sequenceNo,
             ActualAllocatedWeight = weight,
             ActualAllocatedBagCount = bagCount,
@@ -437,3 +437,6 @@ public class WeighingSessionOverweightServiceTests
         };
     }
 }
+
+
+

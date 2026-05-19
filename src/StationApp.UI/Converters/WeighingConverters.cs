@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using StationApp.Domain.Enums;
@@ -118,17 +118,17 @@ public class OverweightToForegroundConverter : IValueConverter
     }
 }
 
-public static class RegistrationStatusMapper
+public static class CutOrderStatusMapper
 {
-    public static string ToDisplayString(RegistrationStatus status)
+    public static string ToDisplayString(CutOrderStatus status)
     {
         return status switch
         {
-            RegistrationStatus.REGISTERED => "Đã đăng ký",
-            RegistrationStatus.IN_SESSION => "Đang trong lượt cân",
-            RegistrationStatus.LOADING_IN_PROGRESS => "Đang lấy hàng",
-            RegistrationStatus.COMPLETED => "Đã hoàn tất",
-            RegistrationStatus.CANCELLED => "Đã hủy",
+            CutOrderStatus.REGISTERED => "Đã đăng ký",
+            CutOrderStatus.IN_SESSION => "Đang trong lượt cân",
+            CutOrderStatus.LOADING_IN_PROGRESS => "Đang lấy hàng",
+            CutOrderStatus.COMPLETED => "Đã hoàn tất",
+            CutOrderStatus.CANCELLED => "Đã hủy",
             _ => status.ToString()
         };
     }
@@ -140,7 +140,7 @@ public static class RegistrationStatusMapper
             return string.Empty;
         }
 
-        if (Enum.TryParse<RegistrationStatus>(statusStr, true, out var status))
+        if (Enum.TryParse<CutOrderStatus>(statusStr, true, out var status))
         {
             return ToDisplayString(status);
         }
@@ -209,18 +209,18 @@ public static class RecordRoleMapper
     }
 }
 
-public class RegistrationStatusDisplayConverter : IValueConverter
+public class CutOrderStatusDisplayConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is RegistrationStatus status)
+        if (value is CutOrderStatus status)
         {
-            return RegistrationStatusMapper.ToDisplayString(status);
+            return CutOrderStatusMapper.ToDisplayString(status);
         }
 
         if (value is string statusStr)
         {
-            return RegistrationStatusMapper.ToDisplayString(statusStr);
+            return CutOrderStatusMapper.ToDisplayString(statusStr);
         }
 
         return string.Empty;
@@ -383,3 +383,4 @@ public class TransportMethodDisplayConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+

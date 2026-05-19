@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -9,11 +9,11 @@ using StationApp.Domain.Enums;
 
 namespace StationApp.Infrastructure.Persistence;
 
-public sealed class BackfillVehicleRegistrationsService
+public sealed class BackfillCutOrdersService
 {
     private readonly StationDbContext _dbContext;
 
-    public BackfillVehicleRegistrationsService(StationDbContext dbContext)
+    public BackfillCutOrdersService(StationDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -22,51 +22,51 @@ public sealed class BackfillVehicleRegistrationsService
     {
         // Clean up any legacy statuses that are no longer supported by the enum
         await _dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE vehicle_registrations SET RegistrationStatus = 'LOADING_IN_PROGRESS' WHERE RegistrationStatus = 'OVERWEIGHT_PENDING_ACTION'", 
+            "UPDATE cut_orders SET CutOrderStatus = 'LOADING_IN_PROGRESS' WHERE CutOrderStatus = 'OVERWEIGHT_PENDING_ACTION'", 
             ct);
 
         var tickets = await _dbContext.WeighTickets
-            .Where(t => t.VehicleRegistrationId == Guid.Empty)
+            .Where(t => t.CutOrderId == Guid.Empty)
             .ToListAsync(ct);
 
         var deliveryTickets = await _dbContext.DeliveryTickets
-            .Where(t => t.VehicleRegistrationId == Guid.Empty)
+            .Where(t => t.CutOrderId == Guid.Empty)
             .ToListAsync(ct);
 
         if (!tickets.Any() && !deliveryTickets.Any())
             return;
 
-        var registrationsToCreate = new List<VehicleRegistration>();
+        var registrationsToCreate = new List<CutOrder>();
 
-        // 1. Group by ErpVehicleRegistrationId
+        // 1. Group by ErpCutOrderId
         var erpGroups = tickets
-            .Where(t => !string.IsNullOrEmpty(t.ErpVehicleRegistrationId))
-            .GroupBy(t => t.ErpVehicleRegistrationId!)
+            .Where(t => !string.IsNullOrEmpty(t.ErpCutOrderId))
+            .GroupBy(t => t.ErpCutOrderId!)
             .ToList();
 
         foreach (var group in erpGroups)
         {
             var primaryTicket = group.OrderByDescending(t => t.CreatedAt).First();
-            var reg = CreateRegistrationFromTicket(primaryTicket, RegistrationSource.ERP);
+            var reg = CreateRegistrationFromTicket(primaryTicket, CutOrderSource.ERP);
             registrationsToCreate.Add(reg);
 
             foreach (var ticket in group)
             {
-                ticket.VehicleRegistrationId = reg.Id;
+                ticket.CutOrderId = reg.Id;
             }
 
             var matchedDeliveries = deliveryTickets
-                .Where(d => d.ErpVehicleRegistrationId == group.Key)
+                .Where(d => d.ErpCutOrderId == group.Key)
                 .ToList();
 
             foreach (var del in matchedDeliveries)
             {
-                del.VehicleRegistrationId = reg.Id;
+                del.CutOrderId = reg.Id;
             }
         }
 
         // 2. Group by SplitGroupId
-        var remainingTickets = tickets.Where(t => t.VehicleRegistrationId == Guid.Empty).ToList();
+        var remainingTickets = tickets.Where(t => t.CutOrderId == Guid.Empty).ToList();
         var splitGroups = remainingTickets
             .Where(t => t.SplitGroupId.HasValue)
             .GroupBy(t => t.SplitGroupId!.Value)
@@ -75,43 +75,43 @@ public sealed class BackfillVehicleRegistrationsService
         foreach (var group in splitGroups)
         {
             var primaryTicket = group.OrderByDescending(t => t.CreatedAt).First();
-            var reg = CreateRegistrationFromTicket(primaryTicket, RegistrationSource.MANUAL);
+            var reg = CreateRegistrationFromTicket(primaryTicket, CutOrderSource.MANUAL);
             registrationsToCreate.Add(reg);
 
             foreach (var ticket in group)
             {
-                ticket.VehicleRegistrationId = reg.Id;
+                ticket.CutOrderId = reg.Id;
             }
 
             var matchedDeliveries = deliveryTickets
-                .Where(d => d.VehicleRegistrationId == Guid.Empty && d.SplitGroupId == group.Key)
+                .Where(d => d.CutOrderId == Guid.Empty && d.SplitGroupId == group.Key)
                 .ToList();
 
             foreach (var del in matchedDeliveries)
             {
-                del.VehicleRegistrationId = reg.Id;
+                del.CutOrderId = reg.Id;
             }
         }
 
         // 3. Fallback: 1 weigh ticket = 1 vehicle registration
-        remainingTickets = tickets.Where(t => t.VehicleRegistrationId == Guid.Empty).ToList();
+        remainingTickets = tickets.Where(t => t.CutOrderId == Guid.Empty).ToList();
         foreach (var ticket in remainingTickets)
         {
-            var reg = CreateRegistrationFromTicket(ticket, RegistrationSource.MANUAL);
+            var reg = CreateRegistrationFromTicket(ticket, CutOrderSource.MANUAL);
             registrationsToCreate.Add(reg);
-            ticket.VehicleRegistrationId = reg.Id;
+            ticket.CutOrderId = reg.Id;
         }
 
         // 4. Any remaining delivery tickets
-        var remainingDeliveries = deliveryTickets.Where(d => d.VehicleRegistrationId == Guid.Empty).ToList();
+        var remainingDeliveries = deliveryTickets.Where(d => d.CutOrderId == Guid.Empty).ToList();
         foreach (var delivery in remainingDeliveries)
         {
-            var reg = new VehicleRegistration
+            var reg = new CutOrder
             {
                 Id = Guid.NewGuid(),
-                ErpVehicleRegistrationId = delivery.ErpVehicleRegistrationId,
-                RegistrationSource = string.IsNullOrEmpty(delivery.ErpVehicleRegistrationId) ? RegistrationSource.MANUAL : RegistrationSource.ERP,
-                RegistrationStatus = RegistrationStatus.COMPLETED,
+                ErpCutOrderId = delivery.ErpCutOrderId,
+                CutOrderSource = string.IsNullOrEmpty(delivery.ErpCutOrderId) ? CutOrderSource.MANUAL : CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.COMPLETED,
                 TransactionType = TransactionType.OUTBOUND,
                 CustomerCode = delivery.CustomerCode,
                 ProductCode = delivery.ProductCode,
@@ -121,21 +121,21 @@ public sealed class BackfillVehicleRegistrationsService
                 CreatedBy = delivery.CreatedBy
             };
             registrationsToCreate.Add(reg);
-            delivery.VehicleRegistrationId = reg.Id;
+            delivery.CutOrderId = reg.Id;
         }
 
-        await _dbContext.VehicleRegistrations.AddRangeAsync(registrationsToCreate, ct);
+        await _dbContext.CutOrders.AddRangeAsync(registrationsToCreate, ct);
         await _dbContext.SaveChangesAsync(ct);
     }
 
-    private VehicleRegistration CreateRegistrationFromTicket(WeighTicket ticket, RegistrationSource source)
+    private CutOrder CreateRegistrationFromTicket(WeighTicket ticket, CutOrderSource source)
     {
-        return new VehicleRegistration
+        return new CutOrder
         {
             Id = Guid.NewGuid(),
-            ErpVehicleRegistrationId = ticket.ErpVehicleRegistrationId,
-            RegistrationSource = source,
-            RegistrationStatus = MapStatus(ticket.Status),
+            ErpCutOrderId = ticket.ErpCutOrderId,
+            CutOrderSource = source,
+            CutOrderStatus = MapStatus(ticket.Status),
             TransactionType = ticket.TransactionType,
             TransportMethod = ticket.TransportMethod,
             VehiclePlate = ticket.VehiclePlate,
@@ -161,15 +161,17 @@ public sealed class BackfillVehicleRegistrationsService
         };
     }
 
-    private RegistrationStatus MapStatus(TicketStatus status)
+    private CutOrderStatus MapStatus(TicketStatus status)
     {
         return status switch
         {
-            TicketStatus.TICKET_CREATED => RegistrationStatus.REGISTERED,
-            TicketStatus.LOADING_STARTED => RegistrationStatus.LOADING_IN_PROGRESS,
-            TicketStatus.TICKET_COMPLETED => RegistrationStatus.COMPLETED,
-            TicketStatus.TICKET_CANCELLED => RegistrationStatus.CANCELLED,
-            _ => RegistrationStatus.REGISTERED
+            TicketStatus.TICKET_CREATED => CutOrderStatus.REGISTERED,
+            TicketStatus.LOADING_STARTED => CutOrderStatus.LOADING_IN_PROGRESS,
+            TicketStatus.TICKET_COMPLETED => CutOrderStatus.COMPLETED,
+            TicketStatus.TICKET_CANCELLED => CutOrderStatus.CANCELLED,
+            _ => CutOrderStatus.REGISTERED
         };
     }
 }
+
+

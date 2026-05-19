@@ -1,4 +1,4 @@
-using StationApp.Application.Interfaces;
+﻿using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using System.Globalization;
@@ -7,7 +7,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class EnsurePrimaryDeliveryTicketUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _weighTicketRepo;
     private readonly IDeliveryTicketRepository _deliveryTicketRepo;
     private readonly IDeliveryNumberGenerator _deliveryNoGen;
@@ -16,7 +16,7 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
     private readonly IClock _clock;
 
     public EnsurePrimaryDeliveryTicketUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
         IDeliveryNumberGenerator deliveryNoGen,
@@ -36,16 +36,16 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
     public async Task<DeliveryTicket?> ExecuteAsync(Guid registrationId, CancellationToken ct)
     {
         var reg = await _regRepo.GetByIdAsync(registrationId, ct)
-            ?? throw new InvalidOperationException($"Vehicle Registration {registrationId} not found");
+            ?? throw new InvalidOperationException($"Cut order {registrationId} not found");
 
-        var weighTickets = await _weighTicketRepo.GetByVehicleRegistrationIdAsync(registrationId, ct);
+        var weighTickets = await _weighTicketRepo.GetByCutOrderIdAsync(registrationId, ct);
         var workingWeighTickets = weighTickets
             .Where(t => string.Equals(t.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase))
             .OrderBy(t => t.SplitSequence ?? 0)
             .ThenBy(t => t.CreatedAt)
             .ToList();
 
-        var deliveryTickets = (await _deliveryTicketRepo.GetByVehicleRegistrationIdAsync(registrationId, ct))
+        var deliveryTickets = (await _deliveryTicketRepo.GetByCutOrderIdAsync(registrationId, ct))
             .Where(t => string.Equals(t.RecordRole, "WORKING", StringComparison.OrdinalIgnoreCase))
             .OrderBy(t => t.SplitSequence ?? 0)
             .ThenBy(t => t.CreatedAt)
@@ -69,7 +69,7 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
             return existingPrimary;
         }
 
-        if (reg.RegistrationStatus != RegistrationStatus.COMPLETED)
+        if (reg.CutOrderStatus != CutOrderStatus.COMPLETED)
         {
             return deliveryTickets.FirstOrDefault();
         }
@@ -96,9 +96,9 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
                 deliveryTicket = new DeliveryTicket
                 {
                     Id = Guid.NewGuid(),
-                    VehicleRegistrationId = reg.Id,
+                    CutOrderId = reg.Id,
                     DeliveryNo = allocatedDeliveryNumbers.Dequeue(),
-                    ErpVehicleRegistrationId = reg.ErpVehicleRegistrationId ?? string.Empty,
+                    ErpCutOrderId = reg.ErpCutOrderId ?? string.Empty,
                     CustomerCode = reg.CustomerCode,
                     ProductCode = reg.ProductCode,
                     Notes = reg.Notes,
@@ -117,8 +117,8 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
                 ticketsToCreate.Add(deliveryTicket);
             }
 
-            deliveryTicket.VehicleRegistrationId = reg.Id;
-            deliveryTicket.ErpVehicleRegistrationId = reg.ErpVehicleRegistrationId ?? string.Empty;
+            deliveryTicket.CutOrderId = reg.Id;
+            deliveryTicket.ErpCutOrderId = reg.ErpCutOrderId ?? string.Empty;
             deliveryTicket.CustomerCode = reg.CustomerCode;
             deliveryTicket.ProductCode = reg.ProductCode;
             deliveryTicket.Notes = reg.Notes;
@@ -202,3 +202,6 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
             .ToList();
     }
 }
+
+
+

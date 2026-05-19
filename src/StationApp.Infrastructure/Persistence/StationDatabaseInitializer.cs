@@ -12,14 +12,14 @@ public static class StationDatabaseInitializer
         bool runBackfill = true,
         bool runPrimaryTicketRepair = true)
     {
-        await db.Database.MigrateAsync(ct);
-
         var logger = loggerFactory?.CreateLogger("SchemaCompatibilityBootstrapper");
+        await SchemaCompatibilityBootstrapper.EnsureAsync(db, logger, ct);
+        await db.Database.MigrateAsync(ct);
         await SchemaCompatibilityBootstrapper.EnsureAsync(db, logger, ct);
 
         if (runBackfill)
         {
-            var backfill = new BackfillVehicleRegistrationsService(db);
+            var backfill = new BackfillCutOrdersService(db);
             await backfill.ExecuteAsync(ct);
         }
 

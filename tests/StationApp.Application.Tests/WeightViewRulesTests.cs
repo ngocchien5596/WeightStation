@@ -1,4 +1,4 @@
-using NSubstitute;
+﻿using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
@@ -13,7 +13,7 @@ public class WeightViewRulesTests
     [Fact]
     public async Task SplitOverweightTicket_KeepsFullLoadTicketAsPrimaryDisplay()
     {
-        var regRepo = Substitute.For<IVehicleRegistrationRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
         var ticketRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var outboxRepo = Substitute.For<ISyncOutboxRepository>();
@@ -35,12 +35,12 @@ public class WeightViewRulesTests
         WeighTicket? addedTicket2 = null;
         DeliveryTicket? addedDelivery2 = null;
 
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = registrationId,
             VehiclePlate = "51C-12345",
             MoocNumber = "51R-99999",
-            RegistrationStatus = RegistrationStatus.LOADING_IN_PROGRESS,
+            CutOrderStatus = CutOrderStatus.LOADING_IN_PROGRESS,
             TransactionType = TransactionType.OUTBOUND,
             TransportMethod = TransportMethod.ROAD,
             PlannedWeight = 20000,
@@ -52,7 +52,7 @@ public class WeightViewRulesTests
         var ticket1 = new WeighTicket
         {
             Id = ticket1Id,
-            VehicleRegistrationId = registrationId,
+            CutOrderId = registrationId,
             TicketNo = "QN000001",
             Weight1 = 10000,
             Status = TicketStatus.LOADING_STARTED,
@@ -66,7 +66,7 @@ public class WeightViewRulesTests
         var delivery1 = new DeliveryTicket
         {
             Id = delivery1Id,
-            VehicleRegistrationId = registrationId,
+            CutOrderId = registrationId,
             DeliveryNo = "PGN000001",
             RecordRole = "WORKING",
             CreatedAt = now.AddMinutes(-30),
@@ -74,8 +74,8 @@ public class WeightViewRulesTests
         };
 
         regRepo.GetByIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(registration);
-        ticketRepo.GetPrimaryByVehicleRegistrationIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(ticket1);
-        deliveryRepo.GetPrimaryByVehicleRegistrationIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(delivery1);
+        ticketRepo.GetPrimaryByCutOrderIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(ticket1);
+        deliveryRepo.GetPrimaryByCutOrderIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(delivery1);
         configRepo.GetValueAsync("overweight_split_residual_ratio", Arg.Any<CancellationToken>()).Returns("0");
         ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN000002");
         deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("PGN000002");
@@ -83,7 +83,7 @@ public class WeightViewRulesTests
         userContext.Username.Returns("tester");
         clock.NowLocal.Returns(now);
         payloadFactory.CreatePayload(Arg.Any<WeighTicket>()).Returns("{}");
-        payloadFactory.CreatePayload(Arg.Any<VehicleRegistration>()).Returns("{}");
+        payloadFactory.CreatePayload(Arg.Any<CutOrder>()).Returns("{}");
         vehicleRepo.GetByPlateAndMoocAsync(registration.VehiclePlate, registration.MoocNumber!, Arg.Any<CancellationToken>())
             .Returns(new Vehicle
             {
@@ -146,12 +146,12 @@ public class WeightViewRulesTests
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var registrationId = Guid.NewGuid();
 
-        weighRepo.GetByVehicleRegistrationIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(
+        weighRepo.GetByCutOrderIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(
             new List<WeighTicket>
             {
                 new()
                 {
-                    VehicleRegistrationId = registrationId,
+                    CutOrderId = registrationId,
                     TicketNo = "QN000001",
                     RecordRole = "WORKING",
                     SplitSequence = 1,
@@ -162,12 +162,12 @@ public class WeightViewRulesTests
                 }
             });
 
-        deliveryRepo.GetByVehicleRegistrationIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(
+        deliveryRepo.GetByCutOrderIdAsync(registrationId, Arg.Any<CancellationToken>()).Returns(
             new List<DeliveryTicket>
             {
                 new()
                 {
-                    VehicleRegistrationId = registrationId,
+                    CutOrderId = registrationId,
                     DeliveryNo = "PGN000001",
                     RecordRole = "WORKING",
                     SplitSequence = 1,
@@ -184,3 +184,5 @@ public class WeightViewRulesTests
         Assert.Contains(result, item => item.DocumentType == "PHIEU GIAO NHAN" && item.DeliveryNo == "PGN000001");
     }
 }
+
+

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
@@ -133,10 +133,27 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         var lines = await _db.WeighingSessionLines.AsNoTracking()
             .Where(x => sessionIds.Contains(x.WeighingSessionId))
             .ToListAsync(ct);
+        var registrations = await _db.CutOrders.AsNoTracking()
+            .Where(x => x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value))
+            .Select(x => new
+            {
+                SessionId = x.WeighingSessionId!.Value,
+                x.ErpCutOrderId
+            })
+            .ToListAsync(ct);
 
         return sessions.Select(session =>
         {
             var sessionLines = lines.Where(x => x.WeighingSessionId == session.Id).ToList();
+            var registrationSummary = string.Join(" / ",
+                registrations
+                    .Where(x => x.SessionId == session.Id)
+                    .Select(x => x.ErpCutOrderId)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .Cast<string>());
+
             return new OutgoingSessionListItem(
                 session.Id,
                 session.SessionNo,
@@ -144,6 +161,9 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.VehiclePlate,
                 session.MoocNumber,
                 session.DriverName,
+                registrationSummary,
+                session.Weight1,
+                session.Weight2,
                 session.NetWeight,
                 sessionLines.Count,
                 session.HasPrintedMasterWeighTicket,
@@ -173,17 +193,17 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task<IReadOnlyList<WeighingSessionLineItem>> GetLineItemsBySessionIdAsync(Guid sessionId, CancellationToken ct)
     {
-        return await (
+        var items = await (
             from line in _db.WeighingSessionLines.AsNoTracking()
-            join reg in _db.VehicleRegistrations.AsNoTracking()
-                on line.VehicleRegistrationId equals reg.Id
+            join reg in _db.CutOrders.AsNoTracking()
+                on line.CutOrderId equals reg.Id
             where line.WeighingSessionId == sessionId
             orderby line.SequenceNo
             select new WeighingSessionLineItem(
                 line.Id,
-                line.VehicleRegistrationId,
+                line.CutOrderId,
                 line.SequenceNo,
-                reg.ErpVehicleRegistrationId,
+                reg.ErpCutOrderId,
                 line.CustomerName,
                 line.DistributorName,
                 line.ProductCode,
@@ -193,7 +213,35 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 line.ActualAllocatedWeight,
                 line.ActualAllocatedBagCount,
                 line.LineStatus,
-                line.HasPrintedDeliveryTicket))
+                line.HasPrintedDeliveryTicket,
+                reg.ProductType
+            ))
             .ToListAsync(ct);
+
+        var missingProductCodes = items
+            .Where(x => string.IsNullOrWhiteSpace(x.ProductType) && !string.IsNullOrWhiteSpace(x.ProductCode))
+            .Select(x => x.ProductCode!)
+            .Distinct()
+            .ToList();
+
+        if (missingProductCodes.Count > 0)
+        {
+            var products = await _db.Products.AsNoTracking()
+                .Where(x => missingProductCodes.Contains(x.ProductCode))
+                .ToDictionaryAsync(x => x.ProductCode.Trim(), x => x.ProductType, ct);
+
+            return items.Select(item =>
+            {
+                if (string.IsNullOrWhiteSpace(item.ProductType) && !string.IsNullOrWhiteSpace(item.ProductCode) && products.TryGetValue(item.ProductCode.Trim(), out var productType))
+                {
+                    return item with { ProductType = productType };
+                }
+                return item;
+            }).ToList().AsReadOnly();
+        }
+
+        return items;
     }
 }
+
+

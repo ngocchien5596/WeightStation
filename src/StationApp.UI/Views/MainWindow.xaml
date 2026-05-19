@@ -121,6 +121,11 @@
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsDevice}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewSettingsPrint, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Settings_Print">
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsPrint}" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsVehicles, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Vehicles">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsVehicles}" VerticalAlignment="Center"/>

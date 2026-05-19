@@ -46,6 +46,8 @@ public sealed class EnsureInboundMasterDataUseCase
         string? customerName,
         string? productCode,
         string? productName,
+        string? productType,
+        TransactionType transactionType,
         CancellationToken ct,
         decimal? ttcpWeight = null,
         string? vehicleRegistrationNo = null,
@@ -65,7 +67,7 @@ public sealed class EnsureInboundMasterDataUseCase
             moocRegistrationExpiryDate,
             ct);
         await EnsureCustomerAsync(customerCode, customerName, ct);
-        await EnsureProductAsync(productCode, productName, ct);
+        await EnsureProductAsync(productCode, productName, productType, transactionType, ct);
     }
 
     private async Task EnsureVehicleAsync(
@@ -251,10 +253,16 @@ public sealed class EnsureInboundMasterDataUseCase
         await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
     }
 
-    private async Task EnsureProductAsync(string? productCode, string? productName, CancellationToken ct)
+    private async Task EnsureProductAsync(
+        string? productCode,
+        string? productName,
+        string? productType,
+        TransactionType transactionType,
+        CancellationToken ct)
     {
         var normalizedCode = NormalizeOptional(productCode);
         var normalizedName = NormalizeOptional(productName);
+        var normalizedType = ProductTypes.Normalize(productType) ?? ProductTypes.InferForTransaction(transactionType);
         if (string.IsNullOrWhiteSpace(normalizedCode))
         {
             return;
@@ -274,6 +282,7 @@ public sealed class EnsureInboundMasterDataUseCase
                 Id = Guid.NewGuid(),
                 ProductCode = normalizedCode,
                 ProductName = normalizedName,
+                ProductType = normalizedType,
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = _currentUserContext.Username
@@ -290,9 +299,15 @@ public sealed class EnsureInboundMasterDataUseCase
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(existing.ProductName) && !string.IsNullOrWhiteSpace(normalizedName))
+        if (!string.IsNullOrWhiteSpace(normalizedName) && !string.Equals(existing.ProductName, normalizedName, StringComparison.Ordinal))
         {
             existing.ProductName = normalizedName;
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedType) && !string.Equals(existing.ProductType, normalizedType, StringComparison.Ordinal))
+        {
+            existing.ProductType = normalizedType;
             changed = true;
         }
 

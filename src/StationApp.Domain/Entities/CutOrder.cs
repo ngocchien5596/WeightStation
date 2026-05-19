@@ -1,14 +1,14 @@
-using System;
+﻿using System;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Domain.Entities;
 
-public class VehicleRegistration
+public class CutOrder
 {
     public Guid Id { get; set; }
-    public string? ErpVehicleRegistrationId { get; set; }
-    public RegistrationSource RegistrationSource { get; set; }
-    public RegistrationStatus RegistrationStatus { get; set; }
+    public string? ErpCutOrderId { get; set; }
+    public CutOrderSource CutOrderSource { get; set; }
+    public CutOrderStatus CutOrderStatus { get; set; }
     public TransactionType TransactionType { get; set; }
     public TransportMethod? TransportMethod { get; set; }
 
@@ -22,6 +22,7 @@ public class VehicleRegistration
 
     public string? ProductCode { get; set; }
     public string? ProductName { get; set; }
+    public string? ProductType { get; set; }
     public string? CutOrderCode { get; set; }
     public string? OrderCode { get; set; }
     public string? LotNo { get; set; }
@@ -60,3 +61,4 @@ public class VehicleRegistration
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
 }
+

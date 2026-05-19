@@ -1,5 +1,6 @@
-using System.Globalization;
+﻿using System.Globalization;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Application.Printing;
@@ -42,10 +43,19 @@ public sealed record PrintFieldDefinition(
     double FontSize,
     PrintFieldWeight FontWeight,
     int MaxLines = 1,
-    PrintWrapMode WrapMode = PrintWrapMode.Trim);
+    PrintWrapMode WrapMode = PrintWrapMode.Trim,
+    string? LiteralValue = null,
+    double RotationDegrees = 0d,
+    bool Underline = false,
+    bool Italic = false,
+    bool ShadedBackground = false,
+    bool IsImage = false,
+    string? ImageSourceUri = null,
+    bool IsLine = false);
 
 public sealed record PrintFieldValue(string FieldKey, string? Value);
-public sealed record PrintFieldPosition(string FieldKey, double X, double Y);
+public sealed record PrintFieldPosition(string FieldKey, double X, double Y, double? Width = null);
+public sealed record PrintTemplateProfileDescriptor(string ProfileKey, string DisplayName, bool IsDefault);
 
 public sealed class PrintTemplateDefinition
 {
@@ -55,6 +65,8 @@ public sealed class PrintTemplateDefinition
     public double PageHeightMm { get; init; } = 297d;
     public double DefaultOffsetXmm { get; init; }
     public double DefaultOffsetYmm { get; init; }
+    public string? ActiveProfileKey { get; init; }
+    public string? ActiveProfileName { get; init; }
     public required IReadOnlyList<PrintFieldDefinition> Fields { get; init; }
 }
 
@@ -63,6 +75,8 @@ public abstract class PrintPreviewPageModel
     public required Guid DocumentId { get; init; }
     public required string DisplayNumber { get; init; }
     public required IReadOnlyList<PrintFieldValue> Fields { get; init; }
+    public string? PreviewGroupKey { get; set; }
+    public string? PreviewGroupName { get; set; }
 }
 
 public sealed class WeighTicketPrintModel : PrintPreviewPageModel
@@ -96,6 +110,7 @@ public sealed class PrintOptionsModel
     public double OffsetYmm { get; init; }
     public IReadOnlyList<PrintFieldPosition> FieldPositions { get; init; } = [];
     public string? SelectedFieldKey { get; init; }
+    public IReadOnlyList<Guid> SelectedDocumentIds { get; init; } = [];
 }
 
 public sealed record PrintDocumentResult(Guid DocumentId, string DisplayNumber, bool Success, string? ErrorMessage = null);
@@ -109,7 +124,7 @@ public sealed class PrintExecutionResult
 public interface IWeighTicketPrintComposer
 {
     WeighTicketPrintModel Compose(
-        VehicleRegistration registration,
+        CutOrder registration,
         WeighTicket ticket,
         Vehicle? vehicle,
         DateTime printedAtLocal,
@@ -119,7 +134,7 @@ public interface IWeighTicketPrintComposer
 public interface IDeliveryTicketPrintComposer
 {
     DeliveryTicketPrintModel Compose(
-        VehicleRegistration registration,
+        CutOrder registration,
         DeliveryTicket deliveryTicket,
         WeighTicket? weighTicket,
         WeighingSessionLine? sessionLine,
@@ -131,12 +146,24 @@ public interface IDeliveryTicketPrintComposer
 public interface IPrintTemplateProvider
 {
     Task<PrintTemplateDefinition> GetTemplateAsync(PrintDocumentKind kind, CancellationToken ct);
+    Task<PrintTemplateDefinition> GetTemplateAsync(PrintDocumentKind kind, string? profileKey, CancellationToken ct);
+    Task<IReadOnlyList<PrintTemplateProfileDescriptor>> GetProfilesAsync(PrintDocumentKind kind, CancellationToken ct);
     Task SaveLayoutAsync(
         PrintDocumentKind kind,
+        string? profileKey,
         double offsetXmm,
         double offsetYmm,
         IReadOnlyList<PrintFieldPosition> fieldPositions,
         CancellationToken ct);
+    Task<PrintTemplateProfileDescriptor> CreateProfileAsync(
+        PrintDocumentKind kind,
+        string displayName,
+        double offsetXmm,
+        double offsetYmm,
+        IReadOnlyList<PrintFieldPosition> fieldPositions,
+        CancellationToken ct);
+    Task SetDefaultProfileAsync(PrintDocumentKind kind, string profileKey, CancellationToken ct);
+    Task<string> ExportBackupAsync(CancellationToken ct);
 }
 
 public interface IPrinterDiscoveryService
@@ -157,7 +184,7 @@ public interface IPrintService
 public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
 {
     public WeighTicketPrintModel Compose(
-        VehicleRegistration registration,
+        CutOrder registration,
         WeighTicket ticket,
         Vehicle? vehicle,
         DateTime printedAtLocal,
@@ -184,7 +211,7 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
                 Field("VehicleRegistrationNo", FirstNonEmpty(ticket.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(ticket.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
                 Field("CustomerName", FirstNonEmpty(ticket.CustomerName, registration.CustomerName)),
-                Field("ProductName", FirstNonEmpty(ticket.ProductName, registration.ProductName)),
+                Field("ProductName", FirstNonEmpty(ticket.ProductName, registration.ProductName)?.ToUpperInvariant()),
                 Field("LotNo", registration.LotNo),
                 Field("RepresentativeName", registration.RepresentativeName),
                 Field("Notes", FirstNonEmpty(ticket.Notes, registration.Notes)),
@@ -216,13 +243,13 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
     private static string? FormatDateTimeWithSeconds(DateTime? value) => value?.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.InvariantCulture);
     private static string? FormatDateTimePrinted(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
     private static string? FormatWeight(decimal? value)
-        => value.HasValue ? (value.Value / 1000m).ToString("0.0", CultureInfo.InvariantCulture) : null;
+        => value.HasValue ? (value.Value / 1000m).ToString("0.0##", CultureInfo.InvariantCulture) : null;
 }
 
 public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
 {
     public DeliveryTicketPrintModel Compose(
-        VehicleRegistration registration,
+        CutOrder registration,
         DeliveryTicket deliveryTicket,
         WeighTicket? weighTicket,
         WeighingSessionLine? sessionLine,
@@ -233,7 +260,11 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         var vehicleLine = string.Join(Environment.NewLine, new[] { FirstNonEmpty(weighTicket?.VehiclePlate, registration.VehiclePlate), FirstNonEmpty(weighTicket?.MoocNumber, registration.MoocNumber) }
             .Where(v => !string.IsNullOrWhiteSpace(v)));
         var actualWeight = deliveryTicket.AllocatedWeight ?? sessionLine?.ActualAllocatedWeight ?? weighTicket?.NetWeight;
-        var actualBagCount = (deliveryTicket.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount)?.ToString(CultureInfo.InvariantCulture);
+        var isBagged = string.Equals(ProductTypes.Normalize(registration.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+        var plannedBagCount = isBagged ? registration.BagCount?.ToString(CultureInfo.InvariantCulture) : null;
+        var actualBagCount = isBagged
+            ? (deliveryTicket.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount)?.ToString(CultureInfo.InvariantCulture)
+            : null;
 
         return new DeliveryTicketPrintModel
         {
@@ -241,12 +272,12 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
             DisplayNumber = FirstNonEmpty(registration.CutOrderCode, deliveryTicket.DeliveryNo) ?? deliveryTicket.DeliveryNo,
             DeliveryNo = deliveryTicket.DeliveryNo,
             CutOrderCode = registration.CutOrderCode,
-            OrderCode = FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpVehicleRegistrationId, registration.ErpVehicleRegistrationId),
+            OrderCode = FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId),
             ActualWeight = actualWeight,
             Fields = new[]
             {
                 Field("DeliveryNo", FirstNonEmpty(registration.CutOrderCode, deliveryTicket.DeliveryNo)),
-                Field("ReferenceCode", FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpVehicleRegistrationId, registration.ErpVehicleRegistrationId)),
+                Field("ReferenceCode", FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId)),
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),
                 Field("ProductName", registration.ProductName),
@@ -255,7 +286,7 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
                 Field("LotNo", registration.LotNo),
                 Field("SealNo", registration.SealNo),
                 Field("PlannedWeight", FormatWeight(registration.PlannedWeight)),
-                Field("BagCount", registration.BagCount?.ToString(CultureInfo.InvariantCulture)),
+                Field("BagCount", plannedBagCount),
                 Field("ActualWeight", FormatWeight(actualWeight)),
                 Field("ActualBagCount", actualBagCount),
                 Field("VehicleLine", vehicleLine),
@@ -282,5 +313,6 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
     private static string? FormatDateOnly(DateTime? value) => value?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static string? FormatDateOnly(DateTime value) => value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static string? FormatWeight(decimal? value)
-        => value.HasValue ? (value.Value / 1000m).ToString("0.0", CultureInfo.InvariantCulture) : null;
+        => value.HasValue ? (value.Value / 1000m).ToString("0.0##", CultureInfo.InvariantCulture) : null;
 }
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,17 +8,17 @@ using StationApp.Domain.Enums;
 
 namespace StationApp.Application.Interfaces;
 
-public interface IVehicleRegistrationRepository
+public interface ICutOrderRepository
 {
-    Task AddAsync(VehicleRegistration registration, CancellationToken ct);
-    Task UpdateAsync(VehicleRegistration registration, CancellationToken ct);
-    Task<VehicleRegistration?> GetByIdAsync(Guid id, CancellationToken ct);
-    Task<IReadOnlyList<VehicleRegistration>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
-    Task<VehicleRegistration?> GetByErpIdAsync(string erpVehicleRegistrationId, CancellationToken ct);
-    Task<IReadOnlyList<VehicleRegistration>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
-    Task<IReadOnlyList<VehicleRegistration>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct);
-    Task<IReadOnlyList<VehicleRegistration>> SearchAsync(string? keyword, CancellationToken ct);
-    Task<IReadOnlyList<VehicleRegistration>> GetUnprocessedInboundAsync(CancellationToken ct);
+    Task AddAsync(CutOrder cutOrder, CancellationToken ct);
+    Task UpdateAsync(CutOrder cutOrder, CancellationToken ct);
+    Task<CutOrder?> GetByIdAsync(Guid id, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+    Task<CutOrder?> GetByErpIdAsync(string erpCutOrderId, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> SearchAsync(string? keyword, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> GetUnprocessedInboundAsync(CancellationToken ct);
     Task<IReadOnlyList<WeightViewListItem>> GetWeightViewListAsync(string? keyword, CancellationToken ct);
     Task<IReadOnlyList<IncomingVehicleListItem>> GetIncomingListAsync(IncomingVehicleListFilter filter, CancellationToken ct);
     Task<IReadOnlyList<OutgoingVehicleListItem>> GetOutgoingListAsync(OutgoingVehicleListFilter filter, CancellationToken ct);
@@ -29,3 +29,4 @@ public interface IVehicleRegistrationRepository
     Task<IReadOnlyList<ProductAutocompleteSource>> SearchProductCodeHistorySourcesAsync(string keyword, int limit, CancellationToken ct);
     Task<IReadOnlyList<ProductAutocompleteSource>> SearchProductNameHistorySourcesAsync(string keyword, int limit, CancellationToken ct);
 }
+

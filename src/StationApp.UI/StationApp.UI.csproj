@@ -44,6 +44,9 @@
   <Target Name="UpdateLocalDatabaseSchema"
           AfterTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipDatabaseSchemaUpdate)' != 'true' and '$(RunDatabaseSchemaUpdate)' == 'true'">
-    <Exec Command='powershell -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildThisFileDirectory)..\..\scripts\update-local-db-schema.ps1" -Configuration "$(Configuration)" -RuntimeIdentifier "$(RuntimeIdentifier)" -ConfigPath "src/StationApp.UI/appsettings.json"' />
+    <PropertyGroup>
+      <_RuntimeIdentifierArg Condition="'$(RuntimeIdentifier)' != ''"> -RuntimeIdentifier "$(RuntimeIdentifier)"</_RuntimeIdentifierArg>
+    </PropertyGroup>
+    <Exec Command='powershell -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildThisFileDirectory)..\..\scripts\update-local-db-schema.ps1" -Configuration "$(Configuration)"$(_RuntimeIdentifierArg) -ConfigPath "src/StationApp.UI/appsettings.json"' />
   </Target>
 </Project>

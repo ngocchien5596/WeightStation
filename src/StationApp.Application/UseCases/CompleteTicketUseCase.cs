@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class CompleteTicketUseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _ticketRepo;
     private readonly EnsurePrimaryDeliveryTicketUseCase _ensurePrimaryDeliveryTicketUseCase;
     private readonly ISyncOutboxRepository _outboxRepo;
@@ -24,7 +24,7 @@ public sealed class CompleteTicketUseCase
     private readonly ISyncPayloadFactory _payloadFactory;
 
     public CompleteTicketUseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository ticketRepo,
         EnsurePrimaryDeliveryTicketUseCase ensurePrimaryDeliveryTicketUseCase,
         ISyncOutboxRepository outboxRepo,
@@ -49,18 +49,18 @@ public sealed class CompleteTicketUseCase
 
     public async Task<OperationResult<WeighTicket>> ExecuteAsync(CompleteTicketRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
-        if (reg.RegistrationStatus != RegistrationStatus.LOADING_IN_PROGRESS)
+        if (reg.CutOrderStatus != CutOrderStatus.LOADING_IN_PROGRESS)
         {
-            throw new InvalidOperationException($"Cannot complete registration when status is {reg.RegistrationStatus}");
+            throw new InvalidOperationException($"Cannot complete registration when status is {reg.CutOrderStatus}");
         }
 
         if (reg.CurrentPrimaryWeighTicketId == null)
             throw new InvalidOperationException("No primary weigh ticket found. Cannot complete.");
 
-        var ticket = await _ticketRepo.GetPrimaryByVehicleRegistrationIdAsync(reg.Id, ct)
+        var ticket = await _ticketRepo.GetPrimaryByCutOrderIdAsync(reg.Id, ct)
             ?? throw new Exception($"Weigh Ticket {reg.CurrentPrimaryWeighTicketId} not found");
 
         var now = _clock.NowLocal;
@@ -71,7 +71,7 @@ public sealed class CompleteTicketUseCase
         ticket.UpdatedAt = now;
         ticket.UpdatedBy = _userContext.Username;
 
-        reg.RegistrationStatus = RegistrationStatus.COMPLETED;
+        reg.CutOrderStatus = CutOrderStatus.COMPLETED;
         reg.HasOverweightCase = false;
         reg.SyncStatus = SyncStatus.SYNC_QUEUED;
         reg.UpdatedAt = now;
@@ -82,12 +82,12 @@ public sealed class CompleteTicketUseCase
             await _ticketRepo.UpdateAsync(ticket, innerCt);
             await _regRepo.UpdateAsync(reg, innerCt);
 
-            // Outbox for VehicleRegistration
+            // Outbox for CutOrder
             await _outboxRepo.EnqueueAsync(new SyncOutbox
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = reg.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
@@ -109,9 +109,13 @@ public sealed class CompleteTicketUseCase
 
         await _ensurePrimaryDeliveryTicketUseCase.ExecuteAsync(reg.Id, ct);
 
-        await _audit.LogAsync("COMPLETE_TICKET", nameof(VehicleRegistration), reg.Id,
+        await _audit.LogAsync("COMPLETE_TICKET", nameof(CutOrder), reg.Id,
             new { ticket.NetWeight, ticket.Weight1, ticket.Weight2 }, ct);
 
         return OperationResult<WeighTicket>.Ok(ticket);
     }
 }
+
+
+
+

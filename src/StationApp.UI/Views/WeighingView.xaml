@@ -1,4 +1,4 @@
-<UserControl x:Class="StationApp.UI.Views.WeighingView"
+﻿<UserControl x:Class="StationApp.UI.Views.WeighingView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{StaticResource MainContentBackground}">
@@ -232,7 +232,7 @@
                           CellStyle="{StaticResource SystemDataGridCellStyle}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.RegistrationId}" Binding="{Binding ErpVehicleRegistrationId}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.ProductCode}" Binding="{Binding ProductCode}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
@@ -273,7 +273,7 @@
                                       BorderThickness="0">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.RegistrationId}" Binding="{Binding ErpVehicleRegistrationId}" Width="120" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="120" IsReadOnly="True"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="220" IsReadOnly="True"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220" IsReadOnly="True"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" IsReadOnly="True"/>
@@ -418,7 +418,7 @@
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="60"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.RegistrationId}" Binding="{Binding ErpVehicleRegistrationId}" Width="120"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="120"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="220"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding AllocatedWeight, StringFormat='{}{0:N0}'}" Width="110"/>
@@ -484,3 +484,5 @@
         </Grid>
     </Grid>
 </UserControl>
+
+

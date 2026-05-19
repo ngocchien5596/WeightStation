@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -78,18 +78,18 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
         return ticket.IsDeleted ? Array.Empty<WeighTicket>() : new List<WeighTicket> { ticket };
     }
 
-    public async Task<IReadOnlyList<WeighTicket>> GetByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
+    public async Task<IReadOnlyList<WeighTicket>> GetByCutOrderIdAsync(Guid cutOrderId, CancellationToken ct)
     {
         return await _db.WeighTickets
-            .Where(t => t.VehicleRegistrationId == registrationId && !t.IsDeleted)
+            .Where(t => t.CutOrderId == cutOrderId && !t.IsDeleted)
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<WeighTicket>> GetAllByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
+    public async Task<IReadOnlyList<WeighTicket>> GetAllByCutOrderIdAsync(Guid cutOrderId, CancellationToken ct)
     {
         return await _db.WeighTickets
-            .Where(t => t.VehicleRegistrationId == registrationId)
+            .Where(t => t.CutOrderId == cutOrderId)
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
     }
@@ -111,10 +111,10 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
             .ToListAsync(ct);
     }
 
-    public async Task<WeighTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
+    public async Task<WeighTicket?> GetPrimaryByCutOrderIdAsync(Guid cutOrderId, CancellationToken ct)
     {
         return await _db.WeighTickets
-            .Where(t => t.VehicleRegistrationId == registrationId && t.IsPrimaryDisplay && !t.IsDeleted)
+            .Where(t => t.CutOrderId == cutOrderId && t.IsPrimaryDisplay && !t.IsDeleted)
             .OrderBy(t => t.SplitSequence ?? 0)
             .ThenByDescending(t => t.UpdatedAt ?? t.CreatedAt)
             .FirstOrDefaultAsync(ct);
@@ -130,3 +130,4 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
             .FirstOrDefaultAsync(ct);
     }
 }
+

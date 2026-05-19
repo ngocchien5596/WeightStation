@@ -1,14 +1,14 @@
-using StationApp.Domain.Enums;
+﻿using StationApp.Domain.Enums;
 
 namespace StationApp.Domain.Entities;
 
 public class WeighTicket
 {
     public Guid Id { get; set; }
-    public Guid VehicleRegistrationId { get; set; }
+    public Guid CutOrderId { get; set; }
     public Guid? WeighingSessionId { get; set; }
     public string TicketNo { get; set; } = string.Empty;
-    public string? ErpVehicleRegistrationId { get; set; }
+    public string? ErpCutOrderId { get; set; }
     public string VehiclePlate { get; set; } = string.Empty;
     public string? MoocNumber { get; set; }
     public string? DriverName { get; set; }
@@ -74,3 +74,5 @@ public class WeighTicket
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
 }
+
+

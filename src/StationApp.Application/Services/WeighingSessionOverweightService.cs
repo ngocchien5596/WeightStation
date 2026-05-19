@@ -1,4 +1,4 @@
-using StationApp.Domain.Entities;
+﻿using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Application.Services;
@@ -20,7 +20,7 @@ public sealed class WeighingSessionOverweightService
 
         if (baseWeight <= 0m)
         {
-            throw new InvalidOperationException("Khong xac dinh duoc nguong TTCP 10% cho luot can.");
+            throw new InvalidOperationException("Không xác định được ngưỡng TTCP 10% cho lượt cân.");
         }
 
         return decimal.Round(baseWeight * 1.10m, 3, MidpointRounding.AwayFromZero);
@@ -116,7 +116,7 @@ public sealed class WeighingSessionOverweightService
         {
             if (!firstSplitNetWeight.HasValue)
             {
-                throw new InvalidOperationException("Phuong an tach tay chua co khoi luong phieu 1.");
+                throw new InvalidOperationException("Phương án tách tay chưa có khối lượng phiếu 1.");
             }
 
             resolvedFirstGroupTarget = decimal.Round(firstSplitNetWeight.Value, 3, MidpointRounding.AwayFromZero);
@@ -174,7 +174,7 @@ public sealed class WeighingSessionOverweightService
                     assignToFirstGroup ? (byte)1 : (byte)2,
                     line.Id,
                     line.SequenceNo,
-                    line.VehicleRegistrationId,
+                    line.CutOrderId,
                     partWeight));
 
                 remainingLineWeight = decimal.Round(remainingLineWeight - partWeight, 3, MidpointRounding.AwayFromZero);
@@ -204,7 +204,7 @@ public sealed class WeighingSessionOverweightService
                 g.Select(x => new OverweightSplitLinePlan(
                     x.SessionLineId,
                     x.SequenceNo,
-                    x.VehicleRegistrationId,
+                    x.CutOrderId,
                     x.Weight,
                     x.BagCount)).ToList()))
             .ToList();
@@ -369,13 +369,13 @@ public sealed class WeighingSessionOverweightService
 
     private sealed class MutableSplitPart
     {
-        public MutableSplitPart(Guid groupId, byte groupSequence, Guid sessionLineId, int sequenceNo, Guid vehicleRegistrationId, decimal weight)
+        public MutableSplitPart(Guid groupId, byte groupSequence, Guid sessionLineId, int sequenceNo, Guid vehicleCutOrderId, decimal weight)
         {
             GroupId = groupId;
             GroupSequence = groupSequence;
             SessionLineId = sessionLineId;
             SequenceNo = sequenceNo;
-            VehicleRegistrationId = vehicleRegistrationId;
+            CutOrderId = vehicleCutOrderId;
             Weight = weight;
         }
 
@@ -383,7 +383,7 @@ public sealed class WeighingSessionOverweightService
         public byte GroupSequence { get; }
         public Guid SessionLineId { get; }
         public int SequenceNo { get; }
-        public Guid VehicleRegistrationId { get; }
+        public Guid CutOrderId { get; }
         public decimal Weight { get; }
         public int? BagCount { get; set; }
     }
@@ -423,6 +423,8 @@ public sealed record OverweightSplitGroupPlan(
 public sealed record OverweightSplitLinePlan(
     Guid SessionLineId,
     int SequenceNo,
-    Guid VehicleRegistrationId,
+    Guid CutOrderId,
     decimal AllocatedWeight,
     int? AllocatedBagCount);
+
+

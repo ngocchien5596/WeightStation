@@ -39,6 +39,7 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsMenu => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode) || StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
     public bool CanViewSettingsParams => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanViewSettingsDevice => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
+    public bool CanViewSettingsPrint => StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);
     public bool CanViewSettingsVehicles => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanViewSettingsCustomers => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
@@ -170,6 +171,7 @@ public partial class MainViewModel : ObservableObject
                 case "Settings":
                 case "Settings_Params":
                 case "Settings_Device":
+                case "Settings_Print":
                 case "Settings_Vehicles":
                 case "Settings_Customers":
                 case "Settings_Products":
@@ -181,11 +183,12 @@ public partial class MainViewModel : ObservableObject
                     {
                         "Settings_Params" => 0,
                         "Settings_Device" => 1,
-                        "Settings_Vehicles" => 2,
-                        "Settings_Customers" => 3,
-                        "Settings_Products" => 4,
-                        "Settings_Sync" => 5,
-                        "Settings_Accounts" => 6,
+                        "Settings_Print" => 2,
+                        "Settings_Vehicles" => 3,
+                        "Settings_Customers" => 4,
+                        "Settings_Products" => 5,
+                        "Settings_Sync" => 6,
+                        "Settings_Accounts" => 7,
                         _ => (int?)null
                     };
                     _ = RunViewInitializationAsync(
@@ -238,6 +241,7 @@ public partial class MainViewModel : ObservableObject
             "Settings" => CanViewSettingsMenu,
             "Settings_Params" => CanViewSettingsParams,
             "Settings_Device" => CanViewSettingsDevice,
+            "Settings_Print" => CanViewSettingsPrint,
             "Settings_Vehicles" => CanViewSettingsVehicles,
             "Settings_Customers" => CanViewSettingsCustomers,
             "Settings_Products" => CanViewSettingsProducts,

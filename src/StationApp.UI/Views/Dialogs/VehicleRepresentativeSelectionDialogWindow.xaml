@@ -1,4 +1,4 @@
-<Window x:Class="StationApp.UI.Views.Dialogs.VehicleRepresentativeSelectionDialogWindow"
+﻿<Window x:Class="StationApp.UI.Views.Dialogs.VehicleRepresentativeSelectionDialogWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{Binding Title}"
@@ -61,7 +61,7 @@
                           RowStyle="{StaticResource SystemDataGridRowStyle}"
                           CellStyle="{StaticResource SystemDataGridCellStyle}">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColRegistrationCode}" Binding="{Binding ErpVehicleRegistrationId}" Width="140"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColRegistrationCode}" Binding="{Binding ErpCutOrderId}" Width="140"/>
                         <DataGridTextColumn Header="{StaticResource VehicleRep.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="140"/>
                         <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="130"/>
                         <DataGridTextColumn Header="{StaticResource VehicleRep.ColDriver}" Binding="{Binding DriverName}" Width="180"/>
@@ -79,3 +79,4 @@
         </Grid>
     </Border>
 </Window>
+

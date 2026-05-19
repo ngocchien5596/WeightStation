@@ -1,13 +1,14 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace StationApp.Infrastructure.Persistence;
 
 public static class SchemaCompatibilityBootstrapper
 {
-    private static readonly IReadOnlyList<ColumnPatch> VehicleRegistrationColumnPatches =
+    private static readonly IReadOnlyList<ColumnPatch> CutOrderColumnPatches =
     [
         new("WeighingSessionId", "uniqueidentifier NULL"),
+        new("ProductType", "nvarchar(30) NULL"),
         new("CutOrderCode", "nvarchar(100) NULL"),
         new("OrderCode", "nvarchar(100) NULL"),
         new("LotNo", "nvarchar(100) NULL"),
@@ -42,13 +43,86 @@ public static class SchemaCompatibilityBootstrapper
         new("UpdatedBy", "nvarchar(100) NULL")
     ];
 
+    private static readonly IReadOnlyList<ColumnPatch> ProductColumnPatches =
+    [
+        new("ProductType", "nvarchar(30) NULL")
+    ];
+
     public static async Task EnsureAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
     {
-        await EnsureTableColumnsAsync(db, logger, "vehicle_registrations", VehicleRegistrationColumnPatches, ct);
+        await EnsureCutOrderSchemaAsync(db, logger, ct);
+        await EnsureTableColumnsAsync(db, logger, "cut_orders", CutOrderColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "delivery_tickets", DeliveryTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
+        await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
+        await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
+    }
+
+    private static async Task EnsureCutOrderSchemaAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NULL AND OBJECT_ID(N'[vehicle_registrations]', N'U') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'vehicle_registrations', N'cut_orders';
+END
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicle_registrations_erp_vehicle_registration_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    DROP INDEX [UX_vehicle_registrations_erp_vehicle_registration_id] ON [cut_orders];
+END
+
+IF COL_LENGTH('cut_orders', 'ErpCutOrderId') IS NULL AND COL_LENGTH('cut_orders', 'ErpVehicleRegistrationId') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'cut_orders.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+END
+
+IF COL_LENGTH('cut_orders', 'CutOrderSource') IS NULL AND COL_LENGTH('cut_orders', 'RegistrationSource') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'cut_orders.RegistrationSource', N'CutOrderSource', N'COLUMN';
+END
+
+IF COL_LENGTH('cut_orders', 'CutOrderStatus') IS NULL AND COL_LENGTH('cut_orders', 'RegistrationStatus') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'cut_orders.RegistrationStatus', N'CutOrderStatus', N'COLUMN';
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_cut_orders_erp_cut_order_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    CREATE UNIQUE INDEX [UX_cut_orders_erp_cut_order_id]
+    ON [cut_orders]([ErpCutOrderId])
+    WHERE [ErpCutOrderId] IS NOT NULL;
+END
+
+IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'weigh_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+END
+
+IF COL_LENGTH('weigh_tickets', 'ErpCutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'ErpVehicleRegistrationId') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'weigh_tickets.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+END
+
+IF COL_LENGTH('delivery_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('delivery_tickets', 'VehicleRegistrationId') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'delivery_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+END
+
+IF COL_LENGTH('delivery_tickets', 'ErpCutOrderId') IS NULL AND COL_LENGTH('delivery_tickets', 'ErpVehicleRegistrationId') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'delivery_tickets.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+END
+
+IF COL_LENGTH('weighing_session_lines', 'CutOrderId') IS NULL AND COL_LENGTH('weighing_session_lines', 'VehicleRegistrationId') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'weighing_session_lines.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility rename completed for cut_orders.");
     }
 
     private static async Task EnsureTableColumnsAsync(
@@ -107,7 +181,7 @@ BEGIN
     CREATE TABLE [weighing_session_lines](
         [Id] uniqueidentifier NOT NULL,
         [WeighingSessionId] uniqueidentifier NOT NULL,
-        [VehicleRegistrationId] uniqueidentifier NOT NULL,
+        [CutOrderId] uniqueidentifier NOT NULL,
         [SequenceNo] int NOT NULL,
         [CustomerCode] nvarchar(50) NULL,
         [CustomerName] nvarchar(255) NULL,
@@ -157,12 +231,12 @@ END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_session_lines_registration_id' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
 BEGIN
-    CREATE INDEX [IX_weighing_session_lines_registration_id] ON [weighing_session_lines]([VehicleRegistrationId]);
+    CREATE INDEX [IX_weighing_session_lines_registration_id] ON [weighing_session_lines]([CutOrderId]);
 END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
 BEGIN
-    CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines]([WeighingSessionId], [VehicleRegistrationId]);
+    CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines]([WeighingSessionId], [CutOrderId]);
 END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
@@ -180,9 +254,9 @@ BEGIN
     CREATE INDEX [IX_delivery_tickets_weighing_session_line_id] ON [delivery_tickets]([WeighingSessionLineId]);
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_vehicle_registrations_weighing_session_id' AND object_id = OBJECT_ID(N'[vehicle_registrations]'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_weighing_session_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
 BEGIN
-    CREATE INDEX [IX_vehicle_registrations_weighing_session_id] ON [vehicle_registrations]([WeighingSessionId]);
+    CREATE INDEX [IX_cut_orders_weighing_session_id] ON [cut_orders]([WeighingSessionId]);
 END
 
 UPDATE [weighing_sessions]
@@ -194,5 +268,47 @@ WHERE [SessionStatus] = N'READY_TO_PRINT';
         logger?.LogDebug("Schema compatibility check completed for weighing session tables and indexes.");
     }
 
+    private static async Task EnsurePrintTemplateProfileTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[print_template_profiles]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [print_template_profiles](
+        [Id] uniqueidentifier NOT NULL,
+        [TemplateKind] nvarchar(30) NOT NULL,
+        [ProfileKey] nvarchar(100) NOT NULL,
+        [DisplayName] nvarchar(150) NOT NULL,
+        [IsDefault] bit NOT NULL CONSTRAINT [DF_print_template_profiles_is_default_bootstrap] DEFAULT ((0)),
+        [OffsetXmm] decimal(18,3) NOT NULL CONSTRAINT [DF_print_template_profiles_offset_x_bootstrap] DEFAULT ((0)),
+        [OffsetYmm] decimal(18,3) NOT NULL CONSTRAINT [DF_print_template_profiles_offset_y_bootstrap] DEFAULT ((0)),
+        [TemplateVersion] int NOT NULL CONSTRAINT [DF_print_template_profiles_version_bootstrap] DEFAULT ((1)),
+        [LayoutJson] nvarchar(max) NOT NULL CONSTRAINT [DF_print_template_profiles_layout_bootstrap] DEFAULT (N'[]'),
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        [UpdatedBy] nvarchar(100) NOT NULL,
+        CONSTRAINT [PK_print_template_profiles] PRIMARY KEY ([Id])
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_print_template_profiles_kind_key' AND object_id = OBJECT_ID(N'[print_template_profiles]'))
+BEGIN
+    CREATE UNIQUE INDEX [UX_print_template_profiles_kind_key]
+    ON [print_template_profiles]([TemplateKind], [ProfileKey]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_print_template_profiles_kind_default' AND object_id = OBJECT_ID(N'[print_template_profiles]'))
+BEGIN
+    CREATE INDEX [IX_print_template_profiles_kind_default]
+    ON [print_template_profiles]([TemplateKind], [IsDefault]);
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for print template profile table and indexes.");
+    }
+
     private sealed record ColumnPatch(string ColumnName, string SqlDefinition);
 }
+
+

@@ -33,9 +33,12 @@ public sealed class WpfPrintService : IPrintService
 
         using var server = new LocalPrintServer();
         var queue = server.GetPrintQueue(options.SelectedPrinterName);
-        var results = new List<PrintDocumentResult>(batch.Pages.Count);
+        var pagesToPrint = options.SelectedDocumentIds.Count == 0
+            ? batch.Pages
+            : batch.Pages.Where(x => options.SelectedDocumentIds.Contains(x.DocumentId)).ToList();
+        var results = new List<PrintDocumentResult>(pagesToPrint.Count);
 
-        foreach (var page in batch.Pages)
+        foreach (var page in pagesToPrint)
         {
             ct.ThrowIfCancellationRequested();
 

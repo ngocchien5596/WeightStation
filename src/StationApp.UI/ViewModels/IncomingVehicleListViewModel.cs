@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -31,13 +31,13 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _vehicles = new();
     [ObservableProperty] private IncomingVehicleSelectionItem? _selectedVehicle;
-    [ObservableProperty] private string? _searchErpVehicleRegistrationId;
+    [ObservableProperty] private string? _searchErpCutOrderId;
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private bool _isLoading;
 
     [ObservableProperty] private bool _isCreateMode;
-    [ObservableProperty] private Guid? _editingRegistrationId;
-    [ObservableProperty] private string? _formErpVehicleRegistrationId;
+    [ObservableProperty] private Guid? _editingCutOrderId;
+    [ObservableProperty] private string? _formErpCutOrderId;
     [ObservableProperty] private string? _formVehiclePlate;
     [ObservableProperty] private string? _formMoocNumber;
     [ObservableProperty] private string? _formDriverName;
@@ -47,6 +47,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [ObservableProperty] private string? _formProductName;
     [ObservableProperty] private decimal? _formPlannedWeight;
     [ObservableProperty] private int? _formBagCount;
+    [ObservableProperty] private bool _isFormProductBagged = true;
     [ObservableProperty] private string? _formNotes;
     [ObservableProperty] private bool _formIsCancelled;
     [ObservableProperty] private TransportMethod? _formTransportMethod = TransportMethod.ROAD;
@@ -134,10 +135,10 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var repo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
             var list = await repo.GetIncomingListAsync(
                 new IncomingVehicleListFilter(
-                    SearchErpVehicleRegistrationId,
+                    SearchErpCutOrderId,
                     SearchVehiclePlate,
                     null,
                     null,
@@ -146,12 +147,12 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     null),
                 CancellationToken.None);
 
-            var selectedIds = Vehicles.Where(x => x.IsSelected).Select(x => x.RegistrationId).ToHashSet();
+            var selectedIds = Vehicles.Where(x => x.IsSelected).Select(x => x.CutOrderId).ToHashSet();
             Vehicles = new ObservableCollection<IncomingVehicleSelectionItem>(
                 list.Select(x =>
                 {
                     var item = new IncomingVehicleSelectionItem(x);
-                    item.IsSelected = selectedIds.Contains(x.RegistrationId);
+                    item.IsSelected = selectedIds.Contains(x.CutOrderId);
                     item.PropertyChanged += (_, args) =>
                     {
                         if (args.PropertyName == nameof(IncomingVehicleSelectionItem.IsSelected))
@@ -169,7 +170,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
             if (SelectedVehicle != null)
             {
-                SelectedVehicle = Vehicles.FirstOrDefault(x => x.RegistrationId == SelectedVehicle.RegistrationId);
+                SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == SelectedVehicle.CutOrderId);
             }
         }
         catch (Exception ex)
@@ -223,6 +224,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     FormCustomerName,
                     FormProductCode,
                     FormProductName,
+                    null,
                     FormPlannedWeight,
                     FormBagCount,
                     FormNotes,
@@ -244,14 +246,14 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
                 if (result.Data != null)
                 {
-                    SelectedVehicle = Vehicles.FirstOrDefault(x => x.RegistrationId == result.Data.Id);
+                    SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == result.Data.Id);
                 }
 
                 IsCreateMode = false;
                 return;
             }
 
-            if (!EditingRegistrationId.HasValue)
+            if (!EditingCutOrderId.HasValue)
             {
                 _toastService.ShowWarning(UiText.Incoming.UpdateSelectionRequired);
                 return;
@@ -259,7 +261,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
             var updateUseCase = scope.ServiceProvider.GetRequiredService<UpdateIncomingRegistrationUseCase>();
             var updateResult = await updateUseCase.ExecuteAsync(new UpdateIncomingRegistrationRequest(
-                EditingRegistrationId.Value,
+                EditingCutOrderId.Value,
                 FormVehiclePlate!,
                 FormTransactionType,
                 FormTransportMethod,
@@ -269,6 +271,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 FormCustomerName,
                 FormProductCode,
                 FormProductName,
+                null,
                 FormPlannedWeight,
                 FormBagCount,
                 FormNotes,
@@ -327,7 +330,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             selectedVehicles.Add(SelectedVehicle);
         }
 
-        var selectedIds = selectedVehicles.Select(x => x.RegistrationId).ToList();
+        var selectedIds = selectedVehicles.Select(x => x.CutOrderId).ToList();
         if (selectedIds.Count == 0)
         {
             _toastService.ShowWarning(UiText.Incoming.CreateSessionSelectionRequired);
@@ -352,16 +355,16 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             var selectionVm = new VehicleRepresentativeSelectionDialogViewModel(
                 selectedVehicles
                     .OrderBy(x => x.CreatedAt)
-                    .ThenBy(x => x.ErpVehicleRegistrationId)
+                    .ThenBy(x => x.ErpCutOrderId)
                     .Select(x => new VehicleRepresentativeOption(
-                        x.RegistrationId,
+                        x.CutOrderId,
                         x.VehiclePlate,
                         x.MoocNumber,
                         x.ReceiverName,
-                        x.ErpVehicleRegistrationId,
+                        x.ErpCutOrderId,
                         x.CreatedAt))
                     .ToList(),
-                primaryVehicle.RegistrationId);
+                primaryVehicle.CutOrderId);
 
             var selectionResult = await _dialogService.ShowCustomDialogAsync<VehicleRepresentativeSelectionDialogViewModel, VehicleRepresentativeSelectionResult>(selectionVm);
             if (selectionResult == null)
@@ -369,7 +372,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 return;
             }
 
-            primaryVehicle = selectedVehicles.FirstOrDefault(x => x.RegistrationId == selectionResult.RegistrationId);
+            primaryVehicle = selectedVehicles.FirstOrDefault(x => x.CutOrderId == selectionResult.CutOrderId);
             if (primaryVehicle == null)
             {
                 return;
@@ -381,7 +384,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<CreateWeighingSessionUseCase>();
             var result = await uc.ExecuteAsync(
-                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.RegistrationId),
+                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.CutOrderId),
                 CancellationToken.None);
 
             _toastService.ShowSuccess(UiText.Incoming.CreateSessionSuccess);
@@ -435,8 +438,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             var uc = scope.ServiceProvider.GetRequiredService<MarkRegistrationsNoLoadUseCase>();
             await uc.ExecuteAsync(
                 new MarkRegistrationsNoLoadRequest(
-                    selectedVehicles.Select(x => x.RegistrationId).ToList(),
-                    primaryVehicle.RegistrationId),
+                    selectedVehicles.Select(x => x.CutOrderId).ToList(),
+                    primaryVehicle.CutOrderId),
                 CancellationToken.None);
 
             _toastService.ShowSuccess("Đã chuyển xe sang danh sách xe ra theo luồng không lấy hàng.");
@@ -457,14 +460,14 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return null;
         }
 
-        if (SelectedVehicle != null && selectedVehicles.Any(x => x.RegistrationId == SelectedVehicle.RegistrationId))
+        if (SelectedVehicle != null && selectedVehicles.Any(x => x.CutOrderId == SelectedVehicle.CutOrderId))
         {
             return SelectedVehicle;
         }
 
         return selectedVehicles
             .OrderBy(x => x.CreatedAt)
-            .ThenBy(x => x.ErpVehicleRegistrationId)
+            .ThenBy(x => x.ErpCutOrderId)
             .FirstOrDefault();
     }
 
@@ -481,18 +484,18 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var regRepo = scope.ServiceProvider.GetRequiredService<IVehicleRegistrationRepository>();
+            var regRepo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
             var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
 
-            var registration = await regRepo.GetByIdAsync(selected.RegistrationId, CancellationToken.None);
+            var registration = await regRepo.GetByIdAsync(selected.CutOrderId, CancellationToken.None);
             if (registration == null)
             {
                 return;
             }
 
             IsCreateMode = false;
-            EditingRegistrationId = registration.Id;
-            FormErpVehicleRegistrationId = registration.ErpVehicleRegistrationId;
+            EditingCutOrderId = registration.Id;
+            FormErpCutOrderId = registration.ErpCutOrderId;
             SetFormVehiclePlate(registration.VehiclePlate);
             SetFormMoocNumber(registration.MoocNumber);
             SetFormDriverName(registration.ReceiverName);
@@ -501,7 +504,9 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             SetFormProductCode(registration.ProductCode);
             SetFormProductName(registration.ProductName);
             FormPlannedWeight = registration.PlannedWeight;
-            FormBagCount = registration.BagCount;
+            var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(selected.ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+            IsFormProductBagged = isBagged;
+            FormBagCount = isBagged ? registration.BagCount : null;
             FormNotes = registration.Notes;
             FormIsCancelled = registration.IsCancelled;
             FormTransportMethod = registration.TransportMethod;
@@ -571,8 +576,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     private void ClearForm()
     {
-        EditingRegistrationId = null;
-        FormErpVehicleRegistrationId = null;
+        EditingCutOrderId = null;
+        FormErpCutOrderId = null;
         SetFormVehiclePlate(null);
         SetFormMoocNumber(null);
         SetFormDriverName(null);
@@ -582,6 +587,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         SetFormProductName(null);
         FormPlannedWeight = null;
         FormBagCount = null;
+        IsFormProductBagged = true;
         FormNotes = null;
         FormIsCancelled = false;
         TtcpWeight = null;
@@ -602,7 +608,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     private bool HasSearchFilters()
     {
-        return !string.IsNullOrWhiteSpace(SearchErpVehicleRegistrationId)
+        return !string.IsNullOrWhiteSpace(SearchErpCutOrderId)
             || !string.IsNullOrWhiteSpace(SearchVehiclePlate);
     }
 
@@ -802,14 +808,53 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         FormProductName = value;
         FormProductNameInput.SetText(value);
     }
+
+    partial void OnFormProductCodeChanged(string? value)
+    {
+        _ = SyncProductTypeAsync(value);
+    }
+
+    private async Task SyncProductTypeAsync(string? productCode)
+    {
+        if (string.IsNullOrWhiteSpace(productCode))
+        {
+            IsFormProductBagged = true;
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+            var product = await productRepo.GetByCodeAsync(productCode.Trim(), CancellationToken.None);
+            if (product != null)
+            {
+                var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(product.ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+                IsFormProductBagged = isBagged;
+                if (!isBagged)
+                {
+                    FormBagCount = null;
+                }
+            }
+            else
+            {
+                IsFormProductBagged = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Product type sync failed for {ProductCode}", productCode);
+            IsFormProductBagged = true;
+        }
+    }
 }
 
 public partial class IncomingVehicleSelectionItem : ObservableObject
 {
     public IncomingVehicleSelectionItem(IncomingVehicleListItem item)
     {
-        RegistrationId = item.RegistrationId;
-        ErpVehicleRegistrationId = item.ErpVehicleRegistrationId;
+        CutOrderId = item.CutOrderId;
+        ErpCutOrderId = item.ErpCutOrderId;
         TransactionType = item.TransactionType;
         VehiclePlate = item.VehiclePlate;
         MoocNumber = item.MoocNumber;
@@ -817,17 +862,21 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
         CustomerName = item.CustomerName;
         ProductCode = item.ProductCode;
         ProductName = item.ProductName;
+        ProductType = item.ProductType;
         PlannedWeight = item.PlannedWeight;
-        BagCount = item.BagCount;
-        RegistrationStatus = item.RegistrationStatus;
+
+        var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+        BagCount = isBagged ? item.BagCount : null;
+
+        CutOrderStatus = item.CutOrderStatus;
         TransportMethod = item.TransportMethod;
         CreatedAt = item.CreatedAt;
     }
 
     [ObservableProperty] private bool _isSelected;
 
-    public Guid RegistrationId { get; }
-    public string? ErpVehicleRegistrationId { get; }
+    public Guid CutOrderId { get; }
+    public string? ErpCutOrderId { get; }
     public TransactionType TransactionType { get; }
     public string VehiclePlate { get; }
     public string? MoocNumber { get; }
@@ -835,9 +884,12 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
     public string? CustomerName { get; }
     public string? ProductCode { get; }
     public string? ProductName { get; }
+    public string? ProductType { get; }
     public decimal? PlannedWeight { get; }
     public int? BagCount { get; }
-    public RegistrationStatus RegistrationStatus { get; }
+    public CutOrderStatus CutOrderStatus { get; }
     public TransportMethod? TransportMethod { get; }
     public DateTime CreatedAt { get; }
 }
+
+

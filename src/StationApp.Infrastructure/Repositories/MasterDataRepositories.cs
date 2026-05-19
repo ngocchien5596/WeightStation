@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
@@ -226,6 +226,7 @@ public class ProductRepository : IProductRepository
             .Select(p => new ProductAutocompleteSource(
                 p.ProductCode,
                 p.ProductName,
+                p.ProductType,
                 "MASTER"))
             .ToListAsync(ct);
 
@@ -258,10 +259,10 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
         return await _context.DeliveryTickets.FindAsync(new object[] { id }, ct);
     }
 
-    public async Task<IReadOnlyList<DeliveryTicket>> GetByErpVehicleRegistrationIdAsync(string erpVehicleRegistrationId, CancellationToken ct)
+    public async Task<IReadOnlyList<DeliveryTicket>> GetByErpCutOrderIdAsync(string erpCutOrderId, CancellationToken ct)
     {
         var list = await _context.DeliveryTickets
-            .Where(d => d.ErpVehicleRegistrationId == erpVehicleRegistrationId && !d.IsDeleted)
+            .Where(d => d.ErpCutOrderId == erpCutOrderId && !d.IsDeleted)
             .ToListAsync(ct);
         return list.AsReadOnly();
     }
@@ -276,20 +277,20 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
         return list.AsReadOnly();
     }
 
-    public async Task<IReadOnlyList<DeliveryTicket>> GetByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
+    public async Task<IReadOnlyList<DeliveryTicket>> GetByCutOrderIdAsync(Guid cutOrderId, CancellationToken ct)
     {
         var list = await _context.DeliveryTickets
-            .Where(d => d.VehicleRegistrationId == registrationId && !d.IsDeleted)
+            .Where(d => d.CutOrderId == cutOrderId && !d.IsDeleted)
             .OrderBy(d => d.SplitSequence ?? 0)
             .ThenBy(d => d.CreatedAt)
             .ToListAsync(ct);
         return list.AsReadOnly();
     }
 
-    public async Task<IReadOnlyList<DeliveryTicket>> GetAllByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
+    public async Task<IReadOnlyList<DeliveryTicket>> GetAllByCutOrderIdAsync(Guid cutOrderId, CancellationToken ct)
     {
         var list = await _context.DeliveryTickets
-            .Where(d => d.VehicleRegistrationId == registrationId)
+            .Where(d => d.CutOrderId == cutOrderId)
             .OrderBy(d => d.SplitSequence ?? 0)
             .ThenBy(d => d.CreatedAt)
             .ToListAsync(ct);
@@ -316,12 +317,14 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
         return list.AsReadOnly();
     }
 
-    public async Task<DeliveryTicket?> GetPrimaryByVehicleRegistrationIdAsync(Guid registrationId, CancellationToken ct)
+    public async Task<DeliveryTicket?> GetPrimaryByCutOrderIdAsync(Guid cutOrderId, CancellationToken ct)
     {
         return await _context.DeliveryTickets
-            .Where(d => d.VehicleRegistrationId == registrationId && d.RecordRole == DeliveryTicketRecordRoles.Normal && !d.IsDeleted)
+            .Where(d => d.CutOrderId == cutOrderId && d.RecordRole == DeliveryTicketRecordRoles.Normal && !d.IsDeleted)
             .OrderBy(d => d.SplitSequence ?? 0)
             .ThenByDescending(d => d.UpdatedAt ?? d.CreatedAt)
             .FirstOrDefaultAsync(ct);
     }
 }
+
+

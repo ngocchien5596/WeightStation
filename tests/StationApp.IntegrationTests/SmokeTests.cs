@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using StationApp.Application.DTOs;
@@ -28,7 +28,7 @@ public class SmokeTests : IDisposable
 
                 services.AddScoped<ITicketRepository, TicketRepository>();
                 services.AddScoped<IWeighTicketRepository, TicketRepository>();
-                services.AddScoped<IVehicleRegistrationRepository, VehicleRegistrationRepository>();
+                services.AddScoped<ICutOrderRepository, CutOrderRepository>();
                 services.AddScoped<IDeliveryTicketRepository, DeliveryTicketRepository>();
                 services.AddScoped<ISyncOutboxRepository, SyncOutboxRepository>();
                 services.AddScoped<IAuditLogRepository, AuditLogRepository>();
@@ -44,7 +44,7 @@ public class SmokeTests : IDisposable
                 services.AddScoped<IToleranceProvider, ToleranceProvider>();
                 services.AddScoped<IAuditService, AuditService>();
                 services.AddScoped<ISyncPayloadFactory, SyncPayloadFactory>();
-                services.AddScoped<CreateVehicleRegistrationUseCase>();
+                services.AddScoped<CreateCutOrderUseCase>();
                 services.AddScoped<CaptureWeight1UseCase>();
                 services.AddScoped<CaptureWeight2UseCase>();
                 services.AddScoped<EnsurePrimaryDeliveryTicketUseCase>();
@@ -68,16 +68,16 @@ public class SmokeTests : IDisposable
     public async Task EndToEnd_Outbound_Flow_Success()
     {
         using var scope = _services.CreateScope();
-        var createUseCase = scope.ServiceProvider.GetRequiredService<CreateVehicleRegistrationUseCase>();
+        var createUseCase = scope.ServiceProvider.GetRequiredService<CreateCutOrderUseCase>();
         var capture1UseCase = scope.ServiceProvider.GetRequiredService<CaptureWeight1UseCase>();
         var capture2UseCase = scope.ServiceProvider.GetRequiredService<CaptureWeight2UseCase>();
         var completeUseCase = scope.ServiceProvider.GetRequiredService<CompleteTicketUseCase>();
         var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
 
-        // 1. Create Vehicle Registration
-        var createRequest = new CreateVehicleRegistrationRequest(
+        // 1. Create cut order
+        var createRequest = new CreateCutOrderRequest(
             VehiclePlate: "30A-12345",
-            RegistrationSource: RegistrationSource.MANUAL,
+            CutOrderSource: CutOrderSource.MANUAL,
             TransactionType: TransactionType.OUTBOUND,
             CustomerName: "Test Customer",
             ProductName: "Test Product",
@@ -86,10 +86,10 @@ public class SmokeTests : IDisposable
         );
         var createResult = await createUseCase.ExecuteAsync(createRequest, default);
         Assert.True(createResult.Success);
-        var registrationId = createResult.Data!.Id;
+        var cutOrderId = createResult.Data!.Id;
 
         // 2. Capture Weight 1 (Creates Weigh Ticket)
-        var w1Result = await capture1UseCase.ExecuteAsync(new CaptureWeightRequest(registrationId, 10000, true, WeightMode.MANUAL), default);
+        var w1Result = await capture1UseCase.ExecuteAsync(new CaptureWeightRequest(cutOrderId, 10000, true, WeightMode.MANUAL), default);
         Assert.True(w1Result.Success);
         var ticketId = w1Result.Data!.Id;
         
@@ -100,14 +100,14 @@ public class SmokeTests : IDisposable
         Assert.Equal(TicketStatus.LOADING_STARTED, ticket.Status);
 
         // 3. Capture Weight 2
-        var w2Result = await capture2UseCase.ExecuteAsync(new CaptureWeightRequest(registrationId, 35500, true, WeightMode.MANUAL), default);
+        var w2Result = await capture2UseCase.ExecuteAsync(new CaptureWeightRequest(cutOrderId, 35500, true, WeightMode.MANUAL), default);
         Assert.True(w2Result.Success);
         
         ticket = await db.WeighTickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId);
         Assert.Equal(35500, ticket!.Weight2);
 
         // 4. Complete
-        var completeResult = await completeUseCase.ExecuteAsync(new CompleteTicketRequest(registrationId), default);
+        var completeResult = await completeUseCase.ExecuteAsync(new CompleteTicketRequest(cutOrderId), default);
         Assert.True(completeResult.Success);
 
         ticket = await db.WeighTickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId);
@@ -115,10 +115,10 @@ public class SmokeTests : IDisposable
         Assert.Equal(25500, ticket.NetWeight); 
         
         // 5. Verify Audit Logs & Outbox
-        var auditCount = await db.AuditLogs.CountAsync(a => a.EntityId == registrationId);
+        var auditCount = await db.AuditLogs.CountAsync(a => a.EntityId == cutOrderId);
         Assert.True(auditCount >= 3);
 
-        var outboxCount = await db.SyncOutbox.CountAsync(o => o.AggregateId == registrationId);
+        var outboxCount = await db.SyncOutbox.CountAsync(o => o.AggregateId == cutOrderId);
         Assert.True(outboxCount >= 1);
     }
 
@@ -127,3 +127,5 @@ public class SmokeTests : IDisposable
         _host.Dispose();
     }
 }
+
+

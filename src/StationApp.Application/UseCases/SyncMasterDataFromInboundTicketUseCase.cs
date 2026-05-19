@@ -1,4 +1,4 @@
-using StationApp.Application.Interfaces;
+﻿using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -45,7 +45,7 @@ public class SyncMasterDataFromInboundTicketUseCase
         var customer = await UpsertCustomerAsync(ticket.CustomerCode, ticket.CustomerName, ct);
         
         // 3. Upsert Product
-        var product = await UpsertProductAsync(ticket.ProductCode, ticket.ProductName, ct);
+        var product = await UpsertProductAsync(ticket.ProductCode, ticket.ProductName, null, ticket.TransactionType, ct);
 
         if (vehicle != null)
         {
@@ -61,11 +61,11 @@ public class SyncMasterDataFromInboundTicketUseCase
         await _uow.SaveChangesAsync(ct);
     }
 
-    public async Task ExecuteAsync(VehicleRegistration reg, CancellationToken ct)
+    public async Task ExecuteAsync(CutOrder reg, CancellationToken ct)
     {
         var vehicle = await UpsertVehicleAsync(reg.VehiclePlate, reg.MoocNumber, reg.ReceiverName, reg.TransportMethod, ct);
         var customer = await UpsertCustomerAsync(reg.CustomerCode, reg.CustomerName, ct);
-        var product = await UpsertProductAsync(reg.ProductCode, reg.ProductName, ct);
+        var product = await UpsertProductAsync(reg.ProductCode, reg.ProductName, reg.ProductType, reg.TransactionType, ct);
 
         if (vehicle != null)
         {
@@ -191,9 +191,10 @@ public class SyncMasterDataFromInboundTicketUseCase
         return customer;
     }
 
-    private async Task<Product?> UpsertProductAsync(string? code, string? name, CancellationToken ct)
+    private async Task<Product?> UpsertProductAsync(string? code, string? name, string? productType, TransactionType transactionType, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(code)) return null;
+        var normalizedType = ProductTypes.Normalize(productType) ?? ProductTypes.InferForTransaction(transactionType);
 
         var product = await _productRepo.GetByCodeAsync(code, ct);
         if (product == null)
@@ -203,17 +204,33 @@ public class SyncMasterDataFromInboundTicketUseCase
                 Id = Guid.NewGuid(),
                 ProductCode = code,
                 ProductName = name ?? "",
+                ProductType = normalizedType,
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
             await _productRepo.AddAsync(product, ct);
         }
-        else if (!string.IsNullOrEmpty(name))
+        else
         {
-            product.ProductName = name;
-            product.UpdatedAt = _clock.NowLocal;
-            product.UpdatedBy = _currentUser.Username ?? "SYSTEM";
-            await _productRepo.UpdateAsync(product, ct);
+            var changed = false;
+            if (!string.IsNullOrEmpty(name) && !string.Equals(product.ProductName, name, StringComparison.Ordinal))
+            {
+                product.ProductName = name;
+                changed = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(normalizedType) && !string.Equals(product.ProductType, normalizedType, StringComparison.Ordinal))
+            {
+                product.ProductType = normalizedType;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                product.UpdatedAt = _clock.NowLocal;
+                product.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+                await _productRepo.UpdateAsync(product, ct);
+            }
         }
 
         return product;
@@ -316,3 +333,4 @@ public class SyncMasterDataFromInboundTicketUseCase
         return product;
     }
 }
+

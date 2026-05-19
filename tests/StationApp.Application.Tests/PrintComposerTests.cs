@@ -1,4 +1,4 @@
-using StationApp.Application.Printing;
+﻿using StationApp.Application.Printing;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using Xunit;
@@ -11,7 +11,7 @@ public class PrintComposerTests
     public void WeighTicketComposer_UsesSnapshotRegistrationNumbers_AndRootExtensions()
     {
         var composer = new WeighTicketPrintComposer();
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
             VehiclePlate = "51C-12345",
@@ -36,7 +36,7 @@ public class PrintComposerTests
         {
             Id = Guid.NewGuid(),
             TicketNo = "PC0001",
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             VehiclePlate = registration.VehiclePlate,
             MoocNumber = registration.MoocNumber,
             CustomerName = "Cong ty A",
@@ -56,23 +56,24 @@ public class PrintComposerTests
         Assert.Equal("DK-MOOC-SNAPSHOT", model.Fields.Single(x => x.FieldKey == "MoocRegistrationNo").Value);
         Assert.Equal("LO-01", model.Fields.Single(x => x.FieldKey == "LotNo").Value);
         Assert.Equal("Nguyen Van B", model.Fields.Single(x => x.FieldKey == "RepresentativeName").Value);
-        Assert.Equal("12,000", model.Fields.Single(x => x.FieldKey == "EmptyWeight").Value);
-        Assert.Equal("34,000", model.Fields.Single(x => x.FieldKey == "GrossWeight").Value);
+        Assert.Equal("12.0", model.Fields.Single(x => x.FieldKey == "EmptyWeight").Value);
+        Assert.Equal("34.0", model.Fields.Single(x => x.FieldKey == "GrossWeight").Value);
     }
 
     [Fact]
     public void DeliveryTicketComposer_FallsBackToRegistrationData_AndLeavesActualBagCountBlank()
     {
         var composer = new DeliveryTicketPrintComposer();
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
             VehiclePlate = "51C-12345",
             MoocNumber = "51R-99999",
-            ErpVehicleRegistrationId = "ERP-001",
+            ErpCutOrderId = "ERP-001",
             CustomerName = "Cong ty A",
             CustomerCode = "C001",
             ProductName = "Xi mang",
+            ProductType = "Bao",
             PlannedWeight = 21000,
             BagCount = 400,
             ConsumptionPlace = "Noi tieu thu",
@@ -85,15 +86,15 @@ public class PrintComposerTests
         var ticket = new DeliveryTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             DeliveryNo = "PGN0001",
-            ErpVehicleRegistrationId = "ERP-001"
+            ErpCutOrderId = "ERP-001"
         };
 
         var weigh = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             TicketNo = "PC0001",
             VehiclePlate = registration.VehiclePlate,
             MoocNumber = registration.MoocNumber,
@@ -106,7 +107,7 @@ public class PrintComposerTests
 
         Assert.Equal("PGN0001", model.DeliveryNo);
         Assert.Equal("ERP-001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
-        Assert.Equal("20,500", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("20.5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Null(model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
         Assert.Equal("Noi tieu thu", model.Fields.Single(x => x.FieldKey == "ConsumptionPlace").Value);
         Assert.Equal("Noi xuat hang", model.Fields.Single(x => x.FieldKey == "LoadingPlace").Value);
@@ -116,26 +117,27 @@ public class PrintComposerTests
     public void DeliveryTicketComposer_UsesSessionLineAllocation_WhenProvided()
     {
         var composer = new DeliveryTicketPrintComposer();
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
             VehiclePlate = "51C-12345",
             CustomerName = "Cong ty A",
-            ProductName = "Xi mang"
+            ProductName = "Xi mang",
+            ProductType = "Bao"
         };
 
         var ticket = new DeliveryTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             DeliveryNo = "PGN0002",
-            ErpVehicleRegistrationId = "ERP-002"
+            ErpCutOrderId = "ERP-002"
         };
 
         var weigh = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             TicketNo = "PC0002",
             VehiclePlate = registration.VehiclePlate,
             NetWeight = 20500
@@ -144,7 +146,7 @@ public class PrintComposerTests
         var sessionLine = new WeighingSessionLine
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             SequenceNo = 1,
             ActualAllocatedWeight = 10250,
             ActualAllocatedBagCount = 200
@@ -152,7 +154,7 @@ public class PrintComposerTests
 
         var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
-        Assert.Equal("10,250", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("10.25", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Equal("200", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
     }
 
@@ -160,20 +162,21 @@ public class PrintComposerTests
     public void DeliveryTicketComposer_PrefersDeliveryTicketAllocatedValues_OverSessionLine()
     {
         var composer = new DeliveryTicketPrintComposer();
-        var registration = new VehicleRegistration
+        var registration = new CutOrder
         {
             Id = Guid.NewGuid(),
             VehiclePlate = "51C-12345",
             CustomerName = "Cong ty A",
-            ProductName = "Xi mang"
+            ProductName = "Xi mang",
+            ProductType = "Bao"
         };
 
         var ticket = new DeliveryTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             DeliveryNo = "PGN0003",
-            ErpVehicleRegistrationId = "ERP-003",
+            ErpCutOrderId = "ERP-003",
             AllocatedWeight = 2500,
             AllocatedBagCount = 50
         };
@@ -181,7 +184,7 @@ public class PrintComposerTests
         var weigh = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             TicketNo = "PC0003",
             VehiclePlate = registration.VehiclePlate,
             NetWeight = 20500
@@ -190,7 +193,7 @@ public class PrintComposerTests
         var sessionLine = new WeighingSessionLine
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = registration.Id,
+            CutOrderId = registration.Id,
             SequenceNo = 1,
             ActualAllocatedWeight = 10250,
             ActualAllocatedBagCount = 200
@@ -198,7 +201,9 @@ public class PrintComposerTests
 
         var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
-        Assert.Equal("2,500", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("2.5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Equal("50", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
     }
 }
+
+

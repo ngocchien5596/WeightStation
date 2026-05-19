@@ -3,12 +3,17 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Markup;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using StationApp.Application.Printing;
 
 namespace StationApp.UI.Printing;
 
 public sealed class PrintOverlayRenderer
 {
+    private static readonly FontFamily PrintFontFamily = new("Times New Roman");
+    private static readonly Brush ShadedFieldBrush = new SolidColorBrush(Color.FromRgb(217, 217, 217));
+    private const double PrintFontSizeBoost = 4d;
+
     public FixedDocument CreateDocument(
         PrintTemplateDefinition template,
         IReadOnlyList<PrintPreviewPageModel> pages,
@@ -43,6 +48,7 @@ public sealed class PrintOverlayRenderer
                 fixedPage.Children.Add(new TextBlock
                 {
                     Text = $"PRE-PRINTED OVERLAY PREVIEW · {template.TemplateName} · {page.DisplayNumber}",
+                    FontFamily = PrintFontFamily,
                     Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
                     FontSize = 11,
                     FontWeight = FontWeights.SemiBold,
@@ -56,11 +62,42 @@ public sealed class PrintOverlayRenderer
             foreach (var field in positionedFields)
             {
                 var value = values.GetValueOrDefault(field.FieldKey);
+                if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(field.LiteralValue))
+                {
+                    value = field.LiteralValue;
+                }
                 var isSelected = string.Equals(field.FieldKey, options.SelectedFieldKey, StringComparison.OrdinalIgnoreCase);
+
+                if (field.IsLine)
+                {
+                    fixedPage.Children.Add(BuildHorizontalLine(field, options, previewMode, isSelected));
+                    continue;
+                }
+
+                if (field.IsImage)
+                {
+                    if (previewMode)
+                    {
+                        fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected));
+                    }
+
+                    var image = BuildImageElement(field, options);
+                    if (image != null)
+                    {
+                        fixedPage.Children.Add(image);
+                    }
+
+                    continue;
+                }
 
                 if (previewMode)
                 {
                     fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected));
+                }
+
+                if (!previewMode && string.Equals(field.FieldKey, "Notes", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
                 }
 
                 if (string.IsNullOrWhiteSpace(value) && !previewMode)
@@ -72,8 +109,10 @@ public sealed class PrintOverlayRenderer
                 {
                     Text = string.IsNullOrWhiteSpace(value) && previewMode ? $"[{field.FieldKey}]" : value,
                     Width = MmToDip(field.Width),
-                    FontSize = field.FontSize,
+                    FontFamily = PrintFontFamily,
+                    FontSize = field.FontSize + PrintFontSizeBoost,
                     FontWeight = ToFontWeight(field.FontWeight),
+                    FontStyle = field.Italic ? FontStyles.Italic : FontStyles.Normal,
                     TextAlignment = ToTextAlignment(field.Alignment),
                     TextWrapping = field.WrapMode == PrintWrapMode.Wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
                     TextTrimming = field.WrapMode == PrintWrapMode.Trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
@@ -81,12 +120,23 @@ public sealed class PrintOverlayRenderer
                         ? new SolidColorBrush(Color.FromRgb(148, 163, 184))
                         : Brushes.Black,
                     Opacity = string.IsNullOrWhiteSpace(value) && previewMode ? 0.9 : 1,
-                    Background = Brushes.Transparent
+                    Background = field.ShadedBackground ? ShadedFieldBrush : Brushes.Transparent
                 };
+
+                if (field.Underline)
+                {
+                    text.TextDecorations = TextDecorations.Underline;
+                }
 
                 if (field.MaxLines > 1)
                 {
-                    text.MaxHeight = field.MaxLines * field.FontSize * 1.4;
+                    text.MaxHeight = field.MaxLines * (field.FontSize + PrintFontSizeBoost) * 1.4;
+                }
+
+                if (Math.Abs(field.RotationDegrees) > 0.001d)
+                {
+                    text.RenderTransform = new RotateTransform(field.RotationDegrees);
+                    text.RenderTransformOrigin = new Point(0, 0);
                 }
 
                 FixedPage.SetLeft(text, MmToDip(field.X + options.OffsetXmm));
@@ -104,6 +154,27 @@ public sealed class PrintOverlayRenderer
 
     private static double MmToDip(double mm) => mm * 96d / 25.4d;
 
+    private static FrameworkElement? BuildImageElement(PrintFieldDefinition field, PrintOptionsModel options)
+    {
+        if (string.IsNullOrWhiteSpace(field.ImageSourceUri))
+        {
+            return null;
+        }
+
+        var image = new Image
+        {
+            Width = MmToDip(field.Width),
+            Height = MmToDip(field.Width),
+            Stretch = Stretch.Uniform,
+            Source = new BitmapImage(new Uri(field.ImageSourceUri, UriKind.Absolute))
+        };
+
+        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+        FixedPage.SetLeft(image, MmToDip(field.X + options.OffsetXmm));
+        FixedPage.SetTop(image, MmToDip(field.Y + options.OffsetYmm));
+        return image;
+    }
+
     private static IReadOnlyList<PrintFieldDefinition> ApplyFieldPositions(
         IReadOnlyList<PrintFieldDefinition> fields,
         IReadOnlyList<PrintFieldPosition> positions)
@@ -116,7 +187,7 @@ public sealed class PrintOverlayRenderer
         var map = positions.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
         return fields
             .Select(field => map.TryGetValue(field.FieldKey, out var position)
-                ? field with { X = position.X, Y = position.Y }
+                ? field with { X = position.X, Y = position.Y, Width = position.Width ?? field.Width }
                 : field)
             .ToList();
     }
@@ -139,6 +210,33 @@ public sealed class PrintOverlayRenderer
         FixedPage.SetLeft(border, MmToDip(field.X + options.OffsetXmm));
         FixedPage.SetTop(border, MmToDip(field.Y + options.OffsetYmm));
         return border;
+    }
+
+    private static FrameworkElement BuildHorizontalLine(
+        PrintFieldDefinition field,
+        PrintOptionsModel options,
+        bool previewMode,
+        bool isSelected)
+    {
+        var line = new Border
+        {
+            Width = MmToDip(field.Width),
+            Height = previewMode ? 2.2 : 1.2,
+            Background = Brushes.Black,
+            Opacity = previewMode ? 0.85 : 1
+        };
+
+        if (previewMode)
+        {
+            line.BorderBrush = isSelected
+                ? new SolidColorBrush(Color.FromRgb(239, 68, 68))
+                : new SolidColorBrush(Color.FromArgb(110, 148, 163, 184));
+            line.BorderThickness = isSelected ? new Thickness(1.1) : new Thickness(0.6);
+        }
+
+        FixedPage.SetLeft(line, MmToDip(field.X + options.OffsetXmm));
+        FixedPage.SetTop(line, MmToDip(field.Y + options.OffsetYmm));
+        return line;
     }
 
     private static TextAlignment ToTextAlignment(PrintFieldAlignment alignment) => alignment switch

@@ -1,19 +1,19 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StationApp.Domain.Entities;
 
 namespace StationApp.Infrastructure.Persistence.Configurations;
 
-public class VehicleRegistrationEntityConfiguration : IEntityTypeConfiguration<VehicleRegistration>
+public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
 {
-    public void Configure(EntityTypeBuilder<VehicleRegistration> builder)
+    public void Configure(EntityTypeBuilder<CutOrder> builder)
     {
-        builder.ToTable("vehicle_registrations");
+        builder.ToTable("cut_orders");
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.ErpVehicleRegistrationId).HasMaxLength(50);
-        builder.Property(e => e.RegistrationSource).HasConversion<string>().HasMaxLength(20).IsRequired();
-        builder.Property(e => e.RegistrationStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(e => e.ErpCutOrderId).HasColumnName("ErpCutOrderId").HasMaxLength(50);
+        builder.Property(e => e.CutOrderSource).HasColumnName("CutOrderSource").HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(e => e.CutOrderStatus).HasColumnName("CutOrderStatus").HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(e => e.TransactionType).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.TransportMethod).HasConversion<string>().HasMaxLength(20);
 
@@ -27,6 +27,7 @@ public class VehicleRegistrationEntityConfiguration : IEntityTypeConfiguration<V
 
         builder.Property(e => e.ProductCode).HasMaxLength(50);
         builder.Property(e => e.ProductName).HasMaxLength(255);
+        builder.Property(e => e.ProductType).HasMaxLength(30);
         builder.Property(e => e.CutOrderCode).HasMaxLength(100);
         builder.Property(e => e.OrderCode).HasMaxLength(100);
         builder.Property(e => e.LotNo).HasMaxLength(100);
@@ -66,16 +67,17 @@ public class VehicleRegistrationEntityConfiguration : IEntityTypeConfiguration<V
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
         // Indexes
-        builder.HasIndex(e => e.RegistrationStatus).HasDatabaseName("IX_vehicle_registrations_registration_status");
-        builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_vehicle_registrations_sync_status");
-        builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_vehicle_registrations_vehicle_plate");
-        builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_vehicle_registrations_created_at");
-        builder.HasIndex(e => new { e.ProcessingStage, e.IsCancelled }).HasDatabaseName("IX_vehicle_registrations_processing_stage");
-        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_vehicle_registrations_weighing_session_id");
+        builder.HasIndex(e => e.CutOrderStatus).HasDatabaseName("IX_cut_orders_status");
+        builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_cut_orders_sync_status");
+        builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_cut_orders_vehicle_plate");
+        builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_cut_orders_created_at");
+        builder.HasIndex(e => new { e.ProcessingStage, e.IsCancelled }).HasDatabaseName("IX_cut_orders_processing_stage");
+        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_cut_orders_weighing_session_id");
         
-        builder.HasIndex(e => e.ErpVehicleRegistrationId)
+        builder.HasIndex(e => e.ErpCutOrderId)
                .IsUnique()
-               .HasFilter("[ErpVehicleRegistrationId] IS NOT NULL")
-               .HasDatabaseName("UX_vehicle_registrations_erp_vehicle_registration_id");
+               .HasFilter("[ErpCutOrderId] IS NOT NULL")
+               .HasDatabaseName("UX_cut_orders_erp_cut_order_id");
     }
 }
+

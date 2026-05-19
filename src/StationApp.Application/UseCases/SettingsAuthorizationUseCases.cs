@@ -39,7 +39,6 @@ public sealed class UpdateSystemSettingsUseCase
         await _configRepository.SetValueAsync("sync_interval", request.SyncIntervalSeconds.Trim(), ct);
         await _configRepository.SetValueAsync("registration_inbound_poll_seconds", request.RegistrationInboundPollSeconds.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.OverweightSplitStepWeight, request.OverweightSplitStepWeight.Trim(), ct);
-        await _configRepository.SetValueAsync("pilot_mode_enabled", request.PilotModeEnabled ? "true" : "false", ct);
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

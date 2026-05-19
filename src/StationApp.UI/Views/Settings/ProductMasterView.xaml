@@ -77,6 +77,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="220"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0" Text="M&#x00E3; s&#x1EA3;n ph&#x1EA9;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
@@ -85,29 +86,47 @@
                     <TextBlock Grid.Column="2" Text="T&#x00EA;n s&#x1EA3;n ph&#x1EA9;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                     <TextBox Grid.Column="3" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
 
-                    <CheckBox Grid.Column="4" Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Column="4" Text="Lo&#x1EA1;i s&#x1EA3;n ph&#x1EA9;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <ComboBox Grid.Column="5"
+                              ItemsSource="{Binding ProductTypeOptions}"
+                              SelectedItem="{Binding EditType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource StandardComboBoxStyle}"
+                              Margin="0,0,0,8"/>
                 </Grid>
 
-                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
-                    <Button Command="{Binding ResetFormCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="L&#x01AF;U" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding DeactivateCommand}" Style="{StaticResource DangerButtonStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="NG&#x1EEA;NG S&#x1EEC; D&#x1EE4;NG" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                <Grid Grid.Row="3" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox Grid.Column="0"
+                              Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng"
+                              IsChecked="{Binding EditIsActive}"
+                              Style="{StaticResource StandardCheckBoxStyle}"
+                              VerticalAlignment="Center"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Command="{Binding ResetFormCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="L&#x01AF;U" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding DeactivateCommand}" Style="{StaticResource DangerButtonStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="NG&#x1EEA;NG S&#x1EEC; D&#x1EE4;NG" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
@@ -121,6 +140,7 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="M&#x00E3; s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductCode}" Width="200" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="T&#x00EA;n s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="*" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Lo&#x1EA1;i s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductType}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridCheckBoxColumn Header="Ho&#x1EA1;t &#x0111;&#x1ED9;ng" Binding="{Binding IsActive}" Width="120" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>

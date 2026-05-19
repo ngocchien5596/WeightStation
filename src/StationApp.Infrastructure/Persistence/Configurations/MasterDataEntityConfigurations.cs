@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StationApp.Domain.Entities;
 
@@ -54,6 +54,7 @@ public class ProductEntityConfiguration : IEntityTypeConfiguration<Product>
 
         builder.Property(e => e.ProductCode).HasMaxLength(50).IsRequired();
         builder.Property(e => e.ProductName).HasMaxLength(255).IsRequired();
+        builder.Property(e => e.ProductType).HasMaxLength(30);
 
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
@@ -72,7 +73,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.Property(e => e.WeighingSessionLineId);
 
         builder.Property(e => e.DeliveryNo).HasMaxLength(30).IsRequired();
-        builder.Property(e => e.ErpVehicleRegistrationId).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.ErpCutOrderId).HasMaxLength(50).IsRequired();
         builder.Property(e => e.CustomerCode).HasMaxLength(50);
         builder.Property(e => e.ProductCode).HasMaxLength(50);
         builder.Property(e => e.Notes).HasMaxLength(500);
@@ -87,12 +88,14 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
         builder.HasIndex(e => e.DeliveryNo).IsUnique().HasDatabaseName("UX_delivery_tickets_no");
-        builder.HasIndex(e => e.ErpVehicleRegistrationId).HasDatabaseName("IX_delivery_tickets_erp_reg_id");
+        builder.HasIndex(e => e.ErpCutOrderId).HasDatabaseName("IX_delivery_tickets_erp_reg_id");
         builder.HasIndex(e => e.SplitGroupId).HasDatabaseName("IX_delivery_tickets_split_group_id");
         builder.HasIndex(e => e.IsPrinted).HasDatabaseName("IX_delivery_tickets_is_printed");
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_delivery_tickets_weighing_session_id");
         builder.HasIndex(e => e.WeighingSessionLineId).HasDatabaseName("IX_delivery_tickets_weighing_session_line_id");
         builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_delivery_tickets_sync_status");
-        builder.HasIndex(e => e.VehicleRegistrationId).HasDatabaseName("IX_delivery_tickets_vehicle_registration_id");
+        builder.HasIndex(e => e.CutOrderId).HasDatabaseName("IX_delivery_tickets_vehicle_registration_id");
     }
 }
+
+

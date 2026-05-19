@@ -13,6 +13,7 @@ public partial class SettingsViewModel : ObservableObject
 
     public ViewModels.Settings.SystemSettingsViewModel SystemSettingsVM { get; }
     public ViewModels.Settings.ScaleDeviceConfigViewModel ScaleDeviceConfigVM { get; }
+    public ViewModels.Settings.PrintConfigViewModel PrintConfigVM { get; }
     public ViewModels.Settings.VehicleMasterViewModel VehicleMasterVM { get; }
     public ViewModels.Settings.CustomerMasterViewModel CustomerMasterVM { get; }
     public ViewModels.Settings.ProductMasterViewModel ProductMasterVM { get; }
@@ -24,6 +25,7 @@ public partial class SettingsViewModel : ObservableObject
 
     public bool CanAccessSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanAccessScaleDeviceConfig => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
+    public bool CanAccessPrintConfig => StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);
     public bool CanAccessVehicleMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanAccessCustomerMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanAccessProductMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
@@ -44,8 +46,10 @@ public partial class SettingsViewModel : ObservableObject
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
+
         SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext);
         ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice);
+        PrintConfigVM = new Settings.PrintConfigViewModel(_scopeFactory, _currentUserContext);
         VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory);
         CustomerMasterVM = new Settings.CustomerMasterViewModel(_scopeFactory);
         ProductMasterVM = new Settings.ProductMasterViewModel(_scopeFactory);
@@ -89,11 +93,12 @@ public partial class SettingsViewModel : ObservableObject
         {
             0 => "THAM SỐ HỆ THỐNG",
             1 => "THIẾT BỊ CÂN",
-            2 => "DANH MỤC XE",
-            3 => "KHÁCH HÀNG",
-            4 => "SẢN PHẨM",
-            5 => "ĐỒNG BỘ",
-            6 => "QUẢN LÝ TÀI KHOẢN",
+            2 => "CẤU HÌNH IN",
+            3 => "DANH MỤC XE",
+            4 => "KHÁCH HÀNG",
+            5 => "SẢN PHẨM",
+            6 => "ĐỒNG BỘ",
+            7 => "QUẢN LÝ TÀI KHOẢN",
             _ => "CẤU HÌNH HỆ THỐNG"
         };
 
@@ -108,18 +113,21 @@ public partial class SettingsViewModel : ObservableObject
                     await ScaleDeviceConfigVM.LoadAsync();
                     break;
                 case 2:
-                    await VehicleMasterVM.LoadAsync();
+                    await PrintConfigVM.LoadAsync();
                     break;
                 case 3:
-                    await CustomerMasterVM.LoadAsync();
+                    await VehicleMasterVM.LoadAsync();
                     break;
                 case 4:
-                    await ProductMasterVM.LoadAsync();
+                    await CustomerMasterVM.LoadAsync();
                     break;
                 case 5:
-                    await SyncInfoVM.LoadAsync();
+                    await ProductMasterVM.LoadAsync();
                     break;
                 case 6:
+                    await SyncInfoVM.LoadAsync();
+                    break;
+                case 7:
                     await AccountManagementVM.LoadAsync();
                     break;
             }
@@ -135,11 +143,12 @@ public partial class SettingsViewModel : ObservableObject
         {
             0 => CanAccessSystemSettings,
             1 => CanAccessScaleDeviceConfig,
-            2 => CanAccessVehicleMaster,
-            3 => CanAccessCustomerMaster,
-            4 => CanAccessProductMaster,
-            5 => CanAccessSyncInfo,
-            6 => CanAccessAccountManagement,
+            2 => CanAccessPrintConfig,
+            3 => CanAccessVehicleMaster,
+            4 => CanAccessCustomerMaster,
+            5 => CanAccessProductMaster,
+            6 => CanAccessSyncInfo,
+            7 => CanAccessAccountManagement,
             _ => false
         };
     }
@@ -151,22 +160,41 @@ public partial class SettingsViewModel : ObservableObject
             return 0;
         }
 
-        if (CanAccessVehicleMaster)
+        if (CanAccessScaleDeviceConfig)
+        {
+            return 1;
+        }
+
+        if (CanAccessPrintConfig)
         {
             return 2;
         }
 
-        if (CanAccessCustomerMaster)
+        if (CanAccessVehicleMaster)
         {
             return 3;
         }
 
-        if (CanAccessProductMaster)
+        if (CanAccessCustomerMaster)
         {
             return 4;
         }
 
+        if (CanAccessProductMaster)
+        {
+            return 5;
+        }
+
+        if (CanAccessSyncInfo)
+        {
+            return 6;
+        }
+
+        if (CanAccessAccountManagement)
+        {
+            return 7;
+        }
+
         return 0;
     }
-
 }

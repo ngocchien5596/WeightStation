@@ -1,4 +1,4 @@
-<Application x:Class="StationApp.UI.App"
+﻿<Application x:Class="StationApp.UI.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:StationApp.UI.Converters">
@@ -13,7 +13,7 @@
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <converters:StringEqualityToBoolConverter x:Key="StringEqToBool"/>
             <converters:MultiStringEqualityToBoolConverter x:Key="MultiStringEqToBool"/>
-            <converters:RegistrationStatusDisplayConverter x:Key="StatusDisplay"/>
+            <converters:CutOrderStatusDisplayConverter x:Key="StatusDisplay"/>
             <converters:SessionStatusDisplayConverter x:Key="SessionStatusDisplay"/>
             <converters:SessionLineStatusDisplayConverter x:Key="SessionLineStatusDisplay"/>
             <converters:OverweightResolutionStatusDisplayConverter x:Key="OverweightResolutionStatusDisplay"/>
@@ -34,3 +34,4 @@
         </ResourceDictionary>
     </Application.Resources>
 </Application>
+

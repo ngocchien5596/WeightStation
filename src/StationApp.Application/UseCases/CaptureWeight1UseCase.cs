@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -11,7 +11,7 @@ namespace StationApp.Application.UseCases;
 
 public sealed class CaptureWeight1UseCase
 {
-    private readonly IVehicleRegistrationRepository _regRepo;
+    private readonly ICutOrderRepository _regRepo;
     private readonly IWeighTicketRepository _ticketRepo;
     private readonly ISyncOutboxRepository _outboxRepo;
     private readonly IUnitOfWork _uow;
@@ -23,7 +23,7 @@ public sealed class CaptureWeight1UseCase
     private readonly ISyncPayloadFactory _payloadFactory;
 
     public CaptureWeight1UseCase(
-        IVehicleRegistrationRepository regRepo,
+        ICutOrderRepository regRepo,
         IWeighTicketRepository ticketRepo,
         ISyncOutboxRepository outboxRepo,
         IUnitOfWork uow,
@@ -48,23 +48,23 @@ public sealed class CaptureWeight1UseCase
 
     public async Task<OperationResult<WeighTicket>> ExecuteAsync(CaptureWeightRequest request, CancellationToken ct)
     {
-        var reg = await _regRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new Exception($"Vehicle Registration {request.RegistrationId} not found");
+        var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct)
+            ?? throw new Exception($"Cut order {request.CutOrderId} not found");
 
         // Section 15.2 Guard
-        if (reg.RegistrationStatus != RegistrationStatus.REGISTERED &&
-            reg.RegistrationStatus != RegistrationStatus.COMPLETED)
+        if (reg.CutOrderStatus != CutOrderStatus.REGISTERED &&
+            reg.CutOrderStatus != CutOrderStatus.COMPLETED)
         {
-            throw new InvalidOperationException($"Cannot capture Weight 1 when status is {reg.RegistrationStatus}");
+            throw new InvalidOperationException($"Cannot capture Weight 1 when status is {reg.CutOrderStatus}");
         }
 
         var now = _clock.NowLocal;
         var ticket = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            VehicleRegistrationId = reg.Id,
+            CutOrderId = reg.Id,
             TicketNo = await _ticketNoGen.GenerateAsync(ct),
-            ErpVehicleRegistrationId = reg.ErpVehicleRegistrationId,
+            ErpCutOrderId = reg.ErpCutOrderId,
             VehiclePlate = reg.VehiclePlate,
             MoocNumber = reg.MoocNumber,
             DriverName = reg.ReceiverName,
@@ -97,7 +97,7 @@ public sealed class CaptureWeight1UseCase
         };
 
         reg.CurrentPrimaryWeighTicketId = ticket.Id;
-        reg.RegistrationStatus = RegistrationStatus.LOADING_IN_PROGRESS;
+        reg.CutOrderStatus = CutOrderStatus.LOADING_IN_PROGRESS;
         reg.SyncStatus = SyncStatus.SYNC_QUEUED;
         reg.UpdatedAt = now;
         reg.UpdatedBy = _userContext.Username;
@@ -107,12 +107,12 @@ public sealed class CaptureWeight1UseCase
             await _ticketRepo.AddAsync(ticket, innerCt);
             await _regRepo.UpdateAsync(reg, innerCt);
 
-            // Outbox for VehicleRegistration
+            // Outbox for CutOrder
             await _outboxRepo.EnqueueAsync(new SyncOutbox
             {
                 Id = Guid.NewGuid(),
                 AggregateId = reg.Id,
-                AggregateType = nameof(VehicleRegistration),
+                AggregateType = nameof(CutOrder),
                 PayloadJson = _payloadFactory.CreatePayload(reg),
                 IdempotencyKey = reg.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
@@ -132,9 +132,13 @@ public sealed class CaptureWeight1UseCase
             }, innerCt);
         }, ct);
 
-        await _audit.LogAsync("CAPTURE_WEIGHT_1", nameof(VehicleRegistration), reg.Id,
+        await _audit.LogAsync("CAPTURE_WEIGHT_1", nameof(CutOrder), reg.Id,
             new { ticket.TicketNo, ticket.Weight1, ticket.Weight1IsStable, ticket.Weight1Mode }, ct);
 
         return OperationResult<WeighTicket>.Ok(ticket);
     }
 }
+
+
+
+

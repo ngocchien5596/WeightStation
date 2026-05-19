@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.Interfaces;
 using StationApp.Contracts.Sync;
@@ -36,7 +36,7 @@ public sealed class CentralApiClient : ICentralApiClient
                 {
                     Success = false,
                     ErrorCode = "CONFIG_INVALID",
-                    ErrorMessage = "Central API URL chưa được cấu hình hợp lệ."
+                    ErrorMessage = "Central API URL chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh há»£p lá»‡."
                 };
             }
 
@@ -156,7 +156,7 @@ public sealed class CentralApiClient : ICentralApiClient
     {
         return aggregateType switch
         {
-            SyncAggregateTypes.VehicleRegistration => "api/vehicle-registrations",
+            SyncAggregateTypes.CutOrder => "api/vehicle-registrations",
             SyncAggregateTypes.WeighTicket => "api/weigh-tickets",
             SyncAggregateTypes.DeliveryTicket => "api/delivery-tickets",
             SyncAggregateTypes.Vehicle => "api/vehicles",
@@ -166,3 +166,4 @@ public sealed class CentralApiClient : ICentralApiClient
         };
     }
 }
+
