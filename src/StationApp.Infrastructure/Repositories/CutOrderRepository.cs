@@ -16,6 +16,7 @@ namespace StationApp.Infrastructure.Repositories;
 public class CutOrderRepository : ICutOrderRepository
 {
     private readonly StationDbContext _db;
+    private static readonly TimeZoneInfo VnTimeZone = GetVnTimeZone();
 
     public CutOrderRepository(StationDbContext db)
     {
@@ -167,7 +168,7 @@ public class CutOrderRepository : ICutOrderRepository
                 vr.BagCount,
                 vr.PlannedWeight,
                 session?.NetWeight ?? primaryWeighTicket?.NetWeight,
-                session?.Weight2Time ?? session?.Weight1Time ?? primaryWeighTicket?.Weight2Time ?? primaryWeighTicket?.Weight1Time ?? vr.CreatedAt,
+                session?.Weight2Time ?? session?.Weight1Time ?? primaryWeighTicket?.Weight2Time ?? primaryWeighTicket?.Weight1Time ?? NormalizeCreatedAtForDisplay(vr.CutOrderSource, vr.CreatedAt),
                 primaryWeighTicket?.Weight2User ?? primaryWeighTicket?.Weight1User,
                 primaryDeliveryTicket?.DeliveryNo,
                 vr.Notes,
@@ -292,7 +293,7 @@ public class CutOrderRepository : ICutOrderRepository
             vr.BagCount,
             vr.CutOrderStatus,
             vr.TransportMethod,
-            vr.CreatedAt,
+            NormalizeCreatedAtForDisplay(vr.CutOrderSource, vr.CreatedAt),
             vr.ProductType
         )).ToList();
 
@@ -319,6 +320,35 @@ public class CutOrderRepository : ICutOrderRepository
         }
 
         return list.AsReadOnly();
+    }
+
+    private static DateTime NormalizeCreatedAtForDisplay(CutOrderSource source, DateTime createdAt)
+    {
+        if (source != CutOrderSource.ERP)
+        {
+            return createdAt;
+        }
+
+        var utcValue = createdAt.Kind switch
+        {
+            DateTimeKind.Utc => createdAt,
+            DateTimeKind.Local => createdAt.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(createdAt, DateTimeKind.Utc)
+        };
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, VnTimeZone);
+    }
+
+    private static TimeZoneInfo GetVnTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        }
     }
 
     public async Task<IReadOnlyList<OutgoingVehicleListItem>> GetOutgoingListAsync(OutgoingVehicleListFilter filter, CancellationToken ct)
@@ -361,15 +391,25 @@ public class CutOrderRepository : ICutOrderRepository
         {
             var start = filter.CompletedDate.Value.Date;
             var end = start.AddDays(1);
-            query = query.Where(x =>
-                ((x.Session != null ? x.Session.UpdatedAt : x.Registration.UpdatedAt) ?? (x.Session != null ? x.Session.CreatedAt : x.Registration.CreatedAt)) >= start &&
-                ((x.Session != null ? x.Session.UpdatedAt : x.Registration.UpdatedAt) ?? (x.Session != null ? x.Session.CreatedAt : x.Registration.CreatedAt)) < end);
         }
 
         var registrations = await query
             .OrderByDescending(x => (x.Session != null ? x.Session.UpdatedAt : x.Registration.UpdatedAt) ?? (x.Session != null ? x.Session.CreatedAt : x.Registration.CreatedAt))
             .Take(200)
             .ToListAsync(ct);
+
+        if (filter.CompletedDate.HasValue)
+        {
+            var start = filter.CompletedDate.Value.Date;
+            var end = start.AddDays(1);
+            registrations = registrations
+                .Where(x =>
+                {
+                    var completedAt = ResolveOutgoingCompletedAt(x.Registration, x.Session);
+                    return completedAt >= start && completedAt < end;
+                })
+                .ToList();
+        }
         var regIds = registrations.Select(x => x.Registration.Id).ToList();
         var sessionIds = registrations
             .Where(x => x.Session != null)
@@ -426,12 +466,22 @@ public class CutOrderRepository : ICutOrderRepository
                 primaryWeigh?.Weight1,
                 primaryWeigh?.Weight2,
                 primaryWeigh?.NetWeight,
-                (session?.UpdatedAt ?? vr.UpdatedAt) ?? (session?.CreatedAt ?? vr.CreatedAt),
+                ResolveOutgoingCompletedAt(vr, session),
                 vr.TransportMethod,
                 hasPrintedWeighTicket,
                 relatedDelivery.Count == 0 || relatedDelivery.All(dt => dt.IsPrinted)
             );
         }).ToList().AsReadOnly();
+    }
+
+    private static DateTime ResolveOutgoingCompletedAt(CutOrder registration, WeighingSession? session)
+    {
+        if (session != null)
+        {
+            return session.UpdatedAt ?? session.CreatedAt;
+        }
+
+        return registration.UpdatedAt ?? NormalizeCreatedAtForDisplay(registration.CutOrderSource, registration.CreatedAt);
     }
 
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleHistorySourcesAsync(string keyword, int limit, CancellationToken ct)

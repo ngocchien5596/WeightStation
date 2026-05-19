@@ -108,6 +108,8 @@ public sealed class EnsureInboundMasterDataUseCase
             existing = byPlate.FirstOrDefault();
         }
 
+        existing ??= byPlate.FirstOrDefault();
+
         if (existing == null)
         {
             existing = new Vehicle
@@ -138,7 +140,8 @@ public sealed class EnsureInboundMasterDataUseCase
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(existing.MoocNumber) && !string.IsNullOrWhiteSpace(normalizedMooc))
+        if (!string.IsNullOrWhiteSpace(normalizedMooc)
+            && !string.Equals(existing.MoocNumber, normalizedMooc, StringComparison.OrdinalIgnoreCase))
         {
             existing.MoocNumber = normalizedMooc;
             changed = true;
@@ -162,25 +165,29 @@ public sealed class EnsureInboundMasterDataUseCase
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(existing.VehicleRegistrationNo) && !string.IsNullOrWhiteSpace(normalizedVehicleRegNo))
+        if (!string.IsNullOrWhiteSpace(normalizedVehicleRegNo)
+            && !string.Equals(existing.VehicleRegistrationNo, normalizedVehicleRegNo, StringComparison.Ordinal))
         {
             existing.VehicleRegistrationNo = normalizedVehicleRegNo;
             changed = true;
         }
 
-        if (existing.VehicleRegistrationExpiryDate == null && vehicleRegistrationExpiryDate != null)
+        if (vehicleRegistrationExpiryDate != null
+            && existing.VehicleRegistrationExpiryDate != vehicleRegistrationExpiryDate)
         {
             existing.VehicleRegistrationExpiryDate = vehicleRegistrationExpiryDate;
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(existing.MoocRegistrationNo) && !string.IsNullOrWhiteSpace(normalizedMoocRegNo))
+        if (!string.IsNullOrWhiteSpace(normalizedMoocRegNo)
+            && !string.Equals(existing.MoocRegistrationNo, normalizedMoocRegNo, StringComparison.Ordinal))
         {
             existing.MoocRegistrationNo = normalizedMoocRegNo;
             changed = true;
         }
 
-        if (existing.MoocRegistrationExpiryDate == null && moocRegistrationExpiryDate != null)
+        if (moocRegistrationExpiryDate != null
+            && existing.MoocRegistrationExpiryDate != moocRegistrationExpiryDate)
         {
             existing.MoocRegistrationExpiryDate = moocRegistrationExpiryDate;
             changed = true;
