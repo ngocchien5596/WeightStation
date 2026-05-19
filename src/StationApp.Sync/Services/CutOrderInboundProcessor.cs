@@ -125,7 +125,6 @@ public class CutOrderInboundProcessor : BackgroundService
         
         if (!string.IsNullOrWhiteSpace(reg.CustomerName)) reg.CustomerName = reg.CustomerName.Trim();
         if (!string.IsNullOrWhiteSpace(reg.ProductName)) reg.ProductName = reg.ProductName.Trim();
-        if (!string.IsNullOrWhiteSpace(reg.CutOrderCode)) reg.CutOrderCode = reg.CutOrderCode.Trim();
         if (!string.IsNullOrWhiteSpace(reg.OrderCode)) reg.OrderCode = reg.OrderCode.Trim();
         if (!string.IsNullOrWhiteSpace(reg.ReceiverName)) reg.ReceiverName = reg.ReceiverName.Trim();
         if (!string.IsNullOrWhiteSpace(reg.LotNo)) reg.LotNo = reg.LotNo.Trim();

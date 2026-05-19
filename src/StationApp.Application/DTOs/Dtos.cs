@@ -220,7 +220,6 @@ public sealed record CreateCutOrderRequest(
     string? ProductCode = null,
     string? ProductName = null,
     string? ProductType = null,
-    string? CutOrderCode = null,
     string? OrderCode = null,
     string? LotNo = null,
     string? RepresentativeName = null,

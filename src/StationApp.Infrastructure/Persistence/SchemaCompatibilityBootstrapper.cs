@@ -9,7 +9,6 @@ public static class SchemaCompatibilityBootstrapper
     [
         new("WeighingSessionId", "uniqueidentifier NULL"),
         new("ProductType", "nvarchar(30) NULL"),
-        new("CutOrderCode", "nvarchar(100) NULL"),
         new("OrderCode", "nvarchar(100) NULL"),
         new("LotNo", "nvarchar(100) NULL"),
         new("RepresentativeName", "nvarchar(150) NULL"),

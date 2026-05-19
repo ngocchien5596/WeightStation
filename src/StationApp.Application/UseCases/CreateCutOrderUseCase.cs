@@ -59,7 +59,6 @@ public sealed class CreateCutOrderUseCase
             ProductCode = request.ProductCode,
             ProductName = request.ProductName,
             ProductType = ProductTypes.Normalize(request.ProductType) ?? ProductTypes.InferForTransaction(request.TransactionType),
-            CutOrderCode = request.CutOrderCode,
             OrderCode = request.OrderCode,
             LotNo = request.LotNo,
             RepresentativeName = request.RepresentativeName,

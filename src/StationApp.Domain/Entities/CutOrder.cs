@@ -23,7 +23,6 @@ public class CutOrder
     public string? ProductCode { get; set; }
     public string? ProductName { get; set; }
     public string? ProductType { get; set; }
-    public string? CutOrderCode { get; set; }
     public string? OrderCode { get; set; }
     public string? LotNo { get; set; }
     public string? RepresentativeName { get; set; }

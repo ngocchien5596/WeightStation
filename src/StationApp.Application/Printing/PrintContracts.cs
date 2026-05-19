@@ -90,7 +90,6 @@ public sealed class WeighTicketPrintModel : PrintPreviewPageModel
 public sealed class DeliveryTicketPrintModel : PrintPreviewPageModel
 {
     public required string DeliveryNo { get; init; }
-    public string? CutOrderCode { get; init; }
     public string? OrderCode { get; init; }
     public decimal? ActualWeight { get; init; }
 }
@@ -269,14 +268,13 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         return new DeliveryTicketPrintModel
         {
             DocumentId = deliveryTicket.Id,
-            DisplayNumber = FirstNonEmpty(registration.CutOrderCode, deliveryTicket.DeliveryNo) ?? deliveryTicket.DeliveryNo,
+            DisplayNumber = deliveryTicket.DeliveryNo,
             DeliveryNo = deliveryTicket.DeliveryNo,
-            CutOrderCode = registration.CutOrderCode,
             OrderCode = FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId),
             ActualWeight = actualWeight,
             Fields = new[]
             {
-                Field("DeliveryNo", FirstNonEmpty(registration.CutOrderCode, deliveryTicket.DeliveryNo)),
+                Field("DeliveryNo", deliveryTicket.DeliveryNo),
                 Field("ReferenceCode", FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId)),
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),
