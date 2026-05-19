@@ -416,10 +416,19 @@ public class CutOrderRepository : ICutOrderRepository
             .Select(x => x.Session!.Id)
             .Distinct()
             .ToList();
+        var missingProductCodes = registrations
+            .Where(x => string.IsNullOrWhiteSpace(x.Registration.ProductType) && !string.IsNullOrWhiteSpace(x.Registration.ProductCode))
+            .Select(x => x.Registration.ProductCode!.Trim())
+            .Distinct()
+            .ToList();
+        var productTypeLookup = missingProductCodes.Count == 0
+            ? new Dictionary<string, string?>()
+            : await _db.Products.AsNoTracking()
+                .Where(x => missingProductCodes.Contains(x.ProductCode))
+                .ToDictionaryAsync(x => x.ProductCode.Trim(), x => x.ProductType, ct);
 
-        var registrationWeighTickets = await _db.WeighTickets.AsNoTracking()
-            .Where(wt => regIds.Contains(wt.CutOrderId) && !wt.IsDeleted
-                && wt.RecordRole == WeighTicketRecordRoles.MasterSession)
+        var sessionLines = await _db.WeighingSessionLines.AsNoTracking()
+            .Where(line => sessionIds.Contains(line.WeighingSessionId))
             .ToListAsync(ct);
 
         var sessionMasterWeighTickets = await _db.WeighTickets.AsNoTracking()
@@ -429,27 +438,83 @@ public class CutOrderRepository : ICutOrderRepository
                 && wt.RecordRole == WeighTicketRecordRoles.MasterSession)
             .ToListAsync(ct);
 
-        var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
-            .Where(dt => regIds.Contains(dt.CutOrderId) && !dt.IsDeleted
+        var splitWeighTickets = await _db.WeighTickets.AsNoTracking()
+            .Where(wt => wt.WeighingSessionId.HasValue
+                && sessionIds.Contains(wt.WeighingSessionId.Value)
+                && !wt.IsDeleted
+                && wt.RecordRole == WeighTicketRecordRoles.SplitDerived)
+            .ToListAsync(ct);
+
+        var normalDeliveryTickets = await _db.DeliveryTickets.AsNoTracking()
+            .Where(dt => regIds.Contains(dt.CutOrderId)
+                && !dt.IsDeleted
                 && dt.RecordRole == DeliveryTicketRecordRoles.Normal)
+            .ToListAsync(ct);
+
+        var splitDeliveryTickets = await _db.DeliveryTickets.AsNoTracking()
+            .Where(dt => regIds.Contains(dt.CutOrderId)
+                && !dt.IsDeleted
+                && dt.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
             .ToListAsync(ct);
 
         return registrations.Select(item =>
         {
             var vr = item.Registration;
             var session = item.Session;
-            var relatedWeigh = registrationWeighTickets.Where(wt => wt.CutOrderId == vr.Id).ToList();
+            var resolvedProductType = ProductTypes.Normalize(vr.ProductType);
+            if (resolvedProductType == null
+                && !string.IsNullOrWhiteSpace(vr.ProductCode)
+                && productTypeLookup.TryGetValue(vr.ProductCode.Trim(), out var fallbackProductType))
+            {
+                resolvedProductType = ProductTypes.Normalize(fallbackProductType);
+            }
+
+            var isBagged = string.Equals(resolvedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+            var sessionLine = session == null
+                ? null
+                : sessionLines.FirstOrDefault(line => line.WeighingSessionId == session.Id && line.CutOrderId == vr.Id);
             var sessionMasterWeigh = session == null
                 ? null
                 : sessionMasterWeighTickets
                     .Where(wt => wt.WeighingSessionId == session.Id)
                     .OrderByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
                     .FirstOrDefault();
-            var relatedDelivery = deliveryTickets.Where(dt => dt.CutOrderId == vr.Id).ToList();
-            var primaryWeigh = sessionMasterWeigh ?? ResolvePrimaryWeighTicket(vr, relatedWeigh);
-            var hasPrintedWeighTicket = session?.HasPrintedMasterWeighTicket
-                ?? sessionMasterWeigh?.IsPrinted
-                ?? (relatedWeigh.Count > 0 && relatedWeigh.All(wt => wt.IsPrinted));
+            var relatedNormalDelivery = normalDeliveryTickets
+                .Where(dt => dt.CutOrderId == vr.Id)
+                .OrderByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
+                .ToList();
+            var relatedSplitDelivery = splitDeliveryTickets
+                .Where(dt => dt.CutOrderId == vr.Id)
+                .OrderByDescending(dt => dt.AllocatedWeight ?? 0m)
+                .ThenBy(dt => dt.SplitSequence ?? byte.MaxValue)
+                .ThenByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
+                .ToList();
+            var displayDelivery = relatedSplitDelivery.FirstOrDefault() ?? relatedNormalDelivery.FirstOrDefault();
+            var displayWeigh = displayDelivery?.RecordRole == DeliveryTicketRecordRoles.SplitDerived
+                ? splitWeighTickets.FirstOrDefault(wt => wt.SplitGroupId.HasValue
+                    && wt.SplitGroupId == displayDelivery.SplitGroupId
+                    && wt.WeighingSessionId == displayDelivery.WeighingSessionId)
+                : sessionMasterWeigh;
+            var totalBagCount = isBagged
+                ? (session == null
+                    ? sessionLine?.ActualAllocatedBagCount
+                    : sessionLines
+                        .Where(line => line.WeighingSessionId == session.Id)
+                        .Sum(line => line.ActualAllocatedBagCount ?? 0))
+                : null;
+            var hasSplitOverweight = relatedSplitDelivery.Count > 0;
+            var displayWeightKg = displayDelivery?.AllocatedWeight
+                ?? sessionLine?.ActualAllocatedWeight;
+            var displayBagCount = isBagged
+                ? (displayDelivery?.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount)
+                : null;
+            var totalWeightKg = session?.NetWeight
+                ?? sessionLine?.ActualAllocatedWeight;
+            var weighDate = displayWeigh?.Weight2Time
+                ?? displayWeigh?.Weight1Time
+                ?? ResolveOutgoingCompletedAt(vr, session);
+            var weighUser = displayWeigh?.Weight2User
+                ?? displayWeigh?.Weight1User;
 
             return new OutgoingVehicleListItem(
                 vr.Id,
@@ -459,17 +524,27 @@ public class CutOrderRepository : ICutOrderRepository
                 vr.TransactionType,
                 vr.VehiclePlate,
                 vr.MoocNumber,
+                vr.TransportMethod,
                 vr.ReceiverName,
                 vr.CustomerName,
+                vr.ProductCode,
                 vr.ProductName,
-                session?.DriverName,
-                primaryWeigh?.Weight1,
-                primaryWeigh?.Weight2,
-                primaryWeigh?.NetWeight,
+                vr.ReceiverName ?? session?.DriverName,
+                vr.PlannedWeight,
+                isBagged ? vr.BagCount : null,
+                displayWeigh?.Weight1 ?? session?.Weight1,
+                displayWeightKg,
+                displayBagCount,
+                totalWeightKg,
+                totalBagCount,
+                weighDate,
+                weighUser,
+                displayWeigh?.TicketNo,
+                displayDelivery?.DeliveryNo,
                 ResolveOutgoingCompletedAt(vr, session),
-                vr.TransportMethod,
-                hasPrintedWeighTicket,
-                relatedDelivery.Count == 0 || relatedDelivery.All(dt => dt.IsPrinted)
+                displayWeigh?.IsPrinted ?? session?.HasPrintedMasterWeighTicket == true,
+                displayDelivery?.IsPrinted == true,
+                hasSplitOverweight
             );
         }).ToList().AsReadOnly();
     }

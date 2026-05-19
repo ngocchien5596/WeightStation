@@ -31,13 +31,13 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private readonly ICurrentUserContext _currentUserContext;
     private readonly ILogger<OutgoingVehicleListViewModel>? _logger;
 
-    [ObservableProperty] private ObservableCollection<OutgoingSessionListItem> _vehicles = new();
+    [ObservableProperty] private ObservableCollection<OutgoingVehicleListItem> _vehicles = new();
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ShowDetailsCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
-    private OutgoingSessionListItem? _selectedVehicle;
+    private OutgoingVehicleListItem? _selectedVehicle;
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private DateTime? _selectedCompletedDate;
@@ -105,18 +105,27 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var repo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-            var sessions = await repo.SearchCompletedSessionsAsync(null, SelectedCompletedDate, CancellationToken.None);
-            var filtered = sessions
-                .Where(x => string.IsNullOrWhiteSpace(SearchSessionNo) || x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase))
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var items = await repo.GetOutgoingListAsync(
+                new OutgoingVehicleListFilter(
+                    SearchSessionNo,
+                    null,
+                    SearchVehiclePlate,
+                    null,
+                    null,
+                    null,
+                    SelectedCompletedDate),
+                CancellationToken.None);
+            var filtered = items
+                .Where(x => string.IsNullOrWhiteSpace(SearchSessionNo) || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase)))
                 .Where(x => string.IsNullOrWhiteSpace(SearchVehiclePlate) || x.VehiclePlate.Contains(SearchVehiclePlate, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            Vehicles = new ObservableCollection<OutgoingSessionListItem>(filtered);
+            Vehicles = new ObservableCollection<OutgoingVehicleListItem>(filtered);
 
             if (keepSelection && SelectedVehicle != null)
             {
-                SelectedVehicle = Vehicles.FirstOrDefault(x => x.SessionId == SelectedVehicle.SessionId);
+                SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == SelectedVehicle.CutOrderId);
             }
 
             if (filtered.Count == 0 && HasSearchFilters())
@@ -143,7 +152,13 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             return;
         }
 
-        await LoadSessionDetailsAsync(SelectedVehicle.SessionId);
+        if (!SelectedVehicle.WeighingSessionId.HasValue)
+        {
+            _toastService.ShowWarning("Cắt lệnh này chưa có lượt cân hoàn tất.");
+            return;
+        }
+
+        await LoadSessionDetailsAsync(SelectedVehicle.WeighingSessionId.Value);
         IsDetailsVisible = true;
     }
 
@@ -161,11 +176,17 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             return;
         }
 
+        if (!SelectedVehicle.WeighingSessionId.HasValue)
+        {
+            _toastService.ShowWarning("Cắt lệnh này chưa có lượt cân hoàn tất.");
+            return;
+        }
+
         using var scope = _scopeFactory.CreateScope();
         var weighRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
         var deliveryRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
-        var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(SelectedVehicle.SessionId, CancellationToken.None);
-        var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(SelectedVehicle.SessionId, CancellationToken.None);
+        var weighTickets = await weighRepo.GetByWeighingSessionIdAsync(SelectedVehicle.WeighingSessionId.Value, CancellationToken.None);
+        var deliveryTickets = await deliveryRepo.GetByWeighingSessionIdAsync(SelectedVehicle.WeighingSessionId.Value, CancellationToken.None);
 
         RelatedTickets = new ObservableCollection<RelatedDocumentListItem>(
             weighTickets.Select(ticket => new RelatedDocumentListItem(
@@ -209,7 +230,13 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             return;
         }
 
-        await ExecutePrintFlowAsync(PrintDocumentKind.WeighTicket, SelectedVehicle.SessionId, "phiếu cân");
+        if (!SelectedVehicle.WeighingSessionId.HasValue)
+        {
+            _toastService.ShowWarning("Cắt lệnh này chưa có lượt cân hoàn tất.");
+            return;
+        }
+
+        await ExecutePrintFlowAsync(PrintDocumentKind.WeighTicket, SelectedVehicle.WeighingSessionId.Value, "phiếu cân");
     }
 
     [RelayCommand(CanExecute = nameof(CanPrintDeliveryTicket))]
@@ -220,7 +247,13 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             return;
         }
 
-        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedVehicle.SessionId, "phiếu giao nhận");
+        if (!SelectedVehicle.WeighingSessionId.HasValue)
+        {
+            _toastService.ShowWarning("Cắt lệnh này chưa có lượt cân hoàn tất.");
+            return;
+        }
+
+        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedVehicle.WeighingSessionId.Value, "phiếu giao nhận");
     }
 
     public async Task InitializeAsync()
@@ -342,14 +375,14 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
     private async Task ReloadAndReselectAsync(Guid sessionId)
     {
-        var currentSessionId = SelectedVehicle?.SessionId;
+        var currentCutOrderId = SelectedVehicle?.CutOrderId;
         await LoadVehiclesAsync();
-        if (currentSessionId.HasValue)
+        if (currentCutOrderId.HasValue)
         {
-            SelectedVehicle = Vehicles.FirstOrDefault(x => x.SessionId == currentSessionId.Value);
+            SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == currentCutOrderId.Value);
         }
 
-        if (IsDetailsVisible && SelectedVehicle?.SessionId == sessionId)
+        if (IsDetailsVisible && SelectedVehicle?.WeighingSessionId == sessionId)
         {
             await LoadSessionDetailsAsync(sessionId);
         }

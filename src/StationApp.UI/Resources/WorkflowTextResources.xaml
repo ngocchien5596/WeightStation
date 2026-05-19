@@ -102,6 +102,7 @@
     <sys:String x:Key="Weighing.Column.Product">S&#x1EA2;N PH&#x1EA8;M</sys:String>
     <sys:String x:Key="Weighing.Column.PlannedWeight">KL &#x0110;&#x1EB6;T (KG)</sys:String>
     <sys:String x:Key="Weighing.Column.PlannedBags">BAO &#x0110;&#x1EB6;T</sys:String>
+    <sys:String x:Key="Weighing.Column.Priority">&#x01AF;U TI&#x00CA;N</sys:String>
     <sys:String x:Key="Weighing.Column.ActualWeight">KL TH&#x1EF0;C (KG)</sys:String>
     <sys:String x:Key="Weighing.Column.ActualBags">BAO TH&#x1EF0;C</sys:String>
     <sys:String x:Key="Weighing.Column.PrintDelivery">IN PGN</sys:String>
@@ -119,6 +120,7 @@
     <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
     <sys:String x:Key="Outgoing.Label.CompletedDate">Th&#x1EDD;i gian xong:</sys:String>
     <sys:String x:Key="Outgoing.Action.ViewDetails">XEM CHI TI&#x1EBE;T</sys:String>
+    <sys:String x:Key="Outgoing.Column.SessionNo">S&#x1ED0; L&#x01AF;&#x1EE2;T C&#x00C2;N</sys:String>
     <sys:String x:Key="Outgoing.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Outgoing.Column.TransportMethod">HTVC</sys:String>
@@ -127,9 +129,11 @@
     <sys:String x:Key="Outgoing.Column.DriverName">T&#x00CA;N T&#x00C0;I X&#x1EBE;</sys:String>
     <sys:String x:Key="Outgoing.Column.RegistrationList">DANH S&#x00C1;CH C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Outgoing.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
+    <sys:String x:Key="Outgoing.Column.ProductCode">M&#x00C3; SP</sys:String>
     <sys:String x:Key="Outgoing.Column.ProductName">S&#x1EA2;N PH&#x1EA8;M</sys:String>
     <sys:String x:Key="Outgoing.Column.Weight1">C&#x00C2;N L&#x1EA6;N 1 (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.Weight2">C&#x00C2;N L&#x1EA6;N 2 (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.PlannedSessionWeight">KL KH (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.NetWeight">TL H&#x00C0;NG (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.LineCount">S&#x1ED0; D&#x00D2;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.CompletedAt">TH&#x1EDC;I GIAN XONG</sys:String>
@@ -138,6 +142,13 @@
     <sys:String x:Key="Outgoing.Column.PlannedBags">BAO PL</sys:String>
     <sys:String x:Key="Outgoing.Column.ActualWeight">TH&#x1EF0;C (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.ActualBags">BAO TH&#x1EF0;C</sys:String>
+    <sys:String x:Key="Outgoing.Column.ActualTon">KL TH&#x1EF0;C (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.TotalTon">T&#x1ED4;NG KL (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.TotalBags">T&#x1ED4;NG BAO</sys:String>
+    <sys:String x:Key="Outgoing.Column.WeighDate">NG&#x00C0;Y C&#x00C2;N</sys:String>
+    <sys:String x:Key="Outgoing.Column.WeighUser">NG&#x01AF;&#x1EDC;I C&#x00C2;N</sys:String>
+    <sys:String x:Key="Outgoing.Column.WeighTicketNo">S&#x1ED0; PC</sys:String>
+    <sys:String x:Key="Outgoing.Column.DeliveryNo">S&#x1ED0; PGN</sys:String>
 
     <sys:String x:Key="Diagnostics.Title">DIAGNOSTICS</sys:String>
     <sys:String x:Key="Diagnostics.Refresh">Refresh</sys:String>

@@ -122,7 +122,8 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="80"/>
+                        <RowDefinition Height="64"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
@@ -178,6 +179,32 @@
                         <TextBlock Text="{StaticResource Weighing.Label.NetWeight}" Grid.Row="2" Style="{StaticResource FormLabel}"/>
                         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NetWeight, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
                     </Grid>
+
+                    <Grid Grid.Row="3" Margin="12,0,12,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0"
+                                Content="{StaticResource Weighing.Action.CaptureWeight1}"
+                                Command="{Binding CaptureWeight1Command}"
+                                Style="{StaticResource WorkflowButtonStyle}"
+                                MinHeight="34"/>
+                        <Button Grid.Column="2"
+                                Content="{StaticResource Weighing.Action.CaptureWeight2}"
+                                Command="{Binding CaptureWeight2Command}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                MinHeight="34"/>
+                        <Button Grid.Column="4"
+                                Content="{StaticResource Weighing.Action.Save}"
+                                Command="{Binding SaveCapturedWeightCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                MinHeight="34"/>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>
@@ -188,9 +215,6 @@
                     <WrapPanel HorizontalAlignment="Center"/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
-            <Button Content="{StaticResource Weighing.Action.CaptureWeight1}" Command="{Binding CaptureWeight1Command}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="{StaticResource Weighing.Action.CaptureWeight2}" Command="{Binding CaptureWeight2Command}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="{StaticResource Weighing.Action.Save}" Command="{Binding SaveCapturedWeightCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.Allocate}" Command="{Binding OpenAllocationCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.HandleOverweight}" Command="{Binding ShowOverweightHandlingCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
@@ -198,7 +222,6 @@
             <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.NoLoad}" Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="{StaticResource Weighing.Action.Cancel}" Command="{Binding CancelCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,0,4"/>
         </ItemsControl>
 
         <Grid Grid.Row="3" Margin="12,0,12,12">
@@ -278,6 +301,7 @@
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220" IsReadOnly="True"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" IsReadOnly="True"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="80" IsReadOnly="True"/>
+                                    <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.Priority}" Binding="{Binding IsPriority, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="85" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" Width="110"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount, UpdateSourceTrigger=PropertyChanged}" Width="90" IsReadOnly="True"/>
                                 </DataGrid.Columns>

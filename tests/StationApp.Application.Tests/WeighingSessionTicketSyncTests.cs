@@ -103,6 +103,7 @@ public class WeighingSessionTicketSyncTests
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
@@ -167,6 +168,7 @@ public class WeighingSessionTicketSyncTests
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
             regRepo,
+            productRepo,
             weighRepo,
             deliveryRepo,
             deliveryNoGen,
@@ -209,6 +211,7 @@ public class WeighingSessionTicketSyncTests
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
@@ -274,6 +277,7 @@ public class WeighingSessionTicketSyncTests
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
             regRepo,
+            productRepo,
             weighRepo,
             deliveryRepo,
             deliveryNoGen,
@@ -303,6 +307,7 @@ public class WeighingSessionTicketSyncTests
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
@@ -366,6 +371,7 @@ public class WeighingSessionTicketSyncTests
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
             regRepo,
+            productRepo,
             weighRepo,
             deliveryRepo,
             deliveryNoGen,
@@ -384,10 +390,94 @@ public class WeighingSessionTicketSyncTests
     }
 
     [Fact]
+    public async Task CaptureSessionWeight2_BlocksBaggedWeightUsingMasterProductTypeFallback()
+    {
+        var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
+        var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
+        var ticketSyncService = new WeighingSessionTicketSyncService();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var now = new DateTime(2026, 5, 19, 8, 10, 0);
+        currentUser.Username.Returns("tester");
+        currentUser.RoleCode.Returns("ADMIN");
+        clock.NowLocal.Returns(now);
+        toleranceProvider.GetToleranceKgAsync(Arg.Any<CancellationToken>()).Returns(50m);
+
+        var session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            TransactionType = TransactionType.OUTBOUND,
+            Weight1 = 2_000m,
+            Ttcp10WeightSnapshot = 8_800m
+        };
+        var line = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            CutOrderId = Guid.NewGuid(),
+            SequenceNo = 1,
+            LineStatus = WeighingSessionLineStatus.PENDING
+        };
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            RecordRole = WeighTicketRecordRoles.MasterSession
+        };
+        var registration = new CutOrder
+        {
+            Id = line.CutOrderId,
+            ProductType = null,
+            PlannedWeight = 9_000m,
+            ErpCutOrderId = "ERP-BAG-FALLBACK",
+            CustomerCode = "C1",
+            ProductCode = "P1"
+        };
+
+        sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { line });
+        regRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { registration });
+        weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+        productRepo.GetByCodeAsync("P1", Arg.Any<CancellationToken>())
+            .Returns(new Product { ProductCode = "P1", ProductType = ProductTypes.Bagged });
+
+        var sut = new CaptureSessionWeight2UseCase(
+            sessionRepo,
+            regRepo,
+            productRepo,
+            weighRepo,
+            deliveryRepo,
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
+            ticketSyncService,
+            uow,
+            currentUser,
+            clock);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            sut.ExecuteAsync(
+                new CaptureSessionWeightRequest(session.Id, 11_100m, true, WeightMode.AUTO),
+                CancellationToken.None));
+
+        Assert.Contains("vượt dung sai cho phép", ex.Message);
+        await sessionRepo.DidNotReceive().UpdateAsync(Arg.Any<WeighingSession>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CaptureSessionWeight2_BlocksBaggedWeightExceedingTolerance()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
@@ -443,6 +533,7 @@ public class WeighingSessionTicketSyncTests
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
             regRepo,
+            productRepo,
             weighRepo,
             deliveryRepo,
             deliveryNoGen,
@@ -468,6 +559,7 @@ public class WeighingSessionTicketSyncTests
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();

@@ -162,6 +162,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.MoocNumber,
                 session.DriverName,
                 registrationSummary,
+                sessionLines.Sum(x => x.PlannedWeight ?? 0m),
                 session.Weight1,
                 session.Weight2,
                 session.NetWeight,

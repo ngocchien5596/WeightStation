@@ -433,6 +433,7 @@ public sealed class CaptureSessionWeight2UseCase
 
     private readonly IWeighingSessionRepository _sessionRepo;
     private readonly ICutOrderRepository _regRepo;
+    private readonly IProductRepository _productRepo;
     private readonly IWeighTicketRepository _weighRepo;
     private readonly IDeliveryTicketRepository _deliveryRepo;
     private readonly IDeliveryNumberGenerator _deliveryNoGen;
@@ -446,6 +447,7 @@ public sealed class CaptureSessionWeight2UseCase
     public CaptureSessionWeight2UseCase(
         IWeighingSessionRepository sessionRepo,
         ICutOrderRepository regRepo,
+        IProductRepository productRepo,
         IWeighTicketRepository weighRepo,
         IDeliveryTicketRepository deliveryRepo,
         IDeliveryNumberGenerator deliveryNoGen,
@@ -458,6 +460,7 @@ public sealed class CaptureSessionWeight2UseCase
     {
         _sessionRepo = sessionRepo;
         _regRepo = regRepo;
+        _productRepo = productRepo;
         _weighRepo = weighRepo;
         _deliveryRepo = deliveryRepo;
         _deliveryNoGen = deliveryNoGen;
@@ -611,8 +614,8 @@ public sealed class CaptureSessionWeight2UseCase
             return;
         }
 
-        var normalizedTypes = registrations
-            .Select(x => ProductTypes.Normalize(x.ProductType))
+        var normalizedTypes = (await ResolveProductTypesAsync(registrations, ct))
+            .Select(ProductTypes.Normalize)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -641,6 +644,40 @@ public sealed class CaptureSessionWeight2UseCase
             throw new InvalidOperationException(
                 $"Khối lượng hàng {netWeight:N0} kg vượt khối lượng kế hoạch {plannedWeight:N0} kg và vượt dung sai cho phép {toleranceKg:N0} kg.");
         }
+    }
+
+    private async Task<IReadOnlyList<string?>> ResolveProductTypesAsync(
+        IReadOnlyList<CutOrder> registrations,
+        CancellationToken ct)
+    {
+        var resolvedTypes = new string?[registrations.Count];
+        var productTypeByCode = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 0; i < registrations.Count; i++)
+        {
+            var registration = registrations[i];
+            if (!string.IsNullOrWhiteSpace(registration.ProductType))
+            {
+                resolvedTypes[i] = registration.ProductType;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(registration.ProductCode))
+            {
+                continue;
+            }
+
+            var normalizedCode = registration.ProductCode.Trim();
+            if (!productTypeByCode.TryGetValue(normalizedCode, out var productType))
+            {
+                productType = (await _productRepo.GetByCodeAsync(normalizedCode, ct))?.ProductType;
+                productTypeByCode[normalizedCode] = productType;
+            }
+
+            resolvedTypes[i] = productType;
+        }
+
+        return resolvedTypes;
     }
 
     private static int CalculateAutoBagCount(decimal actualWeight)

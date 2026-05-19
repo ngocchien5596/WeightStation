@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,6 +48,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private WeightMode _pendingWeight1Mode = WeightMode.AUTO;
     private WeightMode _pendingWeight2Mode = WeightMode.AUTO;
     private bool _isUpdatingOverweightSplitInputs;
+    private bool _isUpdatingPriorityAllocation;
     private int _overweightPreviewRequestVersion;
     private bool _hasStartedDeviceAttach;
     private int _selectedSessionLoadVersion;
@@ -370,7 +373,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         SelectedSession != null
         && SelectedSession.IsOverweight
         && SelectedSession.OverweightResolutionStatus == OverweightResolutionStatus.PENDING;
-    private bool CanPrintWeighTicket() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT1;
+    private bool CanPrintWeighTicket() =>
+        SelectedSession != null
+        && SelectedSession.SessionStatus is WeighingSessionStatus.ALLOCATION_PENDING
+            or WeighingSessionStatus.READY_TO_COMPLETE
+            or WeighingSessionStatus.COMPLETED;
     private bool CanPrintDeliveryTicket() => SelectedSession != null && SelectedSession.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED;
     private bool CanConfirmOverweightSplit() => SelectedSession != null && IsOverweightSplitPlanValid;
     private bool CanMoveToOutYard() =>
@@ -384,7 +391,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED
         && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
     private bool CanCancel() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
-    private bool CanShowRelatedTickets() => SelectedSession != null;
+    private bool CanShowRelatedTickets() =>
+        SelectedSession != null
+        && SelectedSession.SessionStatus is WeighingSessionStatus.ALLOCATION_PENDING
+            or WeighingSessionStatus.READY_TO_COMPLETE
+            or WeighingSessionStatus.COMPLETED;
     private bool CanSuggestOverweightSplitAgain() => SelectedSession != null && IsOverweightHandlingVisible;
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight1))]
@@ -519,28 +530,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var totalPlanned = AllocationLines.Sum(x => x.PlannedWeight ?? 0m);
-        decimal allocated = 0m;
-        for (var i = 0; i < AllocationLines.Count; i++)
+        using var _ = BeginPriorityAllocationUpdateScope();
+        foreach (var row in AllocationLines)
         {
-            var row = AllocationLines[i];
-            if (i == AllocationLines.Count - 1)
-            {
-                row.ActualAllocatedWeight = NetWeight.Value - allocated;
-            }
-            else if (totalPlanned > 0)
-            {
-                var proportional = decimal.Round(NetWeight.Value * ((row.PlannedWeight ?? 0m) / totalPlanned), 3, MidpointRounding.AwayFromZero);
-                row.ActualAllocatedWeight = proportional;
-                allocated += proportional;
-            }
-            else
-            {
-                var even = decimal.Round(NetWeight.Value / AllocationLines.Count, 3, MidpointRounding.AwayFromZero);
-                row.ActualAllocatedWeight = even;
-                allocated += even;
-            }
+            row.IsPriority = false;
         }
+
+        AllocateByPlanInternal(AllocationLines.ToList(), NetWeight.Value);
     }
 
     [RelayCommand]
@@ -576,6 +572,170 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             _logger?.LogError(ex, "Confirm allocation failed");
             _toastService.ShowError("Không thể lưu phân bổ thực giao. Vui lòng thử lại.");
+        }
+    }
+
+    partial void OnAllocationLinesChanging(ObservableCollection<WeighingSessionLineRow> value)
+    {
+        RewireAllocationLineSubscriptions(AllocationLines, null);
+    }
+
+    partial void OnAllocationLinesChanged(ObservableCollection<WeighingSessionLineRow> value)
+    {
+        RewireAllocationLineSubscriptions(null, value);
+    }
+
+    private void RewireAllocationLineSubscriptions(
+        ObservableCollection<WeighingSessionLineRow>? oldValue,
+        ObservableCollection<WeighingSessionLineRow>? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.CollectionChanged -= AllocationLines_CollectionChanged;
+            foreach (var item in oldValue)
+            {
+                item.PropertyChanged -= AllocationLine_PropertyChanged;
+            }
+        }
+
+        if (newValue != null)
+        {
+            newValue.CollectionChanged += AllocationLines_CollectionChanged;
+            foreach (var item in newValue)
+            {
+                item.PropertyChanged += AllocationLine_PropertyChanged;
+            }
+        }
+    }
+
+    private void AllocationLines_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (WeighingSessionLineRow item in e.OldItems)
+            {
+                item.PropertyChanged -= AllocationLine_PropertyChanged;
+            }
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (WeighingSessionLineRow item in e.NewItems)
+            {
+                item.PropertyChanged += AllocationLine_PropertyChanged;
+            }
+        }
+    }
+
+    private void AllocationLine_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_isUpdatingPriorityAllocation || sender is not WeighingSessionLineRow row || !NetWeight.HasValue)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(WeighingSessionLineRow.IsPriority))
+        {
+            if (row.IsPriority)
+            {
+                using var _ = BeginPriorityAllocationUpdateScope();
+                foreach (var other in AllocationLines.Where(x => !ReferenceEquals(x, row) && x.IsPriority))
+                {
+                    other.IsPriority = false;
+                }
+            }
+
+            ApplyPriorityAllocation(row, useCurrentPriorityWeight: false);
+            return;
+        }
+
+        if (e.PropertyName == nameof(WeighingSessionLineRow.ActualAllocatedWeight) && row.IsPriority)
+        {
+            ApplyPriorityAllocation(row, useCurrentPriorityWeight: true);
+        }
+    }
+
+    private void ApplyPriorityAllocation(WeighingSessionLineRow priorityRow, bool useCurrentPriorityWeight)
+    {
+        if (!NetWeight.HasValue)
+        {
+            return;
+        }
+
+        if (!priorityRow.IsPriority)
+        {
+            if (!AllocationLines.Any(x => x.IsPriority))
+            {
+                using var _ = BeginPriorityAllocationUpdateScope();
+                AllocateByPlanInternal(AllocationLines.ToList(), NetWeight.Value);
+            }
+
+            return;
+        }
+
+        var totalWeight = NetWeight.Value;
+        var desiredWeight = useCurrentPriorityWeight && priorityRow.ActualAllocatedWeight.HasValue
+            ? priorityRow.ActualAllocatedWeight.Value
+            : priorityRow.PlannedWeight ?? totalWeight;
+
+        desiredWeight = decimal.Round(decimal.Clamp(desiredWeight, 0m, totalWeight), 3, MidpointRounding.AwayFromZero);
+        var remainingWeight = decimal.Round(totalWeight - desiredWeight, 3, MidpointRounding.AwayFromZero);
+
+        using var __ = BeginPriorityAllocationUpdateScope();
+        priorityRow.ActualAllocatedWeight = desiredWeight;
+
+        var remainingRows = AllocationLines.Where(x => !ReferenceEquals(x, priorityRow)).ToList();
+        AllocateByPlanInternal(remainingRows, remainingWeight);
+    }
+
+    private static void AllocateByPlanInternal(IReadOnlyList<WeighingSessionLineRow> rows, decimal totalWeight)
+    {
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var boundedTotal = decimal.Max(0m, totalWeight);
+        var totalPlanned = rows.Sum(x => x.PlannedWeight ?? 0m);
+        decimal allocated = 0m;
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            if (i == rows.Count - 1)
+            {
+                row.ActualAllocatedWeight = decimal.Round(boundedTotal - allocated, 3, MidpointRounding.AwayFromZero);
+            }
+            else if (totalPlanned > 0)
+            {
+                var proportional = decimal.Round(boundedTotal * ((row.PlannedWeight ?? 0m) / totalPlanned), 3, MidpointRounding.AwayFromZero);
+                row.ActualAllocatedWeight = proportional;
+                allocated += proportional;
+            }
+            else
+            {
+                var even = decimal.Round(boundedTotal / rows.Count, 3, MidpointRounding.AwayFromZero);
+                row.ActualAllocatedWeight = even;
+                allocated += even;
+            }
+        }
+    }
+
+    private IDisposable BeginPriorityAllocationUpdateScope() => new PriorityAllocationUpdateScope(this);
+
+    private sealed class PriorityAllocationUpdateScope : IDisposable
+    {
+        private readonly WeighingViewModel _owner;
+
+        public PriorityAllocationUpdateScope(WeighingViewModel owner)
+        {
+            _owner = owner;
+            _owner._isUpdatingPriorityAllocation = true;
+        }
+
+        public void Dispose()
+        {
+            _owner._isUpdatingPriorityAllocation = false;
         }
     }
 
@@ -1477,6 +1637,7 @@ public partial class WeighingSessionLineRow : ObservableObject
 
     [ObservableProperty] private decimal? _actualAllocatedWeight;
     [ObservableProperty] private int? _actualAllocatedBagCount;
+    [ObservableProperty] private bool _isPriority;
 
     public Guid SessionLineId { get; }
     public Guid CutOrderId { get; }

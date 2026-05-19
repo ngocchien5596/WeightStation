@@ -13,7 +13,7 @@ RETURN
     SELECT
         CAST(
             CASE
-                WHEN co.ProductType = N'Bao'
+                WHEN COALESCE(NULLIF(LTRIM(RTRIM(co.ProductType)), N''), p.ProductType) = N'Bao'
                     THEN ISNULL(co.PlannedWeight, 0) / 1000.0
                 ELSE
                     ISNULL(lineAgg.ActualAllocatedWeight, 0) / 1000.0
@@ -24,12 +24,17 @@ RETURN
         CAST(sessionAgg.Weight2Time AS datetime2(7)) AS Weight2Time,
         CAST(sessionAgg.Weight2Time AS datetime2(7)) AS PickupTime
     FROM cut_orders co
+    LEFT JOIN products p
+        ON p.ProductCode = co.ProductCode
     OUTER APPLY
     (
         SELECT
             SUM(ISNULL(wsl.ActualAllocatedWeight, 0)) AS ActualAllocatedWeight
         FROM weighing_session_lines wsl
+        INNER JOIN weighing_sessions ws
+            ON ws.Id = wsl.WeighingSessionId
         WHERE wsl.CutOrderId = co.Id
+          AND ISNULL(ws.SessionStatus, N'') <> N'CANCELLED'
     ) lineAgg
     OUTER APPLY
     (
@@ -40,6 +45,7 @@ RETURN
         INNER JOIN weighing_sessions ws
             ON ws.Id = wsl.WeighingSessionId
         WHERE wsl.CutOrderId = co.Id
+          AND ISNULL(ws.SessionStatus, N'') <> N'CANCELLED'
     ) sessionAgg
     WHERE co.ErpCutOrderId = @ErpCutOrderId
 );

@@ -244,6 +244,7 @@ public class AuthorizationRbacUseCaseTests
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
         var weighRepo = Substitute.For<IWeighTicketRepository>();
         var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
         var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
@@ -258,6 +259,7 @@ public class AuthorizationRbacUseCaseTests
         var sut = new CaptureSessionWeight2UseCase(
             sessionRepo,
             regRepo,
+            productRepo,
             weighRepo,
             deliveryRepo,
             deliveryNoGen,
