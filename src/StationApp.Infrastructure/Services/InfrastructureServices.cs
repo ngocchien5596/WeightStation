@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
@@ -100,7 +101,7 @@ public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
         var sessionPrefix = $"{sessionPrefixBase}{yearMonth}";
 
         var lastSessionNo = await _db.WeighingSessions
-            .Where(s => s.SessionNo.StartsWith(sessionPrefix))
+            .Where(s => !s.IsDeleted && s.SessionNo.StartsWith(sessionPrefix))
             .OrderByDescending(s => s.SessionNo)
             .Select(s => s.SessionNo)
             .FirstOrDefaultAsync(ct);
@@ -205,10 +206,10 @@ public class ToleranceProvider : IToleranceProvider
     private readonly IAppConfigRepository _configRepo;
     public ToleranceProvider(IAppConfigRepository configRepo) => _configRepo = configRepo;
 
-    public async Task<decimal> GetToleranceKgAsync(CancellationToken ct)
+    public async Task<decimal> GetToleranceKgPerBagAsync(CancellationToken ct)
     {
-        var val = await _configRepo.GetValueAsync("tolerance_kg", ct);
-        return decimal.TryParse(val, out var result) ? result : 500m;
+        var val = await _configRepo.GetValueAsync(AppConfigKeys.ToleranceKgPerBag, ct);
+        return decimal.TryParse(val, out var result) ? result : AppConfigDefaults.DefaultToleranceKgPerBag;
     }
 }
 

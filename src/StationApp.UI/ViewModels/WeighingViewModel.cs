@@ -56,6 +56,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _scaleUiTimer;
     private LatestScaleReadingSnapshot? _pendingScaleReading;
     private bool _pendingScaleDeviceConnected;
+    private bool _isApplyingBaggedActualWeightOverrideState;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -68,6 +69,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(CaptureWeight2Command))]
     [NotifyCanExecuteChangedFor(nameof(SaveCapturedWeightCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenAllocationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenAppendCutOrdersCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowOverweightHandlingCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
@@ -88,6 +90,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? _driverName;
     [ObservableProperty] private string? _customerSummary;
     [ObservableProperty] private string? _productSummary;
+    [ObservableProperty] private bool _useActualWeightForBaggedCutOrders;
     [ObservableProperty] private decimal? _weight1;
     [ObservableProperty] private decimal? _weight2;
     [ObservableProperty] private decimal? _netWeight;
@@ -116,6 +119,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private bool _isAllocationVisible;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _allocationLines = new();
+    [ObservableProperty] private bool _isAppendCutOrdersVisible;
+    [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _appendCutOrderCandidates = new();
+    [ObservableProperty] private string? _appendCutOrdersWarningMessage;
     [ObservableProperty] private bool _isRelatedTicketsVisible;
     [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
     [ObservableProperty] private bool _isOverweightHandlingVisible;
@@ -125,6 +131,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     public bool IsAutoMode => CurrentCaptureMode == "TỰ ĐỘNG";
     public bool IsManualMode => CurrentCaptureMode == "CÂN TAY";
     public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
+    public bool ShowBaggedActualWeightOverride =>
+        SessionLines.Count > 0
+        && SessionLines.All(x =>
+            string.Equals(
+                ProductTypes.Normalize(x.ProductType),
+                ProductTypes.Bagged,
+                StringComparison.OrdinalIgnoreCase));
 
     public WeighingViewModel(
         IServiceScopeFactory scopeFactory,
@@ -180,6 +193,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         ClearPendingCapturedWeights();
         var loadVersion = ++_selectedSessionLoadVersion;
         _ = LoadSelectedSessionAsync(value, loadVersion);
+    }
+
+    partial void OnUseActualWeightForBaggedCutOrdersChanged(bool value)
+    {
+        if (_isApplyingBaggedActualWeightOverrideState || SelectedSession == null)
+        {
+            return;
+        }
+
+        _ = PersistBaggedActualWeightOverrideAsync(value);
     }
 
     public async Task InitializeAsync()
@@ -314,7 +337,17 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         OverweightResolutionText = OverweightResolutionStatusMapper.ToDisplayString(value.OverweightResolutionStatus);
         CustomerSummary = string.Join(" / ", lineItems.Select(x => x.CustomerName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
         ProductSummary = BuildProductSummary(lineItems);
+        _isApplyingBaggedActualWeightOverrideState = true;
+        try
+        {
+            UseActualWeightForBaggedCutOrders = value.UseActualWeightForBaggedCutOrders;
+        }
+        finally
+        {
+            _isApplyingBaggedActualWeightOverrideState = false;
+        }
         SessionLines = new ObservableCollection<WeighingSessionLineRow>(lineItems.Select(x => new WeighingSessionLineRow(x)));
+        OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
     }
 
     private void ClearSelectionDetails()
@@ -326,6 +359,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         DriverName = null;
         CustomerSummary = null;
         ProductSummary = null;
+        _isApplyingBaggedActualWeightOverrideState = true;
+        try
+        {
+            UseActualWeightForBaggedCutOrders = false;
+        }
+        finally
+        {
+            _isApplyingBaggedActualWeightOverrideState = false;
+        }
         Weight1 = null;
         Weight2 = null;
         NetWeight = null;
@@ -342,7 +384,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsOverweightSplitPlanValid = false;
         SessionStatusText = null;
         OverweightResolutionText = null;
+        AppendCutOrdersWarningMessage = null;
         SessionLines = new ObservableCollection<WeighingSessionLineRow>();
+        OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
     }
 
     private bool CanCaptureWeight1() => SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1;
@@ -369,6 +413,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         return SelectedSession.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
                && SessionLines.Count > 1;
     }
+    private bool CanOpenAppendCutOrders() =>
+        SelectedSession?.SessionStatus is WeighingSessionStatus.PENDING_WEIGHT1 or WeighingSessionStatus.PENDING_WEIGHT2;
     private bool CanShowOverweightHandling() =>
         SelectedSession != null
         && SelectedSession.IsOverweight
@@ -522,6 +568,97 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsAllocationVisible = false;
     }
 
+    [RelayCommand(CanExecute = nameof(CanOpenAppendCutOrders))]
+    private async Task OpenAppendCutOrdersAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+        var candidates = await repo.GetIncomingListAsync(
+            new IncomingVehicleListFilter(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            CancellationToken.None);
+
+        var existingIds = SessionLines.Select(x => x.CutOrderId).ToHashSet();
+        var filtered = candidates
+            .Where(x => x.TransactionType == SelectedSession.TransactionType)
+            .Where(x => !existingIds.Contains(x.CutOrderId))
+            .OrderBy(x => x.CreatedAt)
+            .ThenBy(x => x.ErpCutOrderId)
+            .Select(x => new IncomingVehicleSelectionItem(x))
+            .ToList();
+
+        if (filtered.Count == 0)
+        {
+            _toastService.ShowInfo("Không còn cắt lệnh phù hợp để thêm vào lượt cân này.");
+            return;
+        }
+
+        AppendCutOrderCandidates = new ObservableCollection<IncomingVehicleSelectionItem>(filtered);
+        RefreshAppendCutOrdersWarningMessage();
+        IsAppendCutOrdersVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseAppendCutOrders()
+    {
+        IsAppendCutOrdersVisible = false;
+        AppendCutOrdersWarningMessage = null;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmAppendCutOrdersAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var selectedIds = AppendCutOrderCandidates
+            .Where(x => x.IsSelected)
+            .Select(x => x.CutOrderId)
+            .ToList();
+
+        if (selectedIds.Count == 0)
+        {
+            _toastService.ShowWarning("Vui lòng chọn ít nhất một cắt lệnh để thêm.");
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<AppendCutOrdersToWeighingSessionUseCase>();
+            await uc.ExecuteAsync(
+                new AppendCutOrdersToWeighingSessionRequest(SelectedSession.SessionId, selectedIds),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã thêm cắt lệnh vào lượt cân.");
+            IsAppendCutOrdersVisible = false;
+            AppendCutOrdersWarningMessage = null;
+            await FocusSessionAsync(SelectedSession.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Append cut orders to weighing session failed");
+            _toastService.ShowError("Không thể thêm cắt lệnh vào lượt cân. Vui lòng thử lại.");
+        }
+    }
+
     [RelayCommand]
     private void AllocateByPlan()
     {
@@ -605,6 +742,155 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             {
                 item.PropertyChanged += AllocationLine_PropertyChanged;
             }
+        }
+    }
+
+    partial void OnAppendCutOrderCandidatesChanging(ObservableCollection<IncomingVehicleSelectionItem> value)
+    {
+        RewireAppendCutOrderCandidateSubscriptions(AppendCutOrderCandidates, null);
+    }
+
+    partial void OnAppendCutOrderCandidatesChanged(ObservableCollection<IncomingVehicleSelectionItem> value)
+    {
+        RewireAppendCutOrderCandidateSubscriptions(null, value);
+        RefreshAppendCutOrdersWarningMessage();
+    }
+
+    private void RewireAppendCutOrderCandidateSubscriptions(
+        ObservableCollection<IncomingVehicleSelectionItem>? oldValue,
+        ObservableCollection<IncomingVehicleSelectionItem>? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.CollectionChanged -= AppendCutOrderCandidates_CollectionChanged;
+            foreach (var item in oldValue)
+            {
+                item.PropertyChanged -= AppendCutOrderCandidate_PropertyChanged;
+            }
+        }
+
+        if (newValue != null)
+        {
+            newValue.CollectionChanged += AppendCutOrderCandidates_CollectionChanged;
+            foreach (var item in newValue)
+            {
+                item.PropertyChanged += AppendCutOrderCandidate_PropertyChanged;
+            }
+        }
+    }
+
+    private void AppendCutOrderCandidates_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (IncomingVehicleSelectionItem item in e.OldItems)
+            {
+                item.PropertyChanged -= AppendCutOrderCandidate_PropertyChanged;
+            }
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (IncomingVehicleSelectionItem item in e.NewItems)
+            {
+                item.PropertyChanged += AppendCutOrderCandidate_PropertyChanged;
+            }
+        }
+
+        RefreshAppendCutOrdersWarningMessage();
+    }
+
+    private void AppendCutOrderCandidate_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IncomingVehicleSelectionItem.IsSelected))
+        {
+            RefreshAppendCutOrdersWarningMessage();
+        }
+    }
+
+    private void RefreshAppendCutOrdersWarningMessage()
+    {
+        if (SelectedSession == null || AppendCutOrderCandidates.Count == 0)
+        {
+            AppendCutOrdersWarningMessage = null;
+            return;
+        }
+
+        var selectedItems = AppendCutOrderCandidates.Where(x => x.IsSelected).ToList();
+        if (selectedItems.Count == 0)
+        {
+            AppendCutOrdersWarningMessage = null;
+            return;
+        }
+
+        var sessionVehiclePlate = NormalizeText(SelectedSession.VehiclePlate);
+        var sessionMoocNumber = NormalizeText(SelectedSession.MoocNumber);
+        var hasVehicleMismatch = selectedItems.Any(x =>
+            !string.Equals(NormalizeText(x.VehiclePlate), sessionVehiclePlate, StringComparison.OrdinalIgnoreCase));
+        var hasMoocMismatch = selectedItems.Any(x =>
+            !string.Equals(NormalizeText(x.MoocNumber), sessionMoocNumber, StringComparison.OrdinalIgnoreCase));
+
+        if (!hasVehicleMismatch && !hasMoocMismatch)
+        {
+            AppendCutOrdersWarningMessage = null;
+            return;
+        }
+
+        var warnings = new List<string>();
+        if (hasVehicleMismatch)
+        {
+            warnings.Add("khác số PTVC");
+        }
+        if (hasMoocMismatch)
+        {
+            warnings.Add("khác mooc");
+        }
+
+        AppendCutOrdersWarningMessage =
+            $"Cảnh báo: có cắt lệnh được chọn {string.Join(" và ", warnings)} so với lượt cân hiện tại. Vui lòng xác nhận kỹ trước khi thêm.";
+    }
+
+    private async Task PersistBaggedActualWeightOverrideAsync(bool value)
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var previousValue = !value;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<SetWeighingSessionBaggedActualWeightOverrideUseCase>();
+            await useCase.ExecuteAsync(SelectedSession.SessionId, value, CancellationToken.None);
+            _toastService.ShowSuccess(value
+                ? "Đã bật dùng KL thực cho hàng Bao ở lượt cân này."
+                : "Đã tắt dùng KL thực cho hàng Bao ở lượt cân này.");
+            await FocusSessionAsync(SelectedSession.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+            RevertBaggedActualWeightOverride(previousValue);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Update bagged actual weight override failed");
+            _toastService.ShowError("Không thể cập nhật tùy chọn hàng Bao. Vui lòng thử lại.");
+            RevertBaggedActualWeightOverride(previousValue);
+        }
+    }
+
+    private void RevertBaggedActualWeightOverride(bool value)
+    {
+        _isApplyingBaggedActualWeightOverrideState = true;
+        try
+        {
+            UseActualWeightForBaggedCutOrders = value;
+        }
+        finally
+        {
+            _isApplyingBaggedActualWeightOverrideState = false;
         }
     }
 
@@ -723,6 +1009,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
     private IDisposable BeginPriorityAllocationUpdateScope() => new PriorityAllocationUpdateScope(this);
 
+    private static string NormalizeText(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
     private sealed class PriorityAllocationUpdateScope : IDisposable
     {
         private readonly WeighingViewModel _owner;
@@ -779,7 +1067,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 firstSplitWeight,
                 IsManualSplitOverride),
             CancellationToken.None);
-        _toastService.ShowSuccess("Đã cập nhật xử lý quá tải.");
+            _toastService.ShowSuccess("Đã cập nhật tách tải.");
         IsOverweightHandlingVisible = false;
         ResetOverweightHandlingState();
         await FocusSessionAsync(SelectedSession.SessionId);
@@ -807,7 +1095,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         using var scope = _scopeFactory.CreateScope();
         var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightNoSplitUseCase>();
         await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
-        _toastService.ShowSuccess("Đã cập nhật xử lý quá tải.");
+        _toastService.ShowSuccess("Đã cập nhật tách tải.");
         IsOverweightHandlingVisible = false;
         ResetOverweightHandlingState();
         await FocusSessionAsync(SelectedSession.SessionId);

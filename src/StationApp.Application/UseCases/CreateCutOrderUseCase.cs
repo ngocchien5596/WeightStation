@@ -46,6 +46,7 @@ public sealed class CreateCutOrderUseCase
         {
             Id = Guid.NewGuid(),
             ErpCutOrderId = request.ErpCutOrderId,
+            ErpRegistrationCode = request.ErpRegistrationCode?.Trim() ?? request.ErpCutOrderId?.Trim(),
             CutOrderSource = request.CutOrderSource,
             CutOrderStatus = CutOrderStatus.REGISTERED,
             TransactionType = request.TransactionType,

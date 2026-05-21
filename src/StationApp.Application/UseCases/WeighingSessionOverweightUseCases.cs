@@ -87,12 +87,12 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
     {
         if (session.SessionStatus != WeighingSessionStatus.READY_TO_COMPLETE)
         {
-            throw new InvalidOperationException("Lượt cân chưa ở trạng thái sẵn sàng xử lý quá tải.");
+            throw new InvalidOperationException("Lượt cân chưa ở trạng thái sẵn sàng tách tải.");
         }
 
         if (!session.IsOverweight || session.OverweightResolutionStatus != OverweightResolutionStatus.PENDING)
         {
-            throw new InvalidOperationException("Lượt cân hiện tại không còn ở trạng thái chờ xử lý quá tải.");
+            throw new InvalidOperationException("Lượt cân hiện tại không còn ở trạng thái chờ tách tải.");
         }
     }
 }

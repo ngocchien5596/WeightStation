@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using StationApp.Infrastructure.Persistence;
 
 var argsMap = ParseArgs(args);
@@ -22,6 +23,11 @@ var host = Host.CreateDefaultBuilder()
         }
 
         config.AddEnvironmentVariables(prefix: "STATIONAPP_");
+    })
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddSimpleConsole();
     })
     .ConfigureServices((context, services) =>
     {

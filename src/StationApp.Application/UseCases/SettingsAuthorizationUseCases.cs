@@ -35,7 +35,7 @@ public sealed class UpdateSystemSettingsUseCase
         await _configRepository.SetValueAsync("station_code", request.StationCode.Trim(), ct);
         await _configRepository.SetValueAsync("ticket_prefix", request.TicketPrefix.Trim(), ct);
         await _configRepository.SetValueAsync("delivery_prefix", request.DeliveryPrefix.Trim(), ct);
-        await _configRepository.SetValueAsync("tolerance_kg", request.ToleranceKg.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.ToleranceKgPerBag, request.ToleranceKgPerBag.Trim(), ct);
         await _configRepository.SetValueAsync("sync_interval", request.SyncIntervalSeconds.Trim(), ct);
         await _configRepository.SetValueAsync("registration_inbound_poll_seconds", request.RegistrationInboundPollSeconds.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.OverweightSplitStepWeight, request.OverweightSplitStepWeight.Trim(), ct);

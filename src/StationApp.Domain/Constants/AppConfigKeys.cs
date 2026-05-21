@@ -3,6 +3,7 @@ namespace StationApp.Domain.Constants;
 public static class AppConfigKeys
 {
     public const string OverweightSplitStepWeight = "OverweightSplitStepWeight";
+    public const string ToleranceKgPerBag = "tolerance_kg_per_bag";
     public const string DeviceComPort = "device_com_port";
     public const string DeviceBaudrate = "device_baudrate";
     public const string DeviceParity = "device_parity";
@@ -20,6 +21,7 @@ public static class AppConfigKeys
 public static class AppConfigDefaults
 {
     public const decimal DefaultOverweightSplitStepWeight = 0.0025m;
+    public const decimal DefaultToleranceKgPerBag = 1.75m;
     public const string DefaultDeviceComPort = "COM6";
     public const string DefaultDeviceBaudrate = "9600";
     public const string DefaultDeviceParity = "None";

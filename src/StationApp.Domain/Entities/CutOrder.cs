@@ -7,6 +7,7 @@ public class CutOrder
 {
     public Guid Id { get; set; }
     public string? ErpCutOrderId { get; set; }
+    public string? ErpRegistrationCode { get; set; }
     public CutOrderSource CutOrderSource { get; set; }
     public CutOrderStatus CutOrderStatus { get; set; }
     public TransactionType TransactionType { get; set; }
@@ -35,12 +36,17 @@ public class CutOrder
     public string? Notes { get; set; }
 
     public bool IsCancelled { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
     public bool HasOverweightCase { get; set; }
     public ProcessingStage ProcessingStage { get; set; } = ProcessingStage.IN_YARD;
     public Guid? WeighingSessionId { get; set; }
 
     public Guid? CurrentPrimaryWeighTicketId { get; set; }
     public Guid? CurrentPrimaryDeliveryTicketId { get; set; }
+    public decimal? CarryForwardWeight1 { get; set; }
+    public DateTime? CarryForwardWeight1Time { get; set; }
 
     public SyncStatus SyncStatus { get; set; }
     public Guid IdempotencyKey { get; set; }

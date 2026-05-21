@@ -54,13 +54,78 @@ public class CutOrderRepository : ICutOrderRepository
     public async Task<CutOrder?> GetByErpIdAsync(string erpCutOrderId, CancellationToken ct)
     {
         return await _db.CutOrders
-            .FirstOrDefaultAsync(v => v.ErpCutOrderId == erpCutOrderId, ct);
+            .FirstOrDefaultAsync(v => !v.IsDeleted && v.ErpCutOrderId == erpCutOrderId, ct);
+    }
+
+    public async Task<IReadOnlyList<CutOrder>> GetLatestDeletedByErpIdsAsync(IReadOnlyCollection<string> erpCutOrderIds, CancellationToken ct)
+    {
+        if (erpCutOrderIds.Count == 0)
+        {
+            return Array.Empty<CutOrder>();
+        }
+
+        var normalized = erpCutOrderIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            return Array.Empty<CutOrder>();
+        }
+
+        var deletedRows = await _db.CutOrders
+            .Where(x => x.IsDeleted
+                && x.ErpCutOrderId != null
+                && normalized.Contains(x.ErpCutOrderId)
+                && x.CarryForwardWeight1.HasValue)
+            .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
+            .ToListAsync(ct);
+
+        return deletedRows
+            .GroupBy(x => x.ErpCutOrderId!, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .ToList()
+            .AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<CutOrder>> GetLatestDeletedByRegistrationCodesAsync(IReadOnlyCollection<string> erpRegistrationCodes, CancellationToken ct)
+    {
+        if (erpRegistrationCodes.Count == 0)
+        {
+            return Array.Empty<CutOrder>();
+        }
+
+        var normalized = erpRegistrationCodes
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            return Array.Empty<CutOrder>();
+        }
+
+        var deletedRows = await _db.CutOrders
+            .Where(x => x.IsDeleted
+                && x.ErpRegistrationCode != null
+                && normalized.Contains(x.ErpRegistrationCode))
+            .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
+            .ToListAsync(ct);
+
+        return deletedRows
+            .GroupBy(x => x.ErpRegistrationCode!, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .ToList()
+            .AsReadOnly();
     }
 
     public async Task<IReadOnlyList<CutOrder>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
     {
         return await _db.CutOrders
-            .Where(x => x.WeighingSessionId == weighingSessionId)
+            .Where(x => !x.IsDeleted && x.WeighingSessionId == weighingSessionId)
             .OrderBy(x => x.CreatedAt)
             .ToListAsync(ct);
     }
@@ -68,7 +133,7 @@ public class CutOrderRepository : ICutOrderRepository
     public async Task<IReadOnlyList<CutOrder>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
     {
         return await _db.CutOrders
-            .Where(x => x.SyncStatus == syncStatus)
+            .Where(x => !x.IsDeleted && x.SyncStatus == syncStatus)
             .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(take)
             .ToListAsync(ct);
@@ -79,8 +144,12 @@ public class CutOrderRepository : ICutOrderRepository
         var query = _db.CutOrders.AsQueryable();
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            query = query.Where(v => v.VehiclePlate.Contains(keyword) || 
-                                     (v.ErpCutOrderId != null && v.ErpCutOrderId.Contains(keyword)));
+            query = query.Where(v => !v.IsDeleted && (v.VehiclePlate.Contains(keyword) || 
+                                     (v.ErpCutOrderId != null && v.ErpCutOrderId.Contains(keyword))));
+        }
+        else
+        {
+            query = query.Where(v => !v.IsDeleted);
         }
         return await query.OrderByDescending(v => v.CreatedAt).Take(100).ToListAsync(ct);
     }
@@ -88,7 +157,7 @@ public class CutOrderRepository : ICutOrderRepository
     public async Task<IReadOnlyList<CutOrder>> GetUnprocessedInboundAsync(CancellationToken ct)
     {
         return await _db.CutOrders
-            .Where(v => !v.IsInboundProcessed && v.CutOrderSource == CutOrderSource.ERP)
+            .Where(v => !v.IsDeleted && !v.IsInboundProcessed && v.CutOrderSource == CutOrderSource.ERP)
             .OrderBy(v => v.CreatedAt)
             .ToListAsync(ct);
     }
@@ -96,7 +165,7 @@ public class CutOrderRepository : ICutOrderRepository
     public async Task<IReadOnlyList<WeightViewListItem>> GetWeightViewListAsync(string? keyword, CancellationToken ct)
     {
         var regQuery = _db.CutOrders.AsNoTracking()
-            .Where(vr => vr.ProcessingStage == ProcessingStage.WEIGHING && !vr.IsCancelled);
+            .Where(vr => !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.WEIGHING && !vr.IsCancelled);
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -142,7 +211,7 @@ public class CutOrderRepository : ICutOrderRepository
         var sessionById = sessionIds.Count == 0
             ? new Dictionary<Guid, WeighingSession>()
             : await _db.WeighingSessions.AsNoTracking()
-                .Where(session => sessionIds.Contains(session.Id))
+                .Where(session => !session.IsDeleted && sessionIds.Contains(session.Id))
                 .ToDictionaryAsync(session => session.Id, ct);
 
         var result = new List<WeightViewListItem>();
@@ -254,7 +323,7 @@ public class CutOrderRepository : ICutOrderRepository
     public async Task<IReadOnlyList<IncomingVehicleListItem>> GetIncomingListAsync(IncomingVehicleListFilter filter, CancellationToken ct)
     {
         var query = _db.CutOrders.AsNoTracking()
-            .Where(vr => vr.ProcessingStage == ProcessingStage.IN_YARD && !vr.IsCancelled);
+            .Where(vr => !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.IN_YARD && !vr.IsCancelled);
 
         if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
             query = query.Where(vr => vr.ErpCutOrderId != null && vr.ErpCutOrderId.Contains(filter.ErpCutOrderId));
@@ -279,23 +348,139 @@ public class CutOrderRepository : ICutOrderRepository
 
         var registrations = await query.OrderByDescending(vr => vr.CreatedAt).Take(200).ToListAsync(ct);
 
-        var list = registrations.Select(vr => new IncomingVehicleListItem(
-            vr.Id,
-            vr.ErpCutOrderId,
-            vr.TransactionType,
-            vr.VehiclePlate,
-            vr.MoocNumber,
-            vr.ReceiverName,
-            vr.CustomerName,
-            vr.ProductCode,
-            vr.ProductName,
-            vr.PlannedWeight,
-            vr.BagCount,
-            vr.CutOrderStatus,
-            vr.TransportMethod,
-            NormalizeCreatedAtForDisplay(vr.CutOrderSource, vr.CreatedAt),
-            vr.ProductType
-        )).ToList();
+        var carryForwardHistoryByRegistrationCode = registrations
+            .Where(x => !string.IsNullOrWhiteSpace(x.ErpRegistrationCode))
+            .Select(x => x.ErpRegistrationCode!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var deletedCarryForwardByRegistrationCode = carryForwardHistoryByRegistrationCode.Count == 0
+            ? new Dictionary<string, CutOrder>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.CutOrders.AsNoTracking()
+                    .Where(x => x.IsDeleted
+                        && x.ErpRegistrationCode != null
+                        && carryForwardHistoryByRegistrationCode.Contains(x.ErpRegistrationCode))
+                    .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
+                    .ToListAsync(ct))
+                .GroupBy(x => x.ErpRegistrationCode!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        var carryForwardHistoryByErpId = registrations
+            .Where(x => !string.IsNullOrWhiteSpace(x.ErpCutOrderId))
+            .Select(x => x.ErpCutOrderId!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var deletedCarryForwardLookup = carryForwardHistoryByErpId.Count == 0
+            ? new Dictionary<string, CutOrder>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.CutOrders.AsNoTracking()
+                    .Where(x => x.IsDeleted
+                        && x.ErpCutOrderId != null
+                        && carryForwardHistoryByErpId.Contains(x.ErpCutOrderId)
+                        && x.CarryForwardWeight1.HasValue)
+                    .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
+                    .ToListAsync(ct))
+                .GroupBy(x => x.ErpCutOrderId!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        var reusableSessionKeys = registrations
+            .Select(x => new
+            {
+                VehiclePlate = x.VehiclePlate?.Trim(),
+                MoocNumber = string.IsNullOrWhiteSpace(x.MoocNumber) ? string.Empty : x.MoocNumber.Trim(),
+                x.TransactionType
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.VehiclePlate))
+            .Distinct()
+            .ToList();
+        var reusableSessions = await _db.WeighingSessions.AsNoTracking()
+            .Where(ws => !ws.IsDeleted
+                && !ws.IsCancelled
+                && ws.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
+                && ws.Weight1.HasValue)
+            .Where(ws => !_db.CutOrders.Any(co =>
+                !co.IsDeleted
+                && !co.IsCancelled
+                && co.WeighingSessionId == ws.Id))
+            .ToListAsync(ct);
+        var reusableSessionLookup = reusableSessions
+            .Where(ws => reusableSessionKeys.Any(key =>
+                key.TransactionType == ws.TransactionType
+                && string.Equals(key.VehiclePlate, ws.VehiclePlate?.Trim(), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(key.MoocNumber, string.IsNullOrWhiteSpace(ws.MoocNumber) ? string.Empty : ws.MoocNumber.Trim(), StringComparison.OrdinalIgnoreCase)))
+            .GroupBy(ws => $"{ws.TransactionType}|{ws.VehiclePlate?.Trim()?.ToUpperInvariant()}|{(string.IsNullOrWhiteSpace(ws.MoocNumber) ? string.Empty : ws.MoocNumber.Trim().ToUpperInvariant())}")
+            .ToDictionary(
+                x => x.Key,
+                x => x.OrderByDescending(ws => ws.Weight1Time ?? ws.UpdatedAt ?? ws.CreatedAt).First(),
+                StringComparer.OrdinalIgnoreCase);
+        var deletedSessionIds = deletedCarryForwardByRegistrationCode.Values
+            .Where(x => x.WeighingSessionId.HasValue)
+            .Select(x => x.WeighingSessionId!.Value)
+            .Distinct()
+            .ToList();
+        var deletedSessionLookup = deletedSessionIds.Count == 0
+            ? new Dictionary<Guid, WeighingSession>()
+            : await _db.WeighingSessions.AsNoTracking()
+                .Where(x => !x.IsDeleted
+                    && !x.IsCancelled
+                    && x.SessionStatus != WeighingSessionStatus.COMPLETED
+                    && x.SessionStatus != WeighingSessionStatus.CANCELLED
+                    && deletedSessionIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+
+        var list = registrations.Select(vr =>
+        {
+            var reusableSessionKey = $"{vr.TransactionType}|{vr.VehiclePlate?.Trim()?.ToUpperInvariant()}|{(string.IsNullOrWhiteSpace(vr.MoocNumber) ? string.Empty : vr.MoocNumber.Trim().ToUpperInvariant())}";
+            reusableSessionLookup.TryGetValue(reusableSessionKey, out var reusableSession);
+
+            string? suggestedSessionNo = null;
+            if (!string.IsNullOrWhiteSpace(vr.ErpRegistrationCode)
+                && deletedCarryForwardByRegistrationCode.TryGetValue(vr.ErpRegistrationCode.Trim(), out var deletedByRegCode)
+                && deletedByRegCode.WeighingSessionId.HasValue
+                && deletedSessionLookup.TryGetValue(deletedByRegCode.WeighingSessionId.Value, out var suggestedSession)
+                && suggestedSession.TransactionType == vr.TransactionType
+                && string.Equals(suggestedSession.VehiclePlate?.Trim(), vr.VehiclePlate?.Trim(), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    string.IsNullOrWhiteSpace(suggestedSession.MoocNumber) ? string.Empty : suggestedSession.MoocNumber.Trim(),
+                    string.IsNullOrWhiteSpace(vr.MoocNumber) ? string.Empty : vr.MoocNumber.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                suggestedSessionNo = suggestedSession.SessionNo;
+            }
+            else if (reusableSession != null)
+            {
+                suggestedSessionNo = reusableSession.SessionNo;
+            }
+
+            return new IncomingVehicleListItem(
+                vr.Id,
+                vr.ErpCutOrderId,
+                vr.ErpRegistrationCode,
+                vr.TransactionType,
+                vr.VehiclePlate ?? string.Empty,
+                vr.MoocNumber,
+                vr.ReceiverName,
+                vr.CustomerName,
+                vr.ProductCode,
+                vr.ProductName,
+                vr.PlannedWeight,
+                vr.BagCount,
+                vr.CutOrderStatus,
+                vr.TransportMethod,
+                NormalizeCreatedAtForDisplay(vr.CutOrderSource, vr.CreatedAt),
+                vr.ProductType,
+                vr.CarryForwardWeight1
+                    ?? (!string.IsNullOrWhiteSpace(vr.ErpRegistrationCode) && deletedCarryForwardByRegistrationCode.TryGetValue(vr.ErpRegistrationCode.Trim(), out var deletedCarryForwardByRegCode)
+                        ? deletedCarryForwardByRegCode.CarryForwardWeight1
+                        : !string.IsNullOrWhiteSpace(vr.ErpCutOrderId) && deletedCarryForwardLookup.TryGetValue(vr.ErpCutOrderId.Trim(), out var deletedCarryForward)
+                        ? deletedCarryForward.CarryForwardWeight1
+                        : reusableSession?.Weight1),
+                vr.CarryForwardWeight1Time
+                    ?? (!string.IsNullOrWhiteSpace(vr.ErpRegistrationCode) && deletedCarryForwardByRegistrationCode.TryGetValue(vr.ErpRegistrationCode.Trim(), out var deletedCarryForwardTimeByRegCode)
+                        ? deletedCarryForwardTimeByRegCode.CarryForwardWeight1Time
+                        : !string.IsNullOrWhiteSpace(vr.ErpCutOrderId) && deletedCarryForwardLookup.TryGetValue(vr.ErpCutOrderId.Trim(), out var deletedCarryForwardTime)
+                        ? deletedCarryForwardTime.CarryForwardWeight1Time
+                        : reusableSession?.Weight1Time),
+                suggestedSessionNo);
+        }).ToList();
 
         var missingProductCodes = list
             .Where(x => string.IsNullOrWhiteSpace(x.ProductType) && !string.IsNullOrWhiteSpace(x.ProductCode))
@@ -357,7 +542,7 @@ public class CutOrderRepository : ICutOrderRepository
             from vr in _db.CutOrders.AsNoTracking()
             join ws in _db.WeighingSessions.AsNoTracking()
                 on vr.WeighingSessionId equals ws.Id into sessionGroup
-            from session in sessionGroup.DefaultIfEmpty()
+            from session in sessionGroup.Where(x => !x.IsDeleted).DefaultIfEmpty()
             where vr.ProcessingStage == ProcessingStage.OUT_YARD
                 && vr.CutOrderStatus == CutOrderStatus.COMPLETED
                 && !vr.IsCancelled
@@ -366,6 +551,7 @@ public class CutOrderRepository : ICutOrderRepository
                 Registration = vr,
                 Session = session
             };
+        query = query.Where(x => !x.Registration.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(filter.SessionNo))
         {
@@ -428,7 +614,7 @@ public class CutOrderRepository : ICutOrderRepository
                 .ToDictionaryAsync(x => x.ProductCode.Trim(), x => x.ProductType, ct);
 
         var sessionLines = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(line => sessionIds.Contains(line.WeighingSessionId))
+            .Where(line => !line.IsDeleted && sessionIds.Contains(line.WeighingSessionId))
             .ToListAsync(ct);
 
         var sessionMasterWeighTickets = await _db.WeighTickets.AsNoTracking()
@@ -503,6 +689,14 @@ public class CutOrderRepository : ICutOrderRepository
                         .Sum(line => line.ActualAllocatedBagCount ?? 0))
                 : null;
             var hasSplitOverweight = relatedSplitDelivery.Count > 0;
+            var isNoLoad = session != null
+                && session.SessionStatus == WeighingSessionStatus.COMPLETED
+                && (session.NetWeight ?? 0m) <= 0m
+                && !relatedNormalDelivery.Any()
+                && !relatedSplitDelivery.Any()
+                && sessionLines
+                    .Where(line => line.WeighingSessionId == session.Id)
+                    .All(line => (line.ActualAllocatedWeight ?? 0m) <= 0m && (line.ActualAllocatedBagCount ?? 0) <= 0);
             var displayWeightKg = displayDelivery?.AllocatedWeight
                 ?? sessionLine?.ActualAllocatedWeight;
             var displayBagCount = isBagged
@@ -529,6 +723,7 @@ public class CutOrderRepository : ICutOrderRepository
                 vr.CustomerName,
                 vr.ProductCode,
                 vr.ProductName,
+                resolvedProductType,
                 vr.ReceiverName ?? session?.DriverName,
                 vr.PlannedWeight,
                 isBagged ? vr.BagCount : null,
@@ -544,6 +739,8 @@ public class CutOrderRepository : ICutOrderRepository
                 ResolveOutgoingCompletedAt(vr, session),
                 displayWeigh?.IsPrinted ?? session?.HasPrintedMasterWeighTicket == true,
                 displayDelivery?.IsPrinted == true,
+                session?.UseActualWeightForBaggedCutOrders == true,
+                isNoLoad,
                 hasSplitOverweight
             );
         }).ToList().AsReadOnly();
@@ -564,7 +761,7 @@ public class CutOrderRepository : ICutOrderRepository
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsCancelled && vr.VehiclePlate.Contains(normalized))
+            .Where(vr => !vr.IsDeleted && !vr.IsCancelled && vr.VehiclePlate.Contains(normalized))
             .OrderByDescending(vr => vr.VehiclePlate.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new VehicleAutocompleteSource(
@@ -589,7 +786,7 @@ public class CutOrderRepository : ICutOrderRepository
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsCancelled && vr.MoocNumber != null && vr.MoocNumber.Contains(normalized))
+            .Where(vr => !vr.IsDeleted && !vr.IsCancelled && vr.MoocNumber != null && vr.MoocNumber.Contains(normalized))
             .OrderByDescending(vr => vr.MoocNumber != null && vr.MoocNumber.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new VehicleAutocompleteSource(
@@ -614,7 +811,7 @@ public class CutOrderRepository : ICutOrderRepository
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsCancelled && vr.ReceiverName != null && vr.ReceiverName.Contains(normalized))
+            .Where(vr => !vr.IsDeleted && !vr.IsCancelled && vr.ReceiverName != null && vr.ReceiverName.Contains(normalized))
             .OrderByDescending(vr => vr.ReceiverName != null && vr.ReceiverName.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new DriverAutocompleteSource(

@@ -60,8 +60,8 @@
                 <TextBlock Grid.Column="0" Grid.Row="2" Text="Ti&#x1EC1;n t&#x1ED1; phi&#x1EBF;u giao nh&#x1EAD;n (Delivery Prefix)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding DeliveryPrefix, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Column="0" Grid.Row="3" Text="Dung sai cho ph&#xE9;p (Tolerance - kg)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ToleranceKg, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
+                <TextBlock Grid.Column="0" Grid.Row="3" Text="Dung sai cho 1 bao (kg / bao)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
+                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ToleranceKgPerBag, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
                 <TextBlock Grid.Column="0" Grid.Row="4" Text="Chu k&#x1EF3; &#x111;&#x1ED3;ng b&#x1ED9; ERP (Sync Interval - gi&#xE2;y)" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,16,12"/>
                 <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding SyncIntervalSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>

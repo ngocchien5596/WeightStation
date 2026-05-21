@@ -93,7 +93,7 @@ public sealed record UpdateSystemSettingsRequest(
     string StationCode,
     string TicketPrefix,
     string DeliveryPrefix,
-    string ToleranceKg,
+    string ToleranceKgPerBag,
     string SyncIntervalSeconds,
     string RegistrationInboundPollSeconds,
     string OverweightSplitStepWeight
@@ -212,6 +212,7 @@ public sealed record CreateCutOrderRequest(
     TransactionType TransactionType,
     TransportMethod? TransportMethod = null,
     string? ErpCutOrderId = null,
+    string? ErpRegistrationCode = null,
     string? MoocNumber = null,
     string? ReceiverName = null,
     string? ReceiverIdNo = null,
@@ -270,6 +271,7 @@ public sealed record OutgoingVehicleListFilter(
 public sealed record IncomingVehicleListItem(
     Guid CutOrderId,
     string? ErpCutOrderId,
+    string? ErpRegistrationCode,
     TransactionType TransactionType,
     string VehiclePlate,
     string? MoocNumber,
@@ -282,7 +284,10 @@ public sealed record IncomingVehicleListItem(
     CutOrderStatus CutOrderStatus,
     TransportMethod? TransportMethod,
     DateTime CreatedAt,
-    string? ProductType = null
+    string? ProductType = null,
+    decimal? CarryForwardWeight1 = null,
+    DateTime? CarryForwardWeight1Time = null,
+    string? SuggestedSessionNo = null
 );
 
 public sealed record OutgoingVehicleListItem(
@@ -298,6 +303,7 @@ public sealed record OutgoingVehicleListItem(
     string? CustomerName,
     string? ProductCode,
     string? ProductName,
+    string? ProductType,
     string? DriverName,
     decimal? PlannedWeight,
     int? PlannedBagCount,
@@ -313,6 +319,8 @@ public sealed record OutgoingVehicleListItem(
     DateTime? CompletedAt,
     bool HasPrintedWeighTicket,
     bool HasPrintedDeliveryTicket,
+    bool UseActualWeightForBaggedCutOrders,
+    bool IsNoLoad,
     bool HighlightAsSplitOverweight
 );
 
@@ -366,7 +374,13 @@ public sealed record UpdateIncomingRegistrationRequest(
 
 public sealed record CreateWeighingSessionRequest(
     IReadOnlyList<Guid> CutOrderIds,
-    Guid? PrimaryCutOrderId = null
+    Guid? PrimaryCutOrderId = null,
+    bool ApplyCarryForwardWeight1 = true
+);
+
+public sealed record AppendCutOrdersToWeighingSessionRequest(
+    Guid SessionId,
+    IReadOnlyList<Guid> CutOrderIds
 );
 
 public sealed record MarkRegistrationsNoLoadRequest(
@@ -421,6 +435,7 @@ public sealed record WeighingSessionListItem(
     WeighingSessionStatus SessionStatus,
     int LineCount,
     bool HasPrintedMasterWeighTicket,
+    bool UseActualWeightForBaggedCutOrders,
     bool AllDeliveryTicketsPrinted,
     DateTime CreatedAt,
     DateTime? UpdatedAt

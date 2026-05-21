@@ -558,7 +558,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         var weighMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["TicketNo"] = "Số phiếu",
-            ["VehiclePlate"] = "Biển số xe",
+            ["VehiclePlate"] = "Số PTVC",
             ["MoocNumber"] = "Số moóc",
             ["VehicleRegistrationNo"] = "Tem xe",
             ["MoocRegistrationNo"] = "Tem moóc",

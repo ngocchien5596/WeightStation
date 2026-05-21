@@ -15,6 +15,8 @@ public interface ICutOrderRepository
     Task<CutOrder?> GetByIdAsync(Guid id, CancellationToken ct);
     Task<IReadOnlyList<CutOrder>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<CutOrder?> GetByErpIdAsync(string erpCutOrderId, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> GetLatestDeletedByErpIdsAsync(IReadOnlyCollection<string> erpCutOrderIds, CancellationToken ct);
+    Task<IReadOnlyList<CutOrder>> GetLatestDeletedByRegistrationCodesAsync(IReadOnlyCollection<string> erpRegistrationCodes, CancellationToken ct);
     Task<IReadOnlyList<CutOrder>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct);
     Task<IReadOnlyList<CutOrder>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct);
     Task<IReadOnlyList<CutOrder>> SearchAsync(string? keyword, CancellationToken ct);

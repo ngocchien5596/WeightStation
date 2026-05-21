@@ -59,11 +59,12 @@
                           Style="{StaticResource SystemDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                           RowStyle="{StaticResource SystemDataGridRowStyle}"
-                          CellStyle="{StaticResource SystemDataGridCellStyle}">
+                          CellStyle="{StaticResource SystemDataGridCellStyle}"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColRegistrationCode}" Binding="{Binding ErpCutOrderId}" Width="140"/>
-                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="140"/>
-                        <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="130"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColRegistrationCode}" Binding="{Binding ErpCutOrderId}" Width="150"/>
+                        <DataGridTextColumn Header="{StaticResource VehicleRep.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="110"/>
+                        <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="110"/>
                         <DataGridTextColumn Header="{StaticResource VehicleRep.ColDriver}" Binding="{Binding DriverName}" Width="180"/>
                         <DataGridTextColumn Header="{StaticResource VehicleRep.ColCreatedAt}" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
                     </DataGrid.Columns>

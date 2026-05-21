@@ -8,8 +8,8 @@
     <sys:String x:Key="Dashboard.ProcessingDesc" xmlns:sys="clr-namespace:System;assembly=mscorlib">Xe &#x111;ang tr&#xEA;n c&#xE2;n</sys:String>
     <sys:String x:Key="Dashboard.CompletedTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">HO&#xC0;N TH&#xC0;NH H&#xD4;M NAY</sys:String>
     <sys:String x:Key="Dashboard.CompletedDesc" xmlns:sys="clr-namespace:System;assembly=mscorlib">Phi&#x1EBF;u &#x111;&#xE3; xong</sys:String>
-    <sys:String x:Key="Dashboard.OverweightTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">QU&#xC1; T&#x1EA2;I</sys:String>
-    <sys:String x:Key="Dashboard.OverweightDesc" xmlns:sys="clr-namespace:System;assembly=mscorlib">Phi&#x1EBF;u v&#x1B0;&#x1EE3;t TTCP</sys:String>
+    <sys:String x:Key="Dashboard.OverweightTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#xC1;CH T&#x1EA2;I</sys:String>
+    <sys:String x:Key="Dashboard.OverweightDesc" xmlns:sys="clr-namespace:System;assembly=mscorlib">Phi&#x1EBF;u ch&#x1EDD; t&#x00E1;ch t&#x1EA3;i</sys:String>
     <sys:String x:Key="Dashboard.UnsyncedTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">CH&#x1AF;A &#x110;&#x1ED2;NG B&#x1ED8;</sys:String>
     <sys:String x:Key="Dashboard.ScaleTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">THI&#x1EBE;T B&#x1ECA; C&#xC2;N</sys:String>
 
@@ -44,7 +44,7 @@
     <sys:String x:Key="Incoming.DriverLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#xEA;n t&#xE0;i x&#x1EBF;</sys:String>
     <sys:String x:Key="Incoming.CustomerLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">Kh&#xE1;ch h&#xE0;ng</sys:String>
     <sys:String x:Key="Incoming.ProductLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1EA3;n ph&#x1EA9;m</sys:String>
-    <sys:String x:Key="Incoming.Complete" xmlns:sys="clr-namespace:System;assembly=mscorlib">HO&#xC0;N T&#x1EA4;C</sys:String>
+    <sys:String x:Key="Incoming.Complete" xmlns:sys="clr-namespace:System;assembly=mscorlib">HO&#xC0;N T&#x1EA4;T</sys:String>
     <sys:String x:Key="Incoming.CreateSession" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#x1EA0;O L&#x1AF;&#x1EE2;T C&#xC2;N</sys:String>
     <sys:String x:Key="Incoming.NoLoad" xmlns:sys="clr-namespace:System;assembly=mscorlib">KH&#xD4;NG L&#x1EA4;Y H&#xC0;NG</sys:String>
 

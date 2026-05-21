@@ -76,6 +76,7 @@ public class CutOrderInboundProcessorTests
         {
             Id = Guid.NewGuid(),
             CutOrderSource = CutOrderSource.ERP,
+            ErpCutOrderId = "QN.CL.2605/1001",
             VehiclePlate = " 30A-12345 ",
             CustomerCode = "C001",
             CustomerName = "Customer 1",
@@ -104,6 +105,37 @@ public class CutOrderInboundProcessorTests
 
         await _vehicleRepo.Received(1).AddAsync(Arg.Is<Vehicle>(v => v.VehiclePlate == "30A-12345"), Arg.Any<CancellationToken>());
         await _outboxRepo.Received(3).EnqueueAsync(Arg.Any<SyncOutbox>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task T1b_Process_FallsBackRegistrationCodeFromErpCutOrderId_WhenMissing()
+    {
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            CutOrderSource = CutOrderSource.ERP,
+            ErpCutOrderId = "QN.CL.2605/2001",
+            ErpRegistrationCode = null,
+            VehiclePlate = "30A-12345",
+            CustomerCode = "C001",
+            ProductCode = "P001"
+        };
+
+        _regRepo.GetUnprocessedInboundAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<CutOrder> { registration });
+
+        _uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var action = callInfo.ArgAt<Func<CancellationToken, Task>>(0);
+                await action(callInfo.ArgAt<CancellationToken>(1));
+            });
+
+        var processor = new TestableCutOrderInboundProcessor(_scopeFactory, _logger);
+
+        await processor.RunCycleAsync(CancellationToken.None);
+
+        Assert.Equal("QN.CL.2605/2001", registration.ErpRegistrationCode);
     }
 
     [Fact]

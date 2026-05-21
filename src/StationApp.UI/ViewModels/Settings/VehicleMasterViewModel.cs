@@ -121,7 +121,7 @@ namespace StationApp.UI.ViewModels.Settings
 
             if (string.IsNullOrWhiteSpace(EditVehiclePlate))
             {
-                await dialogService.ShowErrorAsync("Lỗi", "Biển số xe không được rỗng!");
+                await dialogService.ShowErrorAsync("Lỗi", "Số PTVC không được rỗng!");
                 return;
             }
 

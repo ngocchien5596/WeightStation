@@ -197,6 +197,8 @@ public partial class App : System.Windows.Application
                     services.AddScoped<CreateInboundRegistrationUseCase>();
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
                     services.AddScoped<CreateWeighingSessionUseCase>();
+                    services.AddScoped<AppendCutOrdersToWeighingSessionUseCase>();
+                    services.AddScoped<SetWeighingSessionBaggedActualWeightOverrideUseCase>();
                     services.AddScoped<CaptureSessionWeight1UseCase>();
                     services.AddScoped<CaptureSessionWeight2UseCase>();
                     services.AddScoped<AllocateWeighingSessionUseCase>();

@@ -259,6 +259,13 @@
         <Setter Property="IsHitTestVisible" Value="False"/>
     </Style>
 
+    <Style x:Key="GridCheckBoxCenterEditable" TargetType="CheckBox">
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Focusable" Value="True"/>
+        <Setter Property="IsHitTestVisible" Value="True"/>
+    </Style>
+
     <Style x:Key="ModalOverlayStyle" TargetType="Grid">
         <Setter Property="Background" Value="#660C1424"/>
     </Style>

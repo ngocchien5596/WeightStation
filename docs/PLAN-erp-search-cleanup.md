@@ -32,7 +32,7 @@ Màn hình `IncomingVehicleListView.xaml` hiện có 2 hàng tìm kiếm:
 ### Kiểm tra thủ công
 - Chạy ứng dụng, vào màn hình **Xe nhập hàng**.
 - Xác nhận hàng tìm kiếm thứ 2 đã biến mất.
-- Nhập **Biển số xe** hoặc **Mã ĐKPT** và nhấn nút **TÌM KIẾM**.
+- Nhập **Số PTVC** hoặc **Mã ĐKPT** và nhấn nút **TÌM KIẾM**.
 - Xác nhận danh sách vẫn được lọc đúng theo các tiêu chí còn lại.
 - Thử nhấn **Enter** trong ô nhập liệu để kích hoạt tìm kiếm.
 

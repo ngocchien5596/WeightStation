@@ -142,8 +142,8 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="140" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="T&#xEA;n hi&#x1EC3;n th&#x1ECB;" Binding="{Binding DisplayName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Vai tr&#xF2;" Binding="{Binding RoleCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Tr&#x1EA1;ng th&#xE1;i" Binding="{Binding IsActive, Converter={StaticResource BooleanToStatusConverter}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Vai tr&#xF2;" Binding="{Binding RoleCode}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Tr&#x1EA1;ng th&#xE1;i" Binding="{Binding IsActive, Converter={StaticResource BooleanToStatusConverter}}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="&#x110;&#x103;ng nh&#x1EAD;p cu&#x1ED1;i" Binding="{Binding LastLoginAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="Ng&#xE0;y t&#x1EA1;o" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="Ng&#xE0;y c&#x1EAD;p nh&#x1EAD;t" Binding="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>

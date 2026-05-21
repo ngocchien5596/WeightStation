@@ -23,7 +23,7 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _stationCode = string.Empty;
     [ObservableProperty] private string _ticketPrefix = string.Empty;
     [ObservableProperty] private string _deliveryPrefix = string.Empty;
-    [ObservableProperty] private string _toleranceKg = "0";
+    [ObservableProperty] private string _toleranceKgPerBag = AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     [ObservableProperty] private string _syncIntervalSeconds = "30";
     [ObservableProperty] private string _registrationInboundPollSeconds = "15";
     [ObservableProperty] private string _overweightSplitStepWeight = "0.0025";
@@ -38,7 +38,8 @@ public partial class SystemSettingsViewModel : ObservableObject
         StationCode = await repo.GetValueAsync("station_code", CancellationToken.None) ?? string.Empty;
         TicketPrefix = await repo.GetValueAsync("ticket_prefix", CancellationToken.None) ?? string.Empty;
         DeliveryPrefix = await repo.GetValueAsync("delivery_prefix", CancellationToken.None) ?? "DN";
-        ToleranceKg = await repo.GetValueAsync("tolerance_kg", CancellationToken.None) ?? "0";
+        ToleranceKgPerBag = await repo.GetValueAsync(AppConfigKeys.ToleranceKgPerBag, CancellationToken.None)
+            ?? AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
         SyncIntervalSeconds = await repo.GetValueAsync("sync_interval", CancellationToken.None) ?? "30";
         RegistrationInboundPollSeconds = await repo.GetValueAsync("registration_inbound_poll_seconds", CancellationToken.None) ?? "15";
         OverweightSplitStepWeight = await repo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, CancellationToken.None)
@@ -59,7 +60,7 @@ public partial class SystemSettingsViewModel : ObservableObject
                     StationCode,
                     TicketPrefix,
                     DeliveryPrefix,
-                    ToleranceKg,
+                    ToleranceKgPerBag,
                     SyncIntervalSeconds,
                     RegistrationInboundPollSeconds,
                     OverweightSplitStepWeight),

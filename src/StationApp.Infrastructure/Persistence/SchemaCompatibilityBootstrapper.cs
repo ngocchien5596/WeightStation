@@ -14,7 +14,13 @@ public static class SchemaCompatibilityBootstrapper
         new("RepresentativeName", "nvarchar(150) NULL"),
         new("ConsumptionPlace", "nvarchar(255) NULL"),
         new("LoadingPlace", "nvarchar(255) NULL"),
-        new("SealNo", "nvarchar(100) NULL")
+        new("SealNo", "nvarchar(100) NULL"),
+        new("CarryForwardWeight1", "decimal(18,3) NULL"),
+        new("CarryForwardWeight1Time", "datetime2 NULL"),
+        new("ErpRegistrationCode", "nvarchar(100) NULL"),
+        new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_deleted_bootstrap] DEFAULT ((0))"),
+        new("DeletedAt", "datetime2 NULL"),
+        new("DeletedBy", "nvarchar(100) NULL")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> WeighTicketColumnPatches =
@@ -72,6 +78,11 @@ BEGIN
     DROP INDEX [UX_vehicle_registrations_erp_vehicle_registration_id] ON [cut_orders];
 END
 
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_cut_orders_erp_cut_order_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    DROP INDEX [UX_cut_orders_erp_cut_order_id] ON [cut_orders];
+END
+
 IF COL_LENGTH('cut_orders', 'ErpCutOrderId') IS NULL AND COL_LENGTH('cut_orders', 'ErpVehicleRegistrationId') IS NOT NULL
 BEGIN
     EXEC sp_rename N'cut_orders.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
@@ -87,12 +98,48 @@ BEGIN
     EXEC sp_rename N'cut_orders.RegistrationStatus', N'CutOrderStatus', N'COLUMN';
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_cut_orders_erp_cut_order_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_erp_cut_order_id_deleted' AND object_id = OBJECT_ID(N'[cut_orders]'))
 BEGIN
-    CREATE UNIQUE INDEX [UX_cut_orders_erp_cut_order_id]
-    ON [cut_orders]([ErpCutOrderId])
-    WHERE [ErpCutOrderId] IS NOT NULL;
+    CREATE INDEX [IX_cut_orders_erp_cut_order_id_deleted]
+    ON [cut_orders]([ErpCutOrderId], [IsDeleted]);
 END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_erp_registration_code_deleted' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    CREATE INDEX [IX_cut_orders_erp_registration_code_deleted]
+    ON [cut_orders]([ErpRegistrationCode], [IsDeleted]);
+END
+
+IF OBJECT_ID(N'[dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]', N'TR') IS NULL
+BEGIN
+    EXEC(N'CREATE TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
+    ON [dbo].[cut_orders]
+    AFTER INSERT, UPDATE
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+    END');
+END
+
+EXEC(N'ALTER TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
+ON [dbo].[cut_orders]
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT [ErpCutOrderId]
+        FROM [dbo].[cut_orders]
+        WHERE [ErpCutOrderId] IS NOT NULL
+          AND ISNULL([IsDeleted], 0) = 0
+        GROUP BY [ErpCutOrderId]
+        HAVING COUNT(*) > 1
+    )
+    BEGIN
+        THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
+    END
+END');
 
 IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
 BEGIN
@@ -166,7 +213,11 @@ BEGIN
         [Weight2Time] datetime2 NULL,
         [SessionStatus] nvarchar(30) NOT NULL,
         [IsCancelled] bit NOT NULL CONSTRAINT [DF_weighing_sessions_is_cancelled_bootstrap] DEFAULT ((0)),
+        [IsDeleted] bit NOT NULL CONSTRAINT [DF_weighing_sessions_is_deleted_bootstrap] DEFAULT ((0)),
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] nvarchar(100) NULL,
         [HasPrintedMasterWeighTicket] bit NOT NULL CONSTRAINT [DF_weighing_sessions_has_printed_master_bootstrap] DEFAULT ((0)),
+        [UseActualWeightForBaggedCutOrders] bit NOT NULL CONSTRAINT [DF_weighing_sessions_bagged_actual_weight_bootstrap] DEFAULT ((0)),
         [CreatedAt] datetime2 NOT NULL,
         [CreatedBy] nvarchar(100) NOT NULL,
         [UpdatedAt] datetime2 NULL,
@@ -193,6 +244,9 @@ BEGIN
         [ActualAllocatedWeight] decimal(18,3) NULL,
         [ActualAllocatedBagCount] int NULL,
         [LineStatus] nvarchar(30) NOT NULL,
+        [IsDeleted] bit NOT NULL CONSTRAINT [DF_weighing_session_lines_is_deleted_bootstrap] DEFAULT ((0)),
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] nvarchar(100) NULL,
         [HasPrintedDeliveryTicket] bit NOT NULL CONSTRAINT [DF_weighing_session_lines_has_printed_delivery_bootstrap] DEFAULT ((0)),
         [DeliveryTicketId] uniqueidentifier NULL,
         [CreatedAt] datetime2 NOT NULL,
@@ -221,6 +275,47 @@ END
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_sessions_created_at' AND object_id = OBJECT_ID(N'[weighing_sessions]'))
 BEGIN
     CREATE INDEX [IX_weighing_sessions_created_at] ON [weighing_sessions]([CreatedAt]);
+END
+
+IF COL_LENGTH(N'[weighing_sessions]', N'UseActualWeightForBaggedCutOrders') IS NULL
+BEGIN
+    ALTER TABLE [weighing_sessions]
+        ADD [UseActualWeightForBaggedCutOrders] bit NOT NULL
+            CONSTRAINT [DF_weighing_sessions_bagged_actual_weight_bootstrap] DEFAULT ((0));
+END
+
+IF COL_LENGTH(N'[weighing_sessions]', N'IsDeleted') IS NULL
+BEGIN
+    ALTER TABLE [weighing_sessions]
+        ADD [IsDeleted] bit NOT NULL
+            CONSTRAINT [DF_weighing_sessions_is_deleted_bootstrap] DEFAULT ((0));
+END
+
+IF COL_LENGTH(N'[weighing_sessions]', N'DeletedAt') IS NULL
+BEGIN
+    ALTER TABLE [weighing_sessions] ADD [DeletedAt] datetime2 NULL;
+END
+
+IF COL_LENGTH(N'[weighing_sessions]', N'DeletedBy') IS NULL
+BEGIN
+    ALTER TABLE [weighing_sessions] ADD [DeletedBy] nvarchar(100) NULL;
+END
+
+IF COL_LENGTH(N'[weighing_session_lines]', N'IsDeleted') IS NULL
+BEGIN
+    ALTER TABLE [weighing_session_lines]
+        ADD [IsDeleted] bit NOT NULL
+            CONSTRAINT [DF_weighing_session_lines_is_deleted_bootstrap] DEFAULT ((0));
+END
+
+IF COL_LENGTH(N'[weighing_session_lines]', N'DeletedAt') IS NULL
+BEGIN
+    ALTER TABLE [weighing_session_lines] ADD [DeletedAt] datetime2 NULL;
+END
+
+IF COL_LENGTH(N'[weighing_session_lines]', N'DeletedBy') IS NULL
+BEGIN
+    ALTER TABLE [weighing_session_lines] ADD [DeletedBy] nvarchar(100) NULL;
 END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_session_lines_session_id' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))

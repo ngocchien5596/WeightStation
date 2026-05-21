@@ -85,7 +85,7 @@ public sealed class WeighingSessionOverweightService
     {
         if (!session.NetWeight.HasValue || !session.Ttcp10WeightSnapshot.HasValue)
         {
-            throw new InvalidOperationException("Lượt cân chưa đủ dữ liệu để lập phương án tách quá tải.");
+            throw new InvalidOperationException("Lượt cân chưa đủ dữ liệu để lập phương án tách tải.");
         }
 
         var target = session.Ttcp10WeightSnapshot.Value;
@@ -101,7 +101,7 @@ public sealed class WeighingSessionOverweightService
 
         if (sourceLines.Count == 0)
         {
-            throw new InvalidOperationException("Không có dòng phân bổ thực giao để tách quá tải.");
+            throw new InvalidOperationException("Không có dòng phân bổ thực giao để tách tải.");
         }
 
         if (!TryGetFeasibleWeightRange(session.NetWeight.Value, target, out var lowerBound, out var upperBound))
@@ -125,7 +125,7 @@ public sealed class WeighingSessionOverweightService
         {
             if (splitStepWeight < MinRandomSplitFactor || splitStepWeight >= 1m)
             {
-                throw new InvalidOperationException("Tham số bước tách quá tải không hợp lệ.");
+                throw new InvalidOperationException("Tham số bước tách tải không hợp lệ.");
             }
 
             if (firstSplitNetWeight.HasValue)
@@ -166,7 +166,7 @@ public sealed class WeighingSessionOverweightService
 
                 if (partWeight <= 0m)
                 {
-                    throw new InvalidOperationException("Không thể tạo phương án tách quá tải hợp lệ.");
+                    throw new InvalidOperationException("Không thể tạo phương án tách tải hợp lệ.");
                 }
 
                 parts.Add(new MutableSplitPart(

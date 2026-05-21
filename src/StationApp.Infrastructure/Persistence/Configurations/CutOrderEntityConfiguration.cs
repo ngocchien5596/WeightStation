@@ -8,10 +8,15 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
 {
     public void Configure(EntityTypeBuilder<CutOrder> builder)
     {
-        builder.ToTable("cut_orders");
+        builder.ToTable("cut_orders", tableBuilder =>
+        {
+            tableBuilder.HasTrigger("TR_cut_orders_enforce_active_erp_cut_order_id");
+            tableBuilder.UseSqlOutputClause(false);
+        });
         builder.HasKey(e => e.Id);
 
         builder.Property(e => e.ErpCutOrderId).HasColumnName("ErpCutOrderId").HasMaxLength(50);
+        builder.Property(e => e.ErpRegistrationCode).HasColumnName("ErpRegistrationCode").HasMaxLength(100);
         builder.Property(e => e.CutOrderSource).HasColumnName("CutOrderSource").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.CutOrderStatus).HasColumnName("CutOrderStatus").HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(e => e.TransactionType).HasConversion<string>().HasMaxLength(20).IsRequired();
@@ -39,6 +44,9 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.Notes).HasMaxLength(500);
 
         builder.Property(e => e.IsCancelled).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.DeletedAt);
+        builder.Property(e => e.DeletedBy).HasMaxLength(100);
         builder.Property(e => e.HasOverweightCase).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.ProcessingStage)
             .HasConversion<string>()
@@ -47,6 +55,8 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
             .HasDefaultValue(StationApp.Domain.Enums.ProcessingStage.IN_YARD)
             .HasSentinel(StationApp.Domain.Enums.ProcessingStage.IN_YARD);
         builder.Property(e => e.WeighingSessionId);
+        builder.Property(e => e.CarryForwardWeight1).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.CarryForwardWeight1Time);
 
         builder.Property(e => e.IsInboundProcessed).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.InboundProcessedAt);
@@ -70,13 +80,13 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_cut_orders_sync_status");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_cut_orders_vehicle_plate");
         builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_cut_orders_created_at");
-        builder.HasIndex(e => new { e.ProcessingStage, e.IsCancelled }).HasDatabaseName("IX_cut_orders_processing_stage");
+        builder.HasIndex(e => new { e.ProcessingStage, e.IsCancelled, e.IsDeleted }).HasDatabaseName("IX_cut_orders_processing_stage");
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_cut_orders_weighing_session_id");
         
-        builder.HasIndex(e => e.ErpCutOrderId)
-               .IsUnique()
-               .HasFilter("[ErpCutOrderId] IS NOT NULL")
-               .HasDatabaseName("UX_cut_orders_erp_cut_order_id");
+        builder.HasIndex(e => new { e.ErpCutOrderId, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_erp_cut_order_id_deleted");
+        builder.HasIndex(e => new { e.ErpRegistrationCode, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_erp_registration_code_deleted");
     }
 }
 

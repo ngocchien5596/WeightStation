@@ -45,7 +45,7 @@ Phase 0 chỉ dùng một aggregate: `WeighTicket`. Không có entity ERPOrder r
 - `id`: PK nội bộ, GUID
 - `ticket_no`: format QNyyMM0001
 - `erp_vehicle_registration_id`: mã chứng từ đăng ký phương tiện từ ERP
-- `vehicle_plate`: biển số xe
+- `vehicle_plate`: Số PTVC
 - `mooc_number`: số mooc
 - `driver_name`: tên tài xế
 - `customer_code/name`: mã/tên khách hàng

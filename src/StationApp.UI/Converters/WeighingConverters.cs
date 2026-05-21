@@ -186,10 +186,10 @@ public static class OverweightResolutionStatusMapper
     {
         return status switch
         {
-            OverweightResolutionStatus.NOT_APPLICABLE => "Không quá tải",
-            OverweightResolutionStatus.PENDING => "Chờ xử lý quá tải",
+            OverweightResolutionStatus.NOT_APPLICABLE => "Không cần tách tải",
+            OverweightResolutionStatus.PENDING => "Chờ tách tải",
             OverweightResolutionStatus.SPLIT_CONFIRMED => "Đã xác nhận tách tải",
-            OverweightResolutionStatus.NO_SPLIT_CONFIRMED => "Đã xác nhận không tách",
+            OverweightResolutionStatus.NO_SPLIT_CONFIRMED => "Đã xác nhận không tách tải",
             _ => status.ToString()
         };
     }
@@ -309,7 +309,7 @@ public class OverweightFlagDisplayConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is bool flag && flag ? "Quá tải" : "Bình thường";
+        return value is bool flag && flag ? "Tách tải" : "Bình thường";
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

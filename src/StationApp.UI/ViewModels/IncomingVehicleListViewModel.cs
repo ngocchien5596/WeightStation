@@ -12,6 +12,7 @@ using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
+using StationApp.Domain.Constants;
 using StationApp.UI.Resources;
 using StationApp.UI.Services;
 using StationApp.UI.ViewModels.Dialogs;
@@ -58,6 +59,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [ObservableProperty] private DateTime? _vehicleRegistrationExpiry;
     [ObservableProperty] private string? _moocRegistrationNo;
     [ObservableProperty] private DateTime? _moocRegistrationExpiry;
+    [ObservableProperty] private string? _formAttachSessionNo;
 
     public AutocompleteInputViewModel SearchVehiclePlateInput { get; }
     public AutocompleteInputViewModel FormVehiclePlateInput { get; }
@@ -72,6 +74,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public bool CanConfirmEnterWeighing => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
     public bool CanMarkNoLoad => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
     public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0m) * 1.10m);
+    public bool IsOutboundDetailLockMode => !IsCreateMode && FormTransactionType == TransactionType.OUTBOUND;
+    public bool CanEditNonRegistrationFields => !IsOutboundDetailLockMode;
 
     public IncomingVehicleListViewModel(
         IServiceScopeFactory scopeFactory,
@@ -119,7 +123,15 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(SaveButtonText));
         OnPropertyChanged(nameof(IsDetailSelectionMode));
+        OnPropertyChanged(nameof(IsOutboundDetailLockMode));
+        OnPropertyChanged(nameof(CanEditNonRegistrationFields));
         RefreshCreateSessionState();
+    }
+
+    partial void OnFormTransactionTypeChanged(TransactionType value)
+    {
+        OnPropertyChanged(nameof(IsOutboundDetailLockMode));
+        OnPropertyChanged(nameof(CanEditNonRegistrationFields));
     }
 
     partial void OnFormCustomerCodeChanged(string? value)
@@ -382,9 +394,79 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
+            if (!string.IsNullOrWhiteSpace(FormAttachSessionNo))
+            {
+                var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+                var session = await sessionRepo.GetBySessionNoAsync(FormAttachSessionNo.Trim(), CancellationToken.None);
+                if (session == null)
+                {
+                    _toastService.ShowError($"Không tìm thấy lượt cân {FormAttachSessionNo.Trim()} trong hệ thống.");
+                    return;
+                }
+
+                var appendUc = scope.ServiceProvider.GetRequiredService<AppendCutOrdersToWeighingSessionUseCase>();
+                await appendUc.ExecuteAsync(
+                    new AppendCutOrdersToWeighingSessionRequest(session.Id, selectedIds),
+                    CancellationToken.None);
+
+                if (session.SessionStatus == WeighingSessionStatus.ALLOCATION_PENDING && session.NetWeight.HasValue)
+                {
+                    var refreshedLines = await sessionRepo.GetLineItemsBySessionIdAsync(session.Id, CancellationToken.None);
+                    if (refreshedLines.Count == 1 && !refreshedLines[0].ActualAllocatedWeight.HasValue)
+                    {
+                        var singleLine = refreshedLines[0];
+                        var actualBagCount =
+                            string.Equals(ProductTypes.Normalize(singleLine.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase)
+                            && singleLine.PlannedBagCount.HasValue
+                                ? (int?)decimal.Round(session.NetWeight.Value / 50m, 0, MidpointRounding.AwayFromZero)
+                                : null;
+
+                        var allocateUc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
+                        await allocateUc.ExecuteAsync(
+                            new AllocateWeighingSessionRequest(
+                                session.Id,
+                                new[]
+                                {
+                                    new AllocateWeighingSessionLineRequest(
+                                        singleLine.SessionLineId,
+                                        session.NetWeight.Value,
+                                        actualBagCount)
+                                }),
+                            CancellationToken.None);
+                    }
+                }
+
+                _toastService.ShowSuccess($"Đã gắn cắt lệnh vào lượt cân {session.SessionNo}.");
+                await LoadVehiclesAsync();
+                NavigateToWeighingRequested?.Invoke(session.Id);
+                return;
+            }
+
             var uc = scope.ServiceProvider.GetRequiredService<CreateWeighingSessionUseCase>();
+            var applyCarryForwardWeight1 = true;
+            var carryForwardCandidates = selectedVehicles
+                .Where(x => x.CarryForwardWeight1.HasValue)
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.ErpCutOrderId)
+                .ToList();
+            var carryForwardWeight1 = carryForwardCandidates
+                .Select(x => x.CarryForwardWeight1)
+                .Distinct()
+                .SingleOrDefault();
+            if (carryForwardWeight1.HasValue)
+            {
+                var carryForwardReference = carryForwardCandidates.First();
+                var carryForwardTimeText = carryForwardReference.CarryForwardWeight1Time.HasValue
+                    ? carryForwardReference.CarryForwardWeight1Time.Value.ToString("dd/MM/yyyy HH:mm:ss")
+                    : "không xác định";
+                applyCarryForwardWeight1 = await _dialogService.ShowConfirmAsync(
+                    "Xác nhận dùng lại cân lần 1",
+                    $"Cắt lệnh {carryForwardReference.ErpCutOrderId ?? carryForwardReference.VehiclePlate} đã có số cân lần 1 là {carryForwardWeight1.Value:N0} kg vào lúc {carryForwardTimeText}. Bạn có đồng ý lấy số cân lần 1 này cho lượt cân mới không?",
+                    "Đồng ý",
+                    "Không");
+            }
             var result = await uc.ExecuteAsync(
-                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.CutOrderId),
+                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.CutOrderId, applyCarryForwardWeight1),
                 CancellationToken.None);
 
             _toastService.ShowSuccess(UiText.Incoming.CreateSessionSuccess);
@@ -511,6 +593,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             FormIsCancelled = registration.IsCancelled;
             FormTransportMethod = registration.TransportMethod;
             FormTransactionType = registration.TransactionType;
+            FormAttachSessionNo = selected.SuggestedSessionNo;
 
             await LoadVehicleMasterInfoAsync(vehicleRepo, registration.VehiclePlate, registration.MoocNumber);
             OnPropertyChanged(nameof(IsDetailSelectionMode));
@@ -590,6 +673,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         IsFormProductBagged = true;
         FormNotes = null;
         FormIsCancelled = false;
+        FormAttachSessionNo = null;
         TtcpWeight = null;
         VehicleRegistrationNo = null;
         VehicleRegistrationExpiry = null;
@@ -855,6 +939,7 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
     {
         CutOrderId = item.CutOrderId;
         ErpCutOrderId = item.ErpCutOrderId;
+        ErpRegistrationCode = item.ErpRegistrationCode;
         TransactionType = item.TransactionType;
         VehiclePlate = item.VehiclePlate;
         MoocNumber = item.MoocNumber;
@@ -871,12 +956,16 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
         CutOrderStatus = item.CutOrderStatus;
         TransportMethod = item.TransportMethod;
         CreatedAt = item.CreatedAt;
+        CarryForwardWeight1 = item.CarryForwardWeight1;
+        CarryForwardWeight1Time = item.CarryForwardWeight1Time;
+        SuggestedSessionNo = item.SuggestedSessionNo;
     }
 
     [ObservableProperty] private bool _isSelected;
 
     public Guid CutOrderId { get; }
     public string? ErpCutOrderId { get; }
+    public string? ErpRegistrationCode { get; }
     public TransactionType TransactionType { get; }
     public string VehiclePlate { get; }
     public string? MoocNumber { get; }
@@ -890,6 +979,9 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
     public CutOrderStatus CutOrderStatus { get; }
     public TransportMethod? TransportMethod { get; }
     public DateTime CreatedAt { get; }
+    public decimal? CarryForwardWeight1 { get; }
+    public DateTime? CarryForwardWeight1Time { get; }
+    public string? SuggestedSessionNo { get; }
 }
 
 

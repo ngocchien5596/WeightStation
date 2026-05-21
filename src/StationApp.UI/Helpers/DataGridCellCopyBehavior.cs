@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -54,8 +56,10 @@ public static class DataGridCellCopyBehavior
             return;
         }
 
-        Clipboard.SetText(text);
-        e.Handled = true;
+        if (TrySetClipboardText(text))
+        {
+            e.Handled = true;
+        }
     }
 
     private static bool IsCopyGesture(KeyEventArgs e) =>
@@ -198,5 +202,37 @@ public static class DataGridCellCopyBehavior
         }
 
         return value.ToString() ?? string.Empty;
+    }
+
+    private static bool TrySetClipboardText(string text)
+    {
+        const int maxAttempts = 5;
+
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            try
+            {
+                Clipboard.SetText(text);
+                return true;
+            }
+            catch (COMException)
+            {
+                if (attempt == maxAttempts - 1)
+                {
+                    return false;
+                }
+            }
+            catch (ExternalException)
+            {
+                if (attempt == maxAttempts - 1)
+                {
+                    return false;
+                }
+            }
+
+            Thread.Sleep(40);
+        }
+
+        return false;
     }
 }

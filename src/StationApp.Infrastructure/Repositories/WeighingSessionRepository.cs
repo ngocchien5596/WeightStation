@@ -29,7 +29,20 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task<WeighingSession?> GetByIdAsync(Guid id, CancellationToken ct)
     {
-        return await _db.WeighingSessions.FindAsync(new object[] { id }, ct);
+        return await _db.WeighingSessions
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+    }
+
+    public async Task<WeighingSession?> GetBySessionNoAsync(string sessionNo, CancellationToken ct)
+    {
+        sessionNo = sessionNo?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(sessionNo))
+        {
+            return null;
+        }
+
+        return await _db.WeighingSessions
+            .FirstOrDefaultAsync(x => !x.IsDeleted && x.SessionNo == sessionNo, ct);
     }
 
     public async Task<IReadOnlyList<WeighingSession>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
@@ -40,14 +53,14 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         }
 
         return await _db.WeighingSessions
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => ids.Contains(x.Id) && !x.IsDeleted)
             .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<WeighingSessionListItem>> SearchActiveSessionsAsync(string? keyword, CancellationToken ct)
     {
         var sessionsQuery = _db.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsCancelled && x.SessionStatus != WeighingSessionStatus.COMPLETED && x.SessionStatus != WeighingSessionStatus.CANCELLED);
+            .Where(x => !x.IsDeleted && !x.IsCancelled && x.SessionStatus != WeighingSessionStatus.COMPLETED && x.SessionStatus != WeighingSessionStatus.CANCELLED);
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -64,7 +77,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
         var lineSummaries = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(x => sessionIds.Contains(x.WeighingSessionId))
+            .Where(x => !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
             .GroupBy(x => x.WeighingSessionId)
             .Select(group => new
             {
@@ -96,6 +109,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.SessionStatus,
                 summary?.LineCount ?? 0,
                 session.HasPrintedMasterWeighTicket,
+                session.UseActualWeightForBaggedCutOrders,
                 summary?.LineCount > 0 && summary.AllPrinted,
                 session.CreatedAt,
                 session.UpdatedAt);
@@ -105,7 +119,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
     public async Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct)
     {
         var query = _db.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsCancelled && x.SessionStatus == WeighingSessionStatus.COMPLETED);
+            .Where(x => !x.IsDeleted && !x.IsCancelled && x.SessionStatus == WeighingSessionStatus.COMPLETED);
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -131,7 +145,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
         var lines = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(x => sessionIds.Contains(x.WeighingSessionId))
+            .Where(x => !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
             .ToListAsync(ct);
         var registrations = await _db.CutOrders.AsNoTracking()
             .Where(x => x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value))
@@ -187,7 +201,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
     public async Task<IReadOnlyList<WeighingSessionLine>> GetLinesBySessionIdAsync(Guid sessionId, CancellationToken ct)
     {
         return await _db.WeighingSessionLines
-            .Where(x => x.WeighingSessionId == sessionId)
+            .Where(x => !x.IsDeleted && x.WeighingSessionId == sessionId)
             .OrderBy(x => x.SequenceNo)
             .ToListAsync(ct);
     }
@@ -198,7 +212,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             from line in _db.WeighingSessionLines.AsNoTracking()
             join reg in _db.CutOrders.AsNoTracking()
                 on line.CutOrderId equals reg.Id
-            where line.WeighingSessionId == sessionId
+            where !line.IsDeleted && line.WeighingSessionId == sessionId
             orderby line.SequenceNo
             select new WeighingSessionLineItem(
                 line.Id,
@@ -242,6 +256,36 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         }
 
         return items;
+    }
+
+    public async Task<WeighingSession?> GetReusablePendingWeight2SessionAsync(string vehiclePlate, string? moocNumber, TransactionType transactionType, CancellationToken ct)
+    {
+        vehiclePlate = vehiclePlate?.Trim() ?? string.Empty;
+        moocNumber = moocNumber?.Trim();
+        if (string.IsNullOrWhiteSpace(vehiclePlate))
+        {
+            return null;
+        }
+
+        var query = _db.WeighingSessions
+            .Where(ws => !ws.IsDeleted
+                && !ws.IsCancelled
+                && ws.TransactionType == transactionType
+                && ws.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
+                && ws.Weight1.HasValue
+                && ws.VehiclePlate == vehiclePlate);
+
+        query = string.IsNullOrWhiteSpace(moocNumber)
+            ? query.Where(ws => ws.MoocNumber == null || ws.MoocNumber == string.Empty)
+            : query.Where(ws => ws.MoocNumber == moocNumber);
+
+        return await query
+            .Where(ws => !_db.CutOrders.Any(co =>
+                !co.IsDeleted
+                && !co.IsCancelled
+                && co.WeighingSessionId == ws.Id))
+            .OrderByDescending(ws => ws.Weight1Time ?? ws.UpdatedAt ?? ws.CreatedAt)
+            .FirstOrDefaultAsync(ct);
     }
 }
 

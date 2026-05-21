@@ -12,6 +12,7 @@ using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
 using StationApp.Application.Security;
+using StationApp.Application.UseCases;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -44,8 +45,10 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isDetailsVisible;
     [ObservableProperty] private bool _isRelatedTicketsVisible;
+    [ObservableProperty] private bool _useActualWeightForBaggedCutOrders;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _detailLines = new();
     [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
+    private bool _isApplyingBaggedActualWeightOverrideState;
 
     public OutgoingVehicleListViewModel(
         IServiceScopeFactory scopeFactory,
@@ -78,6 +81,39 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private bool CanPrintWeighTicket() => SelectedVehicle != null;
     private bool CanPrintDeliveryTicket() => SelectedVehicle != null;
     private bool CanShowRelatedTickets() => SelectedVehicle != null;
+    public bool ShowBaggedActualWeightOverride =>
+        SelectedVehicle != null
+        && string.Equals(ProductTypes.Normalize(SelectedVehicle.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+    public bool CanToggleBaggedActualWeightOverride =>
+        ShowBaggedActualWeightOverride
+        && SelectedVehicle?.WeighingSessionId.HasValue == true
+        && SelectedVehicle.PlannedBagCount.HasValue;
+
+    partial void OnSelectedVehicleChanged(OutgoingVehicleListItem? value)
+    {
+        _isApplyingBaggedActualWeightOverrideState = true;
+        try
+        {
+            UseActualWeightForBaggedCutOrders = value?.UseActualWeightForBaggedCutOrders == true;
+        }
+        finally
+        {
+            _isApplyingBaggedActualWeightOverrideState = false;
+        }
+
+        OnPropertyChanged(nameof(CanToggleBaggedActualWeightOverride));
+        OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
+    }
+
+    partial void OnUseActualWeightForBaggedCutOrdersChanged(bool value)
+    {
+        if (_isApplyingBaggedActualWeightOverrideState || SelectedVehicle?.WeighingSessionId == null)
+        {
+            return;
+        }
+
+        _ = PersistBaggedActualWeightOverrideAsync(value);
+    }
 
     [RelayCommand]
     private async Task LoadVehiclesAsync()
@@ -370,6 +406,53 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         {
             _logger?.LogError(ex, "Outgoing print flow failed");
             _toastService.ShowError(string.Format(UiText.Weighing.PrintErrorFormat, displayName));
+        }
+    }
+
+    private async Task PersistBaggedActualWeightOverrideAsync(bool value)
+    {
+        if (SelectedVehicle?.WeighingSessionId == null)
+        {
+            return;
+        }
+
+        var sessionId = SelectedVehicle.WeighingSessionId.Value;
+        var currentCutOrderId = SelectedVehicle.CutOrderId;
+        var previousValue = !value;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<SetWeighingSessionBaggedActualWeightOverrideUseCase>();
+            await useCase.ExecuteAsync(sessionId, value, CancellationToken.None);
+            _toastService.ShowSuccess(value
+                ? "Đã bật không lấy đúng số lượng cho hàng Bao ở lượt cân này."
+                : "Đã tắt không lấy đúng số lượng cho hàng Bao ở lượt cân này.");
+            await LoadVehiclesInternalAsync(false);
+            SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == currentCutOrderId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+            RevertBaggedActualWeightOverride(previousValue);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Update bagged actual weight override from outgoing list failed");
+            _toastService.ShowError("Không thể cập nhật tùy chọn Không lấy đúng số lượng. Vui lòng thử lại.");
+            RevertBaggedActualWeightOverride(previousValue);
+        }
+    }
+
+    private void RevertBaggedActualWeightOverride(bool value)
+    {
+        _isApplyingBaggedActualWeightOverrideState = true;
+        try
+        {
+            UseActualWeightForBaggedCutOrders = value;
+        }
+        finally
+        {
+            _isApplyingBaggedActualWeightOverrideState = false;
         }
     }
 

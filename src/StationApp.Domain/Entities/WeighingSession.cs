@@ -27,7 +27,11 @@ public class WeighingSession
     public string? OverweightResolvedBy { get; set; }
 
     public bool IsCancelled { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
     public bool HasPrintedMasterWeighTicket { get; set; }
+    public bool UseActualWeightForBaggedCutOrders { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;

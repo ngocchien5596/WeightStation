@@ -136,12 +136,13 @@
                       Style="{StaticResource SystemDataGridStyle}"
                       ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                       RowStyle="{StaticResource SystemDataGridRowStyle}"
-                      CellStyle="{StaticResource SystemDataGridCellStyle}">
+                      CellStyle="{StaticResource SystemDataGridCellStyle}"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="M&#x00E3; s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductCode}" Width="200" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="T&#x00EA;n s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="*" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Lo&#x1EA1;i s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductType}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridCheckBoxColumn Header="Ho&#x1EA1;t &#x0111;&#x1ED9;ng" Binding="{Binding IsActive}" Width="120" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridTextColumn Header="M&#x00E3; s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductCode}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="T&#x00EA;n s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="300" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Lo&#x1EA1;i s&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductType}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridCheckBoxColumn Header="Ho&#x1EA1;t &#x0111;&#x1ED9;ng" Binding="{Binding IsActive}" Width="100" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

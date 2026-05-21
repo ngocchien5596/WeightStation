@@ -107,14 +107,14 @@
                     <TextBlock Text="{StaticResource Weighing.Label.Ttcp10}" Grid.Row="5" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="{StaticResource Weighing.Label.OverweightResolution}" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="5" Grid.Column="3" Text="{Binding OverweightResolutionText}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
-
-                    <TextBlock Text="{StaticResource Weighing.Label.OverweightAmount}" Grid.Row="6" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding OverweightAmount, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
-
-                    <TextBlock Text="{StaticResource Weighing.Label.Condition}" Grid.Row="6" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="6" Grid.Column="3" Text="{Binding IsOverweight, Converter={StaticResource OverweightFlagDisplay}}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="" Grid.Row="6" Style="{StaticResource FormLabel}"/>
+                    <CheckBox Grid.Row="6" Grid.Column="1"
+                              IsChecked="{Binding UseActualWeightForBaggedCutOrders, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Left"
+                              Margin="4,0,0,0"
+                              Visibility="{Binding ShowBaggedActualWeightOverride, Converter={StaticResource BoolToVis}}"
+                              Content="K lấy đúng số lượng"/>
                 </Grid>
             </Border>
 
@@ -215,6 +215,7 @@
                     <WrapPanel HorizontalAlignment="Center"/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
+            <Button Content="{StaticResource Weighing.Action.AppendCutOrders}" Command="{Binding OpenAppendCutOrdersCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.Allocate}" Command="{Binding OpenAllocationCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.HandleOverweight}" Command="{Binding ShowOverweightHandlingCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
@@ -239,10 +240,10 @@
                           CellStyle="{StaticResource SystemDataGridCellStyle}"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="*" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="*" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="*" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="80" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="1.2*" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="1*" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="1.35*" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="0.75*" ElementStyle="{StaticResource GridTextRight}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -252,21 +253,90 @@
                           Style="{StaticResource SystemDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                           RowStyle="{StaticResource SystemDataGridRowStyle}"
-                          CellStyle="{StaticResource SystemDataGridCellStyle}">
+                          CellStyle="{StaticResource SystemDataGridCellStyle}"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.ProductCode}" Binding="{Binding ProductCode}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.ProductCode}" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding LineStatus, Converter={StaticResource SessionLineStatusDisplay}}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.PrintDelivery}" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     </DataGrid.Columns>
                 </DataGrid>
+            </Border>
+        </Grid>
+
+        <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsAppendCutOrdersVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1240" MaxHeight="720" VerticalAlignment="Center" Margin="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource ModalHeaderStyle}">
+                        <TextBlock Text="{StaticResource Weighing.Dialog.AppendCutOrdersTitle}" Style="{StaticResource ModalTitleStyle}"/>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}">
+                        <StackPanel>
+                            <Border Margin="0,0,0,12"
+                                    Padding="12,10"
+                                    Background="#FFF7E6"
+                                    BorderBrush="#F5C26B"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Visibility="{Binding AppendCutOrdersWarningMessage, Converter={StaticResource StringToVis}}">
+                                <TextBlock Text="{Binding AppendCutOrdersWarningMessage}"
+                                           Foreground="#8A5A00"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                            <Border Style="{StaticResource ModalSectionCardStyle}">
+                                <DataGrid ItemsSource="{Binding AppendCutOrderCandidates}"
+                                          Style="{StaticResource SystemDataGridStyle}"
+                                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                                          RowStyle="{StaticResource SystemDataGridRowStyle}"
+                                          CellStyle="{StaticResource SystemDataGridCellStyle}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="False"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header="{StaticResource Incoming.Column.Select}" Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="60" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.TransactionType}" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.TransportMethod}" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="110" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.Mooc}" Binding="{Binding MoocNumber}" Width="110" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.DriverName}" Binding="{Binding ReceiverName}" Width="150" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.CustomerName}" Binding="{Binding CustomerName}" Width="240" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.ProductCode}" Binding="{Binding ProductCode}" Width="130" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.ProductName}" Binding="{Binding ProductName}" Width="250" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="115" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.BagCount}" Binding="{Binding BagCount}" Width="90" IsReadOnly="True"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.CreatedAt}" Binding="{Binding CreatedAt, StringFormat='{}{0:dd/MM/yyyy HH:mm}'}" Width="150" IsReadOnly="True"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" Style="{StaticResource ModalFooterStyle}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="{StaticResource Weighing.Action.Confirm}" Command="{Binding ConfirmAppendCutOrdersCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
+                            <Button Content="{StaticResource Workflow.CloseButton}" Command="{Binding CloseAppendCutOrdersCommand}" Style="{StaticResource UtilityButtonStyle}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
         </Grid>
 
@@ -293,16 +363,17 @@
                                       AutoGenerateColumns="False"
                                       IsReadOnly="False"
                                       Background="Transparent"
-                                      BorderThickness="0">
+                                      BorderThickness="0"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="120" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="220" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="100" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="80" IsReadOnly="True"/>
-                                    <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.Priority}" Binding="{Binding IsPriority, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="85" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" Width="110"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="240" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="250" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="110" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90" IsReadOnly="True"/>
+                                    <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.Priority}" Binding="{Binding IsPriority, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="85" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" Width="120"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount, UpdateSourceTrigger=PropertyChanged}" Width="90" IsReadOnly="True"/>
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -321,7 +392,7 @@
         </Grid>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsOverweightHandlingVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1100" MaxHeight="700" VerticalAlignment="Center" Margin="16">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1180" MaxHeight="700" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -336,33 +407,6 @@
 
                     <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}" Padding="16,12,16,10">
                         <StackPanel>
-                            <UniformGrid Columns="4" Margin="0,0,0,16">
-                                <Border Style="{StaticResource ModalMetricCardStyle}">
-                                    <StackPanel>
-                                        <TextBlock Text="{StaticResource Weighing.Label.Ttcp10}" Style="{StaticResource ModalMetricLabelStyle}"/>
-                                        <TextBlock Text="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" Style="{StaticResource ModalMetricValueStyle}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource ModalMetricCardStyle}">
-                                    <StackPanel>
-                                        <TextBlock Text="Net Weight" Style="{StaticResource ModalMetricLabelStyle}"/>
-                                        <TextBlock Text="{Binding NetWeight, StringFormat='{}{0:N0}'}" Style="{StaticResource ModalMetricValueStyle}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource ModalMetricCardStyle}">
-                                    <StackPanel>
-                                        <TextBlock Text="{StaticResource Weighing.Label.OverweightAmount}" Style="{StaticResource ModalMetricLabelStyle}"/>
-                                        <TextBlock Text="{Binding OverweightAmount, StringFormat='{}{0:N0}'}" Style="{StaticResource ModalMetricValueStyle}" Foreground="#C0392B"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource ModalMetricCardStyle}" Margin="0">
-                                    <StackPanel>
-                                        <TextBlock Text="{StaticResource Weighing.Dialog.Overweight.StepMax}" Style="{StaticResource ModalMetricLabelStyle}"/>
-                                        <TextBlock Text="{Binding OverweightSplitStepWeight, StringFormat='{}{0:P2}'}" Style="{StaticResource ModalMetricValueStyle}"/>
-                                    </StackPanel>
-                                </Border>
-                            </UniformGrid>
-
                             <Border Style="{StaticResource ModalSectionCardStyle}">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -370,10 +414,6 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="18"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="18"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="18"/>
                                         <ColumnDefinition Width="*"/>
@@ -387,16 +427,8 @@
                                         <TextBlock Text="{StaticResource Weighing.Dialog.Overweight.Ticket2}" FontWeight="Bold" Margin="0,0,0,6"/>
                                         <TextBox Text="{Binding OverweightSplitTicket2WeightText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Row="0" Grid.Column="4">
-                                        <TextBlock Text="{StaticResource Weighing.Dialog.Overweight.SplitMode}" FontWeight="Bold" Margin="0,0,0,6"/>
-                                        <TextBox Text="{Binding IsManualSplitOverride, Converter={StaticResource SplitModeDisplayConverter}}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Row="0" Grid.Column="6">
-                                        <TextBlock Text="{StaticResource Weighing.Dialog.Overweight.RandomFactor}" FontWeight="Bold" Margin="0,0,0,6"/>
-                                        <TextBox Text="{Binding OverweightSplitRandomFactorText}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
-                                    </StackPanel>
 
-                                    <TextBlock Grid.Row="1" Grid.ColumnSpan="7"
+                                    <TextBlock Grid.Row="1" Grid.ColumnSpan="3"
                                                Text="{Binding OverweightSplitValidationMessage}"
                                                Foreground="#C0392B"
                                                FontWeight="SemiBold"
@@ -409,44 +441,23 @@
 
                     <Border Grid.Row="2" Style="{StaticResource ModalBodyStyle}" Padding="16,0,16,14">
                         <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="340"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
                             <Border Style="{StaticResource ModalSectionCardStyle}">
-                                <DataGrid ItemsSource="{Binding OverweightPreviewGroups}" AutoGenerateColumns="False" IsReadOnly="True"
-                                          Style="{StaticResource SystemDataGridStyle}"
-                                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                                          RowStyle="{StaticResource SystemDataGridRowStyle}"
-                                          CellStyle="{StaticResource SystemDataGridCellStyle}"
-                                          Background="Transparent"
-                                          BorderThickness="0">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="70"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding GroupWeight, StringFormat='{}{0:N0}'}" Width="120"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.LineCount}" Binding="{Binding DeliveryTicketCount}" Width="80"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Border>
-
-                            <Border Grid.Column="2" Style="{StaticResource ModalSectionCardStyle}">
                                 <DataGrid ItemsSource="{Binding OverweightPreviewLines}" AutoGenerateColumns="False" IsReadOnly="True"
                                           Style="{StaticResource SystemDataGridStyle}"
                                           ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                                           RowStyle="{StaticResource SystemDataGridRowStyle}"
                                           CellStyle="{StaticResource SystemDataGridCellStyle}"
                                           Background="Transparent"
-                                          BorderThickness="0">
+                                          BorderThickness="0"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="60"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="120"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="220"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="220"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding AllocatedWeight, StringFormat='{}{0:N0}'}" Width="110"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.BagCount}" Binding="{Binding AllocatedBagCount}" Width="70"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="65"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="55"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="240"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="250"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding AllocatedWeight, StringFormat='{}{0:N0}'}" Width="120"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.BagCount}" Binding="{Binding AllocatedBagCount}" Width="80"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Border>
@@ -455,7 +466,6 @@
 
                     <Border Grid.Row="3" Style="{StaticResource ModalFooterStyle}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="{StaticResource Weighing.Dialog.Overweight.SuggestAgain}" Command="{Binding SuggestOverweightSplitAgainCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,8,0"/>
                             <Button Content="{StaticResource Weighing.Dialog.Overweight.Split}" Command="{Binding ConfirmOverweightSplitCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,0"/>
                             <Button Content="{StaticResource Weighing.Dialog.Overweight.NoSplit}" Command="{Binding ConfirmOverweightNoSplitCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,8,0"/>
                             <Button Content="{StaticResource Workflow.CloseButton}" Command="{Binding CloseOverweightHandlingCommand}" Style="{StaticResource UtilityButtonStyle}"/>
@@ -508,5 +518,3 @@
         </Grid>
     </Grid>
 </UserControl>
-
-

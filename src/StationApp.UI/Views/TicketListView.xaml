@@ -71,17 +71,18 @@
                       Style="{StaticResource SystemDataGridStyle}"
                       ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                       RowStyle="{StaticResource SystemDataGridRowStyle}"
-                      CellStyle="{StaticResource SystemDataGridCellStyle}">
+                      CellStyle="{StaticResource SystemDataGridCellStyle}"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="S&#x1ED1; phi&#x1EBF;u" Binding="{Binding TicketNo}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Lo&#x1EA1;i phi&#x1EBF;u" Binding="{Binding TransactionType}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Tr&#x1EA1;ng th&#xE1;i" Binding="{Binding Status}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="C&#xE2;n 1 (kg)" Binding="{Binding Weight1, StringFormat=N0}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="C&#xE2;n 2 (kg)" Binding="{Binding Weight2, StringFormat=N0}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Lo&#x1EA1;i phi&#x1EBF;u" Binding="{Binding TransactionType}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Tr&#x1EA1;ng th&#xE1;i" Binding="{Binding Status}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="C&#xE2;n 1 (kg)" Binding="{Binding Weight1, StringFormat=N0}" Width="105" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="C&#xE2;n 2 (kg)" Binding="{Binding Weight2, StringFormat=N0}" Width="105" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="TL H&#xE0;ng (kg)" Binding="{Binding NetWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="&#x110;&#x1ED3;ng b&#x1ED9;" Binding="{Binding SyncStatus}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Ng&#xE0;y t&#x1EA1;o" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="*" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="&#x110;&#x1ED3;ng b&#x1ED9;" Binding="{Binding SyncStatus}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Ng&#xE0;y t&#x1EA1;o" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
