@@ -394,13 +394,47 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            if (!string.IsNullOrWhiteSpace(FormAttachSessionNo))
+            var applyCarryForwardWeight1 = true;
+            var carryForwardCandidates = selectedVehicles
+                .Where(x => x.CarryForwardWeight1.HasValue)
+                .OrderBy(x => x.CreatedAt)
+                .ThenBy(x => x.ErpCutOrderId)
+                .ToList();
+            var carryForwardWeight1 = carryForwardCandidates
+                .Select(x => x.CarryForwardWeight1)
+                .Distinct()
+                .SingleOrDefault();
+            var suggestedSessionCandidates = selectedVehicles
+                .Select(x => string.IsNullOrWhiteSpace(x.SuggestedSessionNo) ? null : x.SuggestedSessionNo.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var attachSessionNo = string.IsNullOrWhiteSpace(FormAttachSessionNo) ? null : FormAttachSessionNo.Trim();
+            var isAutoSuggestedAttach =
+                !string.IsNullOrWhiteSpace(attachSessionNo)
+                && suggestedSessionCandidates.Count == 1
+                && string.Equals(attachSessionNo, suggestedSessionCandidates[0], StringComparison.OrdinalIgnoreCase);
+
+            if (carryForwardWeight1.HasValue)
+            {
+                var carryForwardReference = carryForwardCandidates.First();
+                var carryForwardTimeText = carryForwardReference.CarryForwardWeight1Time.HasValue
+                    ? carryForwardReference.CarryForwardWeight1Time.Value.ToString("dd/MM/yyyy HH:mm:ss")
+                    : "không xác định";
+                applyCarryForwardWeight1 = await _dialogService.ShowConfirmAsync(
+                    "Xác nhận dùng lại cân lần 1",
+                    $"Cắt lệnh {carryForwardReference.ErpCutOrderId ?? carryForwardReference.VehiclePlate} đã có số cân lần 1 là {carryForwardWeight1.Value:N0} kg vào lúc {carryForwardTimeText}. Bạn có đồng ý lấy số cân lần 1 này cho lượt cân mới không?",
+                    "Đồng ý",
+                    "Không");
+            }
+
+            if (!string.IsNullOrWhiteSpace(attachSessionNo) && (!isAutoSuggestedAttach || applyCarryForwardWeight1))
             {
                 var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
-                var session = await sessionRepo.GetBySessionNoAsync(FormAttachSessionNo.Trim(), CancellationToken.None);
+                var session = await sessionRepo.GetBySessionNoAsync(attachSessionNo, CancellationToken.None);
                 if (session == null)
                 {
-                    _toastService.ShowError($"Không tìm thấy lượt cân {FormAttachSessionNo.Trim()} trong hệ thống.");
+                    _toastService.ShowError($"Không tìm thấy lượt cân {attachSessionNo} trong hệ thống.");
                     return;
                 }
 
@@ -443,28 +477,6 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             }
 
             var uc = scope.ServiceProvider.GetRequiredService<CreateWeighingSessionUseCase>();
-            var applyCarryForwardWeight1 = true;
-            var carryForwardCandidates = selectedVehicles
-                .Where(x => x.CarryForwardWeight1.HasValue)
-                .OrderBy(x => x.CreatedAt)
-                .ThenBy(x => x.ErpCutOrderId)
-                .ToList();
-            var carryForwardWeight1 = carryForwardCandidates
-                .Select(x => x.CarryForwardWeight1)
-                .Distinct()
-                .SingleOrDefault();
-            if (carryForwardWeight1.HasValue)
-            {
-                var carryForwardReference = carryForwardCandidates.First();
-                var carryForwardTimeText = carryForwardReference.CarryForwardWeight1Time.HasValue
-                    ? carryForwardReference.CarryForwardWeight1Time.Value.ToString("dd/MM/yyyy HH:mm:ss")
-                    : "không xác định";
-                applyCarryForwardWeight1 = await _dialogService.ShowConfirmAsync(
-                    "Xác nhận dùng lại cân lần 1",
-                    $"Cắt lệnh {carryForwardReference.ErpCutOrderId ?? carryForwardReference.VehiclePlate} đã có số cân lần 1 là {carryForwardWeight1.Value:N0} kg vào lúc {carryForwardTimeText}. Bạn có đồng ý lấy số cân lần 1 này cho lượt cân mới không?",
-                    "Đồng ý",
-                    "Không");
-            }
             var result = await uc.ExecuteAsync(
                 new CreateWeighingSessionRequest(selectedIds, primaryVehicle.CutOrderId, applyCarryForwardWeight1),
                 CancellationToken.None);

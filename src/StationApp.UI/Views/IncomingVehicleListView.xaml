@@ -143,6 +143,13 @@
                                 SelectedDate="{Binding MoocRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 Style="{StaticResource FormDatePicker}"/>
 
+                    <TextBlock Text="TTCP 10% (kg)" Grid.Row="3" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="5"
+                             Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}', ConverterCulture='vi-VN'}"
+                             IsReadOnly="True"
+                             Style="{StaticResource FormBox}"
+                             Background="#F8F9F9"/>
+
                     <TextBlock Text="{StaticResource Incoming.DriverLabel}" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="5"
                                                   State="{Binding FormDriverInput}"

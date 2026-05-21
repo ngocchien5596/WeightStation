@@ -172,6 +172,7 @@
                     <DataGridTextColumn Header="S&#x1ED1; Mooc" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="T&#x00E0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="200" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="TTCP (kg)" Binding="{Binding TtcpWeight, ConverterCulture='vi-VN', StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="TTCP 10% (kg)" Binding="{Binding TtcpWeight, Converter={StaticResource DecimalMultiplierConverter}, ConverterParameter=1.1, ConverterCulture='vi-VN', StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="S&#x1ED1; &#x0110;K xe" Binding="{Binding VehicleRegistrationNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="H&#x1EA1;n &#x0110;K Xe" Binding="{Binding VehicleRegistrationExpiryDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="S&#x1ED1; &#x0110;K mooc" Binding="{Binding MoocRegistrationNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>

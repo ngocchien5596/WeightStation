@@ -28,6 +28,42 @@ public class WeightToTonConverter : IValueConverter
     }
 }
 
+public class DecimalMultiplierConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is decimal decimalValue)
+        {
+            return decimalValue * ResolveMultiplier(parameter, culture);
+        }
+
+        return 0m;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var multiplier = ResolveMultiplier(parameter, culture);
+        if (multiplier == 0m)
+        {
+            return 0m;
+        }
+
+        if (decimal.TryParse(value?.ToString(), NumberStyles.Any, culture, out var result))
+        {
+            return result / multiplier;
+        }
+
+        return 0m;
+    }
+
+    private static decimal ResolveMultiplier(object? parameter, CultureInfo culture)
+    {
+        return decimal.TryParse(parameter?.ToString(), NumberStyles.Any, culture, out var multiplier)
+            ? multiplier
+            : 1m;
+    }
+}
+
 public class ExpiryToBrushConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

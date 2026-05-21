@@ -7,6 +7,7 @@
             <converters:NullToVisibilityConverter x:Key="NullToVis"/>
             <converters:StringToVisibilityConverter x:Key="StringToVis"/>
             <converters:WeightToTonConverter x:Key="WeightToTon"/>
+            <converters:DecimalMultiplierConverter x:Key="DecimalMultiplierConverter"/>
             <converters:ExpiryToBrushConverter x:Key="ExpiryToBrush"/>
             <converters:OverweightToRowBrushConverter x:Key="OverweightToRow"/>
             <converters:OverweightToForegroundConverter x:Key="OverweightToFore"/>
