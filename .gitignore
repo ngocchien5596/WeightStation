@@ -7,9 +7,18 @@ obj_verify/
 Builds/
 _verify_build/
 ._tmp_*/
+._append_*/
 ._wpf_build*/
 ._repo_build/
 .codex_build/
+**/._tmp_*/
+**/._append_*/
+**/._wpf_build*/
+**/._repo_build/
+**/.codex_build/
+**/bin/
+**/obj/
+**/artifacts/
 
 # IDE files
 .vs/
