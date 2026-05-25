@@ -261,7 +261,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
                     {
                         X = position.X,
                         Y = position.Y,
-                        Width = position.Width ?? field.Width
+                        Width = position.Width ?? field.Width,
+                        IsEnabled = position.IsEnabled
                     };
                 }
             }
@@ -403,7 +404,10 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
 
     private void OnFieldPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PrintFieldEditorItem.X) or nameof(PrintFieldEditorItem.Y) or nameof(PrintFieldEditorItem.WidthValue))
+        if (e.PropertyName is nameof(PrintFieldEditorItem.X)
+            or nameof(PrintFieldEditorItem.Y)
+            or nameof(PrintFieldEditorItem.WidthValue)
+            or nameof(PrintFieldEditorItem.IsEnabled))
         {
             if (!CanManageLayout)
             {
@@ -508,7 +512,12 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
 
     private IReadOnlyList<PrintFieldPosition> BuildFieldPositions()
         => Fields
-            .Select(x => new PrintFieldPosition(x.FieldKey, RoundPosition(x.X), RoundPosition(x.Y), RoundPosition(x.WidthValue)))
+            .Select(x => new PrintFieldPosition(
+                x.FieldKey,
+                RoundPosition(x.X),
+                RoundPosition(x.Y),
+                RoundPosition(x.WidthValue),
+                x.IsEnabled))
             .ToList();
 
     private string GetSuggestedProfileName()
@@ -533,6 +542,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         {
             FieldKey = field.FieldKey,
             DisplayName = BuildDisplayName(kind, field),
+            FieldType = BuildFieldType(field),
+            IsEnabled = field.IsEnabled,
             X = RoundPosition(field.X),
             Y = RoundPosition(field.Y),
             XText = FormatEditableNumber(field.X),
@@ -540,6 +551,16 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             WidthValue = RoundPosition(field.Width),
             Width = FormatEditableNumber(field.Width)
         };
+
+    private static string BuildFieldType(PrintFieldDefinition field)
+    {
+        if (field.IsImage || field.IsLine || !string.IsNullOrWhiteSpace(field.LiteralValue))
+        {
+            return "Tĩnh";
+        }
+
+        return "Động";
+    }
 
     private static string BuildDisplayName(PrintDocumentKind kind, PrintFieldDefinition field)
     {
@@ -675,6 +696,8 @@ public partial class PrintFieldEditorItem : ObservableObject
 {
     [ObservableProperty] private string _fieldKey = string.Empty;
     [ObservableProperty] private string _displayName = string.Empty;
+    [ObservableProperty] private string _fieldType = string.Empty;
+    [ObservableProperty] private bool _isEnabled = true;
     [ObservableProperty] private double _x;
     [ObservableProperty] private double _y;
     [ObservableProperty] private double _widthValue;

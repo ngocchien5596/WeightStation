@@ -39,6 +39,47 @@ public sealed class WeighingSessionTicketSyncService
         masterTicket.UpdatedAt = now;
         masterTicket.UpdatedBy = username;
     }
+
+    public void SyncLineTicketFromSession(
+        WeighingSession session,
+        WeighingSessionLine line,
+        CutOrder registration,
+        WeighTicket lineTicket,
+        DateTime now,
+        string username)
+    {
+        lineTicket.CutOrderId = registration.Id;
+        lineTicket.WeighingSessionId = session.Id;
+        lineTicket.ErpCutOrderId = registration.ErpCutOrderId;
+        lineTicket.VehiclePlate = session.VehiclePlate;
+        lineTicket.MoocNumber = session.MoocNumber;
+        lineTicket.DriverName = session.DriverName;
+        lineTicket.CustomerCode = registration.CustomerCode;
+        lineTicket.CustomerName = registration.CustomerName;
+        lineTicket.ProductCode = registration.ProductCode;
+        lineTicket.ProductName = registration.ProductName;
+        lineTicket.PlannedWeight = registration.PlannedWeight;
+        lineTicket.BagCount = registration.BagCount;
+        lineTicket.Notes = registration.Notes;
+        lineTicket.TransactionType = session.TransactionType;
+        lineTicket.TransportMethod = registration.TransportMethod;
+        lineTicket.Status = TicketStatus.TICKET_COMPLETED;
+        lineTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
+        lineTicket.IsDeleted = false;
+        lineTicket.IsCancelled = false;
+        lineTicket.Weight1 = session.Weight1;
+        lineTicket.Weight1User = lineTicket.Weight1User ?? username;
+        lineTicket.Weight1Time = session.Weight1Time;
+        lineTicket.Weight2 = session.Weight2;
+        lineTicket.Weight2User = lineTicket.Weight2User ?? username;
+        lineTicket.Weight2Time = session.Weight2Time;
+        lineTicket.NetWeight = line.ActualAllocatedWeight;
+        lineTicket.Ttcp10WeightSnapshot = session.Ttcp10WeightSnapshot;
+        lineTicket.IsOverWeight = session.IsOverweight;
+        lineTicket.IsPrimaryDisplay = true;
+        lineTicket.UpdatedAt = now;
+        lineTicket.UpdatedBy = username;
+    }
 }
 
 public sealed record WeightCaptureSnapshot(

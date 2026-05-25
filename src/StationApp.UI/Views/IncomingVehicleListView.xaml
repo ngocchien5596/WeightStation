@@ -20,6 +20,38 @@
             </Style>
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}"/>
             <Style x:Key="FormDatePicker" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}"/>
+            <Style x:Key="VehicleExpiryLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource FormLabel}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsVehicleRegistrationExpired}" Value="True">
+                        <Setter Property="Foreground" Value="#C0392B"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="MoocExpiryLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource FormLabel}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMoocRegistrationExpired}" Value="True">
+                        <Setter Property="Foreground" Value="#C0392B"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="VehicleExpiryDatePickerStyle" TargetType="DatePicker" BasedOn="{StaticResource FormDatePicker}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsVehicleRegistrationExpired}" Value="True">
+                        <Setter Property="Foreground" Value="#C0392B"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="MoocExpiryDatePickerStyle" TargetType="DatePicker" BasedOn="{StaticResource FormDatePicker}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMoocRegistrationExpired}" Value="True">
+                        <Setter Property="Foreground" Value="#C0392B"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -89,7 +121,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="M&#xE3; &#x110;KPT" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="M&#xE3; c&#x1EAF;t l&#x1EC7;nh" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="0" Grid.Column="1"
                              Text="{Binding FormErpCutOrderId, Mode=OneWay}"
                              IsReadOnly="True"
@@ -100,13 +132,13 @@
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="1"
                                                   State="{Binding FormVehiclePlateInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                  IsEnabled="{Binding CanEditNonRegistrationFields}"/>
+                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="Mooc" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="3"
                                                   State="{Binding FormMoocInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                  IsEnabled="{Binding CanEditNonRegistrationFields}"/>
+                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="HTVC" Grid.Row="0" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="5"
@@ -133,15 +165,15 @@
                              Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus, ConverterCulture='vi-VN'}"
                              Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="3" Grid.Column="0" Style="{StaticResource VehicleExpiryLabelStyle}"/>
                     <DatePicker Grid.Row="3" Grid.Column="1"
                                 SelectedDate="{Binding VehicleRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Style="{StaticResource FormDatePicker}"/>
+                                Style="{StaticResource VehicleExpiryDatePickerStyle}"/>
 
-                    <TextBlock Text="H&#x1EA1;n &#x110;K Mooc" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="H&#x1EA1;n &#x110;K Mooc" Grid.Row="3" Grid.Column="2" Style="{StaticResource MoocExpiryLabelStyle}"/>
                     <DatePicker Grid.Row="3" Grid.Column="3"
                                 SelectedDate="{Binding MoocRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Style="{StaticResource FormDatePicker}"/>
+                                Style="{StaticResource MoocExpiryDatePickerStyle}"/>
 
                     <TextBlock Text="TTCP 10% (kg)" Grid.Row="3" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="3" Grid.Column="5"
@@ -154,7 +186,7 @@
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="5"
                                                   State="{Binding FormDriverInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                  IsEnabled="{Binding CanEditNonRegistrationFields}"/>
+                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="Lo&#x1EA1;i" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="3"
@@ -182,19 +214,19 @@
                     <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="3"
                                                   State="{Binding FormCustomerInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                  IsEnabled="{Binding CanEditNonRegistrationFields}"/>
+                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="M&#xE3; SP" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="5"
                                                   State="{Binding FormProductCodeInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                  IsEnabled="{Binding CanEditNonRegistrationFields}"/>
+                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="{StaticResource Incoming.ProductLabel}" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="5" Grid.Column="5"
                                                   State="{Binding FormProductNameInput}"
                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                  IsEnabled="{Binding CanEditNonRegistrationFields}"/>
+                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="Ghi ch&#xFA;" Grid.Row="6" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="5" Text="{Binding FormNotes}" Style="{StaticResource FormBox}"/>

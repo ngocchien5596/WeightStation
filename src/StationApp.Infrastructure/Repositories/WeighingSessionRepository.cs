@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
@@ -76,22 +76,39 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .ToListAsync(ct);
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
-        var lineSummaries = await _db.WeighingSessionLines.AsNoTracking()
+        var lines = await _db.WeighingSessionLines.AsNoTracking()
             .Where(x => !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
-            .GroupBy(x => x.WeighingSessionId)
-            .Select(group => new
-            {
-                SessionId = group.Key,
-                LineCount = group.Count(),
-                AllPrinted = group.All(line => line.HasPrintedDeliveryTicket)
-            })
             .ToListAsync(ct);
-
-        var summaryBySessionId = lineSummaries.ToDictionary(x => x.SessionId);
 
         return sessions.Select(session =>
         {
-            summaryBySessionId.TryGetValue(session.Id, out var summary);
+            var sessionLines = lines.Where(x => x.WeighingSessionId == session.Id).ToList();
+            var lineCount = sessionLines.Count;
+            var allPrinted = lineCount > 0 && sessionLines.All(x => x.HasPrintedDeliveryTicket);
+
+            var customerSummary = string.Join(" / ", sessionLines
+                .Select(x => x.CustomerName)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct());
+
+            var productGroups = sessionLines
+                .Where(x => !string.IsNullOrWhiteSpace(x.ProductName))
+                .GroupBy(x => new
+                {
+                    ProductCode = (x.ProductCode ?? string.Empty).Trim(),
+                    ProductName = (x.ProductName ?? string.Empty).Trim()
+                })
+                .Select(group => new
+                {
+                    group.Key.ProductName,
+                    PlannedWeight = group.Sum(x => x.PlannedWeight ?? 0m)
+                })
+                .ToList();
+
+            var productSummary = productGroups.Count == 0
+                ? null
+                : string.Join(" / ", productGroups.Select(x => $"{x.ProductName} ({x.PlannedWeight:N0})"));
+
             return new WeighingSessionListItem(
                 session.Id,
                 session.SessionNo,
@@ -107,12 +124,14 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.OverweightAmount,
                 session.OverweightResolutionStatus,
                 session.SessionStatus,
-                summary?.LineCount ?? 0,
+                lineCount,
                 session.HasPrintedMasterWeighTicket,
                 session.UseActualWeightForBaggedCutOrders,
-                summary?.LineCount > 0 && summary.AllPrinted,
+                allPrinted,
                 session.CreatedAt,
-                session.UpdatedAt);
+                session.UpdatedAt,
+                customerSummary,
+                productSummary);
         }).ToList();
     }
 
@@ -229,7 +248,8 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 line.ActualAllocatedBagCount,
                 line.LineStatus,
                 line.HasPrintedDeliveryTicket,
-                reg.ProductType
+                reg.ProductType,
+                reg.Notes
             ))
             .ToListAsync(ct);
 

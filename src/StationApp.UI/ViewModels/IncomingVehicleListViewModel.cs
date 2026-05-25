@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -76,6 +76,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0m) * 1.10m);
     public bool IsOutboundDetailLockMode => !IsCreateMode && FormTransactionType == TransactionType.OUTBOUND;
     public bool CanEditNonRegistrationFields => !IsOutboundDetailLockMode;
+    public bool IsVehicleRegistrationExpired => IsExpiredDate(VehicleRegistrationExpiry);
+    public bool IsMoocRegistrationExpired => IsExpiredDate(MoocRegistrationExpiry);
 
     public IncomingVehicleListViewModel(
         IServiceScopeFactory scopeFactory,
@@ -132,6 +134,16 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsOutboundDetailLockMode));
         OnPropertyChanged(nameof(CanEditNonRegistrationFields));
+    }
+
+    partial void OnVehicleRegistrationExpiryChanged(DateTime? value)
+    {
+        RefreshRegistrationExpiryState();
+    }
+
+    partial void OnMoocRegistrationExpiryChanged(DateTime? value)
+    {
+        RefreshRegistrationExpiryState();
     }
 
     partial void OnFormCustomerCodeChanged(string? value)
@@ -216,6 +228,42 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(FormVehiclePlate))
         {
             _toastService.ShowWarning(UiText.Common.RequiredVehiclePlate);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FormDriverName))
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredDriverName);
+            return;
+        }
+
+        if (!TtcpWeight.HasValue || TtcpWeight.Value <= 0)
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredTtcp);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FormCustomerName))
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredCustomer);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FormProductCode))
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredProductCode);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FormProductName))
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredProductName);
+            return;
+        }
+
+        if (!FormPlannedWeight.HasValue || FormPlannedWeight.Value <= 0)
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredPlannedWeight);
             return;
         }
 
@@ -394,41 +442,18 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var applyCarryForwardWeight1 = true;
-            var carryForwardCandidates = selectedVehicles
-                .Where(x => x.CarryForwardWeight1.HasValue)
-                .OrderBy(x => x.CreatedAt)
-                .ThenBy(x => x.ErpCutOrderId)
-                .ToList();
-            var carryForwardWeight1 = carryForwardCandidates
-                .Select(x => x.CarryForwardWeight1)
-                .Distinct()
-                .SingleOrDefault();
-            var suggestedSessionCandidates = selectedVehicles
-                .Select(x => string.IsNullOrWhiteSpace(x.SuggestedSessionNo) ? null : x.SuggestedSessionNo.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var attachSessionNo = string.IsNullOrWhiteSpace(FormAttachSessionNo) ? null : FormAttachSessionNo.Trim();
-            var isAutoSuggestedAttach =
-                !string.IsNullOrWhiteSpace(attachSessionNo)
-                && suggestedSessionCandidates.Count == 1
-                && string.Equals(attachSessionNo, suggestedSessionCandidates[0], StringComparison.OrdinalIgnoreCase);
-
-            if (carryForwardWeight1.HasValue)
+            var expiryValidationMessage = await ValidateRegistrationExpiryForCreateSessionAsync(
+                scope.ServiceProvider.GetRequiredService<IVehicleRepository>(),
+                selectedVehicles,
+                CancellationToken.None);
+            if (expiryValidationMessage != null)
             {
-                var carryForwardReference = carryForwardCandidates.First();
-                var carryForwardTimeText = carryForwardReference.CarryForwardWeight1Time.HasValue
-                    ? carryForwardReference.CarryForwardWeight1Time.Value.ToString("dd/MM/yyyy HH:mm:ss")
-                    : "không xác định";
-                applyCarryForwardWeight1 = await _dialogService.ShowConfirmAsync(
-                    "Xác nhận dùng lại cân lần 1",
-                    $"Cắt lệnh {carryForwardReference.ErpCutOrderId ?? carryForwardReference.VehiclePlate} đã có số cân lần 1 là {carryForwardWeight1.Value:N0} kg vào lúc {carryForwardTimeText}. Bạn có đồng ý lấy số cân lần 1 này cho lượt cân mới không?",
-                    "Đồng ý",
-                    "Không");
+                _toastService.ShowError(expiryValidationMessage);
+                return;
             }
 
-            if (!string.IsNullOrWhiteSpace(attachSessionNo) && (!isAutoSuggestedAttach || applyCarryForwardWeight1))
+            var attachSessionNo = string.IsNullOrWhiteSpace(FormAttachSessionNo) ? null : FormAttachSessionNo.Trim();
+            if (!string.IsNullOrWhiteSpace(attachSessionNo))
             {
                 var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
                 var session = await sessionRepo.GetBySessionNoAsync(attachSessionNo, CancellationToken.None);
@@ -438,47 +463,63 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     return;
                 }
 
-                var appendUc = scope.ServiceProvider.GetRequiredService<AppendCutOrdersToWeighingSessionUseCase>();
-                await appendUc.ExecuteAsync(
-                    new AppendCutOrdersToWeighingSessionRequest(session.Id, selectedIds),
-                    CancellationToken.None);
-
-                if (session.SessionStatus == WeighingSessionStatus.ALLOCATION_PENDING && session.NetWeight.HasValue)
+                var applyCarryForwardWeight1 = true;
+                if (session.Weight1.HasValue)
                 {
-                    var refreshedLines = await sessionRepo.GetLineItemsBySessionIdAsync(session.Id, CancellationToken.None);
-                    if (refreshedLines.Count == 1 && !refreshedLines[0].ActualAllocatedWeight.HasValue)
-                    {
-                        var singleLine = refreshedLines[0];
-                        var actualBagCount =
-                            string.Equals(ProductTypes.Normalize(singleLine.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase)
-                            && singleLine.PlannedBagCount.HasValue
-                                ? (int?)decimal.Round(session.NetWeight.Value / 50m, 0, MidpointRounding.AwayFromZero)
-                                : null;
-
-                        var allocateUc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
-                        await allocateUc.ExecuteAsync(
-                            new AllocateWeighingSessionRequest(
-                                session.Id,
-                                new[]
-                                {
-                                    new AllocateWeighingSessionLineRequest(
-                                        singleLine.SessionLineId,
-                                        session.NetWeight.Value,
-                                        actualBagCount)
-                                }),
-                            CancellationToken.None);
-                    }
+                    var carryForwardTimeText = session.Weight1Time.HasValue
+                        ? session.Weight1Time.Value.ToString("dd/MM/yyyy HH:mm:ss")
+                        : "không xác định";
+                    applyCarryForwardWeight1 = await _dialogService.ShowConfirmAsync(
+                        "Xác nhận dùng lại cân lần 1",
+                        $"Lượt cân {session.SessionNo} đã có số cân lần 1 là {session.Weight1.Value:N0} kg vào lúc {carryForwardTimeText}. Bạn có đồng ý gắn cắt lệnh vào lượt cân này để dùng lại số cân lần 1 không?",
+                        "Đồng ý",
+                        "Không");
                 }
 
-                _toastService.ShowSuccess($"Đã gắn cắt lệnh vào lượt cân {session.SessionNo}.");
-                await LoadVehiclesAsync();
-                NavigateToWeighingRequested?.Invoke(session.Id);
-                return;
+                if (applyCarryForwardWeight1)
+                {
+                    var appendUc = scope.ServiceProvider.GetRequiredService<AppendCutOrdersToWeighingSessionUseCase>();
+                    await appendUc.ExecuteAsync(
+                        new AppendCutOrdersToWeighingSessionRequest(session.Id, selectedIds),
+                        CancellationToken.None);
+
+                    if (session.SessionStatus == WeighingSessionStatus.ALLOCATION_PENDING && session.NetWeight.HasValue)
+                    {
+                        var refreshedLines = await sessionRepo.GetLineItemsBySessionIdAsync(session.Id, CancellationToken.None);
+                        if (refreshedLines.Count == 1 && !refreshedLines[0].ActualAllocatedWeight.HasValue)
+                        {
+                            var singleLine = refreshedLines[0];
+                            var actualBagCount =
+                                string.Equals(ProductTypes.Normalize(singleLine.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase)
+                                && singleLine.PlannedBagCount.HasValue
+                                    ? (int?)decimal.Round(session.NetWeight.Value / 50m, 0, MidpointRounding.AwayFromZero)
+                                    : null;
+
+                            var allocateUc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
+                            await allocateUc.ExecuteAsync(
+                                new AllocateWeighingSessionRequest(
+                                    session.Id,
+                                    new[]
+                                    {
+                                        new AllocateWeighingSessionLineRequest(
+                                            singleLine.SessionLineId,
+                                            session.NetWeight.Value,
+                                            actualBagCount)
+                                    }),
+                                CancellationToken.None);
+                        }
+                    }
+
+                    _toastService.ShowSuccess($"Đã gắn cắt lệnh vào lượt cân {session.SessionNo}.");
+                    await LoadVehiclesAsync();
+                    NavigateToWeighingRequested?.Invoke(session.Id);
+                    return;
+                }
             }
 
             var uc = scope.ServiceProvider.GetRequiredService<CreateWeighingSessionUseCase>();
             var result = await uc.ExecuteAsync(
-                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.CutOrderId, applyCarryForwardWeight1),
+                new CreateWeighingSessionRequest(selectedIds, primaryVehicle.CutOrderId, false),
                 CancellationToken.None);
 
             _toastService.ShowSuccess(UiText.Incoming.CreateSessionSuccess);
@@ -702,6 +743,12 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         MarkNoLoadCommand.NotifyCanExecuteChanged();
     }
 
+    private void RefreshRegistrationExpiryState()
+    {
+        OnPropertyChanged(nameof(IsVehicleRegistrationExpired));
+        OnPropertyChanged(nameof(IsMoocRegistrationExpired));
+    }
+
     private bool HasSearchFilters()
     {
         return !string.IsNullOrWhiteSpace(SearchErpCutOrderId)
@@ -903,6 +950,64 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         FormProductName = value;
         FormProductNameInput.SetText(value);
+    }
+
+    private async Task<string?> ValidateRegistrationExpiryForCreateSessionAsync(
+        IVehicleRepository vehicleRepo,
+        IReadOnlyCollection<IncomingVehicleSelectionItem> selectedVehicles,
+        CancellationToken ct)
+    {
+        foreach (var vehicleSelection in selectedVehicles)
+        {
+            var vehicle = await ResolveVehicleForExpiryValidationAsync(
+                vehicleRepo,
+                vehicleSelection.VehiclePlate,
+                vehicleSelection.MoocNumber,
+                ct);
+
+            var issues = new Collection<string>();
+            if (IsExpiredDate(vehicle?.VehicleRegistrationExpiryDate))
+            {
+                issues.Add($"hạn đăng kiểm xe ({vehicle!.VehicleRegistrationExpiryDate:dd/MM/yyyy})");
+            }
+
+            if (IsExpiredDate(vehicle?.MoocRegistrationExpiryDate))
+            {
+                issues.Add($"hạn đăng kiểm mooc ({vehicle!.MoocRegistrationExpiryDate:dd/MM/yyyy})");
+            }
+
+            if (issues.Count > 0)
+            {
+                return $"Không thể tạo lượt cân cho cắt lệnh {vehicleSelection.ErpCutOrderId ?? vehicleSelection.VehiclePlate} vì {string.Join(" và ", issues)} đã hết hạn.";
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<Vehicle?> ResolveVehicleForExpiryValidationAsync(
+        IVehicleRepository vehicleRepo,
+        string? vehiclePlate,
+        string? moocNumber,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(vehiclePlate))
+        {
+            return null;
+        }
+
+        Vehicle? vehicle = null;
+        if (!string.IsNullOrWhiteSpace(moocNumber))
+        {
+            vehicle = await vehicleRepo.GetByPlateAndMoocAsync(vehiclePlate, moocNumber, ct);
+        }
+
+        return vehicle ?? (await vehicleRepo.GetByPlateAsync(vehiclePlate, ct)).FirstOrDefault();
+    }
+
+    private static bool IsExpiredDate(DateTime? value)
+    {
+        return value.HasValue && value.Value.Date < DateTime.Today;
     }
 
     partial void OnFormProductCodeChanged(string? value)

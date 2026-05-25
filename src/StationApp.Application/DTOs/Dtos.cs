@@ -1,4 +1,4 @@
-﻿using StationApp.Domain.Enums;
+using StationApp.Domain.Enums;
 
 namespace StationApp.Application.DTOs;
 
@@ -96,8 +96,57 @@ public sealed record UpdateSystemSettingsRequest(
     string ToleranceKgPerBag,
     string SyncIntervalSeconds,
     string RegistrationInboundPollSeconds,
-    string OverweightSplitStepWeight
+    string OverweightSplitStepWeight,
+    bool Camera1Enabled,
+    string Camera1Name,
+    string Camera1RtspUrl,
+    string Camera1PreviewRtspUrl,
+    bool Camera2Enabled,
+    string Camera2Name,
+    string Camera2RtspUrl,
+    string Camera2PreviewRtspUrl,
+    string CameraPreviewDefault,
+    string CameraCaptureTimeoutMs,
+    string CameraCaptureJpegQuality,
+    string CameraCaptureWarmupFrames
 );
+
+public sealed record CameraEndpointSettings(
+    string CameraCode,
+    string DisplayName,
+    string MainRtspUrl,
+    string PreviewRtspUrl,
+    bool IsEnabled
+)
+{
+    public string CaptureRtspUrl => MainRtspUrl;
+    public string EffectivePreviewRtspUrl => string.IsNullOrWhiteSpace(PreviewRtspUrl) ? MainRtspUrl : PreviewRtspUrl;
+}
+
+public sealed record CameraSystemSettings(
+    CameraEndpointSettings Camera1,
+    CameraEndpointSettings Camera2,
+    string PreviewDefaultCameraCode,
+    int CaptureTimeoutMs,
+    int CaptureJpegQuality,
+    int CaptureWarmupFrames
+)
+{
+    public IReadOnlyList<CameraEndpointSettings> EnabledCameras =>
+        new[] { Camera1, Camera2 }.Where(x => x.IsEnabled && !string.IsNullOrWhiteSpace(x.MainRtspUrl)).ToList();
+}
+
+public sealed record CameraCaptureImageResult(
+    string CameraCode,
+    string CameraName,
+    string RtspUrlSnapshot,
+    string ImageFormat,
+    byte[] ImageBytes,
+    DateTime CapturedAt,
+    string? ErrorMessage = null)
+{
+    public bool Success => string.IsNullOrWhiteSpace(ErrorMessage) && ImageBytes.Length > 0;
+}
 
 public sealed record UpdateScaleDeviceSettingsRequest(
     string ComPort,
@@ -375,7 +424,7 @@ public sealed record UpdateIncomingRegistrationRequest(
 public sealed record CreateWeighingSessionRequest(
     IReadOnlyList<Guid> CutOrderIds,
     Guid? PrimaryCutOrderId = null,
-    bool ApplyCarryForwardWeight1 = true
+    bool ApplyCarryForwardWeight1 = false
 );
 
 public sealed record AppendCutOrdersToWeighingSessionRequest(
@@ -438,7 +487,9 @@ public sealed record WeighingSessionListItem(
     bool UseActualWeightForBaggedCutOrders,
     bool AllDeliveryTicketsPrinted,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    string? CustomerSummary = null,
+    string? ProductSummary = null
 );
 
 public sealed record WeighingSessionLineItem(
@@ -456,7 +507,8 @@ public sealed record WeighingSessionLineItem(
     int? ActualAllocatedBagCount,
     WeighingSessionLineStatus LineStatus,
     bool HasPrintedDeliveryTicket,
-    string? ProductType = null
+    string? ProductType = null,
+    string? Notes = null
 );
 
 public sealed record OverweightSplitPreviewGroupItem(

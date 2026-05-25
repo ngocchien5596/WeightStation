@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -38,6 +38,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ViewImageHistoryCommand))]
     private OutgoingVehicleListItem? _selectedVehicle;
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private string? _searchVehiclePlate;
@@ -81,6 +82,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private bool CanPrintWeighTicket() => SelectedVehicle != null;
     private bool CanPrintDeliveryTicket() => SelectedVehicle != null;
     private bool CanShowRelatedTickets() => SelectedVehicle != null;
+    private bool CanViewImageHistory() => SelectedVehicle != null && SelectedVehicle.WeighingSessionId.HasValue;
     public bool ShowBaggedActualWeightOverride =>
         SelectedVehicle != null
         && string.Equals(ProductTypes.Normalize(SelectedVehicle.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
@@ -256,6 +258,33 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private void CloseRelatedTickets()
     {
         IsRelatedTicketsVisible = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanViewImageHistory))]
+    private async Task ViewImageHistoryAsync()
+    {
+        if (SelectedVehicle == null || !SelectedVehicle.WeighingSessionId.HasValue) return;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var imageRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionImageRepository>();
+            var images = await imageRepo.GetByWeighingSessionIdAsync(SelectedVehicle.WeighingSessionId.Value, CancellationToken.None);
+
+            if (images == null || images.Count == 0)
+            {
+                await _dialogService.ShowWarningAsync("Thông báo", "Không tìm thấy ảnh chụp lịch sử cho lượt cân này.");
+                return;
+            }
+
+            await _dialogService.ShowCustomDialogAsync<CameraImageHistoryViewModel, bool>(
+                new CameraImageHistoryViewModel(images, SelectedVehicle.VehiclePlate ?? string.Empty));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to view image history for vehicle {VehiclePlate}", SelectedVehicle.VehiclePlate);
+            _toastService.ShowError("Có lỗi xảy ra khi tải danh sách ảnh chụp.");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanPrintWeighTicket))]
@@ -515,8 +544,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         if (kind == PrintDocumentKind.WeighTicket)
         {
             var composer = scope.ServiceProvider.GetRequiredService<IWeighTicketPrintComposer>();
-            var primaryRegistration = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).FirstOrDefault();
-            if (primaryRegistration == null)
+            if (context.RegistrationsById.Count == 0)
             {
                 return new PrintBatchPreviewModel { Kind = kind, Title = UiText.Weighing.PrintPreviewWeigh, Pages = [] };
             }
@@ -526,16 +554,26 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                     .Where(x => (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.SplitDerived) && !x.IsDeleted)
                     .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
                     .ThenBy(x => x.SplitSequence)
-                : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted).Take(1);
+                : context.WeighTickets
+                    .Where(x => (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.CutOrderDerived) && !x.IsDeleted)
+                    .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                    .ThenBy(x => x.CreatedAt);
 
             var weighPages = ticketsToPrint
                 .Select(ticket =>
                 {
-                    var page = composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    var registration = context.RegistrationsById.GetValueOrDefault(ticket.CutOrderId)
+                        ?? context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
+                    var page = composer.Compose(registration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";
                         page.PreviewGroupName = "Phiếu tổng";
+                    }
+                    else if (ticket.RecordRole == WeighTicketRecordRoles.CutOrderDerived)
+                    {
+                        page.PreviewGroupKey = $"weigh-cutorder-{registration.Id:N}";
+                        page.PreviewGroupName = $"Phiếu cắt lệnh {registration.ErpCutOrderId}";
                     }
                     else if (ticket.RecordRole == WeighTicketRecordRoles.SplitDerived)
                     {
@@ -615,7 +653,9 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             {
                 var ticketsToPersist = splitConfirmed
                     ? context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && !x.IsDeleted)
-                    : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
+                    : context.WeighTickets.Where(x =>
+                        (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.CutOrderDerived)
+                        && !x.IsDeleted);
 
                 foreach (var weighTicket in ticketsToPersist)
                 {
@@ -633,7 +673,12 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                     await weighRepo.UpdateAsync(weighTicket, innerCt);
                 }
 
-                if (!splitConfirmed && !result.HasFailures)
+                var masterTicketPrinted = context.WeighTickets.Any(x =>
+                    x.RecordRole == WeighTicketRecordRoles.MasterSession
+                    && !x.IsDeleted
+                    && result.Documents.Any(d => d.DocumentId == x.Id && d.Success));
+
+                if (!splitConfirmed && masterTicketPrinted)
                 {
                     context.MasterSession.HasPrintedMasterWeighTicket = true;
                     context.MasterSession.UpdatedAt = now;

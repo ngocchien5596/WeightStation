@@ -21,7 +21,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string? _currentDestination;
     [ObservableProperty] private bool _isSettingsSubmenuVisible;
     [ObservableProperty] private bool _isSidebarCollapsed;
-    [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
+    [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
 
     public GridLength SidebarWidth => IsSidebarCollapsed ? new GridLength(56) : new GridLength(176);
 
@@ -55,7 +55,7 @@ public partial class MainViewModel : ObservableObject
         {
             Interval = TimeSpan.FromSeconds(1)
         };
-        _clockTimer.Tick += (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss");
+        _clockTimer.Tick += (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
         _clockTimer.Start();
     }
 

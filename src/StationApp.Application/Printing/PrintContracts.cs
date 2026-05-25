@@ -51,10 +51,11 @@ public sealed record PrintFieldDefinition(
     bool ShadedBackground = false,
     bool IsImage = false,
     string? ImageSourceUri = null,
-    bool IsLine = false);
+    bool IsLine = false,
+    bool IsEnabled = true);
 
 public sealed record PrintFieldValue(string FieldKey, string? Value);
-public sealed record PrintFieldPosition(string FieldKey, double X, double Y, double? Width = null);
+public sealed record PrintFieldPosition(string FieldKey, double X, double Y, double? Width = null, bool IsEnabled = true);
 public sealed record PrintTemplateProfileDescriptor(string ProfileKey, string DisplayName, bool IsDefault);
 
 public sealed class PrintTemplateDefinition

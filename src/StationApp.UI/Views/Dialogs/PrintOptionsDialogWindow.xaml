@@ -136,10 +136,12 @@
                                       Margin="0,6,0,14"
                                       IsReadOnly="False">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Text" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2.3*"/>
-                                    <DataGridTextColumn Header="X" Binding="{Binding XText, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-                                    <DataGridTextColumn Header="Y" Binding="{Binding YText, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
-                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
+                                    <DataGridCheckBoxColumn Header="In" Binding="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55"/>
+                                    <DataGridTextColumn Header="Lo&#x1EA1;i" Binding="{Binding FieldType}" IsReadOnly="True" Width="70"/>
+                                    <DataGridTextColumn Header="Text" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2.1*"/>
+                                    <DataGridTextColumn Header="X" Binding="{Binding XText, UpdateSourceTrigger=PropertyChanged}" Width="0.8*"/>
+                                    <DataGridTextColumn Header="Y" Binding="{Binding YText, UpdateSourceTrigger=PropertyChanged}" Width="0.8*"/>
+                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Width="0.9*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
 

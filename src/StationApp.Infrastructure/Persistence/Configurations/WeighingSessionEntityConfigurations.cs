@@ -77,3 +77,29 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
     }
 }
 
+public class WeighingSessionImageEntityConfiguration : IEntityTypeConfiguration<WeighingSessionImage>
+{
+    public void Configure(EntityTypeBuilder<WeighingSessionImage> builder)
+    {
+        builder.ToTable("weighing_session_images");
+        builder.HasKey(e => e.Id);
+
+        builder.Property(e => e.CaptureStage).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(e => e.CameraCode).HasMaxLength(20).IsRequired();
+        builder.Property(e => e.CameraName).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.RtspUrlSnapshot).HasMaxLength(1000);
+        builder.Property(e => e.ImageFormat).HasMaxLength(20).IsRequired();
+        builder.Property(e => e.ImageBytes).HasColumnType("varbinary(max)").IsRequired();
+        builder.Property(e => e.CapturedBy).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.DeletedBy).HasMaxLength(100);
+        builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
+
+        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_weighing_session_images_session_id");
+        builder.HasIndex(e => new { e.WeighingSessionId, e.CaptureStage, e.CameraCode }).HasDatabaseName("IX_weighing_session_images_lookup");
+        builder.HasIndex(e => e.CapturedAt).HasDatabaseName("IX_weighing_session_images_captured_at");
+    }
+}
+

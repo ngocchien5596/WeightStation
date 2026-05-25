@@ -48,6 +48,11 @@ public sealed class CreateWeighingSessionUseCase
 
     public async Task<CreateWeighingSessionResult> ExecuteAsync(CreateWeighingSessionRequest request, CancellationToken ct)
     {
+        if (request.ApplyCarryForwardWeight1)
+        {
+            throw new InvalidOperationException("Chỉ được dùng lại cân lần 1 khi gắn vào lượt cân cũ phù hợp.");
+        }
+
         if (request.CutOrderIds.Count == 0)
         {
             throw new InvalidOperationException("Vui lòng chọn ít nhất một cắt lệnh để tạo lượt cân.");
@@ -88,15 +93,7 @@ public sealed class CreateWeighingSessionUseCase
         }
 
         var now = _clock.NowLocal;
-        var reusableSession = request.ApplyCarryForwardWeight1
-            ? await _sessionRepo.GetReusablePendingWeight2SessionAsync(
-                primaryRegistration.VehiclePlate,
-                primaryRegistration.MoocNumber,
-                primaryRegistration.TransactionType,
-                ct)
-            : null;
-        var isReusingExistingSession = reusableSession != null;
-        var session = reusableSession ?? new WeighingSession
+        var session = new WeighingSession
         {
             Id = Guid.NewGuid(),
             SessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, ct),
@@ -112,83 +109,11 @@ public sealed class CreateWeighingSessionUseCase
             CreatedAt = now,
             CreatedBy = _userContext.Username
         };
-        if (isReusingExistingSession)
-        {
-            session.TransactionType = primaryRegistration.TransactionType;
-            session.VehiclePlate = primaryRegistration.VehiclePlate;
-            session.MoocNumber = primaryRegistration.MoocNumber;
-            session.DriverName = primaryRegistration.ReceiverName;
-            session.UpdatedAt = now;
-            session.UpdatedBy = _userContext.Username;
-        }
 
         var orderedRegistrations = registrations
             .OrderBy(x => x.CreatedAt)
             .ThenBy(x => x.ErpCutOrderId)
             .ToList();
-
-        var carryForwardSources = new List<(CutOrder Registration, decimal? Weight1, DateTime? Weight1Time)>();
-        if (request.ApplyCarryForwardWeight1)
-        {
-            var missingCarryForwardRegistrationCodes = orderedRegistrations
-                .Where(x => !x.CarryForwardWeight1.HasValue && !string.IsNullOrWhiteSpace(x.ErpRegistrationCode))
-                .Select(x => x.ErpRegistrationCode!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var deletedCarryForwardByRegistrationCode = missingCarryForwardRegistrationCodes.Count == 0
-                ? new Dictionary<string, CutOrder>(StringComparer.OrdinalIgnoreCase)
-                : (await _regRepo.GetLatestDeletedByRegistrationCodesAsync(missingCarryForwardRegistrationCodes, ct))
-                    .Where(x => !string.IsNullOrWhiteSpace(x.ErpRegistrationCode))
-                    .ToDictionary(x => x.ErpRegistrationCode!, StringComparer.OrdinalIgnoreCase);
-            var missingCarryForwardErpIds = orderedRegistrations
-                .Where(x => !x.CarryForwardWeight1.HasValue && !string.IsNullOrWhiteSpace(x.ErpCutOrderId))
-                .Select(x => x.ErpCutOrderId!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var deletedCarryForwardByErpId = missingCarryForwardErpIds.Count == 0
-                ? new Dictionary<string, CutOrder>(StringComparer.OrdinalIgnoreCase)
-                : (await _regRepo.GetLatestDeletedByErpIdsAsync(missingCarryForwardErpIds, ct))
-                    .Where(x => !string.IsNullOrWhiteSpace(x.ErpCutOrderId))
-                    .ToDictionary(x => x.ErpCutOrderId!, StringComparer.OrdinalIgnoreCase);
-
-            carryForwardSources = orderedRegistrations
-                .Select(registration =>
-                {
-                    if (registration.CarryForwardWeight1.HasValue)
-                    {
-                        return (registration, registration.CarryForwardWeight1, registration.CarryForwardWeight1Time);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(registration.ErpRegistrationCode)
-                        && deletedCarryForwardByRegistrationCode.TryGetValue(registration.ErpRegistrationCode, out var deletedCarryForwardByRegistration)
-                        && deletedCarryForwardByRegistration.CarryForwardWeight1.HasValue)
-                    {
-                        return (registration, deletedCarryForwardByRegistration.CarryForwardWeight1, deletedCarryForwardByRegistration.CarryForwardWeight1Time);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(registration.ErpCutOrderId)
-                        && deletedCarryForwardByErpId.TryGetValue(registration.ErpCutOrderId, out var deletedCarryForward)
-                        && deletedCarryForward.CarryForwardWeight1.HasValue)
-                    {
-                        return (registration, deletedCarryForward.CarryForwardWeight1, deletedCarryForward.CarryForwardWeight1Time);
-                    }
-
-                    return (registration, (decimal?)null, (DateTime?)null);
-                })
-                .Where(x => x.Item2.HasValue)
-                .ToList();
-        }
-
-        var distinctCarryForwardWeights = carryForwardSources
-            .Select(x => x.Weight1)
-            .Distinct()
-            .ToList();
-        if (carryForwardSources.Count > 1
-            && distinctCarryForwardWeights.Count > 1)
-        {
-            throw new InvalidOperationException("Có nhiều cắt lệnh đang giữ số cân lần 1 khác nhau, không thể tự động gộp vào cùng một lượt cân.");
-        }
-        var carryForwardWeight1 = distinctCarryForwardWeights.SingleOrDefault() ?? reusableSession?.Weight1;
 
         var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
         {
@@ -209,129 +134,18 @@ public sealed class CreateWeighingSessionUseCase
             CreatedBy = _userContext.Username
         }).ToList();
 
-        WeighTicket? masterTicket = null;
-        if (carryForwardWeight1.HasValue)
-        {
-            var carryForwardTime = carryForwardSources
-                .Select(x => x.Weight1Time)
-                .Where(x => x.HasValue)
-                .OrderBy(x => x)
-                .FirstOrDefault()
-                ?? reusableSession?.Weight1Time
-                ?? now;
-            var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(session.VehiclePlate, session.MoocNumber ?? string.Empty, ct)
-                ?? (await _vehicleRepo.GetByPlateAsync(session.VehiclePlate, ct)).FirstOrDefault();
-            var ttcp10Threshold = decimal.Round((vehicle?.TtcpWeight ?? lines.Sum(x => x.PlannedWeight ?? 0m)) * 1.10m, 3, MidpointRounding.AwayFromZero);
-
-            session.Weight1 = carryForwardWeight1.Value;
-            session.Weight1Time = carryForwardTime;
-            session.Ttcp10WeightSnapshot = ttcp10Threshold;
-            session.SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2;
-            session.UpdatedAt = now;
-            session.UpdatedBy = _userContext.Username;
-
-            masterTicket = isReusingExistingSession
-                ? await _weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, ct)
-                : null;
-
-            if (masterTicket == null)
-            {
-                masterTicket = new WeighTicket
-                {
-                    Id = Guid.NewGuid(),
-                    TicketNo = await _ticketNoGen.GenerateAsync(ct),
-                    RecordRole = WeighTicketRecordRoles.MasterSession,
-                    IsPrimaryDisplay = true,
-                    IdempotencyKey = Guid.NewGuid(),
-                    SyncStatus = SyncStatus.SYNC_QUEUED,
-                    CreatedAt = now,
-                    CreatedBy = _userContext.Username
-                };
-            }
-
-            masterTicket.CutOrderId = primaryRegistration.Id;
-            masterTicket.WeighingSessionId = session.Id;
-            masterTicket.ErpCutOrderId = primaryRegistration.ErpCutOrderId;
-            masterTicket.VehiclePlate = session.VehiclePlate;
-            masterTicket.MoocNumber = session.MoocNumber;
-            masterTicket.DriverName = session.DriverName;
-            masterTicket.CustomerCode = primaryRegistration.CustomerCode;
-            masterTicket.CustomerName = primaryRegistration.CustomerName;
-            masterTicket.ProductCode = primaryRegistration.ProductCode;
-            masterTicket.ProductName = primaryRegistration.ProductName;
-            masterTicket.PlannedWeight = orderedRegistrations.Sum(x => x.PlannedWeight ?? 0m);
-            masterTicket.BagCount = orderedRegistrations.Sum(x => x.BagCount ?? 0);
-            masterTicket.Notes = orderedRegistrations.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Notes))?.Notes;
-            masterTicket.TransactionType = session.TransactionType;
-            masterTicket.TransportMethod = primaryRegistration.TransportMethod;
-            masterTicket.Status = TicketStatus.LOADING_STARTED;
-            masterTicket.RecordRole = WeighTicketRecordRoles.MasterSession;
-            masterTicket.IsPrimaryDisplay = true;
-            masterTicket.Ttcp10WeightSnapshot = ttcp10Threshold;
-            masterTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
-            masterTicket.VehicleRegistrationNoSnapshot = vehicle?.VehicleRegistrationNo;
-            masterTicket.VehicleRegistrationExpirySnapshot = vehicle?.VehicleRegistrationExpiryDate;
-            masterTicket.MoocRegistrationNoSnapshot = vehicle?.MoocRegistrationNo;
-            masterTicket.MoocRegistrationExpirySnapshot = vehicle?.MoocRegistrationExpiryDate;
-            _ticketSyncService.SyncMasterTicketFromSession(
-                session,
-                masterTicket,
-                now,
-                _userContext.Username,
-                new WeightCaptureSnapshot(_userContext.Username, WeightMode.AUTO, true));
-        }
-
         foreach (var registration in orderedRegistrations)
         {
             registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
             registration.ProcessingStage = ProcessingStage.WEIGHING;
             registration.WeighingSessionId = session.Id;
-            if (request.ApplyCarryForwardWeight1)
-            {
-                registration.CarryForwardWeight1 = null;
-                registration.CarryForwardWeight1Time = null;
-            }
             registration.UpdatedAt = now;
             registration.UpdatedBy = _userContext.Username;
         }
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
-            if (isReusingExistingSession)
-            {
-                await _sessionRepo.UpdateAsync(session, innerCt);
-
-                var existingLines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, innerCt);
-                foreach (var existingLine in existingLines)
-                {
-                    existingLine.IsDeleted = true;
-                    existingLine.DeletedAt = now;
-                    existingLine.DeletedBy = _userContext.Username;
-                    existingLine.LineStatus = WeighingSessionLineStatus.CANCELLED;
-                    existingLine.ActualAllocatedWeight = null;
-                    existingLine.ActualAllocatedBagCount = null;
-                    existingLine.DeliveryTicketId = null;
-                    existingLine.UpdatedAt = now;
-                    existingLine.UpdatedBy = _userContext.Username;
-                    await _sessionRepo.UpdateLineAsync(existingLine, innerCt);
-                }
-            }
-            else
-            {
-                await _sessionRepo.AddAsync(session, innerCt);
-            }
-
-            if (masterTicket != null)
-            {
-                if (isReusingExistingSession)
-                {
-                    await _weighRepo.UpdateAsync(masterTicket, innerCt);
-                }
-                else
-                {
-                    await _weighRepo.AddAsync(masterTicket, innerCt);
-                }
-            }
+            await _sessionRepo.AddAsync(session, innerCt);
             foreach (var line in lines)
             {
                 await _sessionRepo.AddLineAsync(line, innerCt);
@@ -721,6 +535,9 @@ public sealed class CaptureSessionWeight1UseCase
     private readonly ICutOrderRepository _regRepo;
     private readonly IVehicleRepository _vehicleRepo;
     private readonly IWeighTicketRepository _weighRepo;
+    private readonly IWeighingSessionImageRepository _imageRepo;
+    private readonly ICameraSettingsProvider _cameraSettingsProvider;
+    private readonly ICameraCaptureService _cameraCaptureService;
     private readonly WeighingSessionTicketSyncService _ticketSyncService;
     private readonly ITicketNumberGenerator _ticketNoGen;
     private readonly IUnitOfWork _uow;
@@ -732,6 +549,9 @@ public sealed class CaptureSessionWeight1UseCase
         ICutOrderRepository regRepo,
         IVehicleRepository vehicleRepo,
         IWeighTicketRepository weighRepo,
+        IWeighingSessionImageRepository imageRepo,
+        ICameraSettingsProvider cameraSettingsProvider,
+        ICameraCaptureService cameraCaptureService,
         WeighingSessionTicketSyncService ticketSyncService,
         ITicketNumberGenerator ticketNoGen,
         IUnitOfWork uow,
@@ -742,6 +562,9 @@ public sealed class CaptureSessionWeight1UseCase
         _regRepo = regRepo;
         _vehicleRepo = vehicleRepo;
         _weighRepo = weighRepo;
+        _imageRepo = imageRepo;
+        _cameraSettingsProvider = cameraSettingsProvider;
+        _cameraCaptureService = cameraCaptureService;
         _ticketSyncService = ticketSyncService;
         _ticketNoGen = ticketNoGen;
         _uow = uow;
@@ -843,6 +666,8 @@ public sealed class CaptureSessionWeight1UseCase
                 await _weighRepo.UpdateAsync(masterTicket, innerCt);
             }
         }, ct);
+
+        await TryCaptureSessionImagesAsync(session.Id, CameraCaptureStage.WEIGHT1, ct);
     }
 
     private void EnsureManualPermission(WeightMode mode)
@@ -850,6 +675,65 @@ public sealed class CaptureSessionWeight1UseCase
         if (mode == WeightMode.MANUAL && !StationAuthorization.CanUseManualWeighing(_userContext.RoleCode))
         {
             throw new InvalidOperationException("Tài khoản hiện tại không có quyền cân tay.");
+        }
+    }
+
+    private async Task TryCaptureSessionImagesAsync(Guid sessionId, CameraCaptureStage stage, CancellationToken ct)
+    {
+        try
+        {
+            var settings = await _cameraSettingsProvider.GetAsync(ct);
+            if (settings.EnabledCameras.Count == 0)
+            {
+                return;
+            }
+
+            var captures = await _cameraCaptureService.CaptureAsync(
+                settings.EnabledCameras,
+                settings.CaptureTimeoutMs,
+                settings.CaptureJpegQuality,
+                settings.CaptureWarmupFrames,
+                ct);
+
+            var successfulCaptures = captures
+                .Where(x => x.Success && x.ImageBytes.Length > 0)
+                .ToList();
+            if (successfulCaptures.Count == 0)
+            {
+                return;
+            }
+
+            var now = _clock.NowLocal;
+            await _uow.ExecuteInTransactionAsync(async innerCt =>
+            {
+                foreach (var capture in successfulCaptures)
+                {
+                    await _imageRepo.AddAsync(
+                        new WeighingSessionImage
+                        {
+                            Id = Guid.NewGuid(),
+                            WeighingSessionId = sessionId,
+                            CaptureStage = stage,
+                            CameraCode = capture.CameraCode,
+                            CameraName = capture.CameraName,
+                            RtspUrlSnapshot = capture.RtspUrlSnapshot,
+                            ImageFormat = capture.ImageFormat,
+                            ImageBytes = capture.ImageBytes,
+                            FileSizeBytes = capture.ImageBytes.LongLength,
+                            CapturedAt = capture.CapturedAt,
+                            CapturedBy = _userContext.Username,
+                            CreatedAt = now,
+                            CreatedBy = _userContext.Username,
+                            UpdatedAt = now,
+                            UpdatedBy = _userContext.Username
+                        },
+                        innerCt);
+                }
+            }, ct);
+        }
+        catch
+        {
+            // Camera capture failures must not fail the weighing flow.
         }
     }
 }
@@ -863,6 +747,9 @@ public sealed class CaptureSessionWeight2UseCase
     private readonly IProductRepository _productRepo;
     private readonly IWeighTicketRepository _weighRepo;
     private readonly IDeliveryTicketRepository _deliveryRepo;
+    private readonly IWeighingSessionImageRepository _imageRepo;
+    private readonly ICameraSettingsProvider _cameraSettingsProvider;
+    private readonly ICameraCaptureService _cameraCaptureService;
     private readonly IDeliveryNumberGenerator _deliveryNoGen;
     private readonly IToleranceProvider _toleranceProvider;
     private readonly WeighingSessionOverweightService _overweightService;
@@ -877,6 +764,9 @@ public sealed class CaptureSessionWeight2UseCase
         IProductRepository productRepo,
         IWeighTicketRepository weighRepo,
         IDeliveryTicketRepository deliveryRepo,
+        IWeighingSessionImageRepository imageRepo,
+        ICameraSettingsProvider cameraSettingsProvider,
+        ICameraCaptureService cameraCaptureService,
         IDeliveryNumberGenerator deliveryNoGen,
         IToleranceProvider toleranceProvider,
         WeighingSessionOverweightService overweightService,
@@ -890,6 +780,9 @@ public sealed class CaptureSessionWeight2UseCase
         _productRepo = productRepo;
         _weighRepo = weighRepo;
         _deliveryRepo = deliveryRepo;
+        _imageRepo = imageRepo;
+        _cameraSettingsProvider = cameraSettingsProvider;
+        _cameraCaptureService = cameraCaptureService;
         _deliveryNoGen = deliveryNoGen;
         _toleranceProvider = toleranceProvider;
         _overweightService = overweightService;
@@ -1029,6 +922,8 @@ public sealed class CaptureSessionWeight2UseCase
             }
             await _weighRepo.UpdateAsync(ticket, innerCt);
         }, ct);
+
+        await TryCaptureSessionImagesAsync(session.Id, CameraCaptureStage.WEIGHT2, ct);
     }
 
     private async Task ValidateBaggedWeightToleranceAsync(
@@ -1126,6 +1021,65 @@ public sealed class CaptureSessionWeight2UseCase
             throw new InvalidOperationException("Tài khoản hiện tại không có quyền cân tay.");
         }
     }
+
+    private async Task TryCaptureSessionImagesAsync(Guid sessionId, CameraCaptureStage stage, CancellationToken ct)
+    {
+        try
+        {
+            var settings = await _cameraSettingsProvider.GetAsync(ct);
+            if (settings.EnabledCameras.Count == 0)
+            {
+                return;
+            }
+
+            var captures = await _cameraCaptureService.CaptureAsync(
+                settings.EnabledCameras,
+                settings.CaptureTimeoutMs,
+                settings.CaptureJpegQuality,
+                settings.CaptureWarmupFrames,
+                ct);
+
+            var successfulCaptures = captures
+                .Where(x => x.Success && x.ImageBytes.Length > 0)
+                .ToList();
+            if (successfulCaptures.Count == 0)
+            {
+                return;
+            }
+
+            var now = _clock.NowLocal;
+            await _uow.ExecuteInTransactionAsync(async innerCt =>
+            {
+                foreach (var capture in successfulCaptures)
+                {
+                    await _imageRepo.AddAsync(
+                        new WeighingSessionImage
+                        {
+                            Id = Guid.NewGuid(),
+                            WeighingSessionId = sessionId,
+                            CaptureStage = stage,
+                            CameraCode = capture.CameraCode,
+                            CameraName = capture.CameraName,
+                            RtspUrlSnapshot = capture.RtspUrlSnapshot,
+                            ImageFormat = capture.ImageFormat,
+                            ImageBytes = capture.ImageBytes,
+                            FileSizeBytes = capture.ImageBytes.LongLength,
+                            CapturedAt = capture.CapturedAt,
+                            CapturedBy = _userContext.Username,
+                            CreatedAt = now,
+                            CreatedBy = _userContext.Username,
+                            UpdatedAt = now,
+                            UpdatedBy = _userContext.Username
+                        },
+                        innerCt);
+                }
+            }, ct);
+        }
+        catch
+        {
+            // Camera capture failures must not fail the weighing flow.
+        }
+    }
 }
 
 public sealed class AllocateWeighingSessionUseCase
@@ -1135,6 +1089,7 @@ public sealed class AllocateWeighingSessionUseCase
     private readonly IWeighTicketRepository _weighRepo;
     private readonly IDeliveryTicketRepository _deliveryRepo;
     private readonly IDeliveryNumberGenerator _deliveryNoGen;
+    private readonly ITicketNumberGenerator _ticketNoGen;
     private readonly WeighingSessionOverweightService _overweightService;
     private readonly WeighingSessionTicketSyncService _ticketSyncService;
     private readonly IUnitOfWork _uow;
@@ -1147,6 +1102,7 @@ public sealed class AllocateWeighingSessionUseCase
         IWeighTicketRepository weighRepo,
         IDeliveryTicketRepository deliveryRepo,
         IDeliveryNumberGenerator deliveryNoGen,
+        ITicketNumberGenerator ticketNoGen,
         WeighingSessionOverweightService overweightService,
         WeighingSessionTicketSyncService ticketSyncService,
         IUnitOfWork uow,
@@ -1158,6 +1114,7 @@ public sealed class AllocateWeighingSessionUseCase
         _weighRepo = weighRepo;
         _deliveryRepo = deliveryRepo;
         _deliveryNoGen = deliveryNoGen;
+        _ticketNoGen = ticketNoGen;
         _overweightService = overweightService;
         _ticketSyncService = ticketSyncService;
         _uow = uow;
@@ -1185,8 +1142,12 @@ public sealed class AllocateWeighingSessionUseCase
             .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal)
             .Where(x => x.WeighingSessionLineId.HasValue)
             .ToDictionary(x => x.WeighingSessionLineId!.Value);
+        var lineWeighTicketsByCutOrderId = weighTickets
+            .Where(x => x.RecordRole == WeighTicketRecordRoles.CutOrderDerived)
+            .ToDictionary(x => x.CutOrderId);
         var inputByLineId = request.Lines.ToDictionary(x => x.SessionLineId);
         var ticketsToCreate = new List<DeliveryTicket>();
+        var weighTicketsToCreate = new List<WeighTicket>();
 
         var totalAllocated = 0m;
         foreach (var line in lines)
@@ -1209,6 +1170,7 @@ public sealed class AllocateWeighingSessionUseCase
             ct));
 
         var now = _clock.NowLocal;
+        var masterWeighTicket = weighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession);
         foreach (var line in lines)
         {
             var input = inputByLineId[line.Id];
@@ -1249,6 +1211,50 @@ public sealed class AllocateWeighingSessionUseCase
             deliveryTicket.UpdatedAt = now;
             deliveryTicket.UpdatedBy = _userContext.Username;
             line.DeliveryTicketId = deliveryTicket.Id;
+
+            if (lines.Count > 1)
+            {
+                var lineWeighTicket = lineWeighTicketsByCutOrderId.GetValueOrDefault(registration.Id);
+                if (lineWeighTicket == null)
+                {
+                    lineWeighTicket = new WeighTicket
+                    {
+                        Id = Guid.NewGuid(),
+                        TicketNo = await _ticketNoGen.GenerateAsync(ct),
+                        IdempotencyKey = Guid.NewGuid(),
+                        RecordRole = WeighTicketRecordRoles.CutOrderDerived,
+                        CreatedAt = now,
+                        CreatedBy = _userContext.Username,
+                        Weight1User = session.Weight1Time.HasValue ? _userContext.Username : null,
+                        Weight1UpdatedAt = session.Weight1Time.HasValue ? now : null,
+                        Weight2User = session.Weight2Time.HasValue ? _userContext.Username : null,
+                        Weight2UpdatedAt = session.Weight2Time.HasValue ? now : null
+                    };
+                    weighTicketsToCreate.Add(lineWeighTicket);
+                    lineWeighTicketsByCutOrderId[registration.Id] = lineWeighTicket;
+                }
+
+                _ticketSyncService.SyncLineTicketFromSession(session, line, registration, lineWeighTicket, now, _userContext.Username);
+                if (masterWeighTicket != null)
+                {
+                    lineWeighTicket.VehicleRegistrationNoSnapshot = masterWeighTicket.VehicleRegistrationNoSnapshot;
+                    lineWeighTicket.VehicleRegistrationExpirySnapshot = masterWeighTicket.VehicleRegistrationExpirySnapshot;
+                    lineWeighTicket.MoocRegistrationNoSnapshot = masterWeighTicket.MoocRegistrationNoSnapshot;
+                    lineWeighTicket.MoocRegistrationExpirySnapshot = masterWeighTicket.MoocRegistrationExpirySnapshot;
+                    lineWeighTicket.Weight1Mode = masterWeighTicket.Weight1Mode;
+                    lineWeighTicket.Weight1IsStable = masterWeighTicket.Weight1IsStable;
+                    lineWeighTicket.Weight2Mode = masterWeighTicket.Weight2Mode;
+                    lineWeighTicket.Weight2IsStable = masterWeighTicket.Weight2IsStable;
+                }
+
+                registration.CurrentPrimaryWeighTicketId = lineWeighTicket.Id;
+                registration.UpdatedAt = now;
+                registration.UpdatedBy = _userContext.Username;
+            }
+            else
+            {
+                registration.CurrentPrimaryWeighTicketId = masterWeighTicket?.Id;
+            }
         }
 
         _overweightService.RefreshSessionOverweightState(
@@ -1264,7 +1270,18 @@ public sealed class AllocateWeighingSessionUseCase
             deliveryTicket.IsOverWeight = session.IsOverweight;
         }
 
-        var masterWeighTicket = weighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession);
+        if (lines.Count == 1)
+        {
+            foreach (var extraWeighTicket in weighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.CutOrderDerived && !x.IsDeleted))
+            {
+                extraWeighTicket.IsDeleted = true;
+                extraWeighTicket.DeletedAt = now;
+                extraWeighTicket.DeletedBy = _userContext.Username;
+                extraWeighTicket.UpdatedAt = now;
+                extraWeighTicket.UpdatedBy = _userContext.Username;
+            }
+        }
+
         if (masterWeighTicket != null)
         {
             _ticketSyncService.SyncMasterTicketFromSession(session, masterWeighTicket, now, _userContext.Username);
@@ -1286,11 +1303,24 @@ public sealed class AllocateWeighingSessionUseCase
                 await _deliveryRepo.AddAsync(ticket, innerCt);
             }
 
+            foreach (var ticket in weighTicketsToCreate)
+            {
+                await _weighRepo.AddAsync(ticket, innerCt);
+            }
+
             foreach (var ticket in deliveryTicketByLineId.Values)
             {
                 if (!ticketsToCreate.Contains(ticket))
                 {
                     await _deliveryRepo.UpdateAsync(ticket, innerCt);
+                }
+            }
+
+            foreach (var ticket in lineWeighTicketsByCutOrderId.Values)
+            {
+                if (!weighTicketsToCreate.Contains(ticket))
+                {
+                    await _weighRepo.UpdateAsync(ticket, innerCt);
                 }
             }
 
@@ -1300,9 +1330,15 @@ public sealed class AllocateWeighingSessionUseCase
             }
 
             foreach (var ticket in weighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession
+                                                        || x.RecordRole == WeighTicketRecordRoles.CutOrderDerived
                                                         || x.RecordRole == WeighTicketRecordRoles.SplitDerived))
             {
                 await _weighRepo.UpdateAsync(ticket, innerCt);
+            }
+
+            foreach (var registration in registrations)
+            {
+                await _regRepo.UpdateAsync(registration, innerCt);
             }
 
             await _sessionRepo.UpdateAsync(session, innerCt);

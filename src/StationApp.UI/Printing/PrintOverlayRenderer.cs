@@ -67,10 +67,14 @@ public sealed class PrintOverlayRenderer
                     value = field.LiteralValue;
                 }
                 var isSelected = string.Equals(field.FieldKey, options.SelectedFieldKey, StringComparison.OrdinalIgnoreCase);
+                var isDisabled = !field.IsEnabled;
 
                 if (field.IsLine)
                 {
-                    fixedPage.Children.Add(BuildHorizontalLine(field, options, previewMode, isSelected));
+                    if (!isDisabled || previewMode)
+                    {
+                        fixedPage.Children.Add(BuildHorizontalLine(field, options, previewMode, isSelected, isDisabled));
+                    }
                     continue;
                 }
 
@@ -78,10 +82,10 @@ public sealed class PrintOverlayRenderer
                 {
                     if (previewMode)
                     {
-                        fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected));
+                        fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected, isDisabled));
                     }
 
-                    var image = BuildImageElement(field, options);
+                    var image = BuildImageElement(field, options, isDisabled, previewMode);
                     if (image != null)
                     {
                         fixedPage.Children.Add(image);
@@ -92,10 +96,15 @@ public sealed class PrintOverlayRenderer
 
                 if (previewMode)
                 {
-                    fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected));
+                    fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected, isDisabled));
                 }
 
                 if (!previewMode && string.Equals(field.FieldKey, "Notes", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!previewMode && isDisabled)
                 {
                     continue;
                 }
@@ -116,12 +125,21 @@ public sealed class PrintOverlayRenderer
                     TextAlignment = ToTextAlignment(field.Alignment),
                     TextWrapping = field.WrapMode == PrintWrapMode.Wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
                     TextTrimming = field.WrapMode == PrintWrapMode.Trim ? TextTrimming.CharacterEllipsis : TextTrimming.None,
-                    Foreground = string.IsNullOrWhiteSpace(value) && previewMode
+                    Foreground = isDisabled
                         ? new SolidColorBrush(Color.FromRgb(148, 163, 184))
-                        : Brushes.Black,
-                    Opacity = string.IsNullOrWhiteSpace(value) && previewMode ? 0.9 : 1,
+                        : string.IsNullOrWhiteSpace(value) && previewMode
+                            ? new SolidColorBrush(Color.FromRgb(148, 163, 184))
+                            : Brushes.Black,
+                    Opacity = isDisabled ? 0.75 : string.IsNullOrWhiteSpace(value) && previewMode ? 0.9 : 1,
                     Background = field.ShadedBackground ? ShadedFieldBrush : Brushes.Transparent
                 };
+
+                if (previewMode && isDisabled)
+                {
+                    text.Text = string.IsNullOrWhiteSpace(value)
+                        ? $"[TẮT] {field.FieldKey}"
+                        : $"[TẮT] {value}";
+                }
 
                 if (field.Underline)
                 {
@@ -154,8 +172,13 @@ public sealed class PrintOverlayRenderer
 
     private static double MmToDip(double mm) => mm * 96d / 25.4d;
 
-    private static FrameworkElement? BuildImageElement(PrintFieldDefinition field, PrintOptionsModel options)
+    private static FrameworkElement? BuildImageElement(PrintFieldDefinition field, PrintOptionsModel options, bool isDisabled, bool previewMode)
     {
+        if (isDisabled && !previewMode)
+        {
+            return null;
+        }
+
         if (string.IsNullOrWhiteSpace(field.ImageSourceUri))
         {
             return null;
@@ -168,6 +191,11 @@ public sealed class PrintOverlayRenderer
             Stretch = Stretch.Uniform,
             Source = new BitmapImage(new Uri(field.ImageSourceUri, UriKind.Absolute))
         };
+
+        if (isDisabled)
+        {
+            image.Opacity = 0.35;
+        }
 
         RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
         FixedPage.SetLeft(image, MmToDip(field.X + options.OffsetXmm));
@@ -186,23 +214,39 @@ public sealed class PrintOverlayRenderer
 
         var map = positions.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
         return fields
-            .Select(field => map.TryGetValue(field.FieldKey, out var position)
-                ? field with { X = position.X, Y = position.Y, Width = position.Width ?? field.Width }
-                : field)
+            .Select(field =>
+            {
+                if (map.TryGetValue(field.FieldKey, out var position))
+                {
+                    return field with
+                    {
+                        X = position.X,
+                        Y = position.Y,
+                        Width = position.Width ?? field.Width,
+                        IsEnabled = position.IsEnabled
+                    };
+                }
+
+                return field;
+            })
             .ToList();
     }
 
-    private static FrameworkElement BuildFieldOutline(PrintFieldDefinition field, PrintOptionsModel options, bool isSelected)
+    private static FrameworkElement BuildFieldOutline(PrintFieldDefinition field, PrintOptionsModel options, bool isSelected, bool isDisabled)
     {
         var border = new Border
         {
             Width = MmToDip(field.Width),
             Height = Math.Max(MmToDip(5.5d * field.MaxLines), field.FontSize * 1.9 * field.MaxLines),
-            BorderBrush = isSelected
+            BorderBrush = isDisabled
+                ? new SolidColorBrush(Color.FromArgb(120, 148, 163, 184))
+                : isSelected
                 ? new SolidColorBrush(Color.FromRgb(239, 68, 68))
                 : new SolidColorBrush(Color.FromArgb(110, 148, 163, 184)),
             BorderThickness = isSelected ? new Thickness(1.4) : new Thickness(0.8),
-            Background = isSelected
+            Background = isDisabled
+                ? new SolidColorBrush(Color.FromArgb(14, 148, 163, 184))
+                : isSelected
                 ? new SolidColorBrush(Color.FromArgb(20, 239, 68, 68))
                 : new SolidColorBrush(Color.FromArgb(10, 148, 163, 184))
         };
@@ -216,14 +260,15 @@ public sealed class PrintOverlayRenderer
         PrintFieldDefinition field,
         PrintOptionsModel options,
         bool previewMode,
-        bool isSelected)
+        bool isSelected,
+        bool isDisabled)
     {
         var line = new Border
         {
             Width = MmToDip(field.Width),
             Height = previewMode ? 2.2 : 1.2,
             Background = Brushes.Black,
-            Opacity = previewMode ? 0.85 : 1
+            Opacity = isDisabled ? 0.35 : previewMode ? 0.85 : 1
         };
 
         if (previewMode)

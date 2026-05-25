@@ -21,6 +21,7 @@ public class StationDbContext : DbContext
     public DbSet<DeliveryTicket> DeliveryTickets => Set<DeliveryTicket>();
     public DbSet<WeighingSession> WeighingSessions => Set<WeighingSession>();
     public DbSet<WeighingSessionLine> WeighingSessionLines => Set<WeighingSessionLine>();
+    public DbSet<WeighingSessionImage> WeighingSessionImages => Set<WeighingSessionImage>();
     public DbSet<PrintTemplateProfile> PrintTemplateProfiles => Set<PrintTemplateProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -38,6 +39,7 @@ public class StationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new DeliveryTicketEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionLineEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new WeighingSessionImageEntityConfiguration());
         modelBuilder.ApplyConfiguration(new PrintTemplateProfileEntityConfiguration());
     }
 }

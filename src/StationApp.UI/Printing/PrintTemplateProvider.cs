@@ -95,7 +95,8 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
                 FieldKey = x.FieldKey,
                 X = x.X,
                 Y = x.Y,
-                Width = x.Width
+                Width = x.Width,
+                IsEnabled = x.IsEnabled
             })
             .ToList();
 
@@ -124,7 +125,8 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
                 FieldKey = x.FieldKey,
                 X = x.X,
                 Y = x.Y,
-                Width = x.Width
+                Width = x.Width,
+                IsEnabled = x.IsEnabled
             }).ToList()
         };
 
@@ -327,7 +329,8 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
                 FieldKey = field.FieldKey,
                 X = x,
                 Y = y,
-                Width = width
+                Width = width,
+                IsEnabled = field.IsEnabled
             });
         }
 
@@ -362,7 +365,13 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         var positions = profile.Fields.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
         return defaults
             .Select(field => positions.TryGetValue(field.FieldKey, out var pos)
-                ? field with { X = pos.X, Y = pos.Y, Width = pos.Width ?? field.Width }
+                ? field with
+                {
+                    X = pos.X,
+                    Y = pos.Y,
+                    Width = pos.Width ?? field.Width,
+                    IsEnabled = pos.IsEnabled
+                }
                 : field)
             .ToList();
     }
@@ -507,6 +516,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         public double X { get; set; }
         public double Y { get; set; }
         public double? Width { get; set; }
+        public bool IsEnabled { get; set; } = true;
     }
 
     private static readonly IReadOnlyList<PrintFieldDefinition> WeighTicketFields =

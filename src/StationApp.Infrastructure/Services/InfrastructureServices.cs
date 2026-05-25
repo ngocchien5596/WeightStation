@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -210,6 +211,62 @@ public class ToleranceProvider : IToleranceProvider
     {
         var val = await _configRepo.GetValueAsync(AppConfigKeys.ToleranceKgPerBag, ct);
         return decimal.TryParse(val, out var result) ? result : AppConfigDefaults.DefaultToleranceKgPerBag;
+    }
+}
+
+public class CameraSettingsProvider : ICameraSettingsProvider
+{
+    private readonly IAppConfigRepository _configRepo;
+
+    public CameraSettingsProvider(IAppConfigRepository configRepo)
+    {
+        _configRepo = configRepo;
+    }
+
+    public async Task<CameraSystemSettings> GetAsync(CancellationToken ct)
+    {
+        var camera1Enabled = ParseBool(await _configRepo.GetValueAsync(AppConfigKeys.Camera1Enabled, ct), AppConfigDefaults.DefaultCamera1Enabled);
+        var camera1Name = await _configRepo.GetValueAsync(AppConfigKeys.Camera1Name, ct) ?? AppConfigDefaults.DefaultCamera1Name;
+        var camera1Rtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera1RtspUrl, ct) ?? AppConfigDefaults.DefaultCamera1RtspUrl;
+        var camera1PreviewRtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera1PreviewRtspUrl, ct) ?? AppConfigDefaults.DefaultCamera1PreviewRtspUrl;
+
+        var camera2Enabled = ParseBool(await _configRepo.GetValueAsync(AppConfigKeys.Camera2Enabled, ct), AppConfigDefaults.DefaultCamera2Enabled);
+        var camera2Name = await _configRepo.GetValueAsync(AppConfigKeys.Camera2Name, ct) ?? AppConfigDefaults.DefaultCamera2Name;
+        var camera2Rtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera2RtspUrl, ct) ?? AppConfigDefaults.DefaultCamera2RtspUrl;
+        var camera2PreviewRtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera2PreviewRtspUrl, ct) ?? AppConfigDefaults.DefaultCamera2PreviewRtspUrl;
+
+        var previewDefault = await _configRepo.GetValueAsync(AppConfigKeys.CameraPreviewDefault, ct) ?? AppConfigDefaults.DefaultCameraPreview;
+        var timeoutMs = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureTimeoutMs, ct), AppConfigDefaults.DefaultCameraCaptureTimeoutMs);
+        var jpegQuality = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureJpegQuality, ct), AppConfigDefaults.DefaultCameraCaptureJpegQuality);
+        var warmupFrames = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureWarmupFrames, ct), AppConfigDefaults.DefaultCameraCaptureWarmupFrames);
+
+        return new CameraSystemSettings(
+            new CameraEndpointSettings("CAM1", camera1Name.Trim(), camera1Rtsp.Trim(), camera1PreviewRtsp.Trim(), camera1Enabled),
+            new CameraEndpointSettings("CAM2", camera2Name.Trim(), camera2Rtsp.Trim(), camera2PreviewRtsp.Trim(), camera2Enabled),
+            string.IsNullOrWhiteSpace(previewDefault) ? AppConfigDefaults.DefaultCameraPreview : previewDefault.Trim().ToUpperInvariant(),
+            Math.Clamp(timeoutMs, 500, 15000),
+            Math.Clamp(jpegQuality, 40, 100),
+            Math.Clamp(warmupFrames, 0, 30));
+    }
+
+    private static bool ParseBool(string? raw, string fallback)
+    {
+        if (bool.TryParse(raw, out var result))
+        {
+            return result;
+        }
+
+        return bool.TryParse(fallback, out result) && result;
+    }
+
+    private static int ParseInt(string? raw, string fallback)
+    {
+        if (int.TryParse(raw, out var result))
+        {
+            return result;
+        }
+
+        return int.TryParse(fallback, out result) ? result : 0;
     }
 }
 

@@ -53,6 +53,28 @@ public static class SchemaCompatibilityBootstrapper
         new("ProductType", "nvarchar(30) NULL")
     ];
 
+    private static readonly IReadOnlyList<ColumnPatch> WeighingSessionImageColumnPatches =
+    [
+        new("Id", "uniqueidentifier NOT NULL CONSTRAINT [DF_weighing_session_images_id_bootstrap] DEFAULT (newid())"),
+        new("WeighingSessionId", "uniqueidentifier NOT NULL"),
+        new("CaptureStage", "nvarchar(20) NOT NULL CONSTRAINT [DF_weighing_session_images_stage_bootstrap] DEFAULT (N'WEIGHT1')"),
+        new("CameraCode", "nvarchar(20) NOT NULL CONSTRAINT [DF_weighing_session_images_camera_code_bootstrap] DEFAULT (N'CAM1')"),
+        new("CameraName", "nvarchar(100) NOT NULL CONSTRAINT [DF_weighing_session_images_camera_name_bootstrap] DEFAULT (N'Camera 1')"),
+        new("RtspUrlSnapshot", "nvarchar(1000) NULL"),
+        new("ImageFormat", "nvarchar(20) NOT NULL CONSTRAINT [DF_weighing_session_images_format_bootstrap] DEFAULT (N'jpg')"),
+        new("ImageBytes", "varbinary(max) NOT NULL CONSTRAINT [DF_weighing_session_images_bytes_bootstrap] DEFAULT (0x)"),
+        new("FileSizeBytes", "bigint NOT NULL CONSTRAINT [DF_weighing_session_images_file_size_bootstrap] DEFAULT ((0))"),
+        new("CapturedAt", "datetime2 NOT NULL CONSTRAINT [DF_weighing_session_images_captured_at_bootstrap] DEFAULT (sysutcdatetime())"),
+        new("CapturedBy", "nvarchar(100) NOT NULL CONSTRAINT [DF_weighing_session_images_captured_by_bootstrap] DEFAULT (N'SYSTEM')"),
+        new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_weighing_session_images_is_deleted_bootstrap] DEFAULT ((0))"),
+        new("DeletedAt", "datetime2 NULL"),
+        new("DeletedBy", "nvarchar(100) NULL"),
+        new("CreatedAt", "datetime2 NOT NULL CONSTRAINT [DF_weighing_session_images_created_at_bootstrap] DEFAULT (sysutcdatetime())"),
+        new("CreatedBy", "nvarchar(100) NOT NULL CONSTRAINT [DF_weighing_session_images_created_by_bootstrap] DEFAULT (N'SYSTEM')"),
+        new("UpdatedAt", "datetime2 NULL"),
+        new("UpdatedBy", "nvarchar(100) NULL")
+    ];
+
     public static async Task EnsureAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
     {
         await EnsureCutOrderSchemaAsync(db, logger, ct);
@@ -62,6 +84,7 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
+        await EnsureWeighingSessionImagesTableAsync(db, logger, ct);
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
     }
 
@@ -400,6 +423,55 @@ END
 
         await db.Database.ExecuteSqlRawAsync(sql, ct);
         logger?.LogDebug("Schema compatibility check completed for print template profile table and indexes.");
+    }
+
+    private static async Task EnsureWeighingSessionImagesTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[weighing_session_images]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [weighing_session_images](
+        [Id] uniqueidentifier NOT NULL,
+        [WeighingSessionId] uniqueidentifier NOT NULL,
+        [CaptureStage] nvarchar(20) NOT NULL,
+        [CameraCode] nvarchar(20) NOT NULL,
+        [CameraName] nvarchar(100) NOT NULL,
+        [RtspUrlSnapshot] nvarchar(1000) NULL,
+        [ImageFormat] nvarchar(20) NOT NULL,
+        [ImageBytes] varbinary(max) NOT NULL,
+        [FileSizeBytes] bigint NOT NULL CONSTRAINT [DF_weighing_session_images_file_size_bootstrap] DEFAULT ((0)),
+        [CapturedAt] datetime2 NOT NULL,
+        [CapturedBy] nvarchar(100) NOT NULL,
+        [IsDeleted] bit NOT NULL CONSTRAINT [DF_weighing_session_images_is_deleted_bootstrap] DEFAULT ((0)),
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] nvarchar(100) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL,
+        CONSTRAINT [PK_weighing_session_images] PRIMARY KEY ([Id])
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_session_images_session_id' AND object_id = OBJECT_ID(N'[weighing_session_images]'))
+BEGIN
+    CREATE INDEX [IX_weighing_session_images_session_id] ON [weighing_session_images]([WeighingSessionId]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_session_images_lookup' AND object_id = OBJECT_ID(N'[weighing_session_images]'))
+BEGIN
+    CREATE INDEX [IX_weighing_session_images_lookup] ON [weighing_session_images]([WeighingSessionId], [CaptureStage], [CameraCode]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_session_images_captured_at' AND object_id = OBJECT_ID(N'[weighing_session_images]'))
+BEGIN
+    CREATE INDEX [IX_weighing_session_images_captured_at] ON [weighing_session_images]([CapturedAt]);
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        await EnsureTableColumnsAsync(db, logger, "weighing_session_images", WeighingSessionImageColumnPatches, ct);
+        logger?.LogDebug("Schema compatibility check completed for weighing session images table and indexes.");
     }
 
     private sealed record ColumnPatch(string ColumnName, string SqlDefinition);

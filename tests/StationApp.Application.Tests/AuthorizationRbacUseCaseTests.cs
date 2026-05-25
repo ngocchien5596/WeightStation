@@ -163,7 +163,7 @@ public class AuthorizationRbacUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             sut.ExecuteAsync(
-                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025"),
+                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025", false, "Camera 1", "", "", false, "Camera 2", "", "", "CAM1", "3000", "85", "5"),
                 CancellationToken.None));
     }
 
@@ -227,6 +227,9 @@ public class AuthorizationRbacUseCaseTests
             regRepo,
             vehicleRepo,
             weighRepo,
+            Substitute.For<IWeighingSessionImageRepository>(),
+            Substitute.For<ICameraSettingsProvider>(),
+            Substitute.For<ICameraCaptureService>(),
             ticketSyncService,
             ticketNoGen,
             uow,
@@ -262,6 +265,9 @@ public class AuthorizationRbacUseCaseTests
             productRepo,
             weighRepo,
             deliveryRepo,
+            Substitute.For<IWeighingSessionImageRepository>(),
+            Substitute.For<ICameraSettingsProvider>(),
+            Substitute.For<ICameraCaptureService>(),
             deliveryNoGen,
             toleranceProvider,
             overweightService,

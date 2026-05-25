@@ -16,6 +16,18 @@ public static class AppConfigKeys
     public const string WeightSubstringLength = "weight_substring_length";
     public const string DefaultWeighTicketPrinter = "default_weigh_ticket_printer";
     public const string DefaultDeliveryTicketPrinter = "default_delivery_ticket_printer";
+    public const string Camera1Enabled = "camera_1_enabled";
+    public const string Camera1Name = "camera_1_name";
+    public const string Camera1RtspUrl = "camera_1_rtsp_url";
+    public const string Camera1PreviewRtspUrl = "camera_1_preview_rtsp_url";
+    public const string Camera2Enabled = "camera_2_enabled";
+    public const string Camera2Name = "camera_2_name";
+    public const string Camera2RtspUrl = "camera_2_rtsp_url";
+    public const string Camera2PreviewRtspUrl = "camera_2_preview_rtsp_url";
+    public const string CameraPreviewDefault = "camera_preview_default";
+    public const string CameraCaptureTimeoutMs = "camera_capture_timeout_ms";
+    public const string CameraCaptureJpegQuality = "camera_capture_jpeg_quality";
+    public const string CameraCaptureWarmupFrames = "camera_capture_warmup_frames";
 }
 
 public static class AppConfigDefaults
@@ -34,4 +46,16 @@ public static class AppConfigDefaults
     public const string DefaultWeightSubstringLength = "7";
     public const string DefaultWeighTicketPrinter = "";
     public const string DefaultDeliveryTicketPrinter = "";
+    public const string DefaultCamera1Enabled = "false";
+    public const string DefaultCamera1Name = "Camera 1";
+    public const string DefaultCamera1RtspUrl = "";
+    public const string DefaultCamera1PreviewRtspUrl = "";
+    public const string DefaultCamera2Enabled = "false";
+    public const string DefaultCamera2Name = "Camera 2";
+    public const string DefaultCamera2RtspUrl = "";
+    public const string DefaultCamera2PreviewRtspUrl = "";
+    public const string DefaultCameraPreview = "CAM1";
+    public const string DefaultCameraCaptureTimeoutMs = "3000";
+    public const string DefaultCameraCaptureJpegQuality = "85";
+    public const string DefaultCameraCaptureWarmupFrames = "5";
 }

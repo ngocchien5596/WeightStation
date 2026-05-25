@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Text;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
@@ -145,6 +145,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IProductRepository, ProductRepository>();
                     services.AddScoped<IDeliveryTicketRepository, DeliveryTicketRepository>();
                     services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+                    services.AddScoped<IWeighingSessionImageRepository, WeighingSessionImageRepository>();
 
                     services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                     services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
@@ -154,6 +155,7 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<IClock, SystemClock>();
                     services.AddSingleton<ICurrentUserContext, CurrentUserContext>();
                     services.AddScoped<IToleranceProvider, ToleranceProvider>();
+                    services.AddScoped<ICameraSettingsProvider, CameraSettingsProvider>();
                     services.AddScoped<IAuditService, AuditService>();
                     services.AddScoped<ISyncPayloadFactory, SyncPayloadFactory>();
                     services.AddSingleton<WeighingSessionOverweightService>();
@@ -167,6 +169,8 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<IToastService, WpfToastService>();
                     services.AddSingleton<IDialogService, WpfDialogService>();
                     services.AddSingleton<ScaleDeviceConfigurationResolver>();
+                    services.AddSingleton<ICameraPreviewService, OpenCvCameraPreviewService>();
+                    services.AddSingleton<ICameraCaptureService, RtspCameraCaptureService>();
 
                     services.AddScoped<CreateTicketUseCase>();
                     services.AddScoped<CaptureWeight1UseCase>();
@@ -288,7 +292,19 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.DeviceFrameEndChar] = AppConfigDefaults.DefaultDeviceFrameEndChar,
             [AppConfigKeys.DeviceStableCycles] = AppConfigDefaults.DefaultDeviceStableCycles,
             [AppConfigKeys.WeightSubstringStart] = AppConfigDefaults.DefaultWeightSubstringStart,
-            [AppConfigKeys.WeightSubstringLength] = AppConfigDefaults.DefaultWeightSubstringLength
+            [AppConfigKeys.WeightSubstringLength] = AppConfigDefaults.DefaultWeightSubstringLength,
+            [AppConfigKeys.Camera1Enabled] = AppConfigDefaults.DefaultCamera1Enabled,
+            [AppConfigKeys.Camera1Name] = AppConfigDefaults.DefaultCamera1Name,
+            [AppConfigKeys.Camera1RtspUrl] = AppConfigDefaults.DefaultCamera1RtspUrl,
+            [AppConfigKeys.Camera1PreviewRtspUrl] = AppConfigDefaults.DefaultCamera1PreviewRtspUrl,
+            [AppConfigKeys.Camera2Enabled] = AppConfigDefaults.DefaultCamera2Enabled,
+            [AppConfigKeys.Camera2Name] = AppConfigDefaults.DefaultCamera2Name,
+            [AppConfigKeys.Camera2RtspUrl] = AppConfigDefaults.DefaultCamera2RtspUrl,
+            [AppConfigKeys.Camera2PreviewRtspUrl] = AppConfigDefaults.DefaultCamera2PreviewRtspUrl,
+            [AppConfigKeys.CameraPreviewDefault] = AppConfigDefaults.DefaultCameraPreview,
+            [AppConfigKeys.CameraCaptureTimeoutMs] = AppConfigDefaults.DefaultCameraCaptureTimeoutMs,
+            [AppConfigKeys.CameraCaptureJpegQuality] = AppConfigDefaults.DefaultCameraCaptureJpegQuality,
+            [AppConfigKeys.CameraCaptureWarmupFrames] = AppConfigDefaults.DefaultCameraCaptureWarmupFrames
         };
 
         var hasChanges = false;

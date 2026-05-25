@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="StationApp.UI.Views.DiagnosticsView"
+<UserControl x:Class="StationApp.UI.Views.DiagnosticsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
@@ -14,7 +14,7 @@
     </UserControl.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <DockPanel Margin="0,0,0,24">
+        <DockPanel Margin="0,0,160,24">
             <TextBlock Text="{StaticResource Diagnostics.Title}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}"/>
             <Button Content="{StaticResource Diagnostics.Refresh}" Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}" HorizontalAlignment="Right" DockPanel.Dock="Right"/>
         </DockPanel>

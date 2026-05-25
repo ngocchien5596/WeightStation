@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -35,11 +35,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
+    private readonly ICameraPreviewService _cameraPreviewService;
     private readonly IToastService _toastService;
     private readonly IDialogService _dialogService;
     private readonly IClock _clock;
     private readonly ICurrentUserContext _currentUserContext;
     private readonly ILogger<WeighingViewModel>? _logger;
+    private readonly Dispatcher _uiDispatcher;
     private Guid? _focusSessionId;
     private decimal? _pendingCapturedWeight1;
     private decimal? _pendingCapturedWeight2;
@@ -57,6 +59,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private LatestScaleReadingSnapshot? _pendingScaleReading;
     private bool _pendingScaleDeviceConnected;
     private bool _isApplyingBaggedActualWeightOverrideState;
+    private CameraSystemSettings? _cameraSettings;
+    private Guid? _currentPreviewSessionId;
+    private long _lastRenderedPreviewSequence;
+    private CameraPreviewFrameReceivedEventArgs? _latestPendingPreviewFrame;
+    private int _isPreviewUiUpdatePending;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -77,10 +84,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(MarkNoLoadCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ViewImageHistoryCommand))]
     private WeighingSessionListItem? _selectedSession;
 
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _sessionLines = new();
     [ObservableProperty] private string? _searchSessionNo;
+    [ObservableProperty] private string? _searchErpCutOrderId;
     [ObservableProperty] private string? _searchVehiclePlate;
 
     [ObservableProperty] private string? _sessionNo;
@@ -90,6 +99,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? _driverName;
     [ObservableProperty] private string? _customerSummary;
     [ObservableProperty] private string? _productSummary;
+    [ObservableProperty] private string? _notesSummary;
     [ObservableProperty] private bool _useActualWeightForBaggedCutOrders;
     [ObservableProperty] private decimal? _weight1;
     [ObservableProperty] private decimal? _weight2;
@@ -116,6 +126,14 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _deviceStatusText = UiText.Weighing.InitializingDevice;
     [ObservableProperty] private bool _isDeviceConnected;
     [ObservableProperty] private bool _isInitializing;
+    [ObservableProperty] private string _cameraPreviewStatusText = "Chưa cấu hình camera";
+    [ObservableProperty] private System.Windows.Media.ImageSource? _cameraPreviewSource;
+    [ObservableProperty] private string _selectedPreviewCameraCode = "CAM1";
+    [ObservableProperty] private bool _isCameraPreviewAvailable;
+    [ObservableProperty] private bool _isCamera1PreviewAvailable;
+    [ObservableProperty] private bool _isCamera2PreviewAvailable;
+    [ObservableProperty] private string _camera1PreviewName = "Camera 1";
+    [ObservableProperty] private string _camera2PreviewName = "Camera 2";
 
     [ObservableProperty] private bool _isAllocationVisible;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _allocationLines = new();
@@ -131,6 +149,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     public bool IsAutoMode => CurrentCaptureMode == "TỰ ĐỘNG";
     public bool IsManualMode => CurrentCaptureMode == "CÂN TAY";
     public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
+    public bool ShowAllocationAction =>
+        SelectedSession != null
+        && SessionLines.Count > 1
+        && SelectedSession.SessionStatus is WeighingSessionStatus.ALLOCATION_PENDING or WeighingSessionStatus.READY_TO_COMPLETE
+        && SessionLines.Any(x =>
+            x.LineStatus != WeighingSessionLineStatus.ALLOCATED
+            || !x.ActualAllocatedWeight.HasValue);
     public bool ShowBaggedActualWeightOverride =>
         SessionLines.Count > 0
         && SessionLines.All(x =>
@@ -138,10 +163,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 ProductTypes.Normalize(x.ProductType),
                 ProductTypes.Bagged,
                 StringComparison.OrdinalIgnoreCase));
+    public bool ShowCamera1Selector => IsCameraPreviewAvailable && IsCamera1PreviewAvailable;
+    public bool ShowCamera2Selector => IsCameraPreviewAvailable && IsCamera2PreviewAvailable;
+    public bool ShowCameraPreviewPlaceholder =>
+        !IsCameraPreviewAvailable
+        || !_cameraPreviewService.IsPreviewRunning;
 
     public WeighingViewModel(
         IServiceScopeFactory scopeFactory,
         IScaleDevice scaleDevice,
+        ICameraPreviewService cameraPreviewService,
         IToastService toastService,
         IDialogService dialogService,
         IClock clock,
@@ -150,11 +181,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     {
         _scopeFactory = scopeFactory;
         _scaleDevice = scaleDevice;
+        _cameraPreviewService = cameraPreviewService;
         _toastService = toastService;
         _dialogService = dialogService;
         _clock = clock;
         _currentUserContext = currentUserContext;
         _logger = logger;
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _scaleUiTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(120)
@@ -162,6 +195,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         _scaleUiTimer.Tick += OnScaleUiTimerTick;
 
         _scaleDevice.WeightReceived += OnWeightReceived;
+        _cameraPreviewService.StatusChanged += OnCameraPreviewStatusChanged;
+        _cameraPreviewService.FrameReceived += OnCameraPreviewFrameReceived;
     }
 
     partial void OnCurrentCaptureModeChanged(string value)
@@ -205,6 +240,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         _ = PersistBaggedActualWeightOverrideAsync(value);
     }
 
+    partial void OnSelectedPreviewCameraCodeChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        _ = StartCameraPreviewAsync(value);
+    }
+
     public async Task InitializeAsync()
     {
         if (IsInitializing)
@@ -219,6 +264,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             {
                 EnsureDeviceAttachStarted();
                 await LoadSessionsAsync();
+                await LoadCameraPreviewAsync();
             }
         }
         finally
@@ -243,6 +289,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private async Task RefreshAsync()
     {
         SearchSessionNo = null;
+        SearchErpCutOrderId = null;
         SearchVehiclePlate = null;
         _focusSessionId = null;
         IsAllocationVisible = false;
@@ -251,6 +298,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsOverweightHandlingVisible = false;
         SelectedSession = null;
         await LoadSessionsInternalAsync(false);
+        await LoadCameraPreviewAsync();
     }
 
     private async Task LoadSessionsInternalAsync(bool selectFirstWhenNoSelection)
@@ -261,9 +309,30 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<GetWeighingSessionsUseCase>();
             var list = await uc.ExecuteAsync(null, CancellationToken.None);
-            var filtered = list.Where(x =>
-                MatchesSearch(x.SessionNo, SearchSessionNo)
-                && MatchesSearch(x.VehiclePlate, SearchVehiclePlate));
+            var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+            var filtered = new List<WeighingSessionListItem>();
+            var cutOrderKeyword = SearchErpCutOrderId?.Trim();
+
+            foreach (var item in list)
+            {
+                if (!MatchesSearch(item.SessionNo, SearchSessionNo)
+                    || !MatchesSearch(item.VehiclePlate, SearchVehiclePlate))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(cutOrderKeyword))
+                {
+                    var lineItems = await sessionRepo.GetLineItemsBySessionIdAsync(item.SessionId, CancellationToken.None);
+                    if (!lineItems.Any(x => MatchesSearch(x.ErpCutOrderId, cutOrderKeyword)))
+                    {
+                        continue;
+                    }
+                }
+
+                filtered.Add(item);
+            }
+
             Sessions = new ObservableCollection<WeighingSessionListItem>(filtered);
 
             if (_focusSessionId.HasValue)
@@ -337,6 +406,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         OverweightResolutionText = OverweightResolutionStatusMapper.ToDisplayString(value.OverweightResolutionStatus);
         CustomerSummary = string.Join(" / ", lineItems.Select(x => x.CustomerName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
         ProductSummary = BuildProductSummary(lineItems);
+        NotesSummary = string.Join(
+            " / ",
+            lineItems.Select(x => x.Notes?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct());
         _isApplyingBaggedActualWeightOverrideState = true;
         try
         {
@@ -347,6 +421,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             _isApplyingBaggedActualWeightOverrideState = false;
         }
         SessionLines = new ObservableCollection<WeighingSessionLineRow>(lineItems.Select(x => new WeighingSessionLineRow(x)));
+        NotifySessionActionStateChanged();
         OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
     }
 
@@ -359,6 +434,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         DriverName = null;
         CustomerSummary = null;
         ProductSummary = null;
+        NotesSummary = null;
         _isApplyingBaggedActualWeightOverrideState = true;
         try
         {
@@ -386,7 +462,229 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         OverweightResolutionText = null;
         AppendCutOrdersWarningMessage = null;
         SessionLines = new ObservableCollection<WeighingSessionLineRow>();
+        NotifySessionActionStateChanged();
         OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
+    }
+
+    private async Task LoadCameraPreviewAsync()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var provider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
+            var settings = await provider.GetAsync(CancellationToken.None);
+            ApplyCameraPreviewSettings(settings);
+            _ = StartCameraPreviewAsync(SelectedPreviewCameraCode);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Load camera preview settings failed");
+            IsCameraPreviewAvailable = false;
+            IsCamera1PreviewAvailable = false;
+            IsCamera2PreviewAvailable = false;
+            CameraPreviewStatusText = "Không tải được cấu hình camera";
+            OnPropertyChanged(nameof(ShowCamera1Selector));
+            OnPropertyChanged(nameof(ShowCamera2Selector));
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+    }
+
+    private void ApplyCameraPreviewSettings(CameraSystemSettings settings)
+    {
+        _cameraSettings = settings;
+        Camera1PreviewName = settings.Camera1.DisplayName;
+        Camera2PreviewName = settings.Camera2.DisplayName;
+        IsCamera1PreviewAvailable = settings.Camera1.IsEnabled && !string.IsNullOrWhiteSpace(settings.Camera1.EffectivePreviewRtspUrl);
+        IsCamera2PreviewAvailable = settings.Camera2.IsEnabled && !string.IsNullOrWhiteSpace(settings.Camera2.EffectivePreviewRtspUrl);
+        IsCameraPreviewAvailable = IsCamera1PreviewAvailable || IsCamera2PreviewAvailable;
+
+        var preferred = string.IsNullOrWhiteSpace(settings.PreviewDefaultCameraCode)
+            ? AppConfigDefaults.DefaultCameraPreview
+            : settings.PreviewDefaultCameraCode.Trim().ToUpperInvariant();
+
+        var targetCameraCode =
+            preferred == "CAM2" && IsCamera2PreviewAvailable ? "CAM2" :
+            IsCamera1PreviewAvailable ? "CAM1" :
+            IsCamera2PreviewAvailable ? "CAM2" :
+            preferred;
+
+        OnPropertyChanged(nameof(ShowCamera1Selector));
+        OnPropertyChanged(nameof(ShowCamera2Selector));
+
+        if (!string.Equals(SelectedPreviewCameraCode, targetCameraCode, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedPreviewCameraCode = targetCameraCode;
+        }
+        else if (!IsCameraPreviewAvailable)
+        {
+            CameraPreviewStatusText = "Chưa cấu hình camera";
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+    }
+
+    private async Task StartCameraPreviewAsync(string cameraCode)
+    {
+        if (_cameraSettings == null)
+        {
+            return;
+        }
+
+        var camera = ResolvePreviewCamera(cameraCode);
+        if (camera == null)
+        {
+            CameraPreviewStatusText = IsCameraPreviewAvailable ? "Camera chưa sẵn sàng" : "Chưa cấu hình camera";
+            ResetPreviewRenderState();
+            _ = _cameraPreviewService.StopPreviewAsync();
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+            return;
+        }
+
+        ResetPreviewRenderState();
+        CameraPreviewStatusText = "Đang kết nối";
+        try
+        {
+            await _cameraPreviewService.StartPreviewAsync(camera, CancellationToken.None);
+            _currentPreviewSessionId = _cameraPreviewService.ActivePreviewSessionId;
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Start preview for camera {CameraCode} failed", camera.CameraCode);
+            ResetPreviewRenderState();
+            CameraPreviewStatusText = "Không kết nối được camera";
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+    }
+
+    private CameraEndpointSettings? ResolvePreviewCamera(string? cameraCode)
+    {
+        if (_cameraSettings == null || string.IsNullOrWhiteSpace(cameraCode))
+        {
+            return null;
+        }
+
+        return cameraCode.Trim().ToUpperInvariant() switch
+        {
+            "CAM1" when IsCamera1PreviewAvailable => _cameraSettings.Camera1,
+            "CAM2" when IsCamera2PreviewAvailable => _cameraSettings.Camera2,
+            _ => null
+        };
+    }
+
+    private void OnCameraPreviewStatusChanged(object? sender, CameraPreviewStatusChangedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.CameraCode)
+            && !string.Equals(e.CameraCode, SelectedPreviewCameraCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _uiDispatcher.BeginInvoke(() =>
+        {
+            if (string.Equals(CameraPreviewStatusText, e.StatusText, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            CameraPreviewStatusText = e.StatusText;
+            if (e.StatusText.Contains("Không", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Mất", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("dừng", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Chưa", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Lỗi", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Khong", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Mat", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("dung", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Chua", StringComparison.OrdinalIgnoreCase)
+                || e.StatusText.Contains("Loi", StringComparison.OrdinalIgnoreCase))
+            {
+                OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+            }
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        });
+    }
+
+    private void OnCameraPreviewFrameReceived(object? sender, CameraPreviewFrameReceivedEventArgs e)
+    {
+        if (!_currentPreviewSessionId.HasValue)
+        {
+            return;
+        }
+
+        if (e.PreviewSessionId != _currentPreviewSessionId.Value)
+        {
+            return;
+        }
+
+        if (e.Sequence <= Interlocked.Read(ref _lastRenderedPreviewSequence))
+        {
+            return;
+        }
+
+        _latestPendingPreviewFrame = e;
+        if (Interlocked.Exchange(ref _isPreviewUiUpdatePending, 1) == 1)
+        {
+            return;
+        }
+
+        _uiDispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                var latest = _latestPendingPreviewFrame;
+                if (latest == null)
+                {
+                    return;
+                }
+
+                if (!_currentPreviewSessionId.HasValue || latest.PreviewSessionId != _currentPreviewSessionId.Value)
+                {
+                    return;
+                }
+
+                if (latest.Sequence <= Interlocked.Read(ref _lastRenderedPreviewSequence))
+                {
+                    return;
+                }
+
+                CameraPreviewSource = latest.Frame;
+                Interlocked.Exchange(ref _lastRenderedPreviewSequence, latest.Sequence);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isPreviewUiUpdatePending, 0);
+                if (_latestPendingPreviewFrame != null && _latestPendingPreviewFrame.Sequence > Interlocked.Read(ref _lastRenderedPreviewSequence))
+                {
+                    OnCameraPreviewFrameReceived(this, _latestPendingPreviewFrame);
+                }
+            }
+        }, DispatcherPriority.Render);
+    }
+
+    public void AttachCameraPreviewHost(IntPtr hostHandle, int width, int height)
+    {
+        _cameraPreviewService.AttachHostWindow(hostHandle, width, height);
+        OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+    }
+
+    public void ResizeCameraPreviewHost(int width, int height)
+    {
+        _cameraPreviewService.ResizeHostWindow(width, height);
+    }
+
+    public void DetachCameraPreviewHost()
+    {
+        _cameraPreviewService.DetachHostWindow();
+        OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+    }
+
+    private void ResetPreviewRenderState()
+    {
+        _currentPreviewSessionId = null;
+        _latestPendingPreviewFrame = null;
+        Interlocked.Exchange(ref _lastRenderedPreviewSequence, 0);
+        Interlocked.Exchange(ref _isPreviewUiUpdatePending, 0);
+        CameraPreviewSource = null;
     }
 
     private bool CanCaptureWeight1() => SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1;
@@ -400,18 +698,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         };
     private bool CanOpenAllocation()
     {
-        if (SelectedSession == null)
-        {
-            return false;
-        }
-
-        if (SelectedSession.SessionStatus == WeighingSessionStatus.ALLOCATION_PENDING)
-        {
-            return true;
-        }
-
-        return SelectedSession.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
-               && SessionLines.Count > 1;
+        return ShowAllocationAction;
     }
     private bool CanOpenAppendCutOrders() =>
         SelectedSession?.SessionStatus is WeighingSessionStatus.PENDING_WEIGHT1 or WeighingSessionStatus.PENDING_WEIGHT2;
@@ -443,6 +730,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             or WeighingSessionStatus.READY_TO_COMPLETE
             or WeighingSessionStatus.COMPLETED;
     private bool CanSuggestOverweightSplitAgain() => SelectedSession != null && IsOverweightHandlingVisible;
+    private bool CanViewImageHistory() => SelectedSession != null;
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight1))]
     private Task CaptureWeight1Async()
@@ -892,6 +1180,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             _isApplyingBaggedActualWeightOverrideState = false;
         }
+    }
+
+    private void NotifySessionActionStateChanged()
+    {
+        OnPropertyChanged(nameof(ShowAllocationAction));
+        OpenAllocationCommand.NotifyCanExecuteChanged();
     }
 
     private void AllocationLines_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -1447,6 +1741,33 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsRelatedTicketsVisible = false;
     }
 
+    [RelayCommand(CanExecute = nameof(CanViewImageHistory))]
+    private async Task ViewImageHistoryAsync()
+    {
+        if (SelectedSession == null) return;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var imageRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionImageRepository>();
+            var images = await imageRepo.GetByWeighingSessionIdAsync(SelectedSession.SessionId, CancellationToken.None);
+
+            if (images == null || images.Count == 0)
+            {
+                await _dialogService.ShowWarningAsync("Thông báo", "Không tìm thấy ảnh chụp lịch sử cho lượt cân này.");
+                return;
+            }
+
+            await _dialogService.ShowCustomDialogAsync<CameraImageHistoryViewModel, bool>(
+                new CameraImageHistoryViewModel(images, SelectedSession.VehiclePlate ?? string.Empty));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to view image history for session {SessionId}", SelectedSession.SessionId);
+            _toastService.ShowError("Có lỗi xảy ra khi tải danh sách ảnh chụp.");
+        }
+    }
+
     private async Task ExecutePrintFlowAsync(PrintDocumentKind kind, Guid sessionId, string displayName)
     {
         try
@@ -1560,8 +1881,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         if (kind == PrintDocumentKind.WeighTicket)
         {
             var composer = scope.ServiceProvider.GetRequiredService<IWeighTicketPrintComposer>();
-            var primaryRegistration = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).FirstOrDefault();
-            if (primaryRegistration == null)
+            if (context.RegistrationsById.Count == 0)
             {
                 return new PrintBatchPreviewModel { Kind = kind, Title = UiText.Weighing.PrintPreviewWeigh, Pages = [] };
             }
@@ -1572,16 +1892,27 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                     .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
                     .ThenBy(x => x.SplitSequence)
                     .ToList()
-                : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted).Take(1).ToList();
+                : context.WeighTickets
+                    .Where(x => (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.CutOrderDerived) && !x.IsDeleted)
+                    .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                    .ThenBy(x => x.CreatedAt)
+                    .ToList();
 
             var weighPages = ticketsToPrint
                 .Select(ticket =>
                 {
-                    var page = composer.Compose(primaryRegistration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    var registration = context.RegistrationsById.GetValueOrDefault(ticket.CutOrderId)
+                        ?? context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
+                    var page = composer.Compose(registration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";
                         page.PreviewGroupName = "Phiếu tổng";
+                    }
+                    else if (ticket.RecordRole == WeighTicketRecordRoles.CutOrderDerived)
+                    {
+                        page.PreviewGroupKey = $"weigh-cutorder-{registration.Id:N}";
+                        page.PreviewGroupName = $"Phiếu cắt lệnh {registration.ErpCutOrderId}";
                     }
                     else if (ticket.RecordRole == WeighTicketRecordRoles.SplitDerived)
                     {
@@ -1663,7 +1994,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             {
                 var ticketsToPersist = splitConfirmed
                     ? context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && !x.IsDeleted)
-                    : context.WeighTickets.Where(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
+                    : context.WeighTickets.Where(x =>
+                        (x.RecordRole == WeighTicketRecordRoles.MasterSession || x.RecordRole == WeighTicketRecordRoles.CutOrderDerived)
+                        && !x.IsDeleted);
 
                 foreach (var weighTicket in ticketsToPersist)
                 {
@@ -1681,7 +2014,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                     await weighRepo.UpdateAsync(weighTicket, innerCt);
                 }
 
-                if (!splitConfirmed && !result.HasFailures)
+                var masterTicketPrinted = context.WeighTickets.Any(x =>
+                    x.RecordRole == WeighTicketRecordRoles.MasterSession
+                    && !x.IsDeleted
+                    && result.Documents.Any(d => d.DocumentId == x.Id && d.Success));
+
+                if (!splitConfirmed && masterTicketPrinted)
                 {
                     context.MasterSession.HasPrintedMasterWeighTicket = true;
                     context.MasterSession.UpdatedAt = now;
@@ -1886,6 +2224,17 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         _scaleUiTimer.Stop();
         _scaleUiTimer.Tick -= OnScaleUiTimerTick;
         _scaleDevice.WeightReceived -= OnWeightReceived;
+        _cameraPreviewService.StatusChanged -= OnCameraPreviewStatusChanged;
+        _cameraPreviewService.FrameReceived -= OnCameraPreviewFrameReceived;
+        ResetPreviewRenderState();
+        try
+        {
+            _ = _cameraPreviewService.StopPreviewAsync();
+        }
+        catch
+        {
+            // ignore preview stop failures during dispose
+        }
     }
 
     private sealed record SessionPrintContext(
@@ -1912,6 +2261,7 @@ public partial class WeighingSessionLineRow : ObservableObject
         ProductCode = item.ProductCode;
         ProductName = item.ProductName;
         ProductType = item.ProductType;
+        Notes = item.Notes;
         PlannedWeight = item.PlannedWeight;
 
         var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
@@ -1936,6 +2286,7 @@ public partial class WeighingSessionLineRow : ObservableObject
     public string? ProductCode { get; }
     public string? ProductName { get; }
     public string? ProductType { get; }
+    public string? Notes { get; }
     public decimal? PlannedWeight { get; }
     public int? PlannedBagCount { get; }
     public WeighingSessionLineStatus LineStatus { get; }
@@ -1976,7 +2327,8 @@ public partial class WeighingSessionLineRow : ObservableObject
             ActualAllocatedBagCount,
             LineStatus,
             HasPrintedDeliveryTicket,
-            ProductType));
+            ProductType,
+            Notes));
     }
 }
 

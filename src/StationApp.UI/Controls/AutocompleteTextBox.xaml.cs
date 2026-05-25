@@ -23,6 +23,13 @@ public partial class AutocompleteTextBox : UserControl
             typeof(AutocompleteTextBox),
             new PropertyMetadata(null));
 
+    public static readonly DependencyProperty IsReadOnlyProperty =
+        DependencyProperty.Register(
+            nameof(IsReadOnly),
+            typeof(bool),
+            typeof(AutocompleteTextBox),
+            new PropertyMetadata(false));
+
     public AutocompleteTextBox()
     {
         InitializeComponent();
@@ -38,6 +45,12 @@ public partial class AutocompleteTextBox : UserControl
     {
         get => (Style?)GetValue(TextBoxStyleProperty);
         set => SetValue(TextBoxStyleProperty, value);
+    }
+
+    public bool IsReadOnly
+    {
+        get => (bool)GetValue(IsReadOnlyProperty);
+        set => SetValue(IsReadOnlyProperty, value);
     }
 
     private void InputTextBox_OnPreviewKeyDown(object sender, KeyEventArgs e)

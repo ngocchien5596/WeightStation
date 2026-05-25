@@ -159,29 +159,66 @@ Nếu có nhiều session phù hợp:
 
 ## 7. Luồng thao tác ở trạm cân
 
-### 7.1 Nếu ô `Lượt cân` đã được tự điền
+### 7.1 Nếu ô `Lượt cân` đã được tự điền hoặc người dùng nhập tay
 
-Khi người dùng bấm `Tạo lượt cân`:
+Khi người dùng bấm `Tạo lượt cân` và ô `Lượt cân` có giá trị:
 
-- hệ thống không tạo session mới
-- mà gắn `cắt lệnh` vào session đã chỉ định
+- hệ thống hiểu đây là luồng `gắn vào lượt cân cũ`
+- hệ thống phải tìm đúng `weighing session` theo `SessionNo`
+- hệ thống không được tự tạo session mới trước khi người dùng xác nhận xong
 
-### 7.2 Nếu session cũ có `cân lần 1`
+Áp dụng chung cho cả 2 trường hợp:
 
-Hệ thống hiển thị confirm:
+- `auto suggest`
+- `manual attach`
+
+### 7.2 Confirm dùng lại cân lần 1
+
+Nếu `session` được chỉ định đã có `cân lần 1`, hệ thống phải hiển thị cùng một confirm modal:
 
 - đã có số `cân lần 1`
-- có đồng ý dùng lại hay không
+- thời gian `cân lần 1`
+- người dùng có đồng ý gắn `cắt lệnh` vào chính `lượt cân` này để dùng lại số cân lần 1 hay không
+
+Nội dung confirm này chỉ có ý nghĩa khi:
+
+- `có session cũ phù hợp`
+- và session đó thật sự đang giữ `Weight1`
+
+### 7.3 Rule xử lý khi người dùng chọn trong confirm
 
 Nếu `Đồng ý`:
 
-- giữ `Weight1`
-- kế thừa `Weight1Time`
+- phải gắn `cắt lệnh` vào đúng `lượt cân cũ`
+- phải giữ nguyên `Weight1`
+- phải giữ nguyên `Weight1Time`
+- không được tạo `lượt cân mới`
 
 Nếu `Không`:
 
-- session mới hoặc session gắn lại sẽ không dùng snapshot `cân lần 1`
+- không gắn vào `lượt cân cũ`
+- tạo `lượt cân mới`
+- `Weight1 = null`
+- `Weight1Time = null`
 - người dùng cân lần 1 lại như bình thường
+
+### 7.4 Rule backend bắt chặt nghiệp vụ
+
+Use case `CreateWeighingSession` chỉ được dùng cho luồng:
+
+- tạo `lượt cân mới` thực sự
+
+Use case này không được phép:
+
+- tự động dùng lại `CarryForwardWeight1`
+- tự động reuse session cũ
+- tự bơm `Weight1` của session cũ vào session mới
+
+Nếu muốn dùng lại `cân lần 1`, hệ thống bắt buộc phải đi qua luồng:
+
+- tìm `lượt cân cũ` phù hợp
+- người dùng xác nhận
+- gắn vào chính `lượt cân cũ` đó
 
 ## 8. Xử lý orphan line
 
@@ -252,6 +289,10 @@ Hành vi:
 
 - có thể tự điền từ `ErpRegistrationCode`
 - người dùng cũng có thể nhập tay nếu cần
+- nếu ô này có giá trị thì `Tạo lượt cân` phải ưu tiên xử lý theo luồng `gắn vào lượt cân cũ`
+- confirm modal dùng lại `cân lần 1` phải áp dụng chung cho cả:
+  - auto suggest
+  - manual attach
 
 ### 11.2 Màn Lập phiếu cân
 
@@ -284,6 +325,18 @@ Không được gắn cắt lệnh mới vào session nếu:
 - khác `Mooc` theo rule đã chốt
 - session đã `COMPLETED`
 - session đã `CANCELLED`
+
+Không được phép tạo `lượt cân mới` mà vẫn mang theo `Weight1` cũ.
+
+Không được phép hiểu:
+
+- `Đồng ý dùng lại cân lần 1`
+
+theo nghĩa:
+
+- lấy `Weight1` cũ để gắn sang một `session mới`
+
+Vì `Weight1` gắn chặt với `lượt cân`, không gắn chặt với `cắt lệnh`.
 
 ## 13. Trường hợp ngoại lệ
 
@@ -347,10 +400,15 @@ Phải cập nhật:
 4. Màn `Danh sách xe vào` chọn `B`:
    - tự điền đúng `Lượt cân` cũ
    - hiện đúng confirm dùng lại `cân lần 1`
-5. Bấm `Tạo lượt cân`:
+5. Nếu bấm `Đồng ý`:
    - không tạo session mới
    - gắn vào session cũ
-6. Nếu session thực còn 1 line:
+   - giữ nguyên `Weight1/Weight1Time`
+6. Nếu bấm `Không`:
+   - không gắn vào session cũ
+   - tạo `lượt cân mới`
+   - `Weight1 = null`
+7. Nếu session thực còn 1 line:
    - tự phân bổ
    - không cần mở modal phân bổ
 
@@ -375,4 +433,3 @@ Nếu session cũ có line mồ côi:
 4. auto-fill `Lượt cân` ở `Danh sách xe vào`
 5. giữ cơ chế cleanup `orphan line`
 6. giữ auto-phân bổ khi chỉ còn 1 cắt lệnh
-

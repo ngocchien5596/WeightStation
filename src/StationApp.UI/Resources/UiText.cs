@@ -8,6 +8,12 @@ public static class UiText
         public const string SearchIncomingLoadError = "Không thể tải danh sách xe vào. Vui lòng thử lại.";
         public const string SearchOutgoingLoadError = "Không thể tải danh sách xe ra. Vui lòng thử lại.";
         public const string RequiredVehiclePlate = "Vui lòng nhập Số PTVC.";
+        public const string RequiredDriverName = "Vui lòng nhập Tên tài xế.";
+        public const string RequiredTtcp = "Vui lòng nhập TTCP.";
+        public const string RequiredCustomer = "Vui lòng nhập Khách hàng.";
+        public const string RequiredProductCode = "Vui lòng nhập Mã sản phẩm.";
+        public const string RequiredProductName = "Vui lòng nhập sản phẩm.";
+        public const string RequiredPlannedWeight = "Vui lòng nhập SL đặt.";
         public const string No = "Không";
         public const string Confirm = "Xác nhận";
     }

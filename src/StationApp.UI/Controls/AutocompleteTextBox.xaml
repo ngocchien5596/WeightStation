@@ -50,6 +50,7 @@
                  Text="{Binding State.Text, ElementName=Root, UpdateSourceTrigger=PropertyChanged}"
                  Style="{Binding TextBoxStyle, ElementName=Root}"
                  IsEnabled="{Binding State.IsEnabled, ElementName=Root}"
+                 IsReadOnly="{Binding IsReadOnly, ElementName=Root}"
                  PreviewKeyDown="InputTextBox_OnPreviewKeyDown"
                  LostKeyboardFocus="FocusableElement_OnLostKeyboardFocus"/>
 

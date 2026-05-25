@@ -1,6 +1,7 @@
-﻿<UserControl x:Class="StationApp.UI.Views.WeighingView"
+<UserControl x:Class="StationApp.UI.Views.WeighingView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:StationApp.UI.Controls"
              Background="{StaticResource MainContentBackground}">
     <UserControl.Resources>
         <ResourceDictionary>
@@ -32,15 +33,22 @@
         <Border Style="{StaticResource HeaderBorder}">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{StaticResource Weighing.Search.SessionNo}" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
-                    <TextBox Width="160" Style="{StaticResource StandardTextBoxStyle}" Text="{Binding SearchSessionNo, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBlock Text="{StaticResource Weighing.Search.VehiclePlate}" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBox Width="160" Style="{StaticResource StandardTextBoxStyle}" Text="{Binding SearchVehiclePlate, UpdateSourceTrigger=PropertyChanged}">
                         <TextBox.InputBindings>
                             <KeyBinding Key="Enter" Command="{Binding LoadSessionsCommand}"/>
                         </TextBox.InputBindings>
                     </TextBox>
 
-                    <TextBlock Text="{StaticResource Weighing.Search.VehiclePlate}" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
-                    <TextBox Width="160" Style="{StaticResource StandardTextBoxStyle}" Text="{Binding SearchVehiclePlate, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBlock Text="M&#x00E3; c&#x1EAF;t l&#x1EC7;nh" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBox Width="160" Style="{StaticResource StandardTextBoxStyle}" Text="{Binding SearchErpCutOrderId, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding LoadSessionsCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+
+                    <TextBlock Text="{StaticResource Weighing.Search.SessionNo}" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBox Width="160" Style="{StaticResource StandardTextBoxStyle}" Text="{Binding SearchSessionNo, UpdateSourceTrigger=PropertyChanged}">
                         <TextBox.InputBindings>
                             <KeyBinding Key="Enter" Command="{Binding LoadSessionsCommand}"/>
                         </TextBox.InputBindings>
@@ -56,28 +64,30 @@
             </DockPanel>
         </Border>
 
-        <Grid Grid.Row="1" Margin="12">
+        <Grid Grid.Row="1" Margin="12,10,12,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="320"/>
                 <ColumnDefinition Width="420"/>
             </Grid.ColumnDefinitions>
 
-            <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="16" Background="White">
+            <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="95"/>
+                        <ColumnDefinition Width="120"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="95"/>
+                        <ColumnDefinition Width="120"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="32"/>
-                        <RowDefinition Height="32"/>
-                        <RowDefinition Height="32"/>
-                        <RowDefinition Height="32"/>
-                        <RowDefinition Height="32"/>
-                        <RowDefinition Height="32"/>
-                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="{StaticResource Weighing.Label.SessionNo}" Grid.Row="0" Style="{StaticResource FormLabel}"/>
@@ -98,17 +108,20 @@
                     <TextBlock Text="{StaticResource Weighing.Label.Status}" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding SessionStatusText}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="{StaticResource Weighing.Label.Customer}" Grid.Row="3" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding CustomerSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="{StaticResource Weighing.Label.Ttcp10}" Grid.Row="3" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="{StaticResource Weighing.Label.Product}" Grid.Row="4" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding ProductSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="{StaticResource Weighing.Label.Customer}" Grid.Row="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding CustomerSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="{StaticResource Weighing.Label.Ttcp10}" Grid.Row="5" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="{StaticResource Weighing.Label.Product}" Grid.Row="5" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding ProductSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="" Grid.Row="6" Style="{StaticResource FormLabel}"/>
-                    <CheckBox Grid.Row="6" Grid.Column="1"
+                    <TextBlock Text="Ghi chú" Grid.Row="6" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding NotesSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="" Grid.Row="7" Style="{StaticResource FormLabel}"/>
+                    <CheckBox Grid.Row="7" Grid.Column="1"
                               IsChecked="{Binding UseActualWeightForBaggedCutOrders, Mode=TwoWay}"
                               VerticalAlignment="Center"
                               HorizontalAlignment="Left"
@@ -118,7 +131,48 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="16">
+            <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock Text="Camera" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                        <ComboBox Style="{StaticResource StandardComboBoxStyle}"
+                                  SelectedValue="{Binding SelectedPreviewCameraCode, Mode=TwoWay}"
+                                  SelectedValuePath="Tag"
+                                  Width="200"
+                                  Height="28"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Center"
+                                  DockPanel.Dock="Right">
+                            <ComboBoxItem Content="{Binding Camera1PreviewName}" Tag="CAM1" Visibility="{Binding ShowCamera1Selector, Converter={StaticResource BoolToVis}}"/>
+                            <ComboBoxItem Content="{Binding Camera2PreviewName}" Tag="CAM2" Visibility="{Binding ShowCamera2Selector, Converter={StaticResource BoolToVis}}"/>
+                        </ComboBox>
+                    </DockPanel>
+
+                    <Border Grid.Row="1"
+                            BorderBrush="#D0D3D4"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Background="#F8F9F9"
+                            MinHeight="180">
+                        <Grid>
+                             <Image Source="{Binding CameraPreviewSource}" Margin="8" Stretch="Uniform"/>
+                             <TextBlock Text="{Binding CameraPreviewStatusText}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#5D6D7E"
+                                       FontWeight="SemiBold"
+                                       Visibility="{Binding ShowCameraPreviewPlaceholder, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -127,7 +181,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                         <RadioButton Content="{StaticResource Weighing.Mode.Auto}"
                                      IsChecked="{Binding CurrentCaptureMode, Converter={StaticResource StringEqToBool}, ConverterParameter='T&#x1EF0; &#x0110;&#x1ED8;NG'}"
                                      Margin="0,0,24,0"
@@ -159,7 +213,7 @@
                         </Grid>
                     </Border>
 
-                    <Grid Margin="12,4,12,8" Grid.Row="2">
+                    <Grid Margin="10,4,10,6" Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="95"/>
                             <ColumnDefinition Width="*"/>
@@ -180,7 +234,7 @@
                         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NetWeight, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
                     </Grid>
 
-                    <Grid Grid.Row="3" Margin="12,0,12,0">
+                    <Grid Grid.Row="3" Margin="10,0,10,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="8"/>
@@ -216,45 +270,48 @@
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <Button Content="{StaticResource Weighing.Action.AppendCutOrders}" Command="{Binding OpenAppendCutOrdersCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="{StaticResource Weighing.Action.Allocate}" Command="{Binding OpenAllocationCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.Allocate}"
+                    Command="{Binding OpenAllocationCommand}"
+                    Style="{StaticResource UtilityButtonStyle}"
+                    Margin="0,0,4,4"
+                    Visibility="{Binding ShowAllocationAction, Converter={StaticResource BoolToVis}}"/>
             <Button Content="{StaticResource Weighing.Action.HandleOverweight}" Command="{Binding ShowOverweightHandlingCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.NoLoad}" Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="Xem ảnh lịch sử" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
         </ItemsControl>
 
         <Grid Grid.Row="3" Margin="12,0,12,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="410"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Dòng 0: Tiêu đề lưới Mã cắt lệnh -->
+                <RowDefinition Height="115"/>  <!-- Dòng 1: Lưới Mã cắt lệnh (Cố định chiều cao hiển thị 2 dòng) -->
+                <RowDefinition Height="16"/>   <!-- Dòng 2: Khoảng cách giữa 2 lưới -->
+                <RowDefinition Height="Auto"/> <!-- Dòng 3: Tiêu đề lưới Lượt cân -->
+                <RowDefinition Height="*"/>    <!-- Dòng 4: Lưới Lượt cân (Chiếm toàn bộ không gian còn lại) -->
+            </Grid.RowDefinitions>
 
-            <Border Grid.Column="0" Background="White" BorderBrush="#ECF0F1" BorderThickness="1" CornerRadius="4">
-                <DataGrid ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
-                          Style="{StaticResource SystemDataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                          RowStyle="{StaticResource SystemDataGridRowStyle}"
-                          CellStyle="{StaticResource SystemDataGridCellStyle}"
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="1.2*" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="1*" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="1.35*" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="0.75*" ElementStyle="{StaticResource GridTextRight}"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Border>
+            <!-- Tiêu đề và chỉ dẫn luồng cho Lưới Mã cắt lệnh (Detail) -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBlock FontSize="12.5" FontWeight="Bold" Foreground="#34495E" VerticalAlignment="Center">
+                    <Run Text="CHI TIẾT CẮT LỆNH"/>
+                    <Run Text=" (Lượt cân: "/>
+                    <Run Text="{Binding SelectedSession.SessionNo, FallbackValue='Chưa chọn', TargetNullValue='Chưa chọn'}" Foreground="#2980B9"/>
+                    <Run Text=")"/>
+                </TextBlock>
+            </StackPanel>
 
-            <Border Grid.Column="2" Background="White" BorderBrush="#ECF0F1" BorderThickness="1" CornerRadius="4">
+            <!-- Lưới Mã cắt lệnh ở TRÊN (Cố định chiều cao, sử dụng Detail styles xám sáng phụ thuộc nhẹ nhàng, cố định 2 cột đầu) -->
+            <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Height="115">
                 <DataGrid ItemsSource="{Binding SessionLines}"
-                          Style="{StaticResource SystemDataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                          RowStyle="{StaticResource SystemDataGridRowStyle}"
-                          CellStyle="{StaticResource SystemDataGridCellStyle}"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                          Style="{StaticResource DetailDataGridStyle}"
+                          ColumnHeaderStyle="{StaticResource DetailDataGridColumnHeaderStyle}"
+                          RowStyle="{StaticResource DetailDataGridRowStyle}"
+                          CellStyle="{StaticResource DetailDataGridCellStyle}"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          FrozenColumnCount="2">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
@@ -265,7 +322,39 @@
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.PrintDelivery}" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                        <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.PrintDelivery}" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}" Visibility="Collapsed"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Tiêu đề và chỉ dẫn luồng cho Lưới Lượt cân (Master) -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBlock Text="DANH SÁCH LƯỢT CÂN HOẠT ĐỘNG" FontSize="12.5" FontWeight="Bold" Foreground="#203B73" VerticalAlignment="Center"/>
+                <TextBlock Text="(Chọn một dòng lượt cân để hiển thị danh sách chi tiết mã cắt lệnh tương ứng ở phía trên)" FontSize="12" Foreground="#7F8C8D" FontStyle="Italic" VerticalAlignment="Center" Margin="10,0,0,0"/>
+            </StackPanel>
+
+            <!-- Lưới Lượt cân ở DƯỚI (Danh sách nhiều lượt cân xe, chiếm toàn bộ chiều cao còn lại, giữ Navy style chủ đạo, cố định 4 cột đầu) -->
+            <Border Grid.Row="4" Background="White" BorderBrush="#ECF0F1" BorderThickness="1" CornerRadius="4">
+                <DataGrid ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
+                          Style="{StaticResource SystemDataGridStyle}"
+                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                          RowStyle="{StaticResource SystemDataGridRowStyle}"
+                          CellStyle="{StaticResource SystemDataGridCellStyle}"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          FrozenColumnCount="4">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Incoming.Column.TransactionType}" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Incoming.Column.Mooc}" Binding="{Binding MoocNumber}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="{StaticResource Incoming.Column.DriverName}" Binding="{Binding DriverName}" Width="130" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerSummary}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductSummary}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Label.Ttcp10}" Binding="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Weight1}" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
