@@ -272,6 +272,7 @@
                       ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                       RowStyle="{StaticResource SystemDataGridRowStyle}"
                       CellStyle="{StaticResource SystemDataGridCellStyle}"
+                      FrozenColumnCount="4"
                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="CH&#x1ECC;N" Width="60">
@@ -284,10 +285,10 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="{StaticResource Incoming.ColRegistrationCode}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="LO&#x1EA0;I" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.VehiclePlateLabel}" Binding="{Binding VehiclePlate}" Width="115" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="115" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="LO&#x1EA0;I" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.DriverLabel}" Binding="{Binding ReceiverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.ColProductCode}" Binding="{Binding ProductCode}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>

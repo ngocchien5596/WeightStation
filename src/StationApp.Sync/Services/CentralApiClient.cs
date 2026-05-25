@@ -36,7 +36,7 @@ public sealed class CentralApiClient : ICentralApiClient
                 {
                     Success = false,
                     ErrorCode = "CONFIG_INVALID",
-                    ErrorMessage = "Central API URL chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh há»£p lá»‡."
+                    ErrorMessage = "Central API URL chưa được cấu hình hợp lệ."
                 };
             }
 

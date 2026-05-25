@@ -122,6 +122,7 @@
                       Style="{StaticResource SystemDataGridStyle}"
                       ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                       CellStyle="{StaticResource SystemDataGridCellStyle}"
+                      FrozenColumnCount="3"
                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow" BasedOn="{StaticResource SystemDataGridRowStyle}">

@@ -141,7 +141,7 @@
     <sys:String x:Key="Outgoing.Column.LineCount">S&#x1ED0; D&#x00D2;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.CompletedAt">TH&#x1EDC;I GIAN XONG</sys:String>
     <sys:String x:Key="Outgoing.Dialog.DetailTitle">CHI TI&#x1EBE;T L&#x01AF;&#x1EE2;T XE RA</sys:String>
-    <sys:String x:Key="Outgoing.Column.PlannedWeight">PL (KG)</sys:String>
+    <sys:String x:Key="Outgoing.Column.PlannedWeight">KL KH (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.PlannedBags">BAO PL</sys:String>
     <sys:String x:Key="Outgoing.Column.ActualWeight">TH&#x1EF0;C (KG)</sys:String>
     <sys:String x:Key="Outgoing.Column.ActualBags">BAO TH&#x1EF0;C</sys:String>
