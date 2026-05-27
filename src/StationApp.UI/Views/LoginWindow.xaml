@@ -14,7 +14,7 @@
 
     <Window.Resources>
         <Style x:Key="LoginTextBoxStyle" TargetType="TextBox">
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#0F172A"/>
@@ -41,7 +41,7 @@
         </Style>
 
         <Style x:Key="LoginPasswordBoxStyle" TargetType="PasswordBox">
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#0F172A"/>
@@ -68,7 +68,7 @@
         </Style>
 
         <Style x:Key="LoginButtonStyle" TargetType="Button">
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Foreground" Value="White"/>
@@ -155,21 +155,21 @@
                                 <Image Source="/Assets/logo.jpg" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
-                                <TextBlock Text="C&#xD4;NG TY C&#x1ED4; PH&#x1EA6;N" FontSize="9" FontWeight="Medium" Foreground="#7B95AD" FontFamily="Segoe UI"/>
-                                <TextBlock Text="XI M&#x102;NG C&#x1EA8;M PH&#x1EA2;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,2,0,0" FontFamily="Segoe UI"/>
+                                <TextBlock Text="C&#xD4;NG TY C&#x1ED4; PH&#x1EA6;N" FontSize="9" FontWeight="Medium" Foreground="#7B95AD" FontFamily="{StaticResource AppFontFamily}"/>
+                                <TextBlock Text="XI M&#x102;NG C&#x1EA8;M PH&#x1EA2;" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,2,0,0" FontFamily="{StaticResource AppFontFamily}"/>
                             </StackPanel>
                         </Grid>
                         <Border Grid.Row="1" Height="2" Background="#C5A059" HorizontalAlignment="Left" Width="36" Margin="0,18,0,0" CornerRadius="1"/>
                         <StackPanel Grid.Row="2" VerticalAlignment="Top" Margin="0,18,0,0">
-                            <TextBlock FontSize="22" FontWeight="Bold" Foreground="#FFFFFF" FontFamily="Segoe UI" TextWrapping="Wrap" LineHeight="28">
+                            <TextBlock FontSize="22" FontWeight="Bold" Foreground="#FFFFFF" FontFamily="{StaticResource AppFontFamily}" TextWrapping="Wrap" LineHeight="28">
                                 <Run Text="H&#x1EC7; th&#x1ED1;ng"/>
                                 <LineBreak/>
                                 <Run Text="qu&#x1EA3;n l&#xFD; tr&#x1EA1;m c&#xE2;n"/>
                             </TextBlock>
                         </StackPanel>
                         <StackPanel Grid.Row="3">
-                            <TextBlock Text="Copyright &#xA9; 2026 by CNTT" FontSize="11" Foreground="#94B3CF" FontFamily="Segoe UI"/>
-                            <TextBlock Text="{Binding VersionText}" FontSize="11" Foreground="#94B3CF" Margin="0,3,0,0" FontFamily="Segoe UI"/>
+                            <TextBlock Text="Copyright &#xA9; 2026 by CNTT" FontSize="11" Foreground="#94B3CF" FontFamily="{StaticResource AppFontFamily}"/>
+                            <TextBlock Text="{Binding VersionText}" FontSize="11" Foreground="#94B3CF" Margin="0,3,0,0" FontFamily="{StaticResource AppFontFamily}"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -177,22 +177,22 @@
                     <Grid>
                         <Button Style="{StaticResource LoginCloseButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,16,0" Click="CloseButton_Click" Content="&#x2715;"/>
                         <StackPanel VerticalAlignment="Center" Margin="36,0" MaxWidth="300">
-                            <TextBlock Text="&#x110;&#x103;ng nh&#x1EAD;p" FontSize="20" FontWeight="Bold" Foreground="#1E293B" FontFamily="Segoe UI"/>
+                            <TextBlock Text="&#x110;&#x103;ng nh&#x1EAD;p" FontSize="20" FontWeight="Bold" Foreground="#1E293B" FontFamily="{StaticResource AppFontFamily}"/>
                             <Border Margin="0,18,0,0" Padding="12,10" CornerRadius="8" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVis}}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xEA39;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#DC2626" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" FontFamily="Segoe UI"/>
+                                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" FontFamily="{StaticResource AppFontFamily}"/>
                                 </StackPanel>
                             </Border>
                             <StackPanel Margin="0,18,0,0">
-                                <TextBlock Text="T&#xEA;n &#x111;&#x103;ng nh&#x1EAD;p" FontSize="12" FontWeight="SemiBold" Foreground="#334155" FontFamily="Segoe UI" Margin="0,0,0,6"/>
+                                <TextBlock Text="T&#xEA;n &#x111;&#x103;ng nh&#x1EAD;p" FontSize="12" FontWeight="SemiBold" Foreground="#334155" FontFamily="{StaticResource AppFontFamily}" Margin="0,0,0,6"/>
                                 <Grid>
                                     <TextBox x:Name="UsernameTextBox" Style="{StaticResource LoginTextBoxStyle}" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsInputEnabled}"/>
                                     <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#94A3B8" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0" IsHitTestVisible="False"/>
                                 </Grid>
                             </StackPanel>
                             <StackPanel Margin="0,12,0,0">
-                                <TextBlock Text="M&#x1EAD;t kh&#x1EA9;u" FontSize="12" FontWeight="SemiBold" Foreground="#334155" FontFamily="Segoe UI" Margin="0,0,0,6"/>
+                                <TextBlock Text="M&#x1EAD;t kh&#x1EA9;u" FontSize="12" FontWeight="SemiBold" Foreground="#334155" FontFamily="{StaticResource AppFontFamily}" Margin="0,0,0,6"/>
                                 <Grid>
                                     <TextBox Style="{StaticResource LoginTextBoxStyle}" Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsInputEnabled}" Visibility="{Binding IsPasswordVisible, Converter={StaticResource BoolToVis}}"/>
                                     <PasswordBox x:Name="PasswordBoxInput" Style="{StaticResource LoginPasswordBoxStyle}" IsEnabled="{Binding IsInputEnabled}" helpers:PasswordBoxAssistant.BindPassword="True" helpers:PasswordBoxAssistant.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding IsPasswordVisible, Converter={StaticResource InverseBoolToVis}}"/>
@@ -201,7 +201,7 @@
                             </StackPanel>
                             <Button Margin="0,20,0,0" Style="{StaticResource LoginButtonStyle}" Command="{Binding LoginCommand}" IsDefault="True">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding LoginButtonText}" VerticalAlignment="Center" FontFamily="Segoe UI"/>
+                                    <TextBlock Text="{Binding LoginButtonText}" VerticalAlignment="Center" FontFamily="{StaticResource AppFontFamily}"/>
                                     <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Button>

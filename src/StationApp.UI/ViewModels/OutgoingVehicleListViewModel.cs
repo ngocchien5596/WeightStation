@@ -279,7 +279,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             }
 
             await _dialogService.ShowCustomDialogAsync<CameraImageHistoryViewModel, bool>(
-                new CameraImageHistoryViewModel(images, SelectedVehicle.VehiclePlate ?? string.Empty));
+                new CameraImageHistoryViewModel(images, SelectedVehicle.VehiclePlate ?? string.Empty, _toastService));
         }
         catch (Exception ex)
         {

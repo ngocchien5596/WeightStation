@@ -1933,7 +1933,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             }
 
             await _dialogService.ShowCustomDialogAsync<CameraImageHistoryViewModel, bool>(
-                new CameraImageHistoryViewModel(images, SelectedSession.VehiclePlate ?? string.Empty));
+                new CameraImageHistoryViewModel(images, SelectedSession.VehiclePlate ?? string.Empty, _toastService));
         }
         catch (Exception ex)
         {

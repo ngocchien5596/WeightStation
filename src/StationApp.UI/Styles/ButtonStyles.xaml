@@ -5,7 +5,7 @@
     
     <!-- PrimaryButtonStyle -->
     <Style x:Key="PrimaryButtonStyle" TargetType="{x:Type Button}">
-        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -55,7 +55,7 @@
 
     <!-- WorkflowButtonStyle -->
     <Style x:Key="WorkflowButtonStyle" TargetType="{x:Type Button}">
-        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -105,7 +105,7 @@
 
     <!-- UtilityButtonStyle -->
     <Style x:Key="UtilityButtonStyle" TargetType="{x:Type Button}">
-        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -155,7 +155,7 @@
 
     <!-- DangerButtonStyle -->
     <Style x:Key="DangerButtonStyle" TargetType="{x:Type Button}">
-        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -205,7 +205,7 @@
 
     <!-- NeutralButtonStyle -->
     <Style x:Key="NeutralButtonStyle" TargetType="{x:Type Button}">
-        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="BorderThickness" Value="0"/>

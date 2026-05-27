@@ -26,14 +26,12 @@
             <Border Grid.Row="0" Background="#1B3263" CornerRadius="11,11,0,0">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
-                        <!-- Camera Icon Path -->
-                        <Path Data="M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" 
+                        <Path Data="M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"
                               Fill="#38BDF8" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBlock Text="{Binding Title}" Foreground="White" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
-                    
-                    <!-- Close Button -->
-                    <Button Content="&#x2715;" Width="36" Height="36" HorizontalAlignment="Right" Margin="0,0,8,0" 
+
+                    <Button Content="&#x2715;" Width="36" Height="36" HorizontalAlignment="Right" Margin="0,0,8,0"
                             Background="Transparent" Foreground="#E2E8F0" BorderThickness="0" FontSize="14" FontWeight="Bold"
                             Cursor="Hand" Command="{Binding CloseCommand}">
                         <Button.Style>
@@ -59,23 +57,21 @@
                 </Grid>
             </Border>
 
-            <!-- Main Workspace -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="280"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left Sidebar: Photo List -->
                 <Border Grid.Column="0" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" CornerRadius="0,0,0,11">
                     <Grid Margin="12,12,8,12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        
-                        <TextBlock Grid.Row="0" Text="DANH SÁCH ẢNH CHỤP" Foreground="#64748B" FontSize="11" FontWeight="Bold" Margin="4,0,0,8"/>
-                        
+
+                        <TextBlock Grid.Row="0" Text="DANH S&#xC1;CH &#x1EA2;NH CH&#x1EE4;P" Foreground="#64748B" FontSize="11" FontWeight="Bold" Margin="4,0,0,8"/>
+
                         <ListBox Grid.Row="1" ItemsSource="{Binding Images}" SelectedItem="{Binding SelectedImage}"
                                  Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -113,12 +109,11 @@
                                             <ColumnDefinition Width="80"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        
-                                        <!-- Thumbnail Image -->
+
                                         <Border Grid.Column="0" CornerRadius="4" ClipToBounds="True" Background="#0F172A" Height="50">
                                             <Image Source="{Binding Image}" Stretch="UniformToFill"/>
                                         </Border>
-                                        
+
                                         <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Stage}" FontWeight="Bold" Foreground="#1E293B" FontSize="12" Margin="0,0,0,2"/>
                                             <TextBlock Text="{Binding CameraName}" Foreground="#475569" FontSize="11" Margin="0,0,0,2"/>
@@ -131,16 +126,13 @@
                     </Grid>
                 </Border>
 
-                <!-- Right Space: Large Image Viewer -->
                 <Grid Grid.Column="1" Background="#0F172A" ClipToBounds="True">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    
-                    <!-- Main Image Display -->
+
                     <Image Grid.Row="0" Source="{Binding SelectedImage.Image}" Stretch="Uniform" Margin="16" RenderOptions.BitmapScalingMode="HighQuality"/>
-                    
-                    <!-- Top-Right Stage Badge Overlay -->
+
                     <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="24" CornerRadius="20" Background="#3B82F6" Padding="12,6">
                         <Border.Effect>
                             <DropShadowEffect BlurRadius="10" Color="#000" Opacity="0.4" ShadowDepth="1"/>
@@ -148,7 +140,6 @@
                         <TextBlock Text="{Binding SelectedImage.Stage}" Foreground="White" FontSize="12" FontWeight="Bold"/>
                     </Border>
 
-                    <!-- Bottom Premium Glassmorphic Metadata Overlay -->
                     <Border HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="80" Margin="16" CornerRadius="12" Background="#D80F172A">
                         <Border.Style>
                             <Style TargetType="Border">
@@ -160,22 +151,30 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            
-                            <!-- Text Details -->
+
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding SelectedImage.CameraName}" Foreground="White" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                <TextBlock Text="Thiết bị camera giám sát trạm cân" Foreground="#94A3B8" FontSize="11"/>
+                                <TextBlock Text="Thi&#x1EBF;t b&#x1ECB; camera gi&#xE1;m s&#xE1;t tr&#x1EA1;m c&#xE2;n" Foreground="#94A3B8" FontSize="11"/>
                             </StackPanel>
 
-                            <!-- Date Badge -->
                             <Border Grid.Column="1" CornerRadius="6" Background="#1E293B" Padding="10,6" VerticalAlignment="Center" BorderBrush="#33FFFFFF" BorderThickness="1">
                                 <StackPanel Orientation="Horizontal">
-                                    <Path Data="M19,19H5V8H19M16,1V3H8V1H6V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3H18V1M17,12H12V17H17V12Z" 
+                                    <Path Data="M19,19H5V8H19M16,1V3H8V1H6V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3H18V1M17,12H12V17H17V12Z"
                                           Fill="#38BDF8" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <TextBlock Text="{Binding SelectedImage.CapturedAt}" Foreground="#F8FAFC" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
+
+                            <Button Grid.Column="2"
+                                    Content="T&#x1EA2;I &#x1EA2;NH"
+                                    Width="110"
+                                    Height="34"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding SaveSelectedImageCommand}"/>
                         </Grid>
                     </Border>
                 </Grid>

@@ -4,6 +4,14 @@
              xmlns:converters="clr-namespace:StationApp.UI.Converters">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="Styles/BasePageStyles.xaml"/>
+                <ResourceDictionary Source="Resources/WorkflowTextResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#Tahoma</FontFamily>
             <converters:NullToVisibilityConverter x:Key="NullToVis"/>
             <converters:StringToVisibilityConverter x:Key="StringToVis"/>
             <converters:WeightToTonConverter x:Key="WeightToTon"/>
@@ -25,13 +33,18 @@
             <converters:TransactionTypeDisplayConverter x:Key="TransactionTypeDisplayConverter"/>
             <converters:TransportMethodDisplayConverter x:Key="TransportMethodDisplayConverter"/>
             <converters:SplitModeDisplayConverter x:Key="SplitModeDisplayConverter"/>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Themes/AppTheme.xaml"/>
-                <ResourceDictionary Source="Styles/ButtonStyles.xaml"/>
-                <ResourceDictionary Source="Styles/InputStyles.xaml"/>
-                <ResourceDictionary Source="Styles/BasePageStyles.xaml"/>
-                <ResourceDictionary Source="Resources/WorkflowTextResources.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="{x:Type Window}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+            </Style>
+            <Style TargetType="{x:Type UserControl}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+            </Style>
+            <Style TargetType="{x:Type Control}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+            </Style>
+            <Style TargetType="{x:Type TextBlock}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
