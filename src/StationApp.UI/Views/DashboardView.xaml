@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <DockPanel Margin="0,0,160,24">
-            <TextBlock Text="DASHBOARD" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}"/>
+            <TextBlock Text="DASHBOARD" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}"/>
             <Button Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}"
                     HorizontalAlignment="Right" DockPanel.Dock="Right">
                 <StackPanel Orientation="Horizontal">
@@ -31,7 +31,7 @@
             </Button>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,0">
                 <TextBlock Text="{StaticResource Dashboard.Station}" Foreground="Gray" VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding StationCode, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding StationCode, Mode=OneWay}" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
             </StackPanel>
         </DockPanel>
 
@@ -39,7 +39,7 @@
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="{StaticResource Dashboard.PendingTitle}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding PendingTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock Text="{Binding PendingTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                     <TextBlock Text="{StaticResource Dashboard.PendingDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
@@ -47,7 +47,7 @@
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="{StaticResource Dashboard.ProcessingTitle}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding InProgressTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="#3498db"/>
+                    <TextBlock Text="{Binding InProgressTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="SemiBold" Foreground="#3498db"/>
                     <TextBlock Text="{StaticResource Dashboard.ProcessingDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
@@ -55,7 +55,7 @@
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="{StaticResource Dashboard.CompletedTitle}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding CompletedTodayCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="#2ecc71"/>
+                    <TextBlock Text="{Binding CompletedTodayCount, Mode=OneWay}" FontSize="48" FontWeight="SemiBold" Foreground="#2ecc71"/>
                     <TextBlock Text="{StaticResource Dashboard.CompletedDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
@@ -63,7 +63,7 @@
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="{StaticResource Dashboard.OverweightTitle}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding OverweightTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="Bold" Foreground="#e74c3c"/>
+                    <TextBlock Text="{Binding OverweightTicketsCount, Mode=OneWay}" FontSize="48" FontWeight="SemiBold" Foreground="#e74c3c"/>
                     <TextBlock Text="{StaticResource Dashboard.OverweightDesc}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
             </Border>
@@ -73,14 +73,14 @@
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="{StaticResource Dashboard.UnsyncedTitle}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding UnsyncedTicketsCount, Mode=OneWay}" FontSize="36" FontWeight="Bold" Foreground="#f1c40f"/>
+                    <TextBlock Text="{Binding UnsyncedTicketsCount, Mode=OneWay}" FontSize="36" FontWeight="SemiBold" Foreground="#f1c40f"/>
                 </StackPanel>
             </Border>
 
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="MASTER DATA" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding TotalVehiclesCount, Mode=OneWay, StringFormat='{}{0} xe'}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ForegroundBrush}" Margin="0,8,0,0"/>
+                    <TextBlock Text="{Binding TotalVehiclesCount, Mode=OneWay, StringFormat='{}{0} xe'}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" Margin="0,8,0,0"/>
                     <TextBlock Text="{Binding LastSyncTime, Mode=OneWay, StringFormat='Sync: {0}'}" Foreground="Gray" FontSize="11" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
             </Border>
@@ -88,14 +88,14 @@
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="CENTRAL API" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding NetworkStatus, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{Binding NetworkStatusBrush}" Margin="0,8,0,0"/>
+                    <TextBlock Text="{Binding NetworkStatus, Mode=OneWay}" FontSize="20" FontWeight="SemiBold" Foreground="{Binding NetworkStatusBrush}" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 
             <Border Background="{DynamicResource CardBrush}" Margin="8" Padding="20" CornerRadius="12">
                 <StackPanel>
                     <TextBlock Text="{StaticResource Dashboard.ScaleTitle}" Foreground="Gray" FontSize="12"/>
-                    <TextBlock Text="{Binding DeviceStatus, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="{Binding DeviceStatusBrush}" Margin="0,8,0,0"/>
+                    <TextBlock Text="{Binding DeviceStatus, Mode=OneWay}" FontSize="20" FontWeight="SemiBold" Foreground="{Binding DeviceStatusBrush}" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
         </UniformGrid>

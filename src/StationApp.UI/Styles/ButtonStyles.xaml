@@ -6,8 +6,8 @@
     <!-- PrimaryButtonStyle -->
     <Style x:Key="PrimaryButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="MinWidth" Value="85"/>
@@ -56,8 +56,8 @@
     <!-- WorkflowButtonStyle -->
     <Style x:Key="WorkflowButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="MinWidth" Value="85"/>
@@ -106,8 +106,8 @@
     <!-- UtilityButtonStyle -->
     <Style x:Key="UtilityButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="MinWidth" Value="85"/>
@@ -156,8 +156,8 @@
     <!-- DangerButtonStyle -->
     <Style x:Key="DangerButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="MinWidth" Value="85"/>
@@ -206,8 +206,8 @@
     <!-- NeutralButtonStyle -->
     <Style x:Key="NeutralButtonStyle" TargetType="{x:Type Button}">
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="MinWidth" Value="85"/>

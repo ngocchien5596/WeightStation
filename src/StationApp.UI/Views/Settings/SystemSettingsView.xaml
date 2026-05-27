@@ -54,8 +54,8 @@
 
                         <!-- Header -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="Bold" Foreground="#123B6B" VerticalAlignment="Center"/>
-                            <TextBlock Text="THAM SỐ HỆ THỐNG CHUNG" FontSize="14" FontWeight="Bold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="SemiBold" Foreground="#123B6B" VerticalAlignment="Center"/>
+                            <TextBlock Text="THAM SỐ HỆ THỐNG CHUNG" FontSize="14" FontWeight="SemiBold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,0,0,20"/>
@@ -111,8 +111,8 @@
 
                         <!-- Header -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                            <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="Bold" Foreground="#123B6B" VerticalAlignment="Center"/>
-                            <TextBlock Text="CẤU HÌNH HỆ THỐNG CAMERA" FontSize="14" FontWeight="Bold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="SemiBold" Foreground="#123B6B" VerticalAlignment="Center"/>
+                            <TextBlock Text="CẤU HÌNH HỆ THỐNG CAMERA" FontSize="14" FontWeight="SemiBold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,0,0,16"/>
@@ -135,7 +135,7 @@
                                     <!-- Camera 1 Enabled & Title -->
                                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
                                         <CheckBox IsChecked="{Binding Camera1Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Bật Camera 1" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Bật Camera 1" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
                                         <TextBlock Text=" (Quản lý luồng chính và xem trước) " FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                                     </StackPanel>
 
@@ -170,7 +170,7 @@
                                     <!-- Camera 2 Enabled & Title -->
                                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
                                         <CheckBox IsChecked="{Binding Camera2Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Bật Camera 2" FontSize="13" FontWeight="Bold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Bật Camera 2" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
                                         <TextBlock Text=" (Quản lý luồng chính và xem trước) " FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
                                     </StackPanel>
 
@@ -237,7 +237,7 @@
                     <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="160" Height="36">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LƯU THAY ĐỔI" VerticalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock Text="LƯU THAY ĐỔI" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>

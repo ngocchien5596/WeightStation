@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="StationApp.UI.Views.SettingsView"
+<UserControl x:Class="StationApp.UI.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="clr-namespace:StationApp.UI.Views.Settings"
@@ -47,7 +47,7 @@
             <Style TargetType="DataGridColumnHeader">
                 <Setter Property="Background" Value="{StaticResource EnterpriseDarkBlue}"/>
                 <Setter Property="Foreground" Value="#FFFFFF"/>
-                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Padding" Value="12,8"/>
                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
                 <Setter Property="BorderBrush" Value="#102542"/>
@@ -63,7 +63,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="{StaticResource EnterpriseDarkBlue}" CornerRadius="4" Padding="12" Margin="0,0,0,16">
-            <TextBlock Text="{Binding ViewTitle}" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding ViewTitle}" FontSize="18" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"/>
         </Border>
 
         <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">

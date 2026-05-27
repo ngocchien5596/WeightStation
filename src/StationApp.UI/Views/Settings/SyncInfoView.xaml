@@ -51,7 +51,7 @@
             <TextBlock Grid.Column="0"
                        Text="{StaticResource Sync.Title}"
                        FontSize="18"
-                       FontWeight="Bold"
+                       FontWeight="SemiBold"
                        Foreground="#123B6B"
                        VerticalAlignment="Center"/>
 

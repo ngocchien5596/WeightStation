@@ -23,7 +23,7 @@
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                     <TextBlock Text="{Binding PreviewHeader}"
                                FontSize="16"
-                               FontWeight="Bold"
+                               FontWeight="SemiBold"
                                Foreground="#203B73"/>
                     <TextBlock Text="{Binding PreviewDescription}"
                                Margin="0,4,0,0"
@@ -61,7 +61,7 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="#203B73"/>
+                        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Foreground="#203B73"/>
                         <TextBlock Text="{Binding RoleAwareDescription}"
                                    Margin="0,8,0,16"
                                    TextWrapping="Wrap"
@@ -134,20 +134,24 @@
                                       HeadersVisibility="Column"
                                       Height="200"
                                       Margin="0,6,0,14"
-                                      IsReadOnly="False">
+                                      IsReadOnly="False"
+                                      Style="{StaticResource SystemDataGridStyle}"
+                                      ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                                      RowStyle="{StaticResource SystemDataGridRowStyle}"
+                                      CellStyle="{StaticResource SystemDataGridCellStyle}">
                                 <DataGrid.Columns>
                                     <DataGridCheckBoxColumn Header="In" Binding="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55"/>
-                                    <DataGridTextColumn Header="Lo&#x1EA1;i" Binding="{Binding FieldType}" IsReadOnly="True" Width="70"/>
-                                    <DataGridTextColumn Header="Text" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2.1*"/>
-                                    <DataGridTextColumn Header="X" Binding="{Binding XText, UpdateSourceTrigger=PropertyChanged}" Width="0.8*"/>
-                                    <DataGridTextColumn Header="Y" Binding="{Binding YText, UpdateSourceTrigger=PropertyChanged}" Width="0.8*"/>
-                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Width="0.9*"/>
+                                    <DataGridTextColumn Header="Lo&#x1EA1;i" Binding="{Binding FieldType}" IsReadOnly="True" Width="70" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="Text" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2.1*" ElementStyle="{StaticResource GridTextLeft}"/>
+                                    <DataGridTextColumn Header="X" Binding="{Binding XText, UpdateSourceTrigger=PropertyChanged}" Width="0.8*" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="Y" Binding="{Binding YText, UpdateSourceTrigger=PropertyChanged}" Width="0.8*" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="R&#x1ED9;ng" Binding="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Width="0.9*" ElementStyle="{StaticResource GridTextRight}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
 
                             <Border Background="#F8FAFC" BorderBrush="#D6DEE8" BorderThickness="1" CornerRadius="8" Padding="12">
                                 <StackPanel>
-                                    <TextBlock Text="Canh ch&#x1EC9;nh nhanh field &#x0111;ang ch&#x1ECD;n" FontWeight="Bold" Foreground="#203B73"/>
+                                    <TextBlock Text="Canh ch&#x1EC9;nh nhanh field &#x0111;ang ch&#x1ECD;n" FontWeight="SemiBold" Foreground="#203B73"/>
                                     <TextBlock Text="{Binding SelectedField.DisplayName, TargetNullValue=Ch&#x01B0;a ch&#x1ECD;n text}"
                                                Margin="0,8,0,12"
                                                Foreground="#475569"/>

@@ -609,14 +609,17 @@ public sealed class CaptureSessionWeight1UseCase
         var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(session.VehiclePlate, session.MoocNumber ?? string.Empty, ct)
             ?? (await _vehicleRepo.GetByPlateAsync(session.VehiclePlate, ct)).FirstOrDefault();
         var vehicleTtcpWeight = vehicle?.TtcpWeight;
-        if (!session.Ttcp10WeightSnapshot.HasValue && (!vehicleTtcpWeight.HasValue || vehicleTtcpWeight.Value <= 0m))
+        var ttcp10Threshold = session.Ttcp10WeightSnapshot;
+        if (!ttcp10Threshold.HasValue && vehicleTtcpWeight.HasValue && vehicleTtcpWeight.Value > 0m)
+        {
+            ttcp10Threshold = decimal.Round(vehicleTtcpWeight.Value * 1.10m, 3, MidpointRounding.AwayFromZero);
+        }
+
+        if (session.TransactionType == TransactionType.OUTBOUND && !ttcp10Threshold.HasValue)
         {
             throw new InvalidOperationException(
                 $"Xe {session.VehiclePlate}{(string.IsNullOrWhiteSpace(session.MoocNumber) ? string.Empty : $" / mooc {session.MoocNumber}")} chưa có TTCP hợp lệ trong Danh mục xe.");
         }
-
-        var ttcp10Threshold = session.Ttcp10WeightSnapshot
-            ?? decimal.Round(vehicleTtcpWeight!.Value * 1.10m, 3, MidpointRounding.AwayFromZero);
 
         var ticket = await _weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, ct);
         var isNewTicket = ticket == null;

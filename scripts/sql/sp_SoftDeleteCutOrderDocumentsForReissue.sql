@@ -66,6 +66,11 @@ BEGIN
             THROW 50013, N'Chua ho tro soft delete khi luot can cu con nhieu hon 1 cat lenh.', 1;
         END;
 
+        IF (@Weight2 IS NOT NULL)
+        BEGIN
+            THROW 50014, N'Khong cho phep RA cat lenh khi luot can da co so can lan 2.', 1;
+        END;
+
         IF (@Weight1 IS NOT NULL
             AND @Weight2 IS NULL
             AND ISNULL(@SessionStatus, N'') = N'PENDING_WEIGHT2')

@@ -174,16 +174,16 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Text="Ki&#x1EC3;m tra parser / frame d&#x1EEF; li&#x1EC7;u" FontSize="14" FontWeight="Bold" Foreground="#123B6B" Margin="0,0,0,16"/>
+                <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Text="Ki&#x1EC3;m tra parser / frame d&#x1EEF; li&#x1EC7;u" FontSize="14" FontWeight="SemiBold" Foreground="#123B6B" Margin="0,0,0,16"/>
 
                 <TextBlock Grid.Column="0" Grid.Row="1" Text="D&#x1EEF; li&#x1EC7;u raw" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,12,12"/>
                 <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding SampleRawFrame, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Height="60" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,12"/>
 
                 <TextBlock Grid.Column="0" Grid.Row="2" Text="Chu&#x1ED7;i xem tr&#x1B0;&#x1EDB;c" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,12,12"/>
-                <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding ParsedStringResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#007F54" FontWeight="Bold" Margin="0,0,0,12"/>
+                <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding ParsedStringResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#007F54" FontWeight="SemiBold" Margin="0,0,0,12"/>
 
                 <TextBlock Grid.Column="0" Grid.Row="3" Text="K&#x1EBF;t qu&#x1EA3; parse" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,12,12"/>
-                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ParsedWeightResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#BD2730" FontWeight="Bold" Margin="0,0,0,12"/>
+                <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ParsedWeightResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#BD2730" FontWeight="SemiBold" Margin="0,0,0,12"/>
 
                 <Button Grid.Column="1" Grid.Row="4" Command="{Binding TestParseCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,4,0,0">
                     <StackPanel Orientation="Horizontal">

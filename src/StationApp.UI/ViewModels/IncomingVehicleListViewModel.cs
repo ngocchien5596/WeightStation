@@ -1068,12 +1068,6 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return false;
         }
 
-        if (!TtcpWeight.HasValue || TtcpWeight.Value <= 0)
-        {
-            _toastService.ShowWarning(UiText.Common.RequiredTtcp);
-            return false;
-        }
-
         if (string.IsNullOrWhiteSpace(FormCustomerName))
         {
             _toastService.ShowWarning(UiText.Common.RequiredCustomer);

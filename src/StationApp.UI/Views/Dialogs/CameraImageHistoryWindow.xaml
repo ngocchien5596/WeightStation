@@ -32,7 +32,7 @@
                     </StackPanel>
 
                     <Button Content="&#x2715;" Width="36" Height="36" HorizontalAlignment="Right" Margin="0,0,8,0"
-                            Background="Transparent" Foreground="#E2E8F0" BorderThickness="0" FontSize="14" FontWeight="Bold"
+                            Background="Transparent" Foreground="#E2E8F0" BorderThickness="0" FontSize="14" FontWeight="SemiBold"
                             Cursor="Hand" Command="{Binding CloseCommand}">
                         <Button.Style>
                             <Style TargetType="Button">
@@ -70,7 +70,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Text="DANH S&#xC1;CH &#x1EA2;NH CH&#x1EE4;P" Foreground="#64748B" FontSize="11" FontWeight="Bold" Margin="4,0,0,8"/>
+                        <TextBlock Grid.Row="0" Text="DANH S&#xC1;CH &#x1EA2;NH CH&#x1EE4;P" Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,8"/>
 
                         <ListBox Grid.Row="1" ItemsSource="{Binding Images}" SelectedItem="{Binding SelectedImage}"
                                  Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -115,7 +115,7 @@
                                         </Border>
 
                                         <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Stage}" FontWeight="Bold" Foreground="#1E293B" FontSize="12" Margin="0,0,0,2"/>
+                                            <TextBlock Text="{Binding Stage}" FontWeight="SemiBold" Foreground="#1E293B" FontSize="12" Margin="0,0,0,2"/>
                                             <TextBlock Text="{Binding CameraName}" Foreground="#475569" FontSize="11" Margin="0,0,0,2"/>
                                             <TextBlock Text="{Binding CapturedAt}" Foreground="#64748B" FontSize="10"/>
                                         </StackPanel>
@@ -137,7 +137,7 @@
                         <Border.Effect>
                             <DropShadowEffect BlurRadius="10" Color="#000" Opacity="0.4" ShadowDepth="1"/>
                         </Border.Effect>
-                        <TextBlock Text="{Binding SelectedImage.Stage}" Foreground="White" FontSize="12" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding SelectedImage.Stage}" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
                     </Border>
 
                     <Border HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="80" Margin="16" CornerRadius="12" Background="#D80F172A">

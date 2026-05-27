@@ -41,7 +41,7 @@
                 <Grid>
                     <TextBlock Text="{Binding Title}"
                                Foreground="White"
-                               FontWeight="Bold"
+                               FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                HorizontalAlignment="Left"
                                Margin="16,0,0,0"

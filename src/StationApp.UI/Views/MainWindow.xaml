@@ -155,7 +155,7 @@
                     <StackPanel Background="{StaticResource SidebarFooterBackground}">
                         <Border Background="{StaticResource SidebarItemBackground}" Padding="20,12,12,12">
                             <StackPanel>
-                                <TextBlock Text="{Binding CurrentUserDisplayName}" FontWeight="Bold" Foreground="{StaticResource SidebarItemForeground}"/>
+                                <TextBlock Text="{Binding CurrentUserDisplayName}" FontWeight="SemiBold" Foreground="{StaticResource SidebarItemForeground}"/>
                                 <TextBlock Text="{Binding CurrentUserRoleCode}" FontSize="11" Foreground="#9FB0C3" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>

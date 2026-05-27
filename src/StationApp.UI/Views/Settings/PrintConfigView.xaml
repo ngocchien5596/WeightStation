@@ -49,7 +49,7 @@
                         </Border>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="CẤU HÌNH CHÍNH ĐANG LƯU TRONG DB LOCAL DÙNG CHUNG" FontWeight="Bold" Foreground="#123B6B" FontSize="13.5"/>
+                            <TextBlock Text="CẤU HÌNH CHÍNH ĐANG LƯU TRONG DB LOCAL DÙNG CHUNG" FontWeight="SemiBold" Foreground="#123B6B" FontSize="13.5"/>
                             <TextBlock Text="{Binding LastBackupFileDisplay, TargetNullValue=Chưa có file backup}" Margin="0,8,0,0" FontSize="12" Foreground="#64748B" TextWrapping="Wrap" FontWeight="SemiBold"/>
                             
                             <!-- Success Banner -->
@@ -80,7 +80,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="MẪU IN PHIẾU CÂN (PC)" FontSize="15" FontWeight="Bold" Foreground="#123B6B"/>
+                            <TextBlock Grid.Row="0" Text="MẪU IN PHIẾU CÂN (PC)" FontSize="15" FontWeight="SemiBold" Foreground="#123B6B"/>
 
                             <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,16,0,16"/>
 
@@ -114,7 +114,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="MẪU IN PHIẾU GIAO NHẬN (PGN)" FontSize="15" FontWeight="Bold" Foreground="#123B6B"/>
+                            <TextBlock Grid.Row="0" Text="MẪU IN PHIẾU GIAO NHẬN (PGN)" FontSize="15" FontWeight="SemiBold" Foreground="#123B6B"/>
 
                             <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,16,0,16"/>
 
@@ -145,7 +145,7 @@
                     <Button Command="{Binding SavePrinterDefaultsCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="220" Height="36">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LƯU MÁY IN MẶC ĐỊNH" VerticalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock Text="LƯU MÁY IN MẶC ĐỊNH" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>

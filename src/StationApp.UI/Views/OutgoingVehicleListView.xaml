@@ -13,6 +13,8 @@
 
             <!-- Local style overrides to support strikethrough for cancelled (no-load) tickets -->
             <Style x:Key="GridTextCenter" TargetType="TextBlock" BasedOn="{StaticResource GridTextCenter}">
+                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontSize" Value="12.5"/>
                 <Setter Property="Margin" Value="10,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Style.Triggers>
@@ -24,6 +26,8 @@
             </Style>
 
             <Style x:Key="GridTextLeft" TargetType="TextBlock" BasedOn="{StaticResource GridTextLeft}">
+                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontSize" Value="12.5"/>
                 <Setter Property="Margin" Value="10,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Style.Triggers>
@@ -35,6 +39,8 @@
             </Style>
 
             <Style x:Key="GridTextRight" TargetType="TextBlock" BasedOn="{StaticResource GridTextRight}">
+                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontSize" Value="12.5"/>
                 <Setter Property="Margin" Value="10,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Style.Triggers>
@@ -190,14 +196,14 @@
                                       BorderThickness="0"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="60"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CustomerName}" Binding="{Binding CustomerName}" Width="250"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductName}" Binding="{Binding ProductName}" Width="250"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, StringFormat=N0}" Width="120"/>
-                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount}" Width="90"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="60" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CustomerName}" Binding="{Binding CustomerName}" Width="250" ElementStyle="{StaticResource GridTextLeft}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductName}" Binding="{Binding ProductName}" Width="250" ElementStyle="{StaticResource GridTextLeft}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, StringFormat=N0}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
@@ -235,14 +241,14 @@
                                       BorderThickness="0"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Type}" Binding="{Binding DocumentType}" Width="180"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.WeighTicketNo}" Binding="{Binding TicketNo}" Width="140"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.DeliveryNo}" Binding="{Binding DeliveryNo}" Width="140"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Role}" Binding="{Binding RecordRole, Converter={StaticResource RecordRoleDisplay}}" Width="180"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Weight1}" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="110"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="110"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="110"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.CreatedAt}" Binding="{Binding CreatedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Width="150"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Type}" Binding="{Binding DocumentType}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.WeighTicketNo}" Binding="{Binding TicketNo}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.DeliveryNo}" Binding="{Binding DeliveryNo}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Role}" Binding="{Binding RecordRole, Converter={StaticResource RecordRoleDisplay}}" Width="180" ElementStyle="{StaticResource GridTextCenter}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Weight1}" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.CreatedAt}" Binding="{Binding CreatedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>

@@ -57,8 +57,8 @@
         <Setter Property="Background" Value="{StaticResource SidebarItemBackground}"/>
         <Setter Property="Foreground" Value="{StaticResource SidebarItemForeground}"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Height" Value="48"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Padding" Value="20,0,12,0"/>
@@ -91,7 +91,7 @@
     </Style>
 
     <Style x:Key="SidebarExpandableItemStyle" TargetType="Button" BasedOn="{StaticResource SidebarMenuItemStyle}">
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
     </Style>
 
     <!-- 3. HEADER STYLES -->
@@ -103,22 +103,22 @@
     <Style x:Key="HeaderLabelStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource HeaderForeground}"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="14.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="HeaderLabel" TargetType="TextBlock">
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="13.5"/>
     </Style>
 
     <Style x:Key="HeaderActionButton" TargetType="Button" BasedOn="{StaticResource WorkflowButtonStyle}">
         <Setter Property="Height" Value="34"/>
         <Setter Property="MinWidth" Value="120"/>
-        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="Padding" Value="14,0"/>
         <Setter Property="Background" Value="#F39C12"/>
     </Style>
@@ -142,8 +142,8 @@
     <Style x:Key="ClockTextStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource ClockForeground}"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
@@ -167,7 +167,7 @@
         <Setter Property="IsReadOnly" Value="True"/>
         <Setter Property="ClipboardCopyMode" Value="ExcludeHeader"/>
         <Setter Property="helpers:DataGridCellCopyBehavior.EnableCurrentCellCopy" Value="True"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="13.5"/>
         <Setter Property="GridLinesVisibility" Value="All"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDC3C7"/>
         <Setter Property="VerticalGridLinesBrush" Value="#BDC3C7"/>
@@ -186,8 +186,8 @@
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="Height" Value="42"/>
         <Setter Property="Padding" Value="10,0"/>
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="BorderThickness" Value="0,0,1,1"/>
         <Setter Property="BorderBrush" Value="#BDC3C7"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -197,7 +197,7 @@
     <Style x:Key="SystemDataGridRowStyle" TargetType="DataGridRow">
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="Foreground" Value="{Binding Converter={StaticResource OverweightToFore}}"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsSelected}" Value="True">
                 <Setter Property="Background" Value="#2980B9"/>
@@ -258,8 +258,8 @@
         <Setter Property="Foreground" Value="#334155"/>
         <Setter Property="Height" Value="36"/>
         <Setter Property="Padding" Value="10,0"/>
-        <Setter Property="FontSize" Value="12.5"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="BorderThickness" Value="0,0,1,1"/>
         <Setter Property="BorderBrush" Value="#E2E8F0"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -269,7 +269,7 @@
     <Style x:Key="DetailDataGridRowStyle" TargetType="DataGridRow">
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="Foreground" Value="{Binding Converter={StaticResource OverweightToFore}}"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsSelected}" Value="True">
                 <Setter Property="Background" Value="#E2E8F0"/>
@@ -308,16 +308,16 @@
     <!-- Grid Text Alignment Styles -->
     <Style x:Key="GridTextCenter" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,6"/>
-        <Setter Property="FontSize" Value="12.5"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="GridTextRight" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,6"/>
-        <Setter Property="FontSize" Value="12.5"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Right"/>
     </Style>
@@ -325,7 +325,7 @@
     <Style x:Key="GridTextLeft" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,6"/>
         <Setter Property="FontSize" Value="12.5"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Left"/>
     </Style>
@@ -369,8 +369,8 @@
 
     <Style x:Key="ModalTitleStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="FontSize" Value="16"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="16.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
     </Style>
 
     <Style x:Key="ModalBodyStyle" TargetType="Border">
@@ -399,15 +399,15 @@
 
     <Style x:Key="ModalMetricLabelStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="#5A6B85"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style x:Key="ModalMetricValueStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="#1F355C"/>
         <Setter Property="FontSize" Value="20"/>
-        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Margin" Value="0,6,0,0"/>
     </Style>
 
