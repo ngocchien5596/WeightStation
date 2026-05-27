@@ -32,6 +32,7 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.Property(e => e.DeletedBy).HasMaxLength(100);
         builder.Property(e => e.HasPrintedMasterWeighTicket).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.UseActualWeightForBaggedCutOrders).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.IsNoLoad).IsRequired().HasDefaultValue(false);
 
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
@@ -73,6 +74,7 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
 
         builder.HasIndex(e => new { e.WeighingSessionId, e.CutOrderId })
             .IsUnique()
+            .HasFilter("[IsDeleted] = 0")
             .HasDatabaseName("UX_weighing_session_lines_session_registration");
     }
 }

@@ -36,6 +36,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.OrderCode).HasMaxLength(100);
         builder.Property(e => e.LotNo).HasMaxLength(100);
         builder.Property(e => e.RepresentativeName).HasMaxLength(150);
+        builder.Property(e => e.Market).HasMaxLength(255);
         builder.Property(e => e.ConsumptionPlace).HasMaxLength(255);
         builder.Property(e => e.LoadingPlace).HasMaxLength(255);
         builder.Property(e => e.SealNo).HasMaxLength(100);

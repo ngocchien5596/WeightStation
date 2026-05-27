@@ -76,7 +76,7 @@
     <sys:String x:Key="Weighing.Action.Allocate">PH&#x00C2;N B&#x1ED4;</sys:String>
     <sys:String x:Key="Weighing.Action.HandleOverweight">T&#x00C1;CH T&#x1EA2;I</sys:String>
     <sys:String x:Key="Weighing.Action.MoveOut">CHUY&#x1EC2;N XE RA</sys:String>
-    <sys:String x:Key="Weighing.Action.NoLoad">KH&#x00D4;NG L&#x1EA4;Y H&#x00C0;NG</sys:String>
+    <sys:String x:Key="Weighing.Action.NoLoad">K LẤY HÀNG</sys:String>
     <sys:String x:Key="Weighing.Action.RelatedTickets">PHI&#x1EBE;U LI&#x00CA;N QUAN</sys:String>
     <sys:String x:Key="Weighing.Action.Cancel">H&#x1EE6;Y</sys:String>
     <sys:String x:Key="Weighing.Action.AllocateByPlan">THEO K&#x1EBE; HO&#x1EA0;CH</sys:String>

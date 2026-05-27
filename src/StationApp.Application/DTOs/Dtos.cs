@@ -273,6 +273,7 @@ public sealed record CreateCutOrderRequest(
     string? OrderCode = null,
     string? LotNo = null,
     string? RepresentativeName = null,
+    string? Market = null,
     string? ConsumptionPlace = null,
     string? LoadingPlace = null,
     string? SealNo = null,
@@ -336,7 +337,9 @@ public sealed record IncomingVehicleListItem(
     string? ProductType = null,
     decimal? CarryForwardWeight1 = null,
     DateTime? CarryForwardWeight1Time = null,
-    string? SuggestedSessionNo = null
+    string? SuggestedSessionNo = null,
+    string? ConsumptionPlace = null,
+    string? Market = null
 );
 
 public sealed record OutgoingVehicleListItem(
@@ -451,7 +454,8 @@ public sealed record CaptureSessionWeightRequest(
 public sealed record AllocateWeighingSessionLineRequest(
     Guid SessionLineId,
     decimal? ActualAllocatedWeight,
-    int? ActualAllocatedBagCount
+    int? ActualAllocatedBagCount,
+    bool IsPriority = false
 );
 
 public sealed record AllocateWeighingSessionRequest(
@@ -485,6 +489,7 @@ public sealed record WeighingSessionListItem(
     int LineCount,
     bool HasPrintedMasterWeighTicket,
     bool UseActualWeightForBaggedCutOrders,
+    bool IsNoLoad,
     bool AllDeliveryTicketsPrinted,
     DateTime CreatedAt,
     DateTime? UpdatedAt,

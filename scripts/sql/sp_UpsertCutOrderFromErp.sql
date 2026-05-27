@@ -21,6 +21,7 @@ ALTER PROCEDURE [dbo].[sp_UpsertCutOrderFromErp]
     @ReceiverName NVARCHAR(100) = NULL,
     @CustomerCode NVARCHAR(50),
     @CustomerName NVARCHAR(255) = NULL,
+    @Market NVARCHAR(255) = NULL,
     @ConsumptionPlace NVARCHAR(255) = NULL,
     @ProductCode NVARCHAR(50),
     @ProductName NVARCHAR(255) = NULL,
@@ -65,6 +66,7 @@ BEGIN
     DECLARE @ExistingSessionId UNIQUEIDENTIFIER;
     DECLARE @ExistingIsCancelled BIT;
     DECLARE @NormalizedProductType NVARCHAR(30);
+    DECLARE @CarryForwardNotes NVARCHAR(500);
 
     SET @ErpCutOrderId = NULLIF(LTRIM(RTRIM(@ErpCutOrderId)), N'');
     SET @ErpRegistrationCode = NULLIF(LTRIM(RTRIM(@ErpRegistrationCode)), N'');
@@ -77,6 +79,7 @@ BEGIN
     SET @ReceiverName = NULLIF(LTRIM(RTRIM(@ReceiverName)), N'');
     SET @CustomerCode = NULLIF(LTRIM(RTRIM(@CustomerCode)), N'');
     SET @CustomerName = NULLIF(LTRIM(RTRIM(@CustomerName)), N'');
+    SET @Market = NULLIF(LTRIM(RTRIM(@Market)), N'');
     SET @ConsumptionPlace = NULLIF(LTRIM(RTRIM(@ConsumptionPlace)), N'');
     SET @ProductCode = NULLIF(LTRIM(RTRIM(@ProductCode)), N'');
     SET @ProductName = NULLIF(LTRIM(RTRIM(@ProductName)), N'');
@@ -154,6 +157,19 @@ BEGIN
     IF @IdempotencyKey IS NULL
         SET @IdempotencyKey = NEWID();
 
+    IF @Notes IS NULL
+    BEGIN
+        SELECT TOP (1)
+            @CarryForwardNotes = NULLIF(LTRIM(RTRIM(co.Notes)), N'')
+        FROM dbo.cut_orders co
+        WHERE co.ErpCutOrderId = @ErpCutOrderId
+          AND ISNULL(co.IsDeleted, 0) = 1
+          AND co.Notes IS NOT NULL
+        ORDER BY COALESCE(co.UpdatedAt, co.CreatedAt) DESC, co.CreatedAt DESC;
+
+        SET @Notes = @CarryForwardNotes;
+    END;
+
     SELECT TOP (1)
         @CutOrderId = Id,
         @ExistingProcessingStage = ProcessingStage,
@@ -192,6 +208,7 @@ BEGIN
             ReceiverIdNo = @ReceiverIdNo,
             CustomerCode = @CustomerCode,
             CustomerName = @CustomerName,
+            Market = @Market,
             ProductCode = @ProductCode,
             ProductName = @ProductName,
             ProductType = @ProductType,
@@ -236,6 +253,7 @@ BEGIN
         ReceiverIdNo,
         CustomerCode,
         CustomerName,
+        Market,
         ProductCode,
         ProductName,
         ProductType,
@@ -281,6 +299,7 @@ BEGIN
         @ReceiverIdNo,
         @CustomerCode,
         @CustomerName,
+        @Market,
         @ProductCode,
         @ProductName,
         @ProductType,

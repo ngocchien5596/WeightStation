@@ -127,6 +127,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 lineCount,
                 session.HasPrintedMasterWeighTicket,
                 session.UseActualWeightForBaggedCutOrders,
+                session.IsNoLoad,
                 allPrinted,
                 session.CreatedAt,
                 session.UpdatedAt,

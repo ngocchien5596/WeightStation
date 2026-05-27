@@ -15,8 +15,14 @@ public partial class CustomDialogWindow : Window
         DataContext = viewModel;
         viewModel.CloseRequested += (s, result) =>
         {
-            this.DialogResult = result;
-            this.Close();
+            if (result.HasValue)
+            {
+                DialogResult = result.Value;
+            }
+            else
+            {
+                Close();
+            }
         };
     }
 }

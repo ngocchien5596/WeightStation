@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -16,6 +16,7 @@ namespace StationApp.Infrastructure.Repositories;
 public class CutOrderRepository : ICutOrderRepository
 {
     private readonly StationDbContext _db;
+    private static readonly TimeSpan ReuseWeight1Window = TimeSpan.FromHours(24);
     private static readonly TimeZoneInfo VnTimeZone = GetVnTimeZone();
 
     public CutOrderRepository(StationDbContext db)
@@ -322,6 +323,7 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<IncomingVehicleListItem>> GetIncomingListAsync(IncomingVehicleListFilter filter, CancellationToken ct)
     {
+        var reuseCutoff = DateTime.Now.Subtract(ReuseWeight1Window);
         var query = _db.CutOrders.AsNoTracking()
             .Where(vr => !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.IN_YARD && !vr.IsCancelled);
 
@@ -358,7 +360,10 @@ public class CutOrderRepository : ICutOrderRepository
             : (await _db.CutOrders.AsNoTracking()
                     .Where(x => x.IsDeleted
                         && x.ErpRegistrationCode != null
-                        && carryForwardHistoryByRegistrationCode.Contains(x.ErpRegistrationCode))
+                        && carryForwardHistoryByRegistrationCode.Contains(x.ErpRegistrationCode)
+                        && x.CarryForwardWeight1.HasValue
+                        && x.CarryForwardWeight1Time.HasValue
+                        && x.CarryForwardWeight1Time.Value >= reuseCutoff)
                     .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
                     .ToListAsync(ct))
                 .GroupBy(x => x.ErpRegistrationCode!, StringComparer.OrdinalIgnoreCase)
@@ -375,42 +380,14 @@ public class CutOrderRepository : ICutOrderRepository
                     .Where(x => x.IsDeleted
                         && x.ErpCutOrderId != null
                         && carryForwardHistoryByErpId.Contains(x.ErpCutOrderId)
-                        && x.CarryForwardWeight1.HasValue)
+                        && x.CarryForwardWeight1.HasValue
+                        && x.CarryForwardWeight1Time.HasValue
+                        && x.CarryForwardWeight1Time.Value >= reuseCutoff)
                     .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
                     .ToListAsync(ct))
                 .GroupBy(x => x.ErpCutOrderId!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
-        var reusableSessionKeys = registrations
-            .Select(x => new
-            {
-                VehiclePlate = x.VehiclePlate?.Trim(),
-                MoocNumber = string.IsNullOrWhiteSpace(x.MoocNumber) ? string.Empty : x.MoocNumber.Trim(),
-                x.TransactionType
-            })
-            .Where(x => !string.IsNullOrWhiteSpace(x.VehiclePlate))
-            .Distinct()
-            .ToList();
-        var reusableSessions = await _db.WeighingSessions.AsNoTracking()
-            .Where(ws => !ws.IsDeleted
-                && !ws.IsCancelled
-                && ws.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
-                && ws.Weight1.HasValue)
-            .Where(ws => !_db.CutOrders.Any(co =>
-                !co.IsDeleted
-                && !co.IsCancelled
-                && co.WeighingSessionId == ws.Id))
-            .ToListAsync(ct);
-        var reusableSessionLookup = reusableSessions
-            .Where(ws => reusableSessionKeys.Any(key =>
-                key.TransactionType == ws.TransactionType
-                && string.Equals(key.VehiclePlate, ws.VehiclePlate?.Trim(), StringComparison.OrdinalIgnoreCase)
-                && string.Equals(key.MoocNumber, string.IsNullOrWhiteSpace(ws.MoocNumber) ? string.Empty : ws.MoocNumber.Trim(), StringComparison.OrdinalIgnoreCase)))
-            .GroupBy(ws => $"{ws.TransactionType}|{ws.VehiclePlate?.Trim()?.ToUpperInvariant()}|{(string.IsNullOrWhiteSpace(ws.MoocNumber) ? string.Empty : ws.MoocNumber.Trim().ToUpperInvariant())}")
-            .ToDictionary(
-                x => x.Key,
-                x => x.OrderByDescending(ws => ws.Weight1Time ?? ws.UpdatedAt ?? ws.CreatedAt).First(),
-                StringComparer.OrdinalIgnoreCase);
         var deletedSessionIds = deletedCarryForwardByRegistrationCode.Values
             .Where(x => x.WeighingSessionId.HasValue)
             .Select(x => x.WeighingSessionId!.Value)
@@ -421,33 +398,24 @@ public class CutOrderRepository : ICutOrderRepository
             : await _db.WeighingSessions.AsNoTracking()
                 .Where(x => !x.IsDeleted
                     && !x.IsCancelled
-                    && x.SessionStatus != WeighingSessionStatus.COMPLETED
-                    && x.SessionStatus != WeighingSessionStatus.CANCELLED
+                    && x.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
+                    && x.Weight1.HasValue
+                    && !x.Weight2.HasValue
+                    && x.Weight1Time.HasValue
+                    && x.Weight1Time.Value >= reuseCutoff
                     && deletedSessionIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, ct);
 
         var list = registrations.Select(vr =>
         {
-            var reusableSessionKey = $"{vr.TransactionType}|{vr.VehiclePlate?.Trim()?.ToUpperInvariant()}|{(string.IsNullOrWhiteSpace(vr.MoocNumber) ? string.Empty : vr.MoocNumber.Trim().ToUpperInvariant())}";
-            reusableSessionLookup.TryGetValue(reusableSessionKey, out var reusableSession);
-
             string? suggestedSessionNo = null;
             if (!string.IsNullOrWhiteSpace(vr.ErpRegistrationCode)
                 && deletedCarryForwardByRegistrationCode.TryGetValue(vr.ErpRegistrationCode.Trim(), out var deletedByRegCode)
                 && deletedByRegCode.WeighingSessionId.HasValue
                 && deletedSessionLookup.TryGetValue(deletedByRegCode.WeighingSessionId.Value, out var suggestedSession)
-                && suggestedSession.TransactionType == vr.TransactionType
-                && string.Equals(suggestedSession.VehiclePlate?.Trim(), vr.VehiclePlate?.Trim(), StringComparison.OrdinalIgnoreCase)
-                && string.Equals(
-                    string.IsNullOrWhiteSpace(suggestedSession.MoocNumber) ? string.Empty : suggestedSession.MoocNumber.Trim(),
-                    string.IsNullOrWhiteSpace(vr.MoocNumber) ? string.Empty : vr.MoocNumber.Trim(),
-                    StringComparison.OrdinalIgnoreCase))
+                && suggestedSession.TransactionType == vr.TransactionType)
             {
                 suggestedSessionNo = suggestedSession.SessionNo;
-            }
-            else if (reusableSession != null)
-            {
-                suggestedSessionNo = reusableSession.SessionNo;
             }
 
             return new IncomingVehicleListItem(
@@ -472,14 +440,16 @@ public class CutOrderRepository : ICutOrderRepository
                         ? deletedCarryForwardByRegCode.CarryForwardWeight1
                         : !string.IsNullOrWhiteSpace(vr.ErpCutOrderId) && deletedCarryForwardLookup.TryGetValue(vr.ErpCutOrderId.Trim(), out var deletedCarryForward)
                         ? deletedCarryForward.CarryForwardWeight1
-                        : reusableSession?.Weight1),
+                        : null),
                 vr.CarryForwardWeight1Time
                     ?? (!string.IsNullOrWhiteSpace(vr.ErpRegistrationCode) && deletedCarryForwardByRegistrationCode.TryGetValue(vr.ErpRegistrationCode.Trim(), out var deletedCarryForwardTimeByRegCode)
                         ? deletedCarryForwardTimeByRegCode.CarryForwardWeight1Time
                         : !string.IsNullOrWhiteSpace(vr.ErpCutOrderId) && deletedCarryForwardLookup.TryGetValue(vr.ErpCutOrderId.Trim(), out var deletedCarryForwardTime)
                         ? deletedCarryForwardTime.CarryForwardWeight1Time
-                        : reusableSession?.Weight1Time),
-                suggestedSessionNo);
+                        : null),
+                suggestedSessionNo,
+                vr.ConsumptionPlace,
+                vr.Market);
         }).ToList();
 
         var missingProductCodes = list
@@ -690,13 +660,14 @@ public class CutOrderRepository : ICutOrderRepository
                 : null;
             var hasSplitOverweight = relatedSplitDelivery.Count > 0;
             var isNoLoad = session != null
-                && session.SessionStatus == WeighingSessionStatus.COMPLETED
-                && (session.NetWeight ?? 0m) <= 0m
-                && !relatedNormalDelivery.Any()
-                && !relatedSplitDelivery.Any()
-                && sessionLines
-                    .Where(line => line.WeighingSessionId == session.Id)
-                    .All(line => (line.ActualAllocatedWeight ?? 0m) <= 0m && (line.ActualAllocatedBagCount ?? 0) <= 0);
+                && (session.IsNoLoad
+                    || (session.SessionStatus == WeighingSessionStatus.COMPLETED
+                        && (session.NetWeight ?? 0m) <= 0m
+                        && !relatedNormalDelivery.Any()
+                        && !relatedSplitDelivery.Any()
+                        && sessionLines
+                            .Where(line => line.WeighingSessionId == session.Id)
+                            .All(line => (line.ActualAllocatedWeight ?? 0m) <= 0m && (line.ActualAllocatedBagCount ?? 0) <= 0)));
             var displayWeightKg = displayDelivery?.AllocatedWeight
                 ?? sessionLine?.ActualAllocatedWeight;
             var displayBagCount = isBagged

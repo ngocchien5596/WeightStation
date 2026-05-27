@@ -130,123 +130,144 @@
 
                     <TextBlock Text="{StaticResource Incoming.VehiclePlateLabel}" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="1"
-                                                  State="{Binding FormVehiclePlateInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   State="{Binding FormVehiclePlateInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="Mooc" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="3"
-                                                  State="{Binding FormMoocInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   State="{Binding FormMoocInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="HTVC" Grid.Row="0" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="5"
-                              SelectedValue="{Binding FormTransportMethod, UpdateSourceTrigger=PropertyChanged}"
-                              SelectedValuePath="Tag"
-                              Style="{StaticResource StandardComboBoxStyle}"
-                              IsEnabled="{Binding CanEditNonRegistrationFields}">
+                               SelectedValue="{Binding FormTransportMethod, UpdateSourceTrigger=PropertyChanged}"
+                               SelectedValuePath="Tag"
+                               Style="{StaticResource StandardComboBoxStyle}"
+                               IsEnabled="{Binding CanEditNonRegistrationFields}">
                         <ComboBoxItem Content="&#x110;&#x1B0;&#x1EDD;ng b&#x1ED9;" Tag="{x:Static enums:TransportMethod.ROAD}"/>
                         <ComboBoxItem Content="&#x110;&#x1B0;&#x1EDD;ng th&#x1EE7;y" Tag="{x:Static enums:TransportMethod.WATERWAY}"/>
                     </ComboBox>
 
-                    <TextBlock Text="S&#x1ED1; &#x110;K Xe" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="Th&#x1ECB; tr&#x1B0;&#x1EDD;ng" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="2" Grid.Column="1"
-                             Text="{Binding VehicleRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource FormBox}"/>
-
-                    <TextBlock Text="S&#x1ED1; &#x110;K Mooc" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="2" Grid.Column="3"
-                             Text="{Binding MoocRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource FormBox}"/>
-
-                    <TextBlock Text="TTCP (kg)" Grid.Row="2" Grid.Column="4" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="2" Grid.Column="5"
-                             Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus, ConverterCulture='vi-VN'}"
-                             Style="{StaticResource FormBox}"/>
-
-                    <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="3" Grid.Column="0" Style="{StaticResource VehicleExpiryLabelStyle}"/>
-                    <DatePicker Grid.Row="3" Grid.Column="1"
-                                SelectedDate="{Binding VehicleRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Style="{StaticResource VehicleExpiryDatePickerStyle}"/>
-
-                    <TextBlock Text="H&#x1EA1;n &#x110;K Mooc" Grid.Row="3" Grid.Column="2" Style="{StaticResource MoocExpiryLabelStyle}"/>
-                    <DatePicker Grid.Row="3" Grid.Column="3"
-                                SelectedDate="{Binding MoocRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Style="{StaticResource MoocExpiryDatePickerStyle}"/>
-
-                    <TextBlock Text="TTCP 10% (kg)" Grid.Row="3" Grid.Column="4" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="3" Grid.Column="5"
-                             Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}', ConverterCulture='vi-VN'}"
+                             Text="{Binding FormMarket, Mode=OneWay}"
                              IsReadOnly="True"
                              Style="{StaticResource FormBox}"
                              Background="#F8F9F9"/>
 
+                    <TextBlock Text="TT ti&#xEA;u th&#x1EE5;" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="3"
+                             Text="{Binding FormConsumptionPlace, Mode=OneWay}"
+                             IsReadOnly="True"
+                             Style="{StaticResource FormBox}"
+                             Background="#F8F9F9"/>
+
+                    <TextBlock Text="L&#x1B0;&#x1EE3;t c&#xE2;n" Grid.Row="2" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="5"
+                             Text="{Binding FormAttachSessionNo, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="M&#xE3; KH" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="1"
+                              Text="{Binding FormCustomerCode, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource FormBox}"
+                              IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+
+                    <TextBlock Text="{StaticResource Incoming.CustomerLabel}" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="3"
+                                                   State="{Binding FormCustomerInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+
+                    <TextBlock Text="M&#xE3; SP" Grid.Row="3" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="5"
+                                                   State="{Binding FormProductCodeInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+
+                    <TextBlock Text="S&#x1ED1; &#x110;K Xe" Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="5" Grid.Column="1"
+                              Text="{Binding VehicleRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="S&#x1ED1; &#x110;K Mooc" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="5" Grid.Column="3"
+                              Text="{Binding MoocRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="TTCP (kg)" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="5" Grid.Column="5"
+                              Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus, ConverterCulture='vi-VN'}"
+                              Style="{StaticResource FormBox}"/>
+
+                    <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="6" Grid.Column="0" Style="{StaticResource VehicleExpiryLabelStyle}"/>
+                    <DatePicker Grid.Row="6" Grid.Column="1"
+                                 SelectedDate="{Binding VehicleRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource VehicleExpiryDatePickerStyle}"/>
+
+                    <TextBlock Text="H&#x1EA1;n &#x110;K Mooc" Grid.Row="6" Grid.Column="2" Style="{StaticResource MoocExpiryLabelStyle}"/>
+                    <DatePicker Grid.Row="6" Grid.Column="3"
+                                 SelectedDate="{Binding MoocRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource MoocExpiryDatePickerStyle}"/>
+
+                    <TextBlock Text="TTCP 10% (kg)" Grid.Row="6" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="6" Grid.Column="5"
+                              Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}', ConverterCulture='vi-VN'}"
+                              IsReadOnly="True"
+                              Style="{StaticResource FormBox}"
+                              Background="#F8F9F9"/>
+
                     <TextBlock Text="{StaticResource Incoming.DriverLabel}" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="5"
-                                                  State="{Binding FormDriverInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   State="{Binding FormDriverInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="Lo&#x1EA1;i" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="3"
-                              SelectedValue="{Binding FormTransactionType, UpdateSourceTrigger=PropertyChanged}"
-                              SelectedValuePath="Tag"
-                              Style="{StaticResource StandardComboBoxStyle}"
-                              IsEnabled="{Binding CanEditNonRegistrationFields}">
+                               SelectedValue="{Binding FormTransactionType, UpdateSourceTrigger=PropertyChanged}"
+                               SelectedValuePath="Tag"
+                               Style="{StaticResource StandardComboBoxStyle}"
+                               IsEnabled="{Binding CanEditNonRegistrationFields}">
                         <ComboBoxItem Content="Nh&#x1EAD;p h&#xE0;ng" Tag="{x:Static enums:TransactionType.INBOUND}"/>
                         <ComboBoxItem Content="Xu&#x1EA5;t h&#xE0;ng" Tag="{x:Static enums:TransactionType.OUTBOUND}"/>
                     </ComboBox>
 
-                    <TextBlock Text="M&#xE3; KH" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1"
-                             Text="{Binding FormCustomerCode, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource FormBox}"
-                             IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                    <TextBlock Text="SL &#x111;&#x1EB7;t" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FormPlannedWeight, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
-                    <TextBlock Text="SL &#x111;&#x1EB7;t" Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding FormPlannedWeight, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                    <TextBlock Text="S&#x1ED1; bao" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}"/>
+                    <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding FormBagCount, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
-                    <TextBlock Text="S&#x1ED1; bao" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}"/>
-                    <TextBox Grid.Row="5" Grid.Column="3" Text="{Binding FormBagCount, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
-
-                    <TextBlock Text="{StaticResource Incoming.CustomerLabel}" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="3"
-                                                  State="{Binding FormCustomerInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
-
-                    <TextBlock Text="M&#xE3; SP" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="{StaticResource Incoming.ProductLabel}" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="5"
-                                                  State="{Binding FormProductCodeInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   State="{Binding FormProductNameInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
-                    <TextBlock Text="{StaticResource Incoming.ProductLabel}" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="5" Grid.Column="5"
-                                                  State="{Binding FormProductNameInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
-
-                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="6" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="5" Text="{Binding FormNotes}" Style="{StaticResource FormBox}"/>
-
-                    <TextBlock Text="L&#x1B0;&#x1EE3;t c&#xE2;n" Grid.Row="7" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="7" Grid.Column="1"
-                             Text="{Binding FormAttachSessionNo, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="7" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="5"
+                             Text="{Binding FormNotes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             MaxLength="500"
                              Style="{StaticResource FormBox}"/>
 
                     <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                        <Button Command="{Binding SaveDetailCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,12,0">
+                        <Button Command="{Binding SaveDetailCommand}" Margin="0,0,12,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCreateMode}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBlock Text="{Binding SaveButtonText}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Command="{Binding ResetDetailCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="{StaticResource Incoming.Complete}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding ConfirmEnterWeighingCommand}" Style="{StaticResource WorkflowButtonStyle}" IsEnabled="{Binding CanConfirmEnterWeighing}">
@@ -291,6 +312,8 @@
                     <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.DriverLabel}" Binding="{Binding ReceiverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="TT TI&#xEA;U TH&#x1EE4;" Binding="{Binding ConsumptionPlace}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="TH&#x1ECA; TR&#x1AF;&#x1EDC;NG" Binding="{Binding Market}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.ColProductCode}" Binding="{Binding ProductCode}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.ProductLabel}" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="SL &#x110;&#x1EB6;T (KG)" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="115" ElementStyle="{StaticResource GridTextRight}"/>
@@ -301,4 +324,5 @@
         </Border>
     </Grid>
 </UserControl>
+
 

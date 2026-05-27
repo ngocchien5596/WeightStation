@@ -15,12 +15,7 @@ public sealed class WeighingSessionOverweightService
         var baseWeight = baseTtcpWeight.GetValueOrDefault();
         if (baseWeight <= 0m)
         {
-            baseWeight = lines.Sum(x => x.PlannedWeight ?? 0m);
-        }
-
-        if (baseWeight <= 0m)
-        {
-            throw new InvalidOperationException("Không xác định được ngưỡng TTCP 10% cho lượt cân.");
+            throw new InvalidOperationException("Không xác định được ngưỡng TTCP 10% từ Danh mục xe cho lượt cân.");
         }
 
         return decimal.Round(baseWeight * 1.10m, 3, MidpointRounding.AwayFromZero);

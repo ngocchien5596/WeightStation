@@ -20,10 +20,10 @@ public partial class CustomDialogViewModel : ObservableObject
     private string _message = string.Empty;
 
     [ObservableProperty]
-    private string _confirmText = "Đồng ý";
+    private string _confirmText = "\u0110\u1ed3ng \u00fd";
 
     [ObservableProperty]
-    private string _cancelText = "Hủy";
+    private string _cancelText = "H\u1ee7y";
 
     [ObservableProperty]
     private bool _isCancelVisible = true;
@@ -38,8 +38,9 @@ public partial class CustomDialogViewModel : ObservableObject
     private string _iconColor = "#203B73"; // Default SidebarBrush color
 
     public bool DialogResult { get; private set; }
+    public bool? CloseResult { get; private set; }
 
-    public CustomDialogViewModel(string title, string message, DialogType dialogType, string confirmText = "Đồng ý", string cancelText = "Hủy")
+    public CustomDialogViewModel(string title, string message, DialogType dialogType, string confirmText = "\u0110\u1ed3ng \u00fd", string cancelText = "H\u1ee7y")
     {
         Title = title;
         Message = message;
@@ -81,6 +82,7 @@ public partial class CustomDialogViewModel : ObservableObject
     private void Confirm()
     {
         DialogResult = true;
+        CloseResult = true;
         CloseRequested?.Invoke(this, true);
     }
 
@@ -88,8 +90,16 @@ public partial class CustomDialogViewModel : ObservableObject
     private void Cancel()
     {
         DialogResult = false;
+        CloseResult = false;
         CloseRequested?.Invoke(this, false);
     }
 
-    public event System.EventHandler<bool>? CloseRequested;
+    [RelayCommand]
+    private void Close()
+    {
+        CloseResult = null;
+        CloseRequested?.Invoke(this, null);
+    }
+
+    public event System.EventHandler<bool?>? CloseRequested;
 }

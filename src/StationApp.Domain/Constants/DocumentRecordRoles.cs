@@ -9,6 +9,7 @@ public static class WeighTicketRecordRoles
 
 public static class DeliveryTicketRecordRoles
 {
+    public const string Master = "DELIVERY_MASTER";
     public const string Normal = "NORMAL";
     public const string SplitDerived = "SPLIT_DERIVED";
 }

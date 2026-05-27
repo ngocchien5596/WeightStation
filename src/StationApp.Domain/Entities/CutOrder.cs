@@ -27,6 +27,7 @@ public class CutOrder
     public string? OrderCode { get; set; }
     public string? LotNo { get; set; }
     public string? RepresentativeName { get; set; }
+    public string? Market { get; set; }
     public string? ConsumptionPlace { get; set; }
     public string? LoadingPlace { get; set; }
     public string? SealNo { get; set; }

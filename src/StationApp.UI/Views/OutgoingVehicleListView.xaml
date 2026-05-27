@@ -147,7 +147,6 @@
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductName}" Binding="{Binding ProductName}" Width="250" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="85" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.Weight1}" Binding="{Binding Weight1, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualTon}" Binding="{Binding ActualWeightKg, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualBags}" Binding="{Binding ActualBagCount}" Width="85" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.TotalTon}" Binding="{Binding TotalWeightKg, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>

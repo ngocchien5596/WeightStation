@@ -248,6 +248,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                     ticket.AllocatedWeight,
                     ticket.CreatedAt)))
                 .OrderBy(x => x.DocumentType)
+                .ThenBy(x => x.RecordRole == DeliveryTicketRecordRoles.Master ? 0 : 1)
                 .ThenBy(x => x.SplitSequence ?? byte.MaxValue)
                 .ThenBy(x => x.CreatedAt));
 
@@ -597,30 +598,55 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         var pages = new List<PrintPreviewPageModel>();
         var deliveryTicketsToPrint = splitConfirmed
             ? context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.SplitDerived && !x.IsDeleted).OrderBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
-            : context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted).OrderBy(x => x.WeighingSessionLineId).ThenBy(x => x.CreatedAt);
+            : context.DeliveryTickets.Where(x =>
+                    (x.RecordRole == DeliveryTicketRecordRoles.Master || x.RecordRole == DeliveryTicketRecordRoles.Normal)
+                    && !x.IsDeleted)
+                .OrderBy(x => x.RecordRole == DeliveryTicketRecordRoles.Master ? 0 : 1)
+                .ThenBy(x => x.WeighingSessionLineId).ThenBy(x => x.CreatedAt);
 
         foreach (var ticket in deliveryTicketsToPrint)
         {
-            if (!ticket.WeighingSessionLineId.HasValue)
+            CutOrder? registration;
+            WeighingSessionLine? line;
+            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
-                continue;
-            }
+                var primaryLine = context.Lines.OrderBy(x => x.SequenceNo).FirstOrDefault();
+                if (primaryLine == null || !context.RegistrationsById.TryGetValue(primaryLine.CutOrderId, out var primaryRegistration))
+                {
+                    continue;
+                }
 
-            var line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
-            if (line == null || !context.RegistrationsById.TryGetValue(line.CutOrderId, out var registration))
+                registration = BuildDeliveryMasterRegistration(context, primaryRegistration);
+                line = BuildDeliveryMasterLine(context);
+            }
+            else
             {
-                continue;
+                if (!ticket.WeighingSessionLineId.HasValue)
+                {
+                    continue;
+                }
+
+                line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
+                if (line == null || !context.RegistrationsById.TryGetValue(line.CutOrderId, out registration))
+                {
+                    continue;
+                }
             }
 
             var relatedWeighTicket = splitConfirmed
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            var page = deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
-            if (ticket.RecordRole == DeliveryTicketRecordRoles.Normal)
+            var page = deliveryComposer.Compose(registration!, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
                 page.PreviewGroupKey = "delivery-master";
                 page.PreviewGroupName = "Phiếu tổng";
+            }
+            else if (ticket.RecordRole == DeliveryTicketRecordRoles.Normal)
+            {
+                page.PreviewGroupKey = $"delivery-cutorder-{registration!.Id:N}";
+                page.PreviewGroupName = $"Phiếu cắt lệnh {registration.ErpCutOrderId}";
             }
             else if (ticket.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
             {
@@ -717,6 +743,54 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 await sessionRepo.UpdateLineAsync(line, innerCt);
             }
         }, CancellationToken.None);
+    }
+
+    private static CutOrder BuildDeliveryMasterRegistration(SessionPrintContext context, CutOrder primaryRegistration)
+    {
+        var registrations = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).ToList();
+        var distinctCustomerNames = registrations.Select(x => x.CustomerName?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctProductNames = registrations.Select(x => x.ProductName?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctNotes = registrations.Select(x => x.Notes?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctMarkets = registrations.Select(x => x.Market?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctConsumptionPlaces = registrations.Select(x => x.ConsumptionPlace?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        return new CutOrder
+        {
+            Id = primaryRegistration.Id,
+            ErpCutOrderId = primaryRegistration.ErpCutOrderId,
+            OrderCode = primaryRegistration.OrderCode,
+            CustomerCode = primaryRegistration.CustomerCode,
+            CustomerName = distinctCustomerNames.Count == 1 ? distinctCustomerNames[0] : "Nhiều khách hàng",
+            ProductCode = primaryRegistration.ProductCode,
+            ProductName = distinctProductNames.Count == 1 ? distinctProductNames[0] : "Nhiều cắt lệnh",
+            ProductType = primaryRegistration.ProductType,
+            Market = distinctMarkets.Count == 0 ? null : string.Join(" / ", distinctMarkets),
+            ConsumptionPlace = distinctConsumptionPlaces.Count == 0 ? null : string.Join(" / ", distinctConsumptionPlaces),
+            LoadingPlace = primaryRegistration.LoadingPlace,
+            LotNo = primaryRegistration.LotNo,
+            SealNo = primaryRegistration.SealNo,
+            PlannedWeight = context.Lines.Sum(x => x.PlannedWeight ?? 0m),
+            BagCount = context.Lines.Sum(x => x.PlannedBagCount ?? 0),
+            VehiclePlate = context.MasterSession.VehiclePlate,
+            MoocNumber = context.MasterSession.MoocNumber,
+            Notes = distinctNotes.Count == 0 ? null : string.Join(" / ", distinctNotes)
+        };
+    }
+
+    private static WeighingSessionLine BuildDeliveryMasterLine(SessionPrintContext context)
+    {
+        return new WeighingSessionLine
+        {
+            Id = Guid.Empty,
+            WeighingSessionId = context.MasterSession.Id,
+            CutOrderId = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First().Id,
+            SequenceNo = 0,
+            PlannedWeight = context.Lines.Sum(x => x.PlannedWeight ?? 0m),
+            PlannedBagCount = context.Lines.Sum(x => x.PlannedBagCount ?? 0),
+            ActualAllocatedWeight = context.MasterSession.NetWeight,
+            ActualAllocatedBagCount = context.Lines.Sum(x => x.ActualAllocatedBagCount ?? 0),
+            LineStatus = WeighingSessionLineStatus.ALLOCATED
+        };
     }
 
     private sealed record SessionPrintContext(

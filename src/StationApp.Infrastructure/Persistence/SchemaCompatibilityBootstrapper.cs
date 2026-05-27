@@ -12,6 +12,7 @@ public static class SchemaCompatibilityBootstrapper
         new("OrderCode", "nvarchar(100) NULL"),
         new("LotNo", "nvarchar(100) NULL"),
         new("RepresentativeName", "nvarchar(150) NULL"),
+        new("Market", "nvarchar(255) NULL"),
         new("ConsumptionPlace", "nvarchar(255) NULL"),
         new("LoadingPlace", "nvarchar(255) NULL"),
         new("SealNo", "nvarchar(100) NULL"),
@@ -241,6 +242,7 @@ BEGIN
         [DeletedBy] nvarchar(100) NULL,
         [HasPrintedMasterWeighTicket] bit NOT NULL CONSTRAINT [DF_weighing_sessions_has_printed_master_bootstrap] DEFAULT ((0)),
         [UseActualWeightForBaggedCutOrders] bit NOT NULL CONSTRAINT [DF_weighing_sessions_bagged_actual_weight_bootstrap] DEFAULT ((0)),
+        [IsNoLoad] bit NOT NULL CONSTRAINT [DF_weighing_sessions_is_no_load_bootstrap] DEFAULT ((0)),
         [CreatedAt] datetime2 NOT NULL,
         [CreatedBy] nvarchar(100) NOT NULL,
         [UpdatedAt] datetime2 NULL,
@@ -307,6 +309,13 @@ BEGIN
             CONSTRAINT [DF_weighing_sessions_bagged_actual_weight_bootstrap] DEFAULT ((0));
 END
 
+IF COL_LENGTH(N'[weighing_sessions]', N'IsNoLoad') IS NULL
+BEGIN
+    ALTER TABLE [weighing_sessions]
+        ADD [IsNoLoad] bit NOT NULL
+            CONSTRAINT [DF_weighing_sessions_is_no_load_bootstrap] DEFAULT ((0));
+END
+
 IF COL_LENGTH(N'[weighing_sessions]', N'IsDeleted') IS NULL
 BEGIN
     ALTER TABLE [weighing_sessions]
@@ -351,9 +360,25 @@ BEGIN
     CREATE INDEX [IX_weighing_session_lines_registration_id] ON [weighing_session_lines]([CutOrderId]);
 END
 
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
+BEGIN
+    DECLARE @weighingSessionLinesIndexFilter NVARCHAR(MAX);
+    SELECT @weighingSessionLinesIndexFilter = i.filter_definition
+    FROM sys.indexes i
+    WHERE i.object_id = OBJECT_ID(N'[weighing_session_lines]')
+      AND i.name = 'UX_weighing_session_lines_session_registration';
+
+    IF @weighingSessionLinesIndexFilter IS NULL OR @weighingSessionLinesIndexFilter <> N'([IsDeleted]=(0))'
+    BEGIN
+        DROP INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines];
+    END
+END
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
 BEGIN
-    CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines]([WeighingSessionId], [CutOrderId]);
+    CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration]
+        ON [weighing_session_lines]([WeighingSessionId], [CutOrderId])
+        WHERE [IsDeleted] = 0;
 END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[weigh_tickets]'))

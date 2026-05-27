@@ -601,8 +601,9 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         {
             ["DeliveryNo"] = "Số phiếu",
             ["ReferenceCode"] = "Mã đơn hàng",
-            ["CustomerName"] = "Tên khách hàng",
-            ["ConsumptionPlace"] = "Nơi tiêu thụ",
+            ["CustomerName"] = "T\u00EAn kh\u00E1ch h\u00E0ng",
+            ["Market"] = "Th\u1ECB tr\u01B0\u1EDDng",
+            ["ConsumptionPlace"] = "Th\u1ECB tr\u01B0\u1EDDng ti\u00EAu th\u1EE5",
             ["LoadingPlace"] = "Nơi xuất hàng",
             ["CustomerCode"] = "Mã khách hàng",
             ["ProductName"] = "Chủng loại mặt hàng",

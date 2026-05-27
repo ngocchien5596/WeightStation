@@ -58,9 +58,17 @@ public class DecimalMultiplierConverter : IValueConverter
 
     private static decimal ResolveMultiplier(object? parameter, CultureInfo culture)
     {
-        return decimal.TryParse(parameter?.ToString(), NumberStyles.Any, culture, out var multiplier)
-            ? multiplier
-            : 1m;
+        var parameterText = parameter?.ToString();
+        if (string.IsNullOrWhiteSpace(parameterText))
+        {
+            return 1m;
+        }
+
+        return decimal.TryParse(parameterText, NumberStyles.Any, CultureInfo.InvariantCulture, out var invariantMultiplier)
+            ? invariantMultiplier
+            : decimal.TryParse(parameterText, NumberStyles.Any, culture, out var cultureMultiplier)
+                ? cultureMultiplier
+                : 1m;
     }
 }
 
@@ -238,7 +246,9 @@ public static class RecordRoleMapper
         return role switch
         {
             "MASTER_SESSION" => "Phiếu cân tổng",
-            "NORMAL" => "Phiếu giao nhận thường",
+            "CUT_ORDER_DERIVED" => "Phiếu cân theo cắt lệnh",
+            "DELIVERY_MASTER" => "Phiếu giao nhận tổng",
+            "NORMAL" => "Phiếu giao nhận theo cắt lệnh",
             "SPLIT_DERIVED" => "Chứng từ tách tải",
             _ => role ?? string.Empty
         };

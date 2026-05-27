@@ -51,7 +51,6 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="180"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0" Text="Username" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -66,11 +65,8 @@
                     <TextBlock Grid.Column="6" Text="Tr&#x1EA1;ng th&#xE1;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ComboBox Grid.Column="7" ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" Style="{StaticResource FormCombo}" Margin="0,0,16,0"/>
 
-                    <Button Grid.Column="8" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                    <Button Grid.Column="8" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}">
                         <TextBlock Text="T&#xCC;M KI&#x1EBE;M"/>
-                    </Button>
-                    <Button Grid.Column="9" Command="{Binding RefreshCommand}" Style="{StaticResource UtilityButtonStyle}">
-                        <TextBlock Text="L&#xC0;M M&#x1EDA;I"/>
                     </Button>
                 </Grid>
 

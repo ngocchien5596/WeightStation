@@ -2,7 +2,7 @@ USE [StationAppLocal]
 GO
 SET ANSI_NULLS ON
 GO
-SET QUOTED_IDENTIFIER OFF
+SET QUOTED_IDENTIFIER ON
 GO
 
 IF OBJECT_ID(N'[dbo].[sp_SoftDeleteCutOrderDocumentsForReissue]', N'P') IS NULL
@@ -27,7 +27,10 @@ BEGIN
     DECLARE @SessionId UNIQUEIDENTIFIER;
     DECLARE @Weight1 DECIMAL(18,3);
     DECLARE @Weight1Time DATETIME2(7);
+    DECLARE @Weight2 DECIMAL(18,3);
+    DECLARE @SessionStatus NVARCHAR(60);
     DECLARE @ActiveLineCount INT;
+    DECLARE @PreserveSessionForReuse BIT = 0;
 
     SELECT TOP (1)
         @CutOrderId = co.Id,
@@ -45,7 +48,9 @@ BEGIN
     BEGIN
         SELECT
             @Weight1 = ws.Weight1,
-            @Weight1Time = ws.Weight1Time
+            @Weight1Time = ws.Weight1Time,
+            @Weight2 = ws.Weight2,
+            @SessionStatus = ws.SessionStatus
         FROM dbo.weighing_sessions ws
         WHERE ws.Id = @SessionId;
 
@@ -59,6 +64,13 @@ BEGIN
         IF (ISNULL(@ActiveLineCount, 0) > 1)
         BEGIN
             THROW 50013, N'Chua ho tro soft delete khi luot can cu con nhieu hon 1 cat lenh.', 1;
+        END;
+
+        IF (@Weight1 IS NOT NULL
+            AND @Weight2 IS NULL
+            AND ISNULL(@SessionStatus, N'') = N'PENDING_WEIGHT2')
+        BEGIN
+            SET @PreserveSessionForReuse = 1;
         END;
     END;
 
@@ -74,7 +86,12 @@ BEGIN
         UpdatedAt = @Now,
         UpdatedBy = N'ERP_REISSUE'
     WHERE CutOrderId = @CutOrderId
-      AND IsDeleted = 0;
+      AND IsDeleted = 0
+      AND (
+          @PreserveSessionForReuse = 0
+          OR ISNULL(WeighingSessionId, '00000000-0000-0000-0000-000000000000') <> @SessionId
+          OR ISNULL(RecordRole, N'') <> N'MASTER_SESSION'
+      );
 
     UPDATE dbo.delivery_tickets
     SET
@@ -103,7 +120,7 @@ BEGIN
     WHERE CutOrderId = @CutOrderId
       AND (@SessionId IS NULL OR WeighingSessionId = @SessionId);
 
-    IF (@SessionId IS NOT NULL AND ISNULL(@ActiveLineCount, 0) <= 1)
+    IF (@SessionId IS NOT NULL AND ISNULL(@ActiveLineCount, 0) <= 1 AND @PreserveSessionForReuse = 0)
     BEGIN
         UPDATE dbo.weighing_sessions
         SET
@@ -124,7 +141,7 @@ BEGIN
         IsDeleted = 1,
         DeletedAt = @Now,
         DeletedBy = N'ERP_REISSUE',
-        WeighingSessionId = NULL,
+        WeighingSessionId = CASE WHEN @PreserveSessionForReuse = 1 THEN WeighingSessionId ELSE NULL END,
         CurrentPrimaryWeighTicketId = NULL,
         CurrentPrimaryDeliveryTicketId = NULL,
         HasOverweightCase = 0,

@@ -45,6 +45,7 @@ public sealed class WeighingSessionTicketSyncService
         WeighingSessionLine line,
         CutOrder registration,
         WeighTicket lineTicket,
+        decimal startWeight,
         DateTime now,
         string username)
     {
@@ -67,10 +68,13 @@ public sealed class WeighingSessionTicketSyncService
         lineTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
         lineTicket.IsDeleted = false;
         lineTicket.IsCancelled = false;
-        lineTicket.Weight1 = session.Weight1;
+        lineTicket.Weight1 = startWeight;
         lineTicket.Weight1User = lineTicket.Weight1User ?? username;
         lineTicket.Weight1Time = session.Weight1Time;
-        lineTicket.Weight2 = session.Weight2;
+        var allocatedWeight = line.ActualAllocatedWeight ?? 0m;
+        lineTicket.Weight2 = session.TransactionType == TransactionType.OUTBOUND
+            ? decimal.Round(startWeight + allocatedWeight, 3, MidpointRounding.AwayFromZero)
+            : decimal.Round(startWeight - allocatedWeight, 3, MidpointRounding.AwayFromZero);
         lineTicket.Weight2User = lineTicket.Weight2User ?? username;
         lineTicket.Weight2Time = session.Weight2Time;
         lineTicket.NetWeight = line.ActualAllocatedWeight;

@@ -280,6 +280,7 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),
                 Field("ProductName", registration.ProductName),
+                Field("Market", registration.Market),
                 Field("ConsumptionPlace", registration.ConsumptionPlace),
                 Field("LoadingPlace", registration.LoadingPlace),
                 Field("LotNo", registration.LotNo),

@@ -5,30 +5,30 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:StationApp.UI.Views.Dialogs"
         mc:Ignorable="d"
-        Title="{Binding Title}" 
-        Height="Auto" 
-        Width="450" 
+        Title="{Binding Title}"
+        Height="Auto"
+        Width="450"
         SizeToContent="Height"
-        WindowStartupLocation="CenterOwner" 
-        ShowInTaskbar="False" 
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
         ResizeMode="NoResize"
         WindowStyle="None"
         Background="Transparent"
         AllowsTransparency="True">
-    
+
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="40" GlassFrameThickness="0" CornerRadius="8" ResizeBorderThickness="0"/>
     </WindowChrome.WindowChrome>
 
-    <Border Background="{StaticResource CardBrush}" 
-            CornerRadius="8" 
-            BorderBrush="{StaticResource AccentBrush}" 
+    <Border Background="{StaticResource CardBrush}"
+            CornerRadius="8"
+            BorderBrush="{StaticResource AccentBrush}"
             BorderThickness="1"
             Margin="10">
         <Border.Effect>
             <DropShadowEffect BlurRadius="10" Color="#55000000" ShadowDepth="2"/>
         </Border.Effect>
-        
+
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="40"/>
@@ -39,23 +39,23 @@
             <!-- Header -->
             <Border Grid.Row="0" Background="{StaticResource SidebarBrush}" CornerRadius="7,7,0,0">
                 <Grid>
-                    <TextBlock Text="{Binding Title}" 
-                               Foreground="White" 
-                               FontWeight="Bold" 
-                               VerticalAlignment="Center" 
-                               HorizontalAlignment="Left" 
+                    <TextBlock Text="{Binding Title}"
+                               Foreground="White"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Left"
                                Margin="16,0,0,0"
                                FontSize="14"/>
-                    <Button Content="✕" 
-                            Foreground="White" 
-                            Background="Transparent" 
-                            BorderThickness="0" 
-                            FontSize="16" 
-                            HorizontalAlignment="Right" 
-                            Width="40" 
+                    <Button Content="X"
+                            Foreground="White"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            FontSize="16"
+                            HorizontalAlignment="Right"
+                            Width="40"
                             VerticalAlignment="Stretch"
                             WindowChrome.IsHitTestVisibleInChrome="True"
-                            Command="{Binding CancelCommand}"/>
+                            Command="{Binding CloseCommand}"/>
                 </Grid>
             </Border>
 
@@ -68,22 +68,22 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Icon Path -->
-                    <Path Grid.Column="0" 
-                          Data="{Binding IconGeometry}" 
-                          Fill="{Binding IconColor}" 
-                          Width="40" 
-                          Height="40" 
-                          Stretch="Uniform" 
-                          VerticalAlignment="Center" 
+                    <Path Grid.Column="0"
+                          Data="{Binding IconGeometry}"
+                          Fill="{Binding IconColor}"
+                          Width="40"
+                          Height="40"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
                           HorizontalAlignment="Center"/>
 
                     <!-- Message -->
-                    <TextBlock Grid.Column="1" 
-                               Text="{Binding Message}" 
-                               Foreground="{StaticResource ForegroundBrush}" 
-                               FontSize="14" 
-                               TextWrapping="Wrap" 
-                               VerticalAlignment="Center" 
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Message}"
+                               Foreground="{StaticResource ForegroundBrush}"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
                                Margin="10,0,0,0"
                                LineHeight="20"/>
                 </Grid>
@@ -93,8 +93,8 @@
             <Border Grid.Row="2" Background="{StaticResource SubCardBrush}" CornerRadius="0,0,7,7" Padding="15,10">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <!-- Cancel Button -->
-                    <Button Content="{Binding CancelText}" 
-                            Width="100" 
+                    <Button Content="{Binding CancelText}"
+                            Width="100"
                             Height="32"
                             Margin="0,0,10,0"
                             Visibility="{Binding IsCancelVisible, Converter={StaticResource BoolToVis}}"
@@ -130,8 +130,8 @@
                     </Button>
 
                     <!-- Confirm Button -->
-                    <Button Content="{Binding ConfirmText}" 
-                            Width="110" 
+                    <Button Content="{Binding ConfirmText}"
+                            Width="110"
                             Height="32"
                             Style="{StaticResource PrimaryButton}"
                             Command="{Binding ConfirmCommand}"/>

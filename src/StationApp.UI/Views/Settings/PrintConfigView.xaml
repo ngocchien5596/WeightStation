@@ -17,249 +17,139 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <Style x:Key="PrintConfigLabelStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="13"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="Foreground" Value="#334155"/>
-                <Setter Property="Margin" Value="0,0,0,6"/>
+            <Style x:Key="FormLabel" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
+                <Setter Property="Foreground" Value="#2C3E50"/>
+                <Setter Property="Margin" Value="0,0,0,8"/>
             </Style>
-
-            <Style x:Key="PrintConfigCardStyle" TargetType="Border" BasedOn="{StaticResource ModalSectionCardStyle}">
-                <Setter Property="Padding" Value="18"/>
-                <Setter Property="Margin" Value="0"/>
-            </Style>
-
-            <Style x:Key="PrintConfigComboStyle" TargetType="ComboBox" BasedOn="{StaticResource StandardComboBoxStyle}">
+            <Style x:Key="FormCombo" TargetType="ComboBox" BasedOn="{StaticResource StandardComboBoxStyle}">
                 <Setter Property="Height" Value="34"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Background="#FFFFFF" Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Grid Background="#F8FAFC">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+                <!-- Row 0: DB & Backup Status Card -->
+                <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="C&#x1EA4;U H&#x00CC;NH IN"
-                           FontSize="18"
-                           FontWeight="Bold"
-                           Foreground="#123B6B"/>
-                <TextBlock Text="Qu&#x1EA3;n tr&#x1ECB; m&#x1EAB;u in, m&#x00E1;y in m&#x1EB7;c &#x0111;&#x1ECB;nh v&#x00E0; version m&#x1EAB;u cho phi&#x1EBF;u c&#x00E2;n, phi&#x1EBF;u giao nh&#x1EAD;n. M&#x00E0;n preview trong nghi&#x1EC7;p v&#x1EE5; ch&#x1EC9; d&#x00F9;ng &#x0111;&#x1EC3; xem tr&#x01B0;&#x1EDB;c v&#x00E0; in."
-                           Margin="0,6,0,0"
-                           Foreground="#64748B"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
-        </Grid>
+                        <Border Width="44" Height="44" CornerRadius="8" Background="#E8EFF7" Margin="0,0,16,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#123B6B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
 
-        <Border Grid.Row="1"
-                Style="{StaticResource PrintConfigCardStyle}"
-                Margin="0,0,0,16">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <Border Width="44"
-                        Height="44"
-                        CornerRadius="12"
-                        Background="#E8EFF7"
-                        Margin="0,0,14,0"
-                        VerticalAlignment="Top">
-                    <TextBlock Text="&#xE8B7;"
-                               FontFamily="Segoe MDL2 Assets"
-                               FontSize="20"
-                               Foreground="#123B6B"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="CẤU HÌNH CHÍNH ĐANG LƯU TRONG DB LOCAL DÙNG CHUNG" FontWeight="Bold" Foreground="#123B6B" FontSize="13.5"/>
+                            <TextBlock Text="{Binding LastBackupFileDisplay, TargetNullValue=Chưa có file backup}" Margin="0,8,0,0" FontSize="12" Foreground="#64748B" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                            
+                            <!-- Success Banner -->
+                            <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,10,0,0" Visibility="{Binding PrinterSettingsMessage, Converter={StaticResource StringToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE930;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#0F766E" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PrinterSettingsMessage}" Foreground="#0F766E" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="C&#x1EA4;U H&#x00CC;NH CH&#x00CD;NH &#x0110;ANG L&#x01AF;U TRONG DB LOCAL D&#x00D9;NG CHUNG"
-                               FontWeight="Bold"
-                               Foreground="#123B6B"/>
-                    <TextBlock Text="File backup b&#x00EA;n d&#x01B0;&#x1EDB;i ch&#x1EC9; d&#x00F9;ng &#x0111;&#x1EC3; xu&#x1EA5;t/kh&#x00F4;i ph&#x1EE5;c khi c&#x1EA7;n, kh&#x00F4;ng ph&#x1EA3;i n&#x01A1;i l&#x01B0;u c&#x1EA5;u h&#x00EC;nh ch&#x00ED;nh."
-                               Margin="0,6,0,0"
-                               Foreground="#475569"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding LastBackupFileDisplay, TargetNullValue=Ch&#x01B0;a c&#x00F3; file backup}"
-                               Margin="0,10,0,0"
-                               FontSize="12"
-                               Foreground="#64748B"
-                               TextWrapping="Wrap"/>
-                    <Border Background="#ECFDF5"
-                            BorderBrush="#A7F3D0"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="10,8"
-                            Margin="0,10,0,0"
-                            Visibility="{Binding PrinterSettingsMessage, Converter={StaticResource StringToVis}}">
-                        <TextBlock Text="{Binding PrinterSettingsMessage}"
-                                   Foreground="#0F766E"
-                                   FontWeight="SemiBold"
-                                   TextWrapping="Wrap"/>
+                <!-- Row 1: Two columns cards -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Column 0: Weigh Ticket Card (PC) -->
+                    <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="24" VerticalAlignment="Top">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="MẪU IN PHIẾU CÂN (PC)" FontSize="15" FontWeight="Bold" Foreground="#123B6B"/>
+
+                            <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,16,0,16"/>
+
+                            <StackPanel Grid.Row="2">
+                                <TextBlock Text="Máy in mặc định cho phiếu cân" Style="{StaticResource FormLabel}"/>
+                                <ComboBox ItemsSource="{Binding WeighTicketPrinters}"
+                                          SelectedItem="{Binding SelectedWeighTicketPrinter, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="Name"
+                                          Style="{StaticResource FormCombo}"
+                                          Margin="0,0,0,14"/>
+                                <Button Command="{Binding ConfigureWeighTicketCommand}"
+                                        Style="{StaticResource WorkflowButtonStyle}"
+                                        Height="36"
+                                        Padding="18,0"
+                                        HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="MỞ CẤU HÌNH PHIẾU CÂN" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
                     </Border>
+
+                    <!-- Column 2: Delivery Ticket Card (PGN) -->
+                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="24" VerticalAlignment="Top">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="MẪU IN PHIẾU GIAO NHẬN (PGN)" FontSize="15" FontWeight="Bold" Foreground="#123B6B"/>
+
+                            <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,16,0,16"/>
+
+                            <StackPanel Grid.Row="2">
+                                <TextBlock Text="Máy in mặc định cho phiếu giao nhận" Style="{StaticResource FormLabel}"/>
+                                <ComboBox ItemsSource="{Binding DeliveryTicketPrinters}"
+                                          SelectedItem="{Binding SelectedDeliveryTicketPrinter, UpdateSourceTrigger=PropertyChanged}"
+                                          DisplayMemberPath="Name"
+                                          Style="{StaticResource FormCombo}"
+                                          Margin="0,0,0,14"/>
+                                <Button Command="{Binding ConfigureDeliveryTicketCommand}"
+                                        Style="{StaticResource WorkflowButtonStyle}"
+                                        Height="36"
+                                        Padding="18,0"
+                                        HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="MỞ CẤU HÌNH PHIẾU GIAO NHẬN" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Row 2: Action Buttons Footer -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,24,0,0" HorizontalAlignment="Right">
+                    <Button Command="{Binding SavePrinterDefaultsCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="220" Height="36">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="LƯU MÁY IN MẶC ĐỊNH" VerticalAlignment="Center" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
-        </Border>
-
-        <Grid Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <StackPanel Grid.Row="0"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Margin="0,0,0,12">
-                <Button Command="{Binding SavePrinterDefaultsCommand}"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Height="38"
-                        Padding="18,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="L&#x01AF;U M&#x00C1;Y IN M&#x1EB6;C &#x0110;&#x1ECA;NH" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0"
-                    Style="{StaticResource PrintConfigCardStyle}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0">
-                        <TextBlock Text="M&#x1EAA;U IN PC"
-                                   FontSize="16"
-                                   FontWeight="Bold"
-                                   Foreground="#123B6B"/>
-                        <TextBlock Text="Ch&#x1ECD;n m&#x00E1;y in m&#x1EB7;c &#x0111;&#x1ECB;nh ri&#x00EA;ng cho phi&#x1EBF;u c&#x00E2;n v&#x00E0; m&#x1EDF; khu v&#x1EF1;c canh ch&#x1EC9;nh m&#x1EAB;u in khi c&#x1EA7;n."
-                                   Margin="0,8,0,0"
-                                   Foreground="#64748B"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="1" Margin="0,18,0,0">
-                        <TextBlock Text="M&#x00E1;y in m&#x1EB7;c &#x0111;&#x1ECB;nh cho phi&#x1EBF;u c&#x00E2;n"
-                                   Style="{StaticResource PrintConfigLabelStyle}"/>
-                        <ComboBox ItemsSource="{Binding WeighTicketPrinters}"
-                                  SelectedItem="{Binding SelectedWeighTicketPrinter, UpdateSourceTrigger=PropertyChanged}"
-                                  DisplayMemberPath="Name"
-                                  Style="{StaticResource PrintConfigComboStyle}"
-                                  MaxWidth="360"
-                                  HorizontalAlignment="Left"/>
-                        <Button Command="{Binding ConfigureWeighTicketCommand}"
-                                Style="{StaticResource WorkflowButtonStyle}"
-                                Height="38"
-                                Padding="18,0"
-                                Margin="0,14,0,0"
-                                HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="M&#x1EDF; C&#x1EA4;U H&#x00CC;NH PHI&#x1EBE;U C&#x00C2;N" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <Border Grid.Row="2"
-                            Background="#F8FAFC"
-                            BorderBrush="#D6DEE8"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,18,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="#123B6B" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Layout, version v&#x00E0; m&#x1EAB;u m&#x1EB7;c &#x0111;&#x1ECB;nh c&#x1EE7;a phi&#x1EBF;u c&#x00E2;n &#x0111;&#x1EC1;u qu&#x1EA3;n l&#x00FD; trong khu v&#x1EF1;c n&#x00E0;y."
-                                       Foreground="#475569"
-                                       TextWrapping="Wrap"/>
-                        </StackPanel>
-                            </Border>
-                </Grid>
-            </Border>
-
-            <Border Grid.Column="2"
-                    Style="{StaticResource PrintConfigCardStyle}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0">
-                        <TextBlock Text="M&#x1EAA;U IN PGN"
-                                   FontSize="16"
-                                   FontWeight="Bold"
-                                   Foreground="#123B6B"/>
-                        <TextBlock Text="Ch&#x1ECD;n m&#x00E1;y in m&#x1EB7;c &#x0111;&#x1ECB;nh ri&#x00EA;ng cho phi&#x1EBF;u giao nh&#x1EAD;n v&#x00E0; m&#x1EDF; khu v&#x1EF1;c canh ch&#x1EC9;nh m&#x1EAB;u in khi c&#x1EA7;n."
-                                   Margin="0,8,0,0"
-                                   Foreground="#64748B"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="1" Margin="0,18,0,0">
-                        <TextBlock Text="M&#x00E1;y in m&#x1EB7;c &#x0111;&#x1ECB;nh cho phi&#x1EBF;u giao nh&#x1EAD;n"
-                                   Style="{StaticResource PrintConfigLabelStyle}"/>
-                        <ComboBox ItemsSource="{Binding DeliveryTicketPrinters}"
-                                  SelectedItem="{Binding SelectedDeliveryTicketPrinter, UpdateSourceTrigger=PropertyChanged}"
-                                  DisplayMemberPath="Name"
-                                  Style="{StaticResource PrintConfigComboStyle}"
-                                  MaxWidth="360"
-                                  HorizontalAlignment="Left"/>
-                        <Button Command="{Binding ConfigureDeliveryTicketCommand}"
-                                Style="{StaticResource WorkflowButtonStyle}"
-                                Height="38"
-                                Padding="18,0"
-                                Margin="0,14,0,0"
-                                HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="M&#x1EDF; C&#x1EA4;U H&#x00CC;NH PHI&#x1EBE;U GIAO NH&#x1EAC;N" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <Border Grid.Row="2"
-                            Background="#F8FAFC"
-                            BorderBrush="#D6DEE8"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,18,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="#123B6B" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Layout, version v&#x00E0; m&#x1EAB;u m&#x1EB7;c &#x0111;&#x1ECB;nh c&#x1EE7;a phi&#x1EBF;u giao nh&#x1EAD;n &#x0111;&#x1EC1;u qu&#x1EA3;n l&#x00FD; trong khu v&#x1EF1;c n&#x00E0;y."
-                                       Foreground="#475569"
-                                       TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </Border>
-
-                </Grid>
-            </Border>
-            </Grid>
-        </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

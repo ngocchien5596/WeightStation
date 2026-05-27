@@ -582,6 +582,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("DeliveryNo", 150, 39, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("ReferenceCode", 150, 54, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("CustomerName", 27, 86, 156, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
+        new("Market", 132, 104, 49, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("ConsumptionPlace", 27, 104, 103, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("LoadingPlace", 27, 122, 103, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("CustomerCode", 147, 122, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),

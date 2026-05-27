@@ -201,6 +201,7 @@ public partial class PrintConfigViewModel : ObservableObject
         new("DeliveryNo", "PGN26050001"),
         new("ReferenceCode", "QN.DKPT.2605/0201"),
         new("CustomerName", "C\u00D4NG TY TNHH TH\u01AF\u01A0NG M\u1EA0I H\u1EA0 LONG"),
+        new("Market", "Qu\u1EA3ng Ninh"),
         new("ConsumptionPlace", "H\u1EA1 Long"),
         new("LoadingPlace", "XMCP"),
         new("CustomerCode", "KH001"),

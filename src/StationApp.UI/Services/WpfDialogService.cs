@@ -8,10 +8,10 @@ namespace StationApp.UI.Services;
 
 public class WpfDialogService : IDialogService
 {
-    public Task<bool> ShowConfirmAsync(string title, string message, string confirmText = "Đồng ý", string cancelText = "Hủy")
+    public Task<bool> ShowConfirmAsync(string title, string message, string confirmText = "\u0110\u1ed3ng \u00fd", string cancelText = "H\u1ee7y")
     {
         var tcs = new TaskCompletionSource<bool>();
-        
+
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             var vm = new CustomDialogViewModel(title, message, DialogType.Confirm, confirmText, cancelText);
@@ -19,9 +19,28 @@ public class WpfDialogService : IDialogService
             {
                 Owner = System.Windows.Application.Current.MainWindow
             };
-            
+
             var result = win.ShowDialog();
             tcs.SetResult(result == true);
+        });
+
+        return tcs.Task;
+    }
+
+    public Task<bool?> ShowConfirmOrCloseAsync(string title, string message, string confirmText = "\u0110\u1ed3ng \u00fd", string cancelText = "H\u1ee7y")
+    {
+        var tcs = new TaskCompletionSource<bool?>();
+
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var vm = new CustomDialogViewModel(title, message, DialogType.Confirm, confirmText, cancelText);
+            var win = new CustomDialogWindow(vm)
+            {
+                Owner = System.Windows.Application.Current.MainWindow
+            };
+
+            win.ShowDialog();
+            tcs.SetResult(vm.CloseResult);
         });
 
         return tcs.Task;
@@ -52,7 +71,7 @@ public class WpfDialogService : IDialogService
 
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            var vm = new CustomDialogViewModel(title, message, DialogType.Error, "Đóng", string.Empty);
+            var vm = new CustomDialogViewModel(title, message, DialogType.Error, "\u0110\u00f3ng", string.Empty);
             var win = new CustomDialogWindow(vm)
             {
                 Owner = System.Windows.Application.Current.MainWindow
@@ -71,7 +90,7 @@ public class WpfDialogService : IDialogService
 
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            var vm = new CustomDialogViewModel(title, message, DialogType.Info, "Đóng", string.Empty);
+            var vm = new CustomDialogViewModel(title, message, DialogType.Info, "\u0110\u00f3ng", string.Empty);
             var win = new CustomDialogWindow(vm)
             {
                 Owner = System.Windows.Application.Current.MainWindow
@@ -88,13 +107,13 @@ public class WpfDialogService : IDialogService
     {
         // Flexible fallback if needed for future advanced modals
         var tcs = new TaskCompletionSource<TResult?>();
-        
+
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             // By convention or mapping: TViewModel -> TView
             var vmName = viewModel.GetType().Name;
             var viewName = vmName.Replace("ViewModel", "Window");
-            var viewType = Type.GetType($"StationApp.UI.Views.Dialogs.{viewName}") 
+            var viewType = Type.GetType($"StationApp.UI.Views.Dialogs.{viewName}")
                            ?? Type.GetType($"StationApp.UI.Views.{viewName}");
 
             if (viewType != null)
@@ -104,9 +123,9 @@ public class WpfDialogService : IDialogService
                 {
                     win.DataContext = viewModel;
                     win.Owner = System.Windows.Application.Current.MainWindow;
-                    
-                    var result = win.ShowDialog();
-                    
+
+                    win.ShowDialog();
+
                     // Try getting a Result property from ViewModel if exists
                     var resultProp = viewModel.GetType().GetProperty("DialogResultValue");
                     if (resultProp != null)
@@ -117,7 +136,7 @@ public class WpfDialogService : IDialogService
                     }
                 }
             }
-            
+
             tcs.SetResult(default);
         });
 

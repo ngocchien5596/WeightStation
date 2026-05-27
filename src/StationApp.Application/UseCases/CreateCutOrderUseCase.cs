@@ -63,6 +63,7 @@ public sealed class CreateCutOrderUseCase
             OrderCode = request.OrderCode,
             LotNo = request.LotNo,
             RepresentativeName = request.RepresentativeName,
+            Market = request.Market,
             ConsumptionPlace = request.ConsumptionPlace,
             LoadingPlace = request.LoadingPlace,
             SealNo = request.SealNo,

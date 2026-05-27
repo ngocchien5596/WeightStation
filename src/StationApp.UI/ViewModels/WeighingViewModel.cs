@@ -64,6 +64,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private long _lastRenderedPreviewSequence;
     private CameraPreviewFrameReceivedEventArgs? _latestPendingPreviewFrame;
     private int _isPreviewUiUpdatePending;
+    private bool _isApplyingNoLoadState;
 
     public event Action? NavigateToOutgoingRequested;
 
@@ -145,6 +146,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isOverweightHandlingVisible;
     [ObservableProperty] private ObservableCollection<OverweightSplitPreviewGroupItem> _overweightPreviewGroups = new();
     [ObservableProperty] private ObservableCollection<OverweightSplitPreviewLineItem> _overweightPreviewLines = new();
+    [ObservableProperty] private bool _isNoLoadMarked;
 
     public bool IsAutoMode => CurrentCaptureMode == "TỰ ĐỘNG";
     public bool IsManualMode => CurrentCaptureMode == "CÂN TAY";
@@ -168,6 +170,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     public bool ShowCameraPreviewPlaceholder =>
         !IsCameraPreviewAvailable
         || !_cameraPreviewService.IsPreviewRunning;
+    public bool CanToggleNoLoad => SelectedSession?.IsNoLoad == true || CanMarkNoLoad();
 
     public WeighingViewModel(
         IServiceScopeFactory scopeFactory,
@@ -228,6 +231,34 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         ClearPendingCapturedWeights();
         var loadVersion = ++_selectedSessionLoadVersion;
         _ = LoadSelectedSessionAsync(value, loadVersion);
+    }
+
+    partial void OnIsNoLoadMarkedChanged(bool value)
+    {
+        if (_isApplyingNoLoadState)
+        {
+            return;
+        }
+
+        if (!value)
+        {
+            if (SelectedSession?.IsNoLoad == true)
+            {
+                _isApplyingNoLoadState = true;
+                try
+                {
+                    IsNoLoadMarked = true;
+                }
+                finally
+                {
+                    _isApplyingNoLoadState = false;
+                }
+            }
+
+            return;
+        }
+
+        _ = MarkNoLoadFromCheckboxAsync();
     }
 
     partial void OnUseActualWeightForBaggedCutOrdersChanged(bool value)
@@ -390,6 +421,25 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
+        decimal? ttcp10Fallback = null;
+        if (!value.Ttcp10WeightSnapshot.HasValue && !string.IsNullOrWhiteSpace(value.VehiclePlate))
+        {
+            try
+            {
+                var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
+                var vehicle = await vehicleRepo.GetByPlateAndMoocAsync(value.VehiclePlate, value.MoocNumber ?? string.Empty, CancellationToken.None)
+                    ?? (await vehicleRepo.GetByPlateAsync(value.VehiclePlate, CancellationToken.None)).FirstOrDefault();
+                if (vehicle != null && vehicle.TtcpWeight.HasValue && vehicle.TtcpWeight.Value > 0m)
+                {
+                    ttcp10Fallback = decimal.Round(vehicle.TtcpWeight.Value * 1.10m, 3, MidpointRounding.AwayFromZero);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load vehicle TTCP fallback for {VehiclePlate}", value.VehiclePlate);
+            }
+        }
+
         SessionNo = value.SessionNo;
         TransactionType = value.TransactionType;
         VehiclePlate = value.VehiclePlate;
@@ -398,7 +448,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         Weight1 = value.Weight1;
         Weight2 = value.Weight2;
         NetWeight = value.NetWeight;
-        Ttcp10WeightSnapshot = value.Ttcp10WeightSnapshot;
+        Ttcp10WeightSnapshot = value.Ttcp10WeightSnapshot ?? ttcp10Fallback;
         IsOverweight = value.IsOverweight;
         OverweightAmount = value.OverweightAmount;
         OverweightSplitStepWeight = 0m;
@@ -419,6 +469,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         finally
         {
             _isApplyingBaggedActualWeightOverrideState = false;
+        }
+        _isApplyingNoLoadState = true;
+        try
+        {
+            IsNoLoadMarked = value.IsNoLoad;
+        }
+        finally
+        {
+            _isApplyingNoLoadState = false;
         }
         SessionLines = new ObservableCollection<WeighingSessionLineRow>(lineItems.Select(x => new WeighingSessionLineRow(x)));
         NotifySessionActionStateChanged();
@@ -443,6 +502,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         finally
         {
             _isApplyingBaggedActualWeightOverrideState = false;
+        }
+        _isApplyingNoLoadState = true;
+        try
+        {
+            IsNoLoadMarked = false;
+        }
+        finally
+        {
+            _isApplyingNoLoadState = false;
         }
         Weight1 = null;
         Weight2 = null;
@@ -721,6 +789,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             or OverweightResolutionStatus.NO_SPLIT_CONFIRMED);
     private bool CanMarkNoLoad() =>
         SelectedSession != null
+        && !SelectedSession.IsNoLoad
+        && SelectedSession.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT1
+        && SelectedSession.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT2
         && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED
         && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
     private bool CanCancel() => SelectedSession != null && SelectedSession.SessionStatus != WeighingSessionStatus.COMPLETED && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED;
@@ -730,7 +801,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             or WeighingSessionStatus.READY_TO_COMPLETE
             or WeighingSessionStatus.COMPLETED;
     private bool CanSuggestOverweightSplitAgain() => SelectedSession != null && IsOverweightHandlingVisible;
-    private bool CanViewImageHistory() => SelectedSession != null;
+    private bool CanViewImageHistory() => SelectedSession?.Weight1.HasValue == true;
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight1))]
     private Task CaptureWeight1Async()
@@ -834,6 +905,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             _logger?.LogWarning(ex, "Save captured weight rejected by business validation");
             _toastService.ShowWarning(ex.Message);
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession?.IsNoLoad == true;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
         }
         catch (Exception ex)
         {
@@ -939,6 +1019,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         catch (InvalidOperationException ex)
         {
             _toastService.ShowWarning(ex.Message);
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession?.IsNoLoad == true;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
         }
         catch (Exception ex)
         {
@@ -979,10 +1068,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             await uc.ExecuteAsync(
                 new AllocateWeighingSessionRequest(
                     SelectedSession.SessionId,
-                    AllocationLines.Select(x => new AllocateWeighingSessionLineRequest(
-                        x.SessionLineId,
-                        x.ActualAllocatedWeight,
-                        x.ActualAllocatedBagCount)).ToList()),
+                    AllocationLines
+                        .OrderByDescending(x => x.IsPriority)
+                        .ThenBy(x => x.SequenceNo)
+                        .Select(x => new AllocateWeighingSessionLineRequest(
+                            x.SessionLineId,
+                            x.ActualAllocatedWeight,
+                            x.ActualAllocatedBagCount,
+                            x.IsPriority))
+                        .ToList()),
                 CancellationToken.None);
 
             _toastService.ShowSuccess(UiText.Weighing.AllocationSaved);
@@ -992,6 +1086,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         catch (InvalidOperationException ex)
         {
             _toastService.ShowWarning(ex.Message);
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession?.IsNoLoad == true;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
         }
         catch (Exception ex)
         {
@@ -1185,7 +1288,20 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private void NotifySessionActionStateChanged()
     {
         OnPropertyChanged(nameof(ShowAllocationAction));
+        OnPropertyChanged(nameof(CanToggleNoLoad));
         OpenAllocationCommand.NotifyCanExecuteChanged();
+        CaptureWeight1Command.NotifyCanExecuteChanged();
+        CaptureWeight2Command.NotifyCanExecuteChanged();
+        SaveCapturedWeightCommand.NotifyCanExecuteChanged();
+        OpenAppendCutOrdersCommand.NotifyCanExecuteChanged();
+        ShowOverweightHandlingCommand.NotifyCanExecuteChanged();
+        PrintWeighTicketCommand.NotifyCanExecuteChanged();
+        PrintDeliveryTicketCommand.NotifyCanExecuteChanged();
+        MoveToOutYardCommand.NotifyCanExecuteChanged();
+        MarkNoLoadCommand.NotifyCanExecuteChanged();
+        CancelCommand.NotifyCanExecuteChanged();
+        ShowRelatedTicketsCommand.NotifyCanExecuteChanged();
+        ViewImageHistoryCommand.NotifyCanExecuteChanged();
     }
 
     private void AllocationLines_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -1605,6 +1721,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
         if (!confirmed)
         {
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession.IsNoLoad;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
             return;
         }
 
@@ -1644,6 +1769,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
         if (!confirmed)
         {
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession.IsNoLoad;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
             return;
         }
 
@@ -1659,12 +1793,51 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         catch (InvalidOperationException ex)
         {
             _toastService.ShowWarning(ex.Message);
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession?.IsNoLoad == true;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "MarkNoLoad failed");
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = SelectedSession?.IsNoLoad == true;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
             _toastService.ShowError("Không thể chuyển xe ra theo luồng không lấy hàng.");
         }
+    }
+
+    private async Task MarkNoLoadFromCheckboxAsync()
+    {
+        if (!CanMarkNoLoad())
+        {
+            _toastService.ShowWarning("Phải lưu cân lần 2 trước khi đánh dấu không lấy hàng.");
+            _isApplyingNoLoadState = true;
+            try
+            {
+                IsNoLoadMarked = false;
+            }
+            finally
+            {
+                _isApplyingNoLoadState = false;
+            }
+
+            return;
+        }
+
+        await MarkNoLoadAsync();
     }
 
     [RelayCommand(CanExecute = nameof(CanCancel))]
@@ -1729,6 +1902,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                     ticket.AllocatedWeight,
                     ticket.CreatedAt)))
                 .OrderBy(x => x.DocumentType)
+                .ThenBy(x => x.RecordRole == DeliveryTicketRecordRoles.Master ? 0 : 1)
                 .ThenBy(x => x.SplitSequence ?? byte.MaxValue)
                 .ThenBy(x => x.CreatedAt));
 
@@ -1937,31 +2111,55 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         var deliveryTicketsToPrint = splitConfirmed
             ? context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.SplitDerived && !x.IsDeleted)
                 .OrderBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
-            : context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted)
-                .OrderBy(x => x.WeighingSessionLineId).ThenBy(x => x.CreatedAt);
+            : context.DeliveryTickets.Where(x =>
+                    (x.RecordRole == DeliveryTicketRecordRoles.Master || x.RecordRole == DeliveryTicketRecordRoles.Normal)
+                    && !x.IsDeleted)
+                .OrderBy(x => x.RecordRole == DeliveryTicketRecordRoles.Master ? 0 : 1)
+                .ThenBy(x => x.WeighingSessionLineId).ThenBy(x => x.CreatedAt);
 
         foreach (var ticket in deliveryTicketsToPrint)
         {
-            if (!ticket.WeighingSessionLineId.HasValue)
+            CutOrder? registration;
+            WeighingSessionLine? line;
+            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
-                continue;
-            }
+                var primaryLine = context.Lines.OrderBy(x => x.SequenceNo).FirstOrDefault();
+                if (primaryLine == null || !context.RegistrationsById.TryGetValue(primaryLine.CutOrderId, out var primaryRegistration))
+                {
+                    continue;
+                }
 
-            var line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
-            if (line == null || !context.RegistrationsById.TryGetValue(line.CutOrderId, out var registration))
+                registration = BuildDeliveryMasterRegistration(context, primaryRegistration);
+                line = BuildDeliveryMasterLine(context);
+            }
+            else
             {
-                continue;
+                if (!ticket.WeighingSessionLineId.HasValue)
+                {
+                    continue;
+                }
+
+                line = context.Lines.FirstOrDefault(x => x.Id == ticket.WeighingSessionLineId.Value);
+                if (line == null || !context.RegistrationsById.TryGetValue(line.CutOrderId, out registration))
+                {
+                    continue;
+                }
             }
 
             var relatedWeighTicket = splitConfirmed
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            var page = deliveryComposer.Compose(registration, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
-            if (ticket.RecordRole == DeliveryTicketRecordRoles.Normal)
+            var page = deliveryComposer.Compose(registration!, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
                 page.PreviewGroupKey = "delivery-master";
                 page.PreviewGroupName = "Phiếu tổng";
+            }
+            else if (ticket.RecordRole == DeliveryTicketRecordRoles.Normal)
+            {
+                page.PreviewGroupKey = $"delivery-cutorder-{registration!.Id:N}";
+                page.PreviewGroupName = $"Phiếu cắt lệnh {registration.ErpCutOrderId}";
             }
             else if (ticket.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
             {
@@ -2101,6 +2299,54 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         return string.Join(
             " / ",
             productGroups.Select(x => $"{x.ProductName} ({x.PlannedWeight:N0})"));
+    }
+
+    private static CutOrder BuildDeliveryMasterRegistration(SessionPrintContext context, CutOrder primaryRegistration)
+    {
+        var registrations = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).ToList();
+        var distinctCustomerNames = registrations.Select(x => x.CustomerName?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctProductNames = registrations.Select(x => x.ProductName?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctNotes = registrations.Select(x => x.Notes?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctMarkets = registrations.Select(x => x.Market?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinctConsumptionPlaces = registrations.Select(x => x.ConsumptionPlace?.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        return new CutOrder
+        {
+            Id = primaryRegistration.Id,
+            ErpCutOrderId = primaryRegistration.ErpCutOrderId,
+            OrderCode = primaryRegistration.OrderCode,
+            CustomerCode = primaryRegistration.CustomerCode,
+            CustomerName = distinctCustomerNames.Count == 1 ? distinctCustomerNames[0] : "Nhiều khách hàng",
+            ProductCode = primaryRegistration.ProductCode,
+            ProductName = distinctProductNames.Count == 1 ? distinctProductNames[0] : "Nhiều cắt lệnh",
+            ProductType = primaryRegistration.ProductType,
+            Market = distinctMarkets.Count == 0 ? null : string.Join(" / ", distinctMarkets),
+            ConsumptionPlace = distinctConsumptionPlaces.Count == 0 ? null : string.Join(" / ", distinctConsumptionPlaces),
+            LoadingPlace = primaryRegistration.LoadingPlace,
+            LotNo = primaryRegistration.LotNo,
+            SealNo = primaryRegistration.SealNo,
+            PlannedWeight = context.Lines.Sum(x => x.PlannedWeight ?? 0m),
+            BagCount = context.Lines.Sum(x => x.PlannedBagCount ?? 0),
+            VehiclePlate = context.MasterSession.VehiclePlate,
+            MoocNumber = context.MasterSession.MoocNumber,
+            Notes = distinctNotes.Count == 0 ? null : string.Join(" / ", distinctNotes)
+        };
+    }
+
+    private static WeighingSessionLine BuildDeliveryMasterLine(SessionPrintContext context)
+    {
+        return new WeighingSessionLine
+        {
+            Id = Guid.Empty,
+            WeighingSessionId = context.MasterSession.Id,
+            CutOrderId = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First().Id,
+            SequenceNo = 0,
+            PlannedWeight = context.Lines.Sum(x => x.PlannedWeight ?? 0m),
+            PlannedBagCount = context.Lines.Sum(x => x.PlannedBagCount ?? 0),
+            ActualAllocatedWeight = context.MasterSession.NetWeight,
+            ActualAllocatedBagCount = context.Lines.Sum(x => x.ActualAllocatedBagCount ?? 0),
+            LineStatus = WeighingSessionLineStatus.ALLOCATED
+        };
     }
 
     private void ClearPendingCapturedWeights()

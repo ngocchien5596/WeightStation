@@ -127,7 +127,15 @@
                               HorizontalAlignment="Left"
                               Margin="4,0,0,0"
                               Visibility="{Binding ShowBaggedActualWeightOverride, Converter={StaticResource BoolToVis}}"
-                              Content="K lấy đúng số lượng"/>
+                              Content="K LẤY ĐÚNG SỐ LƯỢNG"/>
+                    <CheckBox Grid.Row="7" Grid.Column="2"
+                              Grid.ColumnSpan="2"
+                              IsChecked="{Binding IsNoLoadMarked, Mode=TwoWay}"
+                              IsEnabled="{Binding CanToggleNoLoad}"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Left"
+                              Margin="4,0,0,0"
+                              Content="{StaticResource Weighing.Action.NoLoad}"/>
                 </Grid>
             </Border>
 
@@ -279,7 +287,6 @@
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="{StaticResource Weighing.Action.NoLoad}" Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="Xem ảnh lịch sử" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
         </ItemsControl>

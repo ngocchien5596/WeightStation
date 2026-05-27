@@ -32,6 +32,7 @@ public class WeighingSession
     public string? DeletedBy { get; set; }
     public bool HasPrintedMasterWeighTicket { get; set; }
     public bool UseActualWeightForBaggedCutOrders { get; set; }
+    public bool IsNoLoad { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;

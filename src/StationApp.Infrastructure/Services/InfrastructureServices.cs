@@ -102,7 +102,7 @@ public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
         var sessionPrefix = $"{sessionPrefixBase}{yearMonth}";
 
         var lastSessionNo = await _db.WeighingSessions
-            .Where(s => !s.IsDeleted && s.SessionNo.StartsWith(sessionPrefix))
+            .Where(s => s.SessionNo.StartsWith(sessionPrefix))
             .OrderByDescending(s => s.SessionNo)
             .Select(s => s.SessionNo)
             .FirstOrDefaultAsync(ct);

@@ -63,7 +63,7 @@ public sealed class CreateInboundRegistrationUseCase
             ProductType = ProductTypes.Normalize(request.ProductType) ?? ProductTypes.InferForTransaction(request.TransactionType),
             PlannedWeight = request.PlannedWeight,
             BagCount = request.BagCount,
-            Notes = request.Notes,
+            Notes = request.Notes?.Trim(),
             IsCancelled = false,
             HasOverweightCase = false,
             SyncStatus = SyncStatus.SYNC_QUEUED,

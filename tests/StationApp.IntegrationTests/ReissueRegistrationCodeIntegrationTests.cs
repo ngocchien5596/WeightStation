@@ -40,7 +40,7 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
     [Fact]
     public async Task IncomingList_SuggestsReusableSessionAndCarryForward_FromDeletedCutOrderWithSameRegistrationCode()
     {
-        var now = new DateTime(2026, 5, 21, 10, 0, 0);
+        var now = DateTime.Now;
         var sessionId = Guid.NewGuid();
 
         using (var scope = _services.CreateScope())
@@ -52,8 +52,8 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
                 Id = sessionId,
                 SessionNo = $"{SessionNoPrefix}001",
                 TransactionType = TransactionType.OUTBOUND,
-                VehiclePlate = "14C-18011",
-                MoocNumber = "29R-00409",
+                VehiclePlate = "14C-99999",
+                MoocNumber = "99R-99999",
                 DriverName = "Hoang Van Vinh",
                 Weight1 = 12_345m,
                 Weight1Time = now.AddMinutes(-30),
@@ -126,7 +126,7 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
     [Fact]
     public async Task IncomingList_DoesNotSuggestCompletedSession_ButStillKeepsCarryForward_FromDeletedCutOrderWithSameRegistrationCode()
     {
-        var now = new DateTime(2026, 5, 21, 11, 0, 0);
+        var now = DateTime.Now;
         var sessionId = Guid.NewGuid();
 
         using (var scope = _services.CreateScope())
@@ -201,9 +201,9 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task IncomingList_SuggestsReusableSession_WhenCarryForwardComesFromRegistrationCodeHistory()
+    public async Task IncomingList_DoesNotSuggestSession_WhenRegistrationCodeHistoryHasNoValidSessionReference()
     {
-        var now = new DateTime(2026, 5, 21, 12, 0, 0);
+        var now = DateTime.Now;
         var sessionId = Guid.NewGuid();
 
         using (var scope = _services.CreateScope())
@@ -280,7 +280,85 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
 
             var item = Assert.Single(list);
             Assert.Equal(13_579m, item.CarryForwardWeight1);
-            Assert.Equal($"{SessionNoPrefix}003", item.SuggestedSessionNo);
+            Assert.Null(item.SuggestedSessionNo);
+        }
+    }
+
+    [Fact]
+    public async Task IncomingList_DoesNotSuggestOrCarryForward_WhenDeletedWeight1IsOlderThan24Hours()
+    {
+        var now = DateTime.Now;
+        var sessionId = Guid.NewGuid();
+
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+
+            db.WeighingSessions.Add(new WeighingSession
+            {
+                Id = sessionId,
+                SessionNo = $"{SessionNoPrefix}004",
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                Weight1 = 14_222m,
+                Weight1Time = now.AddHours(-25),
+                SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+                CreatedAt = now.AddHours(-26),
+                CreatedBy = "tester"
+            });
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = Guid.NewGuid(),
+                ErpCutOrderId = $"{ErpCutOrderPrefix}OLD-004",
+                ErpRegistrationCode = $"{RegistrationCodePrefix}004",
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.CANCELLED,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                CarryForwardWeight1 = 14_222m,
+                CarryForwardWeight1Time = now.AddHours(-25),
+                WeighingSessionId = sessionId,
+                ProcessingStage = ProcessingStage.WEIGHING,
+                IsDeleted = true,
+                DeletedAt = now.AddMinutes(-5),
+                CreatedAt = now.AddHours(-26),
+                CreatedBy = "erp"
+            });
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = Guid.NewGuid(),
+                ErpCutOrderId = $"{ErpCutOrderPrefix}NEW-004",
+                ErpRegistrationCode = $"{RegistrationCodePrefix}004",
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.REGISTERED,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                ProcessingStage = ProcessingStage.IN_YARD,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = now,
+                CreatedBy = "erp"
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _services.CreateScope())
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+
+            var list = await repo.GetIncomingListAsync(
+                new IncomingVehicleListFilter($"{ErpCutOrderPrefix}NEW-004", null, null, null, null, null, null),
+                CancellationToken.None);
+
+            var item = Assert.Single(list);
+            Assert.Null(item.CarryForwardWeight1);
+            Assert.Null(item.CarryForwardWeight1Time);
+            Assert.Null(item.SuggestedSessionNo);
         }
     }
 
