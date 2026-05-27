@@ -134,36 +134,28 @@ BEGIN
     ON [cut_orders]([ErpRegistrationCode], [IsDeleted]);
 END
 
-IF OBJECT_ID(N'[dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]', N'TR') IS NULL
+IF OBJECT_ID(N'[dbo].[cut_orders]', N'U') IS NOT NULL
 BEGIN
-    EXEC(N'CREATE TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
+    EXEC(N'CREATE OR ALTER TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
     ON [dbo].[cut_orders]
     AFTER INSERT, UPDATE
     AS
     BEGIN
         SET NOCOUNT ON;
+
+        IF EXISTS (
+            SELECT [ErpCutOrderId]
+            FROM [dbo].[cut_orders]
+            WHERE [ErpCutOrderId] IS NOT NULL
+              AND ISNULL([IsDeleted], 0) = 0
+            GROUP BY [ErpCutOrderId]
+            HAVING COUNT(*) > 1
+        )
+        BEGIN
+            THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
+        END
     END');
 END
-
-EXEC(N'ALTER TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
-ON [dbo].[cut_orders]
-AFTER INSERT, UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    IF EXISTS (
-        SELECT [ErpCutOrderId]
-        FROM [dbo].[cut_orders]
-        WHERE [ErpCutOrderId] IS NOT NULL
-          AND ISNULL([IsDeleted], 0) = 0
-        GROUP BY [ErpCutOrderId]
-        HAVING COUNT(*) > 1
-    )
-    BEGIN
-        THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
-    END
-END');
 
 IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
 BEGIN

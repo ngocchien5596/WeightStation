@@ -288,7 +288,7 @@
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="Xem ảnh lịch sử" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="XEM ẢNH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
         </ItemsControl>
 
         <Grid Grid.Row="3" Margin="12,0,12,12">
