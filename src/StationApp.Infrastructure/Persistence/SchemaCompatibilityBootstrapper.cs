@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace StationApp.Infrastructure.Persistence;
@@ -136,7 +136,14 @@ END
 
 IF OBJECT_ID(N'[dbo].[cut_orders]', N'U') IS NOT NULL
 BEGIN
-    EXEC(N'CREATE OR ALTER TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
+    EXEC(N'
+    IF EXISTS (SELECT * FROM sys.triggers WHERE name = ''TR_cut_orders_enforce_active_erp_cut_order_id'' AND parent_id = OBJECT_ID(N''[dbo].[cut_orders]''))
+    BEGIN
+        DROP TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id];
+    END
+    ');
+
+    EXEC(N'CREATE TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
     ON [dbo].[cut_orders]
     AFTER INSERT, UPDATE
     AS
