@@ -141,54 +141,6 @@ BEGIN
     ON [cut_orders]([ErpRegistrationCode], [IsDeleted]);
 END
 
-IF OBJECT_ID(N'[dbo].[cut_orders]', N'U') IS NOT NULL
-BEGIN
-    IF OBJECT_ID(N'[dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]', N'TR') IS NOT NULL
-    BEGIN
-        EXEC(N'ALTER TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
-        ON [dbo].[cut_orders]
-        AFTER INSERT, UPDATE
-        AS
-        BEGIN
-            SET NOCOUNT ON;
-
-            IF EXISTS (
-                SELECT [ErpCutOrderId]
-                FROM [dbo].[cut_orders]
-                WHERE [ErpCutOrderId] IS NOT NULL
-                  AND ISNULL([IsDeleted], 0) = 0
-                GROUP BY [ErpCutOrderId]
-                HAVING COUNT(*) > 1
-            )
-            BEGIN
-                THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
-            END
-        END');
-    END
-    ELSE
-    BEGIN
-        EXEC(N'CREATE TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
-        ON [dbo].[cut_orders]
-        AFTER INSERT, UPDATE
-        AS
-        BEGIN
-            SET NOCOUNT ON;
-
-            IF EXISTS (
-                SELECT [ErpCutOrderId]
-                FROM [dbo].[cut_orders]
-                WHERE [ErpCutOrderId] IS NOT NULL
-                  AND ISNULL([IsDeleted], 0) = 0
-                GROUP BY [ErpCutOrderId]
-                HAVING COUNT(*) > 1
-            )
-            BEGIN
-                THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
-            END
-        END');
-    END
-END
-
 IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
 BEGIN
     EXEC sp_rename N'weigh_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
@@ -217,6 +169,43 @@ END
 
         await db.Database.ExecuteSqlRawAsync(sql, ct);
         logger?.LogDebug("Schema compatibility rename completed for cut_orders.");
+
+        try
+        {
+            const string triggerSql = """
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL
+BEGIN
+    IF OBJECT_ID(N'TR_cut_orders_enforce_active_erp_cut_order_id', N'TR') IS NULL
+    BEGIN
+        EXEC(N'CREATE TRIGGER TR_cut_orders_enforce_active_erp_cut_order_id
+        ON [cut_orders]
+        AFTER INSERT, UPDATE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            IF EXISTS (
+                SELECT [ErpCutOrderId]
+                FROM [cut_orders]
+                WHERE [ErpCutOrderId] IS NOT NULL
+                  AND ISNULL([IsDeleted], 0) = 0
+                GROUP BY [ErpCutOrderId]
+                HAVING COUNT(*) > 1
+            )
+            BEGIN
+                THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
+            END
+        END');
+    END
+END
+""";
+            await db.Database.ExecuteSqlRawAsync(triggerSql, ct);
+            logger?.LogDebug("Schema compatibility check completed for TR_cut_orders_enforce_active_erp_cut_order_id trigger.");
+        }
+        catch (System.Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to ensure cut order trigger. The trigger might already exist or the user lacks permission.");
+        }
     }
 
     private static async Task EnsureTableColumnsAsync(
@@ -399,27 +388,6 @@ BEGIN
     CREATE INDEX [IX_weighing_session_lines_registration_id] ON [weighing_session_lines]([CutOrderId]);
 END
 
-IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
-BEGIN
-    DECLARE @weighingSessionLinesIndexFilter NVARCHAR(MAX);
-    SELECT @weighingSessionLinesIndexFilter = i.filter_definition
-    FROM sys.indexes i
-    WHERE i.object_id = OBJECT_ID(N'[weighing_session_lines]')
-      AND i.name = 'UX_weighing_session_lines_session_registration';
-
-    IF @weighingSessionLinesIndexFilter IS NULL OR @weighingSessionLinesIndexFilter <> N'([IsDeleted]=(0))'
-    BEGIN
-        DROP INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines];
-    END
-END
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
-BEGIN
-    CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration]
-        ON [weighing_session_lines]([WeighingSessionId], [CutOrderId])
-        WHERE [IsDeleted] = 0;
-END
-
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
 BEGIN
     CREATE INDEX [IX_weigh_tickets_weighing_session_id] ON [weigh_tickets]([WeighingSessionId]);
@@ -446,6 +414,40 @@ WHERE [SessionStatus] = N'READY_TO_PRINT';
 """;
 
         await db.Database.ExecuteSqlRawAsync(sql, ct);
+
+        // Tách riêng DROP + CREATE UNIQUE INDEX vì lệnh DROP INDEX yêu cầu quyền DDL cao hơn.
+        // Nếu user DB không đủ quyền, chỉ bỏ qua bước này (index cũ vẫn hoạt động được).
+        try
+        {
+            const string uniqueIndexSql = """
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
+BEGIN
+    DECLARE @weighingSessionLinesIndexFilter NVARCHAR(MAX);
+    SELECT @weighingSessionLinesIndexFilter = i.filter_definition
+    FROM sys.indexes i
+    WHERE i.object_id = OBJECT_ID(N'[weighing_session_lines]')
+      AND i.name = 'UX_weighing_session_lines_session_registration';
+
+    IF @weighingSessionLinesIndexFilter IS NULL OR @weighingSessionLinesIndexFilter <> N'([IsDeleted]=(0))'
+    BEGIN
+        DROP INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines];
+    END
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
+BEGIN
+    CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration]
+        ON [weighing_session_lines]([WeighingSessionId], [CutOrderId])
+        WHERE [IsDeleted] = 0;
+END
+""";
+            await db.Database.ExecuteSqlRawAsync(uniqueIndexSql, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to ensure UX_weighing_session_lines_session_registration index. The index might already exist or the user lacks DDL permission.");
+        }
+
         logger?.LogDebug("Schema compatibility check completed for weighing session tables and indexes.");
     }
 
