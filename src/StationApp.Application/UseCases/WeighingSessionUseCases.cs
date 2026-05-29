@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
@@ -709,7 +709,9 @@ public sealed class CaptureSessionWeight1UseCase
     {
         try
         {
-            var settings = await _cameraSettingsProvider.GetAsync(ct);
+            var registrations = await _regRepo.GetByWeighingSessionIdAsync(sessionId, ct);
+            var isExport = registrations.Any(x => x.IsExportScale);
+            var settings = await _cameraSettingsProvider.GetForStationAsync(isExport ? "C6" : "C2", ct);
             if (settings.EnabledCameras.Count == 0)
             {
                 return;
@@ -1053,7 +1055,9 @@ public sealed class CaptureSessionWeight2UseCase
     {
         try
         {
-            var settings = await _cameraSettingsProvider.GetAsync(ct);
+            var registrations = await _regRepo.GetByWeighingSessionIdAsync(sessionId, ct);
+            var isExport = registrations.Any(x => x.IsExportScale);
+            var settings = await _cameraSettingsProvider.GetForStationAsync(isExport ? "C6" : "C2", ct);
             if (settings.EnabledCameras.Count == 0)
             {
                 return;
@@ -1588,9 +1592,19 @@ public sealed class MarkWeighingSessionNoLoadUseCase
 
         foreach (var registration in registrations)
         {
-            registration.CutOrderStatus = CutOrderStatus.COMPLETED;
-            registration.ProcessingStage = ProcessingStage.OUT_YARD;
-            registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+            if (registration.IsExportScale)
+            {
+                registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
+                registration.ProcessingStage = ProcessingStage.WEIGHING;
+                registration.WeighingSessionId = null;
+            }
+            else
+            {
+                registration.CutOrderStatus = CutOrderStatus.COMPLETED;
+                registration.ProcessingStage = ProcessingStage.OUT_YARD;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+            }
+
             registration.CurrentPrimaryWeighTicketId = masterWeighTicket?.Id;
             registration.CurrentPrimaryDeliveryTicketId = null;
             registration.UpdatedAt = now;
@@ -1728,8 +1742,18 @@ public sealed class CompleteWeighingSessionUseCase
 
         foreach (var registration in registrations)
         {
-            registration.CutOrderStatus = CutOrderStatus.COMPLETED;
-            registration.ProcessingStage = ProcessingStage.OUT_YARD;
+            if (registration.IsExportScale)
+            {
+                registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
+                registration.ProcessingStage = ProcessingStage.WEIGHING;
+                registration.WeighingSessionId = null;
+            }
+            else
+            {
+                registration.CutOrderStatus = CutOrderStatus.COMPLETED;
+                registration.ProcessingStage = ProcessingStage.OUT_YARD;
+            }
+
             registration.UpdatedAt = now;
             registration.UpdatedBy = _userContext.Username;
         }
@@ -1803,8 +1827,17 @@ public sealed class CancelWeighingSessionUseCase
 
         foreach (var registration in registrations)
         {
-            registration.CutOrderStatus = CutOrderStatus.REGISTERED;
-            registration.ProcessingStage = ProcessingStage.IN_YARD;
+            if (registration.IsExportScale)
+            {
+                registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
+                registration.ProcessingStage = ProcessingStage.WEIGHING;
+            }
+            else
+            {
+                registration.CutOrderStatus = CutOrderStatus.REGISTERED;
+                registration.ProcessingStage = ProcessingStage.IN_YARD;
+            }
+
             registration.WeighingSessionId = null;
             registration.UpdatedAt = now;
             registration.UpdatedBy = _userContext.Username;

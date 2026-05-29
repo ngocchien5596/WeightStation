@@ -139,22 +139,13 @@
 
                 <StackPanel Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,16,0,0" HorizontalAlignment="Center">
                     <Button Command="{Binding LoadCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
                     </Button>
                     <Button Command="{Binding TestConnectionCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="TEST K&#x1EBE;T N&#x1ED0;I" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="TEST K&#x1EBE;T N&#x1ED0;I" VerticalAlignment="Center"/>
                     </Button>
                     <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="L&#x01AF;U C&#x1EA4;U H&#x00CC;NH" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="L&#x01AF;U C&#x1EA4;U H&#x00CC;NH" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -186,10 +177,7 @@
                 <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding ParsedWeightResult}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F1F1F1" Foreground="#BD2730" FontWeight="SemiBold" Margin="0,0,0,12"/>
 
                 <Button Grid.Column="1" Grid.Row="4" Command="{Binding TestParseCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,4,0,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="KI&#x1EC2;M TRA PARSE" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Text="KI&#x1EC2;M TRA PARSE" VerticalAlignment="Center"/>
                 </Button>
             </Grid>
         </Border>

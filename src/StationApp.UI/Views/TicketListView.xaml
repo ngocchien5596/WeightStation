@@ -50,17 +50,11 @@
                              Width="400"/>
                     
                     <Button Grid.Column="2" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0" Height="32">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="T&#xCC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="T&#xCC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
                     </Button>
 
                     <Button Grid.Column="3" Command="{Binding CreateTicketCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="32">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="T&#x1EA0;O PHI&#x1EBE;U" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="T&#x1EA0;O PHI&#x1EBE;U" VerticalAlignment="Center"/>
                     </Button>
                 </Grid>
             </Grid>

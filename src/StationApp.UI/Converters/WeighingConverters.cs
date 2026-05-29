@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using StationApp.Domain.Enums;
@@ -19,7 +19,7 @@ public class WeightToTonConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (decimal.TryParse(value?.ToString(), out var result))
+        if (decimal.TryParse(value?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var result))
         {
             return result * 1000m;
         }
@@ -48,7 +48,13 @@ public class DecimalMultiplierConverter : IValueConverter
             return 0m;
         }
 
-        if (decimal.TryParse(value?.ToString(), NumberStyles.Any, culture, out var result))
+        var text = value?.ToString();
+        if (decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var result))
+        {
+            return result / multiplier;
+        }
+
+        if (decimal.TryParse(text, NumberStyles.Any, culture, out result))
         {
             return result / multiplier;
         }

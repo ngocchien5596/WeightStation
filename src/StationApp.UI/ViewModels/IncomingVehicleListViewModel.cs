@@ -32,6 +32,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     public event Action<Guid>? NavigateToWeighingRequested;
     public event Action? NavigateToOutgoingRequested;
+    public event Action<Guid>? NavigateToExportWeighingRequested;
 
     [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _vehicles = new();
     [ObservableProperty] private IncomingVehicleSelectionItem? _selectedVehicle;
@@ -78,6 +79,18 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public bool IsDetailSelectionMode => !IsCreateMode && SelectedVehicle != null;
     public bool CanConfirmEnterWeighing => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null) || (IsCreateMode && !string.IsNullOrWhiteSpace(FormVehiclePlate));
     public bool CanMarkNoLoad => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
+    public bool CanTransitionToExportScale
+    {
+        get
+        {
+            var selected = ResolveSingleExportScaleCandidate();
+            return selected != null
+                && selected.TransactionType == TransactionType.OUTBOUND
+                && selected.CutOrderStatus == CutOrderStatus.REGISTERED
+                && !selected.IsExportScale;
+        }
+    }
+
     public IAsyncRelayCommand MarkNoLoadCommand => _markNoLoadCommand ??= new AsyncRelayCommand(MarkNoLoadAsync, () => CanMarkNoLoad);
     public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0m) * 1.10m);
     public bool IsOutboundDetailLockMode => !IsCreateMode && FormTransactionType == TransactionType.OUTBOUND;
@@ -590,6 +603,51 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanTransitionToExportScale))]
+    private async Task TransitionToExportScaleAsync()
+    {
+        var selected = ResolveSingleExportScaleCandidate();
+        if (selected == null)
+        {
+            _toastService.ShowWarning("Vui l\u00f2ng ch\u1ecdn 1 c\u1eaft l\u1ec7nh xu\u1ea5t h\u00e0ng \u0111ang ch\u1edd xe v\u00e0o.");
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<TransitionToExportScaleUseCase>();
+            await uc.ExecuteAsync(new TransitionToExportScaleRequest(selected.CutOrderId), CancellationToken.None);
+
+            _toastService.ShowSuccess("\u0110\u00e3 chuy\u1ec3n c\u1eaft l\u1ec7nh sang lu\u1ed3ng c\u00e2n xu\u1ea5t kh\u1ea9u.");
+            await LoadVehiclesAsync();
+            NavigateToExportWeighingRequested?.Invoke(selected.CutOrderId);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Transition cut order to export scale failed");
+            _toastService.ShowError(ex.Message);
+        }
+    }
+
+    private IncomingVehicleSelectionItem? ResolveSingleExportScaleCandidate()
+    {
+        if (IsCreateMode)
+        {
+            return null;
+        }
+
+        var selectedVehicles = Vehicles.Where(x => x.IsSelected).Take(2).ToList();
+        if (selectedVehicles.Count > 1)
+        {
+            return null;
+        }
+
+        return selectedVehicles.Count == 1
+            ? selectedVehicles[0]
+            : SelectedVehicle;
+    }
+
     private IncomingVehicleSelectionItem? ResolvePrimaryVehicleSelection(IReadOnlyCollection<IncomingVehicleSelectionItem> selectedVehicles)
     {
         if (selectedVehicles.Count == 0)
@@ -745,7 +803,9 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CanConfirmEnterWeighing));
         OnPropertyChanged(nameof(CanMarkNoLoad));
+        OnPropertyChanged(nameof(CanTransitionToExportScale));
         ConfirmEnterWeighingCommand.NotifyCanExecuteChanged();
+        TransitionToExportScaleCommand.NotifyCanExecuteChanged();
         _markNoLoadCommand?.NotifyCanExecuteChanged();
     }
 
@@ -1283,6 +1343,10 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
         SuggestedSessionNo = item.SuggestedSessionNo;
         ConsumptionPlace = item.ConsumptionPlace;
         Market = item.Market;
+        IsExportScale = item.IsExportScale;
+        ExportAccumulatedWeight = item.ExportAccumulatedWeight;
+        ExportRemainingWeight = item.ExportRemainingWeight;
+        ExportTripCount = item.ExportTripCount;
     }
 
     [ObservableProperty] private bool _isSelected;
@@ -1308,6 +1372,10 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
     public string? SuggestedSessionNo { get; }
     public string? ConsumptionPlace { get; }
     public string? Market { get; }
+    public bool IsExportScale { get; }
+    public decimal? ExportAccumulatedWeight { get; }
+    public decimal? ExportRemainingWeight { get; }
+    public int ExportTripCount { get; }
 }
 
 

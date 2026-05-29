@@ -32,15 +32,13 @@
 
     <Grid Background="#F8FAFC">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Margin="16">
+            <Grid Margin="16" MaxWidth="800" HorizontalAlignment="Center">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="1.2*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Left Column: Cấu hình hệ thống chung -->
@@ -63,7 +61,7 @@
                         <!-- Form Fields -->
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" MinWidth="190"/>
+                                <ColumnDefinition Width="Auto" MinWidth="300"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
@@ -100,145 +98,13 @@
                     </Grid>
                 </Border>
 
-                <!-- Right Column: Cấu hình camera -->
-                <Border Grid.Column="2" Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" Padding="24" CornerRadius="8" VerticalAlignment="Top">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Header -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                            <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="SemiBold" Foreground="#123B6B" VerticalAlignment="Center"/>
-                            <TextBlock Text="CẤU HÌNH HỆ THỐNG CAMERA" FontSize="14" FontWeight="SemiBold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,0,0,16"/>
-
-                        <StackPanel Grid.Row="2">
-                            <!-- Camera 1 Sub-card -->
-                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" MinWidth="130"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Camera 1 Enabled & Title -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
-                                        <CheckBox IsChecked="{Binding Camera1Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Bật Camera 1" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" (Quản lý luồng chính và xem trước) " FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                                    </StackPanel>
-
-                                    <!-- Name -->
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tên Camera 1" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Camera1Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
-
-                                    <!-- Main stream -->
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="RTSP URL (main)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Camera1RtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
-
-                                    <!-- Preview stream -->
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="RTSP URL (preview)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Camera1PreviewRtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Camera 2 Sub-card -->
-                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" MinWidth="130"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Camera 2 Enabled & Title -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
-                                        <CheckBox IsChecked="{Binding Camera2Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Bật Camera 2" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" (Quản lý luồng chính và xem trước) " FontSize="11" Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                                    </StackPanel>
-
-                                    <!-- Name -->
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tên Camera 2" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Camera2Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
-
-                                    <!-- Main stream -->
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="RTSP URL (main)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Camera2RtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
-
-                                    <!-- Preview stream -->
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="RTSP URL (preview)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Camera2PreviewRtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
-                                </Grid>
-                            </Border>
-
-                            <!-- Common Camera Parameters Sub-card -->
-                            <Border Background="#FCFDFE" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" MinWidth="180"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Default Camera -->
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Camera preview mặc định" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Row="0" Grid.Column="1" SelectedValue="{Binding CameraPreviewDefault}" SelectedValuePath="Tag" Style="{StaticResource FormCombo}" Margin="0,0,0,12">
-                                        <ComboBoxItem Content="Camera 1" Tag="CAM1"/>
-                                        <ComboBoxItem Content="Camera 2" Tag="CAM2"/>
-                                    </ComboBox>
-
-                                    <!-- Capture Timeout -->
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Timeout chụp ảnh (ms)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CameraCaptureTimeoutMs, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
-
-                                    <!-- JPEG Quality -->
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Chất lượng JPEG" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CameraCaptureJpegQuality, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
-
-                                    <!-- Warmup frames -->
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Số frame warmup" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CameraCaptureWarmupFrames, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
                 <!-- Footer: Action buttons -->
-                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,20,0,0" HorizontalAlignment="Right">
+                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,20,0,0" HorizontalAlignment="Right">
                     <Button Command="{Binding LoadCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0" MinWidth="120" Height="36">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LÀM MỚI" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        </StackPanel>
+                        <TextBlock Text="LÀM MỚI" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     </Button>
                     <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="160" Height="36">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LƯU THAY ĐỔI" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        </StackPanel>
+                        <TextBlock Text="LƯU THAY ĐỔI" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
             </Grid>

@@ -44,6 +44,24 @@ BEGIN
         THROW 50012, N'Khong tim thay cat lenh tuong ung.', 1;
     END;
 
+    IF (@SessionId IS NULL)
+    BEGIN
+        SELECT TOP (1)
+            @SessionId = wsl.WeighingSessionId
+        FROM dbo.weighing_session_lines wsl
+        INNER JOIN dbo.weighing_sessions ws
+            ON ws.Id = wsl.WeighingSessionId
+        WHERE wsl.CutOrderId = @CutOrderId
+          AND ISNULL(wsl.IsDeleted, 0) = 0
+          AND ISNULL(ws.IsDeleted, 0) = 0
+          AND ISNULL(ws.IsCancelled, 0) = 0
+        ORDER BY
+            CASE WHEN ws.Weight2 IS NOT NULL THEN 0 ELSE 1 END,
+            ws.Weight2Time DESC,
+            ws.UpdatedAt DESC,
+            ws.CreatedAt DESC;
+    END;
+
     IF (@SessionId IS NOT NULL)
     BEGIN
         SELECT

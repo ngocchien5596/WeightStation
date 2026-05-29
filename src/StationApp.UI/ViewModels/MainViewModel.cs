@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ICurrentUserContext _currentUserContext;
     private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
     private Guid? _pendingWeighingSessionId;
+    private Guid? _pendingExportCutOrderId;
     private bool _isInitialized;
     private int _navigationVersion;
 
@@ -33,6 +34,7 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewDashboard => true;
     public bool CanViewIncomingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewExportWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewTicketList => StationAuthorization.CanViewTicketLookup(_currentUserContext.RoleCode);
     public bool CanViewDiagnostics => StationAuthorization.CanViewDiagnostics(_currentUserContext.RoleCode);
@@ -110,7 +112,11 @@ public partial class MainViewModel : ObservableObject
             {
                 case "Weighing":
                     var weighingVm = _serviceProvider.GetRequiredService<WeighingViewModel>();
-                    weighingVm.NavigateToOutgoingRequested += async () => await NavigateAsync("OutgoingVehicles");
+                    weighingVm.NavigateToExportWeighingRequested += async cutOrderId =>
+                    {
+                        _pendingExportCutOrderId = cutOrderId;
+                        await NavigateAsync("ExportWeighing");
+                    };
                     CurrentView = new WeighingView { DataContext = weighingVm };
                     _ = RunViewInitializationAsync(async () =>
                     {
@@ -129,12 +135,38 @@ public partial class MainViewModel : ObservableObject
                         _pendingWeighingSessionId = sessionId;
                         await NavigateAsync("Weighing");
                     };
+                    incomingVm.NavigateToExportWeighingRequested += async cutOrderId =>
+                    {
+                        _pendingExportCutOrderId = cutOrderId;
+                        await NavigateAsync("ExportWeighing");
+                    };
                     incomingVm.NavigateToOutgoingRequested += async () => await NavigateAsync("OutgoingVehicles");
                     CurrentView = new IncomingVehicleListView { DataContext = incomingVm };
                     _ = RunViewInitializationAsync(
                         () => incomingVm.InitializeAsync(),
                         destination,
                         navigationVersion);
+                    break;
+                case "ExportWeighing":
+                    var exportVm = _serviceProvider.GetRequiredService<ExportWeighingViewModel>();
+                    exportVm.NavigateToWeighingRequested += async sessionId =>
+                    {
+                        _pendingWeighingSessionId = sessionId;
+                        await NavigateAsync("Weighing");
+                    };
+                    CurrentView = new ExportWeighingView { DataContext = exportVm };
+                    _ = RunViewInitializationAsync(async () =>
+                    {
+                        if (_pendingExportCutOrderId.HasValue)
+                        {
+                            await exportVm.FocusCutOrderAsync(_pendingExportCutOrderId.Value);
+                            _pendingExportCutOrderId = null;
+                        }
+                        else
+                        {
+                            await exportVm.InitializeAsync();
+                        }
+                    }, destination, navigationVersion);
                     break;
                 case "OutgoingVehicles":
                     var outgoingVm = _serviceProvider.GetRequiredService<OutgoingVehicleListViewModel>();
@@ -170,6 +202,7 @@ public partial class MainViewModel : ObservableObject
                     break;
                 case "Settings":
                 case "Settings_Params":
+                case "Settings_Camera":
                 case "Settings_Device":
                 case "Settings_Print":
                 case "Settings_Vehicles":
@@ -182,6 +215,7 @@ public partial class MainViewModel : ObservableObject
                     var initialSettingsTab = destination switch
                     {
                         "Settings_Params" => 0,
+                        "Settings_Camera" => 8,
                         "Settings_Device" => 1,
                         "Settings_Print" => 2,
                         "Settings_Vehicles" => 3,
@@ -235,11 +269,13 @@ public partial class MainViewModel : ObservableObject
             "Dashboard" => CanViewDashboard,
             "IncomingVehicles" => CanViewIncomingVehicles,
             "Weighing" => CanViewWeighing,
+            "ExportWeighing" => CanViewExportWeighing,
             "OutgoingVehicles" => CanViewOutgoingVehicles,
             "TicketList" => CanViewTicketList,
             "Diagnostics" => CanViewDiagnostics,
             "Settings" => CanViewSettingsMenu,
             "Settings_Params" => CanViewSettingsParams,
+            "Settings_Camera" => CanViewSettingsParams,
             "Settings_Device" => CanViewSettingsDevice,
             "Settings_Print" => CanViewSettingsPrint,
             "Settings_Vehicles" => CanViewSettingsVehicles,

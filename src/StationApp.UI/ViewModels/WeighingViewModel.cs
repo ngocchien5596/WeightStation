@@ -66,7 +66,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private int _isPreviewUiUpdatePending;
     private bool _isApplyingNoLoadState;
 
-    public event Action? NavigateToOutgoingRequested;
+    public event Action<Guid>? NavigateToExportWeighingRequested;
 
     private static readonly SolidColorBrush StableBrush = new(Color.FromRgb(46, 213, 115));
     private static readonly SolidColorBrush UnstableBrush = new(Colors.Orange);
@@ -540,7 +540,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             using var scope = _scopeFactory.CreateScope();
             var provider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
-            var settings = await provider.GetAsync(CancellationToken.None);
+            var settings = await provider.GetForStationAsync("C2", CancellationToken.None);
             ApplyCameraPreviewSettings(settings);
             _ = StartCameraPreviewAsync(SelectedPreviewCameraCode);
         }
@@ -1650,7 +1650,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return true;
         }
 
-        if (decimal.TryParse(value, out parsedWeight))
+        if (decimal.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out parsedWeight))
         {
             parsedWeight = decimal.Round(parsedWeight, 3, MidpointRounding.AwayFromZero);
             return true;
@@ -1740,7 +1740,6 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             await uc.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
             _toastService.ShowSuccess(UiText.Weighing.MoveOutSuccess);
             await LoadSessionsAsync();
-            NavigateToOutgoingRequested?.Invoke();
         }
         catch (InvalidOperationException ex)
         {
@@ -1788,7 +1787,6 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             await uc.ExecuteAsync(new MarkWeighingSessionNoLoadRequest(SelectedSession.SessionId), CancellationToken.None);
             _toastService.ShowSuccess("Đã chuyển xe sang danh sách xe ra theo luồng không lấy hàng.");
             await LoadSessionsAsync();
-            NavigateToOutgoingRequested?.Invoke();
         }
         catch (InvalidOperationException ex)
         {
@@ -1862,8 +1860,20 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         using var scope = _scopeFactory.CreateScope();
         var uc = scope.ServiceProvider.GetRequiredService<CancelWeighingSessionUseCase>();
         await uc.ExecuteAsync(new CancelWeighingSessionRequest(SelectedSession.SessionId), CancellationToken.None);
+        var exportCutOrderId = await ResolveExportCutOrderIdAsync(scope.ServiceProvider, SelectedSession.SessionId, CancellationToken.None);
         _toastService.ShowSuccess(UiText.Weighing.CancelSuccess);
         await LoadSessionsAsync();
+        if (exportCutOrderId.HasValue)
+        {
+            NavigateToExportWeighingRequested?.Invoke(exportCutOrderId.Value);
+        }
+    }
+
+    private static async Task<Guid?> ResolveExportCutOrderIdAsync(IServiceProvider serviceProvider, Guid sessionId, CancellationToken ct)
+    {
+        var regRepo = serviceProvider.GetRequiredService<ICutOrderRepository>();
+        var registrations = await regRepo.GetByWeighingSessionIdAsync(sessionId, ct);
+        return registrations.FirstOrDefault(x => x.IsExportScale)?.Id;
     }
 
     [RelayCommand(CanExecute = nameof(CanShowRelatedTickets))]

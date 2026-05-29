@@ -134,6 +134,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="16"/>
         <Setter Property="Height" Value="38"/>
+        <Setter Property="Width" Value="185"/>
         <Setter Property="Padding" Value="12,0"/>
         <Setter Property="HorizontalAlignment" Value="Right"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -142,8 +143,8 @@
     <Style x:Key="ClockTextStyle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource ClockForeground}"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontSize" Value="13.5"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontSize" Value="17.5"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 

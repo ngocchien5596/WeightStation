@@ -96,10 +96,7 @@
                                         Height="36"
                                         Padding="18,0"
                                         HorizontalAlignment="Left">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <TextBlock Text="MỞ CẤU HÌNH PHIẾU CÂN" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                                    </StackPanel>
+                                    <TextBlock Text="MỞ CẤU HÌNH PHIẾU CÂN" VerticalAlignment="Center" FontWeight="SemiBold"/>
                                 </Button>
                             </StackPanel>
                         </Grid>
@@ -130,10 +127,7 @@
                                         Height="36"
                                         Padding="18,0"
                                         HorizontalAlignment="Left">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <TextBlock Text="MỞ CẤU HÌNH PHIẾU GIAO NHẬN" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                                    </StackPanel>
+                                    <TextBlock Text="MỞ CẤU HÌNH PHIẾU GIAO NHẬN" VerticalAlignment="Center" FontWeight="SemiBold"/>
                                 </Button>
                             </StackPanel>
                         </Grid>
@@ -143,10 +137,7 @@
                 <!-- Row 2: Action Buttons Footer -->
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,24,0,0" HorizontalAlignment="Right">
                     <Button Command="{Binding SavePrinterDefaultsCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="220" Height="36">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="LƯU MÁY IN MẶC ĐỊNH" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        </StackPanel>
+                        <TextBlock Text="LƯU MÁY IN MẶC ĐỊNH" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
             </Grid>

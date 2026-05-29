@@ -61,27 +61,18 @@
                 <Button Command="{Binding ShowMetricsCommand}"
                         Style="{StaticResource WorkflowButtonStyle}"
                         Margin="0,0,12,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE9D2;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="CHI TI&#x1EBE;T TH&#x1ED0;NG K&#xCA;" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Text="CHI TI&#x1EBE;T TH&#x1ED0;NG K&#xCA;" VerticalAlignment="Center"/>
                 </Button>
 
                 <Button Command="{Binding RefreshCommand}"
                         Style="{StaticResource UtilityButtonStyle}"
                         Margin="0,0,12,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="{StaticResource Sync.Refresh}" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Text="{StaticResource Sync.Refresh}" VerticalAlignment="Center"/>
                 </Button>
 
                 <Button Command="{Binding ForceSyncCommand}"
                         Style="{StaticResource WorkflowButtonStyle}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="{StaticResource Sync.Force}" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Text="{StaticResource Sync.Force}" VerticalAlignment="Center"/>
                 </Button>
             </StackPanel>
         </Grid>

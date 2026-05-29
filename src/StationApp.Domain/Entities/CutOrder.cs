@@ -48,6 +48,12 @@ public class CutOrder
     public Guid? CurrentPrimaryDeliveryTicketId { get; set; }
     public decimal? CarryForwardWeight1 { get; set; }
     public DateTime? CarryForwardWeight1Time { get; set; }
+    public bool IsExportScale { get; set; }
+    public decimal? ExportFinalizedWeight { get; set; }
+    public DateTime? ExportFinalizedAt { get; set; }
+    public string? ExportFinalizedBy { get; set; }
+    public DateTime? ExportStartedAt { get; set; }
+    public string? ExportStartedBy { get; set; }
 
     public SyncStatus SyncStatus { get; set; }
     public Guid IdempotencyKey { get; set; }

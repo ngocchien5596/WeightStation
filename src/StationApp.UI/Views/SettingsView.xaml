@@ -106,6 +106,10 @@
             <TabItem Header="QU&#x1EA2;N L&#xDD; T&#xC0;I KHO&#x1EA2;N" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
                 <settings:AccountManagementView DataContext="{Binding AccountManagementVM}"/>
             </TabItem>
+
+            <TabItem Header="C&#x1EA5;u h&#x00EC;nh camera" Visibility="{Binding CanAccessSystemSettings, Converter={StaticResource BoolToVis}}">
+                <settings:CameraConfigView DataContext="{Binding CameraConfigVM}"/>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

@@ -5,4 +5,5 @@ namespace StationApp.Application.Interfaces;
 public interface ICameraSettingsProvider
 {
     Task<CameraSystemSettings> GetAsync(CancellationToken ct);
+    Task<CameraSystemSettings> GetForStationAsync(string stationCode, CancellationToken ct);
 }

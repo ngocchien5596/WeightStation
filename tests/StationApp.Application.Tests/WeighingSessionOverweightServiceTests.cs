@@ -1,4 +1,4 @@
-﻿using NSubstitute;
+using NSubstitute;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
 using StationApp.Application.UseCases;
@@ -197,7 +197,7 @@ public class WeighingSessionOverweightServiceTests
 
         var ex = Assert.Throws<InvalidOperationException>(() => service.BuildSplitPlan(session, lines, 0.0025m));
 
-        Assert.Contains("khÃ´ng thá»ƒ tÃ¡ch", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("không thể tách", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

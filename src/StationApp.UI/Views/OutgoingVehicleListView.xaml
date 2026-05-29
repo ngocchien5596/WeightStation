@@ -88,10 +88,7 @@
                                 Style="{StaticResource StandardDatePickerStyle}"/>
 
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </DockPanel>

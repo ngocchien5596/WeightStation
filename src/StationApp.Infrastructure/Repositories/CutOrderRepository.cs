@@ -125,10 +125,27 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<CutOrder>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
     {
-        return await _db.CutOrders
+        var lineCutOrderIds = await _db.WeighingSessionLines.AsNoTracking()
             .Where(x => !x.IsDeleted && x.WeighingSessionId == weighingSessionId)
-            .OrderBy(x => x.CreatedAt)
+            .OrderBy(x => x.SequenceNo)
+            .Select(x => new { x.CutOrderId, x.SequenceNo })
             .ToListAsync(ct);
+
+        var lineOrder = lineCutOrderIds
+            .GroupBy(x => x.CutOrderId)
+            .ToDictionary(x => x.Key, x => x.Min(item => item.SequenceNo));
+        var ids = lineOrder.Keys.ToList();
+
+        var registrations = await _db.CutOrders
+            .Where(x => !x.IsDeleted
+                && (x.WeighingSessionId == weighingSessionId || ids.Contains(x.Id)))
+            .ToListAsync(ct);
+
+        return registrations
+            .OrderBy(x => lineOrder.TryGetValue(x.Id, out var sequence) ? sequence : int.MaxValue)
+            .ThenBy(x => x.CreatedAt)
+            .ToList()
+            .AsReadOnly();
     }
 
     public async Task<IReadOnlyList<CutOrder>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
@@ -449,7 +466,8 @@ public class CutOrderRepository : ICutOrderRepository
                         : null),
                 suggestedSessionNo,
                 vr.ConsumptionPlace,
-                vr.Market);
+                vr.Market,
+                vr.IsExportScale);
         }).ToList();
 
         var missingProductCodes = list
@@ -515,6 +533,7 @@ public class CutOrderRepository : ICutOrderRepository
             from session in sessionGroup.Where(x => !x.IsDeleted).DefaultIfEmpty()
             where vr.ProcessingStage == ProcessingStage.OUT_YARD
                 && vr.CutOrderStatus == CutOrderStatus.COMPLETED
+                && !vr.IsExportScale
                 && !vr.IsCancelled
             select new
             {
@@ -613,7 +632,7 @@ public class CutOrderRepository : ICutOrderRepository
                 && dt.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
             .ToListAsync(ct);
 
-        return registrations.Select(item =>
+        var normalItems = registrations.Select(item =>
         {
             var vr = item.Registration;
             var session = item.Session;
@@ -714,6 +733,172 @@ public class CutOrderRepository : ICutOrderRepository
                 isNoLoad,
                 hasSplitOverweight
             );
+        }).ToList();
+
+        var exportItems = await GetExportScaleOutgoingItemsAsync(filter, ct);
+
+        return normalItems
+            .Concat(exportItems)
+            .OrderByDescending(x => x.CompletedAt ?? x.WeighDate ?? DateTime.MinValue)
+            .Take(200)
+            .ToList()
+            .AsReadOnly();
+    }
+
+    private async Task<IReadOnlyList<OutgoingVehicleListItem>> GetExportScaleOutgoingItemsAsync(OutgoingVehicleListFilter filter, CancellationToken ct)
+    {
+        var query =
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join vr in _db.CutOrders.AsNoTracking()
+                on line.CutOrderId equals vr.Id
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where vr.IsExportScale
+                && !vr.IsDeleted
+                && !vr.IsCancelled
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+                && session.Weight2.HasValue
+                && session.NetWeight.HasValue
+                && (session.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
+                    || session.SessionStatus == WeighingSessionStatus.COMPLETED)
+            select new
+            {
+                Registration = vr,
+                Session = session,
+                Line = line
+            };
+
+        if (!string.IsNullOrWhiteSpace(filter.SessionNo))
+        {
+            query = query.Where(x => x.Session.SessionNo.Contains(filter.SessionNo));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
+        {
+            query = query.Where(x => x.Registration.ErpCutOrderId != null && x.Registration.ErpCutOrderId.Contains(filter.ErpCutOrderId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.VehiclePlate))
+        {
+            query = query.Where(x => x.Session.VehiclePlate.Contains(filter.VehiclePlate));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.MoocNumber))
+        {
+            query = query.Where(x => x.Session.MoocNumber != null && x.Session.MoocNumber.Contains(filter.MoocNumber));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ReceiverName))
+        {
+            query = query.Where(x =>
+                (x.Session.DriverName != null && x.Session.DriverName.Contains(filter.ReceiverName)) ||
+                (x.Registration.ReceiverName != null && x.Registration.ReceiverName.Contains(filter.ReceiverName)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.CustomerName))
+        {
+            query = query.Where(x => x.Registration.CustomerName != null && x.Registration.CustomerName.Contains(filter.CustomerName));
+        }
+
+        var rows = await query
+            .OrderByDescending(x => x.Session.Weight2Time ?? x.Session.UpdatedAt ?? x.Session.CreatedAt)
+            .Take(200)
+            .ToListAsync(ct);
+
+        if (filter.CompletedDate.HasValue)
+        {
+            var start = filter.CompletedDate.Value.Date;
+            var end = start.AddDays(1);
+            rows = rows
+                .Where(x =>
+                {
+                    var completedAt = x.Session.Weight2Time ?? x.Session.UpdatedAt ?? x.Session.CreatedAt;
+                    return completedAt >= start && completedAt < end;
+                })
+                .ToList();
+        }
+
+        var sessionIds = rows.Select(x => x.Session.Id).Distinct().ToList();
+        var missingProductCodes = rows
+            .Where(x => string.IsNullOrWhiteSpace(x.Registration.ProductType) && !string.IsNullOrWhiteSpace(x.Registration.ProductCode))
+            .Select(x => x.Registration.ProductCode!.Trim())
+            .Distinct()
+            .ToList();
+        var productTypeLookup = missingProductCodes.Count == 0
+            ? new Dictionary<string, string?>()
+            : await _db.Products.AsNoTracking()
+                .Where(x => missingProductCodes.Contains(x.ProductCode))
+                .ToDictionaryAsync(x => x.ProductCode.Trim(), x => x.ProductType, ct);
+        var weighTickets = await _db.WeighTickets.AsNoTracking()
+            .Where(wt => wt.WeighingSessionId.HasValue
+                && sessionIds.Contains(wt.WeighingSessionId.Value)
+                && !wt.IsDeleted)
+            .ToListAsync(ct);
+        var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
+            .Where(dt => dt.WeighingSessionId.HasValue
+                && sessionIds.Contains(dt.WeighingSessionId.Value)
+                && !dt.IsDeleted)
+            .ToListAsync(ct);
+
+        return rows.Select(row =>
+        {
+            var vr = row.Registration;
+            var session = row.Session;
+            var line = row.Line;
+            var resolvedProductType = ProductTypes.Normalize(vr.ProductType);
+            if (resolvedProductType == null
+                && !string.IsNullOrWhiteSpace(vr.ProductCode)
+                && productTypeLookup.TryGetValue(vr.ProductCode.Trim(), out var fallbackProductType))
+            {
+                resolvedProductType = ProductTypes.Normalize(fallbackProductType);
+            }
+
+            var isBagged = string.Equals(resolvedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+            var weighTicket = weighTickets
+                .Where(wt => wt.WeighingSessionId == session.Id)
+                .OrderBy(wt => wt.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                .ThenByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
+                .FirstOrDefault();
+            var deliveryTicket = deliveryTickets
+                .Where(dt => dt.WeighingSessionId == session.Id && dt.WeighingSessionLineId == line.Id)
+                .OrderByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
+                .FirstOrDefault();
+            var completedAt = session.Weight2Time ?? session.UpdatedAt ?? session.CreatedAt;
+
+            return new OutgoingVehicleListItem(
+                vr.Id,
+                session.Id,
+                session.SessionNo,
+                vr.ErpCutOrderId,
+                vr.TransactionType,
+                session.VehiclePlate,
+                session.MoocNumber,
+                vr.TransportMethod,
+                vr.ReceiverName,
+                vr.CustomerName,
+                vr.ProductCode,
+                vr.ProductName,
+                resolvedProductType,
+                session.DriverName,
+                vr.PlannedWeight,
+                isBagged ? vr.BagCount : null,
+                weighTicket?.Weight1 ?? session.Weight1,
+                deliveryTicket?.AllocatedWeight ?? line.ActualAllocatedWeight ?? session.NetWeight,
+                isBagged ? (deliveryTicket?.AllocatedBagCount ?? line.ActualAllocatedBagCount) : null,
+                session.NetWeight,
+                isBagged ? line.ActualAllocatedBagCount : null,
+                weighTicket?.Weight2Time ?? session.Weight2Time ?? session.Weight1Time,
+                weighTicket?.Weight2User ?? weighTicket?.Weight1User,
+                weighTicket?.TicketNo,
+                deliveryTicket?.DeliveryNo,
+                completedAt,
+                weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
+                deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket,
+                session.UseActualWeightForBaggedCutOrders,
+                session.IsNoLoad,
+                false);
         }).ToList().AsReadOnly();
     }
 
@@ -725,6 +910,171 @@ public class CutOrderRepository : ICutOrderRepository
         }
 
         return registration.UpdatedAt ?? NormalizeCreatedAtForDisplay(registration.CutOrderSource, registration.CreatedAt);
+    }
+
+    public async Task<IReadOnlyList<ExportScaleCutOrderListItem>> GetActiveExportScaleCutOrdersAsync(ExportScaleCutOrderFilter filter, CancellationToken ct)
+    {
+        var query = _db.CutOrders.AsNoTracking()
+            .Where(co => !co.IsDeleted
+                && !co.IsCancelled
+                && co.IsExportScale
+                && co.TransactionType == TransactionType.OUTBOUND
+                && (co.ProcessingStage == ProcessingStage.WEIGHING
+                    || (co.ExportFinalizedAt.HasValue && co.CutOrderStatus == CutOrderStatus.COMPLETED)));
+
+        if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
+        {
+            query = query.Where(co => co.ErpCutOrderId != null && co.ErpCutOrderId.Contains(filter.ErpCutOrderId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.VehiclePlate))
+        {
+            query = query.Where(co => co.VehiclePlate.Contains(filter.VehiclePlate));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.CustomerName))
+        {
+            query = query.Where(co => co.CustomerName != null && co.CustomerName.Contains(filter.CustomerName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ProductCode))
+        {
+            query = query.Where(co => co.ProductCode != null && co.ProductCode.Contains(filter.ProductCode));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ProductName))
+        {
+            query = query.Where(co => co.ProductName != null && co.ProductName.Contains(filter.ProductName));
+        }
+
+        var cutOrders = await query
+            .OrderBy(co => co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED ? 1 : 0)
+            .ThenByDescending(co => co.UpdatedAt ?? co.CreatedAt)
+            .Take(200)
+            .ToListAsync(ct);
+
+        var cutOrderIds = cutOrders.Select(co => co.Id).ToList();
+        var tripRows = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where cutOrderIds.Contains(line.CutOrderId)
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+                && line.LineStatus == WeighingSessionLineStatus.ALLOCATED
+                && (session.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
+                    || session.SessionStatus == WeighingSessionStatus.COMPLETED)
+            select new
+            {
+                line.CutOrderId,
+                line.WeighingSessionId,
+                line.ActualAllocatedWeight,
+                session.Weight2Time,
+                session.UpdatedAt,
+                session.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        var progressByCutOrder = tripRows
+            .GroupBy(x => x.CutOrderId)
+            .ToDictionary(
+                x => x.Key,
+                x => new
+                {
+                    AccumulatedWeight = x.Sum(item => item.ActualAllocatedWeight ?? 0m),
+                    TripCount = x.Select(item => item.WeighingSessionId).Distinct().Count(),
+                    LastTripAt = x.Max(item => item.Weight2Time ?? item.UpdatedAt ?? item.CreatedAt)
+                });
+
+        return cutOrders.Select(co =>
+        {
+            progressByCutOrder.TryGetValue(co.Id, out var progress);
+            var accumulatedWeight = progress?.AccumulatedWeight ?? 0m;
+            var plannedWeight = co.PlannedWeight ?? 0m;
+
+            return new ExportScaleCutOrderListItem(
+                co.Id,
+                co.ErpCutOrderId,
+                co.VehiclePlate,
+                co.MoocNumber,
+                co.CustomerName,
+                co.ProductCode,
+                co.ProductName,
+                co.PlannedWeight,
+                accumulatedWeight,
+                plannedWeight - accumulatedWeight,
+                progress?.TripCount ?? 0,
+                progress?.LastTripAt,
+                co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED,
+                co.CutOrderStatus,
+                co.ProcessingStage,
+                co.Notes);
+        }).ToList().AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<ExportVehicleTripListItem>> GetExportVehicleTripsAsync(Guid cutOrderId, CancellationToken ct)
+    {
+        var tripRows = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where line.CutOrderId == cutOrderId
+                && !line.IsDeleted
+                && !session.IsDeleted
+            orderby session.CreatedAt descending
+            select new
+            {
+                Line = line,
+                Session = session
+            })
+            .ToListAsync(ct);
+
+        var sessionIds = tripRows.Select(x => x.Session.Id).Distinct().ToList();
+        var weighTickets = await _db.WeighTickets.AsNoTracking()
+            .Where(wt => wt.WeighingSessionId.HasValue
+                && sessionIds.Contains(wt.WeighingSessionId.Value)
+                && !wt.IsDeleted)
+            .ToListAsync(ct);
+        var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
+            .Where(dt => dt.WeighingSessionId.HasValue
+                && sessionIds.Contains(dt.WeighingSessionId.Value)
+                && !dt.IsDeleted)
+            .ToListAsync(ct);
+
+        return tripRows.Select(row =>
+        {
+            var session = row.Session;
+            var line = row.Line;
+            var weighTicket = weighTickets
+                .Where(wt => wt.WeighingSessionId == session.Id)
+                .OrderBy(wt => wt.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                .ThenByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
+                .FirstOrDefault();
+            var deliveryTicket = deliveryTickets
+                .Where(dt => dt.WeighingSessionId == session.Id && dt.WeighingSessionLineId == line.Id)
+                .OrderByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
+                .FirstOrDefault();
+
+            return new ExportVehicleTripListItem(
+                session.Id,
+                line.Id,
+                session.SessionNo,
+                session.VehiclePlate,
+                session.MoocNumber,
+                session.DriverName,
+                session.Weight1,
+                session.Weight2,
+                session.NetWeight,
+                line.ActualAllocatedWeight,
+                session.Weight1Time,
+                session.Weight2Time,
+                session.SessionStatus,
+                weighTicket?.TicketNo,
+                deliveryTicket?.DeliveryNo,
+                weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
+                deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket);
+        }).ToList().AsReadOnly();
     }
 
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleHistorySourcesAsync(string keyword, int limit, CancellationToken ct)

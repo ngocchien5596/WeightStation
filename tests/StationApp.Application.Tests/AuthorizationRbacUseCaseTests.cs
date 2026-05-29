@@ -1,4 +1,4 @@
-﻿using NSubstitute;
+using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -57,7 +57,7 @@ public class AuthorizationRbacUseCaseTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Vai trÃ² khÃ´ng há»£p lá»‡.", result.ErrorMessage);
+        Assert.Equal("Vai trò không hợp lệ.", result.ErrorMessage);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class AuthorizationRbacUseCaseTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Pháº£i luÃ´n cÃ²n Ã­t nháº¥t 1 tÃ i khoáº£n ADMIN Ä‘ang hoáº¡t Ä‘á»™ng.", result.ErrorMessage);
+        Assert.Equal("Phải luôn còn ít nhất 1 tài khoản ADMIN đang hoạt động.", result.ErrorMessage);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class AuthorizationRbacUseCaseTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Pháº£i luÃ´n cÃ²n Ã­t nháº¥t 1 tÃ i khoáº£n ADMIN Ä‘ang hoáº¡t Ä‘á»™ng.", result.ErrorMessage);
+        Assert.Equal("Phải luôn còn ít nhất 1 tài khoản ADMIN đang hoạt động.", result.ErrorMessage);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class AuthorizationRbacUseCaseTests
         var result = await sut.ExecuteAsync(new SetUserActiveStatusRequest(adminUser.Id, false), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Pháº£i luÃ´n cÃ²n Ã­t nháº¥t 1 tÃ i khoáº£n ADMIN Ä‘ang hoáº¡t Ä‘á»™ng.", result.ErrorMessage);
+        Assert.Equal("Phải luôn còn ít nhất 1 tài khoản ADMIN đang hoạt động.", result.ErrorMessage);
     }
 
     [Fact]
@@ -163,8 +163,61 @@ public class AuthorizationRbacUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             sut.ExecuteAsync(
-                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025", false, "Camera 1", "", "", false, "Camera 2", "", "", "CAM1", "3000", "85", "5"),
+                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025"),
                 CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateCameraSettings_Operator_IsBlocked()
+    {
+        var configRepo = Substitute.For<IAppConfigRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        currentUser.RoleCode.Returns("OPERATOR");
+
+        var sut = new UpdateCameraSettingsUseCase(configRepo, uow, currentUser);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            sut.ExecuteAsync(
+                new UpdateCameraSettingsRequest(false, "Camera 1", "", "", false, "Camera 2", "", "", false, "Camera C6-1", "", "", false, "Camera C6-2", "", "", "CAM1", "3000", "85", "5"),
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateCameraSettings_Admin_SavesAllParameters()
+    {
+        var configRepo = Substitute.For<IAppConfigRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        currentUser.RoleCode.Returns("ADMIN");
+
+        var sut = new UpdateCameraSettingsUseCase(configRepo, uow, currentUser);
+
+        await sut.ExecuteAsync(
+            new UpdateCameraSettingsRequest(
+                true, "Camera C2-1", "rtsp://c2-1/live", "rtsp://c2-1/prev",
+                true, "Camera C2-2", "rtsp://c2-2/live", "rtsp://c2-2/prev",
+                true, "Camera C6-1", "rtsp://c6-1/live", "rtsp://c6-1/prev",
+                false, "Camera C6-2", "rtsp://c6-2/live", "rtsp://c6-2/prev",
+                "CAM2", "4000", "90", "10"),
+            CancellationToken.None);
+
+        await configRepo.Received().SetValueAsync("camera_1_enabled", "true", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_1_name", "Camera C2-1", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_1_rtsp_url", "rtsp://c2-1/live", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_1_preview_rtsp_url", "rtsp://c2-1/prev", Arg.Any<CancellationToken>());
+
+        await configRepo.Received().SetValueAsync("camera_c6_1_enabled", "true", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_c6_1_name", "Camera C6-1", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_c6_1_rtsp_url", "rtsp://c6-1/live", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_c6_1_preview_rtsp_url", "rtsp://c6-1/prev", Arg.Any<CancellationToken>());
+
+        await configRepo.Received().SetValueAsync("camera_preview_default", "CAM2", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_capture_timeout_ms", "4000", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_capture_jpeg_quality", "90", Arg.Any<CancellationToken>());
+        await configRepo.Received().SetValueAsync("camera_capture_warmup_frames", "10", Arg.Any<CancellationToken>());
+
+        await uow.Received().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

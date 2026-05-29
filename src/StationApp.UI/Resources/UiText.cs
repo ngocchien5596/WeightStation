@@ -25,7 +25,7 @@ public static class UiText
         public const string UpdateInboundError = "Không thể cập nhật thông tin xe vào.";
         public const string SaveInboundError = "Không thể lưu thông tin xe vào. Vui lòng thử lại.";
         public const string CreateSessionSelectionRequired = "Vui lòng chọn ít nhất một xe để tạo lượt cân.";
-        public const string CreateSessionSuccess = "Đã tạo lượt cân và chuyển sang màn Lập phiếu cân.";
+        public const string CreateSessionSuccess = "Đã tạo lượt cân và chuyển sang màn Cân nội địa.";
         public const string DetailLoadError = "Không thể tải thông tin chi tiết xe vào.";
         public const string CreateInboundSuccess = "Đã tạo xe nhập hàng thành công.";
         public const string UpdateInboundSuccess = "Đã lưu thay đổi thông tin xe nhập hàng.";

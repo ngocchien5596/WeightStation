@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using StationApp.Application.DTOs;
@@ -223,17 +223,44 @@ public class CameraSettingsProvider : ICameraSettingsProvider
         _configRepo = configRepo;
     }
 
-    public async Task<CameraSystemSettings> GetAsync(CancellationToken ct)
+    public Task<CameraSystemSettings> GetAsync(CancellationToken ct)
     {
-        var camera1Enabled = ParseBool(await _configRepo.GetValueAsync(AppConfigKeys.Camera1Enabled, ct), AppConfigDefaults.DefaultCamera1Enabled);
-        var camera1Name = await _configRepo.GetValueAsync(AppConfigKeys.Camera1Name, ct) ?? AppConfigDefaults.DefaultCamera1Name;
-        var camera1Rtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera1RtspUrl, ct) ?? AppConfigDefaults.DefaultCamera1RtspUrl;
-        var camera1PreviewRtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera1PreviewRtspUrl, ct) ?? AppConfigDefaults.DefaultCamera1PreviewRtspUrl;
+        return GetForStationAsync("C2", ct);
+    }
 
-        var camera2Enabled = ParseBool(await _configRepo.GetValueAsync(AppConfigKeys.Camera2Enabled, ct), AppConfigDefaults.DefaultCamera2Enabled);
-        var camera2Name = await _configRepo.GetValueAsync(AppConfigKeys.Camera2Name, ct) ?? AppConfigDefaults.DefaultCamera2Name;
-        var camera2Rtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera2RtspUrl, ct) ?? AppConfigDefaults.DefaultCamera2RtspUrl;
-        var camera2PreviewRtsp = await _configRepo.GetValueAsync(AppConfigKeys.Camera2PreviewRtspUrl, ct) ?? AppConfigDefaults.DefaultCamera2PreviewRtspUrl;
+    public async Task<CameraSystemSettings> GetForStationAsync(string stationCode, CancellationToken ct)
+    {
+        bool isC6 = string.Equals(stationCode, "C6", StringComparison.OrdinalIgnoreCase);
+
+        var c1EnabledKey = isC6 ? AppConfigKeys.CameraC6_1Enabled : AppConfigKeys.Camera1Enabled;
+        var c1NameKey = isC6 ? AppConfigKeys.CameraC6_1Name : AppConfigKeys.Camera1Name;
+        var c1RtspKey = isC6 ? AppConfigKeys.CameraC6_1RtspUrl : AppConfigKeys.Camera1RtspUrl;
+        var c1PrevKey = isC6 ? AppConfigKeys.CameraC6_1PreviewRtspUrl : AppConfigKeys.Camera1PreviewRtspUrl;
+
+        var c1EnabledDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1Enabled : AppConfigDefaults.DefaultCamera1Enabled;
+        var c1NameDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1Name : AppConfigDefaults.DefaultCamera1Name;
+        var c1RtspDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1RtspUrl : AppConfigDefaults.DefaultCamera1RtspUrl;
+        var c1PrevDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1PreviewRtspUrl : AppConfigDefaults.DefaultCamera1PreviewRtspUrl;
+
+        var c2EnabledKey = isC6 ? AppConfigKeys.CameraC6_2Enabled : AppConfigKeys.Camera2Enabled;
+        var c2NameKey = isC6 ? AppConfigKeys.CameraC6_2Name : AppConfigKeys.Camera2Name;
+        var c2RtspKey = isC6 ? AppConfigKeys.CameraC6_2RtspUrl : AppConfigKeys.Camera2RtspUrl;
+        var c2PrevKey = isC6 ? AppConfigKeys.CameraC6_2PreviewRtspUrl : AppConfigKeys.Camera2PreviewRtspUrl;
+
+        var c2EnabledDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2Enabled : AppConfigDefaults.DefaultCamera2Enabled;
+        var c2NameDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2Name : AppConfigDefaults.DefaultCamera2Name;
+        var c2RtspDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2RtspUrl : AppConfigDefaults.DefaultCamera2RtspUrl;
+        var c2PrevDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2PreviewRtspUrl : AppConfigDefaults.DefaultCamera2PreviewRtspUrl;
+
+        var camera1Enabled = ParseBool(await _configRepo.GetValueAsync(c1EnabledKey, ct), c1EnabledDef);
+        var camera1Name = await _configRepo.GetValueAsync(c1NameKey, ct) ?? c1NameDef;
+        var camera1Rtsp = await _configRepo.GetValueAsync(c1RtspKey, ct) ?? c1RtspDef;
+        var camera1PreviewRtsp = await _configRepo.GetValueAsync(c1PrevKey, ct) ?? c1PrevDef;
+
+        var camera2Enabled = ParseBool(await _configRepo.GetValueAsync(c2EnabledKey, ct), c2EnabledDef);
+        var camera2Name = await _configRepo.GetValueAsync(c2NameKey, ct) ?? c2NameDef;
+        var camera2Rtsp = await _configRepo.GetValueAsync(c2RtspKey, ct) ?? c2RtspDef;
+        var camera2PreviewRtsp = await _configRepo.GetValueAsync(c2PrevKey, ct) ?? c2PrevDef;
 
         var previewDefault = await _configRepo.GetValueAsync(AppConfigKeys.CameraPreviewDefault, ct) ?? AppConfigDefaults.DefaultCameraPreview;
         var timeoutMs = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureTimeoutMs, ct), AppConfigDefaults.DefaultCameraCaptureTimeoutMs);

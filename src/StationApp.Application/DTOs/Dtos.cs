@@ -96,7 +96,10 @@ public sealed record UpdateSystemSettingsRequest(
     string ToleranceKgPerBag,
     string SyncIntervalSeconds,
     string RegistrationInboundPollSeconds,
-    string OverweightSplitStepWeight,
+    string OverweightSplitStepWeight
+);
+
+public sealed record UpdateCameraSettingsRequest(
     bool Camera1Enabled,
     string Camera1Name,
     string Camera1RtspUrl,
@@ -105,6 +108,14 @@ public sealed record UpdateSystemSettingsRequest(
     string Camera2Name,
     string Camera2RtspUrl,
     string Camera2PreviewRtspUrl,
+    bool CameraC6_1Enabled,
+    string CameraC6_1Name,
+    string CameraC6_1RtspUrl,
+    string CameraC6_1PreviewRtspUrl,
+    bool CameraC6_2Enabled,
+    string CameraC6_2Name,
+    string CameraC6_2RtspUrl,
+    string CameraC6_2PreviewRtspUrl,
     string CameraPreviewDefault,
     string CameraCaptureTimeoutMs,
     string CameraCaptureJpegQuality,
@@ -339,7 +350,11 @@ public sealed record IncomingVehicleListItem(
     DateTime? CarryForwardWeight1Time = null,
     string? SuggestedSessionNo = null,
     string? ConsumptionPlace = null,
-    string? Market = null
+    string? Market = null,
+    bool IsExportScale = false,
+    decimal? ExportAccumulatedWeight = null,
+    decimal? ExportRemainingWeight = null,
+    int ExportTripCount = 0
 );
 
 public sealed record OutgoingVehicleListItem(
@@ -375,6 +390,74 @@ public sealed record OutgoingVehicleListItem(
     bool IsNoLoad,
     bool HighlightAsSplitOverweight
 );
+
+public sealed record ExportScaleCutOrderFilter(
+    string? ErpCutOrderId,
+    string? VehiclePlate,
+    string? CustomerName,
+    string? ProductCode,
+    string? ProductName
+);
+
+public sealed record ExportScaleCutOrderListItem(
+    Guid CutOrderId,
+    string? ErpCutOrderId,
+    string VehiclePlate,
+    string? MoocNumber,
+    string? CustomerName,
+    string? ProductCode,
+    string? ProductName,
+    decimal? PlannedWeight,
+    decimal AccumulatedWeight,
+    decimal RemainingWeight,
+    int TripCount,
+    DateTime? LastTripAt,
+    bool IsFinalized,
+    CutOrderStatus CutOrderStatus,
+    ProcessingStage ProcessingStage,
+    string? Notes
+);
+
+public sealed record ExportVehicleTripListItem(
+    Guid SessionId,
+    Guid SessionLineId,
+    string SessionNo,
+    string VehiclePlate,
+    string? MoocNumber,
+    string? DriverName,
+    decimal? Weight1,
+    decimal? Weight2,
+    decimal? NetWeight,
+    decimal? ActualAllocatedWeight,
+    DateTime? Weight1Time,
+    DateTime? Weight2Time,
+    WeighingSessionStatus SessionStatus,
+    string? WeighTicketNo,
+    string? DeliveryNo,
+    bool HasPrintedWeighTicket,
+    bool HasPrintedDeliveryTicket
+);
+
+public sealed record TransitionToExportScaleRequest(Guid CutOrderId);
+
+public sealed record CreateExportVehicleSessionRequest(
+    Guid CutOrderId,
+    string VehiclePlate,
+    string? MoocNumber,
+    string? DriverName,
+    decimal? TtcpWeight,
+    string? VehicleRegistrationNo,
+    DateTime? VehicleRegistrationExpiryDate,
+    string? MoocRegistrationNo,
+    DateTime? MoocRegistrationExpiryDate
+);
+
+public sealed record CreateExportVehicleSessionResult(
+    Guid SessionId,
+    string SessionNo
+);
+
+public sealed record FinalizeExportCutOrderRequest(Guid CutOrderId);
 
 public sealed record ConfirmEnterWeighingRequest(
     Guid CutOrderId

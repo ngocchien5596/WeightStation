@@ -61,10 +61,7 @@
                              Margin="0,0,16,0"/>
 
                     <Button Grid.Column="4" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Height="32" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
                     </Button>
                 </Grid>
 
@@ -90,22 +87,13 @@
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
                     <Button Command="{Binding ResetFormCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
                     </Button>
                     <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,12,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="L&#x01AF;U" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="L&#x01AF;U" VerticalAlignment="Center"/>
                     </Button>
                     <Button Command="{Binding DeactivateCommand}" Style="{StaticResource DangerButtonStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="NG&#x1EEA;NG S&#x1EEC; D&#x1EE4;NG" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="NG&#x1EEA;NG S&#x1EEC; D&#x1EE4;NG" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </Grid>

@@ -45,7 +45,7 @@
     <sys:String x:Key="Incoming.CustomerLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">Kh&#xE1;ch h&#xE0;ng</sys:String>
     <sys:String x:Key="Incoming.ProductLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1EA3;n ph&#x1EA9;m</sys:String>
     <sys:String x:Key="Incoming.Complete" xmlns:sys="clr-namespace:System;assembly=mscorlib">HO&#xC0;N T&#x1EA4;T</sys:String>
-    <sys:String x:Key="Incoming.CreateSession" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#x1EA0;O L&#x1AF;&#x1EE2;T C&#xC2;N</sys:String>
+    <sys:String x:Key="Incoming.CreateSession" xmlns:sys="clr-namespace:System;assembly=mscorlib">C&#x00C2;N N&#x1ED8;I &#x0110;&#x1ECA;A</sys:String>
     <sys:String x:Key="Incoming.NoLoad" xmlns:sys="clr-namespace:System;assembly=mscorlib">KH&#xD4;NG L&#x1EA4;Y H&#xC0;NG</sys:String>
 
     <sys:String x:Key="VehicleRep.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh</sys:String>

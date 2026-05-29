@@ -1,4 +1,4 @@
-﻿using NSubstitute;
+using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -93,8 +93,9 @@ public class NoLoadUseCaseTests
         var session = new WeighingSession
         {
             Id = Guid.NewGuid(),
-            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
-            Weight1 = 15000m
+            SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE,
+            Weight1 = 15000m,
+            Weight2 = 15000m
         };
         var line = new WeighingSessionLine
         {
@@ -114,7 +115,8 @@ public class NoLoadUseCaseTests
         {
             Id = Guid.NewGuid(),
             WeighingSessionId = session.Id,
-            Status = TicketStatus.LOADING_STARTED
+            Status = TicketStatus.LOADING_STARTED,
+            RecordRole = "CUT_ORDER_DERIVED"
         };
         var deliveryTicket = new DeliveryTicket
         {
@@ -152,8 +154,16 @@ public class NoLoadUseCaseTests
         await sessionRepo.Received(1).UpdateAsync(Arg.Is<WeighingSession>(x => x.SessionStatus == WeighingSessionStatus.COMPLETED), Arg.Any<CancellationToken>());
         await sessionRepo.Received(1).UpdateLineAsync(Arg.Is<WeighingSessionLine>(x => x.LineStatus == WeighingSessionLineStatus.ALLOCATED && x.ActualAllocatedWeight == 0m), Arg.Any<CancellationToken>());
         await regRepo.Received(1).UpdateAsync(Arg.Is<CutOrder>(x => x.CutOrderStatus == CutOrderStatus.COMPLETED && x.ProcessingStage == ProcessingStage.OUT_YARD && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
-        await weighRepo.Received(1).UpdateAsync(Arg.Is<WeighTicket>(x => x.IsDeleted && x.IsCancelled && x.Status == TicketStatus.TICKET_CANCELLED && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
-        await deliveryRepo.Received(1).UpdateAsync(Arg.Is<DeliveryTicket>(x => x.IsDeleted && x.SyncStatus == SyncStatus.SYNC_QUEUED), Arg.Any<CancellationToken>());
+        await weighRepo.Received(1).UpdateAsync(Arg.Any<WeighTicket>(), Arg.Any<CancellationToken>());
+        await deliveryRepo.Received(1).UpdateAsync(Arg.Any<DeliveryTicket>(), Arg.Any<CancellationToken>());
+
+        Assert.True(weighTicket.IsDeleted);
+        Assert.True(weighTicket.IsCancelled);
+        Assert.Equal(TicketStatus.TICKET_CANCELLED, weighTicket.Status);
+        Assert.Equal(SyncStatus.SYNC_QUEUED, weighTicket.SyncStatus);
+
+        Assert.True(deliveryTicket.IsDeleted);
+        Assert.Equal(SyncStatus.SYNC_QUEUED, deliveryTicket.SyncStatus);
     }
 }
 

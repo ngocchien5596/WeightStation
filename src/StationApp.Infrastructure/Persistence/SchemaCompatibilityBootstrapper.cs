@@ -18,6 +18,12 @@ public static class SchemaCompatibilityBootstrapper
         new("SealNo", "nvarchar(100) NULL"),
         new("CarryForwardWeight1", "decimal(18,3) NULL"),
         new("CarryForwardWeight1Time", "datetime2 NULL"),
+        new("IsExportScale", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_export_scale_bootstrap] DEFAULT ((0))"),
+        new("ExportFinalizedWeight", "decimal(18,3) NULL"),
+        new("ExportFinalizedAt", "datetime2 NULL"),
+        new("ExportFinalizedBy", "nvarchar(100) NULL"),
+        new("ExportStartedAt", "datetime2 NULL"),
+        new("ExportStartedBy", "nvarchar(100) NULL"),
         new("ErpRegistrationCode", "nvarchar(100) NULL"),
         new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_deleted_bootstrap] DEFAULT ((0))"),
         new("DeletedAt", "datetime2 NULL"),
@@ -80,6 +86,7 @@ public static class SchemaCompatibilityBootstrapper
     {
         await EnsureCutOrderSchemaAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "cut_orders", CutOrderColumnPatches, ct);
+        await EnsureCutOrderIndexesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "delivery_tickets", DeliveryTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
@@ -136,32 +143,50 @@ END
 
 IF OBJECT_ID(N'[dbo].[cut_orders]', N'U') IS NOT NULL
 BEGIN
-    EXEC(N'
-    IF EXISTS (SELECT * FROM sys.triggers WHERE name = ''TR_cut_orders_enforce_active_erp_cut_order_id'' AND parent_id = OBJECT_ID(N''[dbo].[cut_orders]''))
+    IF OBJECT_ID(N'[dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]', N'TR') IS NOT NULL
     BEGIN
-        DROP TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id];
-    END
-    ');
-
-    EXEC(N'CREATE TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
-    ON [dbo].[cut_orders]
-    AFTER INSERT, UPDATE
-    AS
-    BEGIN
-        SET NOCOUNT ON;
-
-        IF EXISTS (
-            SELECT [ErpCutOrderId]
-            FROM [dbo].[cut_orders]
-            WHERE [ErpCutOrderId] IS NOT NULL
-              AND ISNULL([IsDeleted], 0) = 0
-            GROUP BY [ErpCutOrderId]
-            HAVING COUNT(*) > 1
-        )
+        EXEC(N'ALTER TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
+        ON [dbo].[cut_orders]
+        AFTER INSERT, UPDATE
+        AS
         BEGIN
-            THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
-        END
-    END');
+            SET NOCOUNT ON;
+
+            IF EXISTS (
+                SELECT [ErpCutOrderId]
+                FROM [dbo].[cut_orders]
+                WHERE [ErpCutOrderId] IS NOT NULL
+                  AND ISNULL([IsDeleted], 0) = 0
+                GROUP BY [ErpCutOrderId]
+                HAVING COUNT(*) > 1
+            )
+            BEGIN
+                THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
+            END
+        END');
+    END
+    ELSE
+    BEGIN
+        EXEC(N'CREATE TRIGGER [dbo].[TR_cut_orders_enforce_active_erp_cut_order_id]
+        ON [dbo].[cut_orders]
+        AFTER INSERT, UPDATE
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+
+            IF EXISTS (
+                SELECT [ErpCutOrderId]
+                FROM [dbo].[cut_orders]
+                WHERE [ErpCutOrderId] IS NOT NULL
+                  AND ISNULL([IsDeleted], 0) = 0
+                GROUP BY [ErpCutOrderId]
+                HAVING COUNT(*) > 1
+            )
+            BEGIN
+                THROW 51001, N''Da ton tai cat lenh active khac cung ErpCutOrderId.'', 1;
+            END
+        END');
+    END
 END
 
 IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
@@ -215,6 +240,21 @@ END";
                 tableName,
                 patch.ColumnName);
         }
+    }
+
+    private static async Task EnsureCutOrderIndexesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF COL_LENGTH('cut_orders', 'IsExportScale') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_is_export_scale_status' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    CREATE INDEX [IX_cut_orders_is_export_scale_status]
+    ON [cut_orders]([IsExportScale], [CutOrderStatus], [ProcessingStage], [IsDeleted]);
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for export scale cut order indexes.");
     }
 
     private static async Task EnsureWeighingSessionTablesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)

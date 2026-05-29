@@ -1,6 +1,8 @@
 using System.Net.Http;
 using System.Text;
 using System.Windows;
+using System.Globalization;
+using System.Windows.Markup;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +37,16 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Cấu hình Default Culture toàn cục cho mọi thread
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+        // Ép buộc WPF binding sử dụng InvariantCulture (phân tách hàng nghìn bằng dấu phẩy)
+        FrameworkElement.LanguageProperty.OverrideMetadata(
+            typeof(FrameworkElement),
+            new FrameworkPropertyMetadata(
+                XmlLanguage.GetLanguage(CultureInfo.InvariantCulture.IetfLanguageTag)));
+
         base.OnStartup(e);
 
         DispatcherUnhandledException += (s, args) =>
@@ -195,6 +207,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<SetUserActiveStatusUseCase>();
                     services.AddScoped<ResetUserPasswordUseCase>();
                     services.AddScoped<UpdateSystemSettingsUseCase>();
+                    services.AddScoped<UpdateCameraSettingsUseCase>();
                     services.AddScoped<UpdateScaleDeviceSettingsUseCase>();
                     services.AddScoped<LoginUseCase>();
                     services.AddScoped<ConfirmEnterWeighingUseCase>();
@@ -214,7 +227,10 @@ public partial class App : System.Windows.Application
                     services.AddScoped<CompleteWeighingSessionUseCase>();
                     services.AddScoped<CancelWeighingSessionUseCase>();
                     services.AddScoped<GetWeighingSessionsUseCase>();
-
+                    services.AddScoped<TransitionToExportScaleUseCase>();
+                    services.AddScoped<CreateExportVehicleSessionUseCase>();
+                    services.AddScoped<FinalizeExportCutOrderUseCase>();
+ 
                     services.AddTransient<IncomingVehicleListViewModel>();
                     services.AddTransient<OutgoingVehicleListViewModel>();
 
@@ -255,7 +271,8 @@ public partial class App : System.Windows.Application
                     services.AddTransient<TicketListViewModel>();
                     services.AddTransient<DiagnosticsViewModel>();
                     services.AddTransient<SettingsViewModel>();
-
+                    services.AddTransient<ExportWeighingViewModel>();
+ 
                     services.AddSingleton<StartupChecks>();
                 })
                 .Build();
@@ -301,6 +318,14 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.Camera2Name] = AppConfigDefaults.DefaultCamera2Name,
             [AppConfigKeys.Camera2RtspUrl] = AppConfigDefaults.DefaultCamera2RtspUrl,
             [AppConfigKeys.Camera2PreviewRtspUrl] = AppConfigDefaults.DefaultCamera2PreviewRtspUrl,
+            [AppConfigKeys.CameraC6_1Enabled] = AppConfigDefaults.DefaultCameraC6_1Enabled,
+            [AppConfigKeys.CameraC6_1Name] = AppConfigDefaults.DefaultCameraC6_1Name,
+            [AppConfigKeys.CameraC6_1RtspUrl] = AppConfigDefaults.DefaultCameraC6_1RtspUrl,
+            [AppConfigKeys.CameraC6_1PreviewRtspUrl] = AppConfigDefaults.DefaultCameraC6_1PreviewRtspUrl,
+            [AppConfigKeys.CameraC6_2Enabled] = AppConfigDefaults.DefaultCameraC6_2Enabled,
+            [AppConfigKeys.CameraC6_2Name] = AppConfigDefaults.DefaultCameraC6_2Name,
+            [AppConfigKeys.CameraC6_2RtspUrl] = AppConfigDefaults.DefaultCameraC6_2RtspUrl,
+            [AppConfigKeys.CameraC6_2PreviewRtspUrl] = AppConfigDefaults.DefaultCameraC6_2PreviewRtspUrl,
             [AppConfigKeys.CameraPreviewDefault] = AppConfigDefaults.DefaultCameraPreview,
             [AppConfigKeys.CameraCaptureTimeoutMs] = AppConfigDefaults.DefaultCameraCaptureTimeoutMs,
             [AppConfigKeys.CameraCaptureJpegQuality] = AppConfigDefaults.DefaultCameraCaptureJpegQuality,

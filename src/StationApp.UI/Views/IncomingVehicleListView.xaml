@@ -83,10 +83,7 @@
                     </controls:AutocompleteTextBox>
 
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </DockPanel>
@@ -199,7 +196,7 @@
 
                     <TextBlock Text="TTCP (kg)" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="5"
-                              Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus, ConverterCulture='vi-VN'}"
+                              Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}"
                               Style="{StaticResource FormBox}"/>
 
                     <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="6" Grid.Column="0" Style="{StaticResource VehicleExpiryLabelStyle}"/>
@@ -214,7 +211,7 @@
 
                     <TextBlock Text="TTCP 10% (kg)" Grid.Row="6" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="6" Grid.Column="5"
-                              Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}', ConverterCulture='vi-VN'}"
+                              Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}'}"
                               IsReadOnly="True"
                               Style="{StaticResource FormBox}"
                               Background="#F8F9F9"/>
@@ -236,10 +233,10 @@
                     </ComboBox>
 
                     <TextBlock Text="SL &#x111;&#x1EB7;t" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FormPlannedWeight, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FormPlannedWeight, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="S&#x1ED1; bao" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}"/>
-                    <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding FormBagCount, ConverterCulture='vi-VN', StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                    <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding FormBagCount, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="{StaticResource Incoming.ProductLabel}" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="4" Grid.Column="5"
@@ -265,22 +262,16 @@
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="{Binding SaveButtonText}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <TextBlock Text="{Binding SaveButtonText}" VerticalAlignment="Center"/>
                         </Button>
                         <Button Command="{Binding ConfirmEnterWeighingCommand}" Style="{StaticResource WorkflowButtonStyle}" IsEnabled="{Binding CanConfirmEnterWeighing}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="{StaticResource Incoming.CreateSession}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <TextBlock Text="{StaticResource Incoming.CreateSession}" VerticalAlignment="Center"/>
                         </Button>
                         <Button Command="{Binding MarkNoLoadCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="12,0,0,0" IsEnabled="{Binding CanMarkNoLoad}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="{StaticResource Incoming.NoLoad}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <TextBlock Text="{StaticResource Incoming.NoLoad}" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button Command="{Binding TransitionToExportScaleCommand}" Style="{StaticResource WorkflowButtonStyle}" Margin="12,0,0,0" IsEnabled="{Binding CanTransitionToExportScale}">
+                            <TextBlock Text="CÂN XUẤT KHẨU" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
                 </Grid>

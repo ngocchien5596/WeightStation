@@ -200,10 +200,7 @@
                                 </Grid>
                             </StackPanel>
                             <Button Margin="0,20,0,0" Style="{StaticResource LoginButtonStyle}" Command="{Binding LoginCommand}" IsDefault="True">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding LoginButtonText}" VerticalAlignment="Center" FontFamily="{StaticResource AppFontFamily}"/>
-                                    <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                </StackPanel>
+                                <TextBlock Text="{Binding LoginButtonText}" VerticalAlignment="Center" FontFamily="{StaticResource AppFontFamily}"/>
                             </Button>
                         </StackPanel>
                     </Grid>

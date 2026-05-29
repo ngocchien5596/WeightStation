@@ -13,6 +13,9 @@ RETURN
     SELECT
         CAST(
             CASE
+                WHEN ISNULL(co.IsExportScale, 0) = 1
+                     AND co.ExportFinalizedWeight IS NOT NULL
+                    THEN co.ExportFinalizedWeight / 1000.0
                 WHEN COALESCE(NULLIF(LTRIM(RTRIM(co.ProductType)), N''), p.ProductType) = N'Bao'
                      AND ISNULL(sessionAgg.UseActualWeightForBaggedCutOrders, 0) = 0
                     THEN ISNULL(co.PlannedWeight, 0) / 1000.0

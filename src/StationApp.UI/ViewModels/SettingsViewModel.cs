@@ -12,6 +12,7 @@ public partial class SettingsViewModel : ObservableObject
     private bool _suppressTabChangedHandler;
 
     public ViewModels.Settings.SystemSettingsViewModel SystemSettingsVM { get; }
+    public ViewModels.Settings.CameraConfigViewModel CameraConfigVM { get; }
     public ViewModels.Settings.ScaleDeviceConfigViewModel ScaleDeviceConfigVM { get; }
     public ViewModels.Settings.PrintConfigViewModel PrintConfigVM { get; }
     public ViewModels.Settings.VehicleMasterViewModel VehicleMasterVM { get; }
@@ -48,6 +49,7 @@ public partial class SettingsViewModel : ObservableObject
         _currentUserContext = currentUserContext;
 
         SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext);
+        CameraConfigVM = new Settings.CameraConfigViewModel(_scopeFactory, _currentUserContext);
         ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice);
         PrintConfigVM = new Settings.PrintConfigViewModel(_scopeFactory, _currentUserContext);
         VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory);
@@ -99,6 +101,7 @@ public partial class SettingsViewModel : ObservableObject
             5 => "SẢN PHẨM",
             6 => "ĐỒNG BỘ",
             7 => "QUẢN LÝ TÀI KHOẢN",
+            8 => "CẤU HÌNH CAMERA",
             _ => "CẤU HÌNH HỆ THỐNG"
         };
 
@@ -130,6 +133,9 @@ public partial class SettingsViewModel : ObservableObject
                 case 7:
                     await AccountManagementVM.LoadAsync();
                     break;
+                case 8:
+                    await CameraConfigVM.LoadAsync();
+                    break;
             }
         }
         catch
@@ -149,6 +155,7 @@ public partial class SettingsViewModel : ObservableObject
             5 => CanAccessProductMaster,
             6 => CanAccessSyncInfo,
             7 => CanAccessAccountManagement,
+            8 => CanAccessSystemSettings,
             _ => false
         };
     }
