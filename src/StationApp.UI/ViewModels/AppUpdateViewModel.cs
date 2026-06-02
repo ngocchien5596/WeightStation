@@ -18,6 +18,7 @@ public partial class AppUpdateViewModel : ObservableObject
     private readonly IToastService _toastService;
 
     private AppUpdateManifest? _lastManifest;
+    private bool _isForceUpdateRequired;
 
     public AppUpdateViewModel(
         IAppUpdateService appUpdateService,
@@ -68,6 +69,7 @@ public partial class AppUpdateViewModel : ObservableObject
             if (!result.Success)
             {
                 _lastManifest = result.Manifest;
+                _isForceUpdateRequired = false;
                 IsUpdateAvailable = false;
                 LatestVersion = result.Manifest?.Version ?? "\u004B\u0068\u00F4\u006E\u0067\u0020\u0111\u1ECD\u0063\u0020\u0111\u01B0\u1EE3\u0063";
                 ReleaseNotes = result.ErrorMessage ?? "\u004B\u0068\u00F4\u006E\u0067\u0020\u0074\u0068\u1EC3\u0020\u006B\u0069\u1EC3\u006D\u0020\u0074\u0072\u0061\u0020\u0063\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074\u002E";
@@ -77,13 +79,19 @@ public partial class AppUpdateViewModel : ObservableObject
             }
 
             _lastManifest = result.Manifest;
+            _isForceUpdateRequired = result.IsForceUpdateRequired;
             LatestVersion = result.Manifest?.Version ?? "\u004B\u0068\u00F4\u006E\u0067\u0020\u0063\u00F3";
             ReleaseNotes = string.IsNullOrWhiteSpace(result.Manifest?.ReleaseNotes)
                 ? "\u004B\u0068\u00F4\u006E\u0067\u0020\u0063\u00F3\u0020\u0067\u0068\u0069\u0020\u0063\u0068\u00FA\u0020\u0070\u0068\u00E1\u0074\u0020\u0068\u00E0\u006E\u0068\u002E"
                 : result.Manifest!.ReleaseNotes!;
-            IsUpdateAvailable = result.IsUpdateAvailable;
+            IsUpdateAvailable = result.IsUpdateAvailable || result.IsForceUpdateRequired;
 
-            if (result.IsUpdateAvailable)
+            if (result.IsForceUpdateRequired)
+            {
+                StatusText = result.StatusMessage ?? "\u0050\u0068\u0069\u00EA\u006E\u0020\u0062\u1EA3\u006E\u0020\u0068\u0069\u1EC7\u006E\u0020\u0074\u1EA1\u0069\u0020\u0111\u00E3\u0020\u0071\u0075\u00E1\u0020\u0063\u0169\u002E";
+                _toastService.ShowWarning(StatusText);
+            }
+            else if (result.IsUpdateAvailable)
             {
                 StatusText = $"\u0110\u00E3\u0020\u0074\u00EC\u006D\u0020\u0074\u0068\u1EA5\u0079\u0020\u0062\u1EA3\u006E\u0020\u006D\u1EDB\u0069\u0020{LatestVersion}.";
                 _toastService.ShowInfo($"\u0110\u00E3\u0020\u0074\u00EC\u006D\u0020\u0074\u0068\u1EA5\u0079\u0020\u0062\u1EA3\u006E\u0020\u006D\u1EDB\u0069\u0020{LatestVersion}.");
@@ -117,10 +125,14 @@ public partial class AppUpdateViewModel : ObservableObject
         }
 
         var confirmMessage =
-            $"\u0042\u1EA1\u006E\u0020\u0063\u00F3\u0020\u0063\u0068\u1EAF\u0063\u0020\u0063\u0068\u1EAF\u006E\u0020\u006D\u0075\u1ED1\u006E\u0020\u0063\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074\u0020\u0074\u1EEB\u0020\u0070\u0068\u0069\u00EA\u006E\u0020\u0062\u1EA3\u006E\u0020{CurrentVersion}\u0020\u006C\u00EA\u006E\u0020{LatestVersion}\u0020\u006B\u0068\u00F4\u006E\u0067\u003F{Environment.NewLine}{Environment.NewLine}" +
+            $"{(_isForceUpdateRequired ? "\u0050\u0068\u0069\u00EA\u006E\u0020\u0062\u1EA3\u006E\u0020\u0068\u0069\u1EC7\u006E\u0020\u0074\u1EA1\u0069\u0020\u0111\u00E3\u0020\u0071\u0075\u00E1\u0020\u0063\u0169\u002E\u0020\u0042\u1EA1\u006E\u0020\u0063\u1EA7\u006E\u0020\u0063\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074\u0020\u0111\u1EC3\u0020\u0074\u0069\u1EBF\u0070\u0020\u0074\u1EE5\u0063\u0020\u0073\u1EED\u0020\u0064\u1EE5\u006E\u0067\u002E" : "\u0042\u1EA1\u006E\u0020\u0063\u00F3\u0020\u0063\u0068\u1EAF\u0063\u0020\u0063\u0068\u1EAF\u006E\u0020\u006D\u0075\u1ED1\u006E\u0020\u0063\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074\u0020\u0074\u1EEB\u0020\u0070\u0068\u0069\u00EA\u006E\u0020\u0062\u1EA3\u006E\u0020{CurrentVersion}\u0020\u006C\u00EA\u006E\u0020{LatestVersion}\u0020\u006B\u0068\u00F4\u006E\u0067\u003F")}{Environment.NewLine}{Environment.NewLine}" +
             $"\u0047\u0068\u0069\u0020\u0063\u0068\u00FA\u003A{Environment.NewLine}{ReleaseNotes}";
 
-        var confirmed = await _dialogService.ShowConfirmAsync("\u0043\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074\u0020\u1EE9\u006E\u0067\u0020\u0064\u1EE5\u006E\u0067", confirmMessage, "\u0043\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074", "\u0048\u1EE7\u0079");
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "\u0043\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074\u0020\u1EE9\u006E\u0067\u0020\u0064\u1EE5\u006E\u0067",
+            confirmMessage,
+            "\u0043\u1EAD\u0070\u0020\u006E\u0068\u1EAD\u0074",
+            _isForceUpdateRequired ? "\u0110\u00F3\u006E\u0067" : "\u0048\u1EE7\u0079");
         if (!confirmed)
         {
             return;

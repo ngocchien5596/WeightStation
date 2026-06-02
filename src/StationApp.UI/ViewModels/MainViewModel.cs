@@ -12,6 +12,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IAppVersionProvider _appVersionProvider;
     private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
     private Guid? _pendingWeighingSessionId;
     private Guid? _pendingExportCutOrderId;
@@ -30,6 +31,7 @@ public partial class MainViewModel : ObservableObject
         string.IsNullOrWhiteSpace(_currentUserContext.DisplayName) ? "\u0043\u0068\u01B0\u0061\u0020\u0111\u0103\u006E\u0067\u0020\u006E\u0068\u1EAD\u0070" : _currentUserContext.DisplayName;
 
     public string CurrentUserRoleCode => _currentUserContext.RoleCode;
+    public string AppVersionText => $"v{_appVersionProvider.GetVersion()}";
 
     public bool CanViewDashboard => true;
     public bool CanViewIncomingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
@@ -52,10 +54,14 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsAccounts => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
     public bool CanViewAppUpdate => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
-    public MainViewModel(IServiceProvider serviceProvider, ICurrentUserContext currentUserContext)
+    public MainViewModel(
+        IServiceProvider serviceProvider,
+        ICurrentUserContext currentUserContext,
+        IAppVersionProvider appVersionProvider)
     {
         _serviceProvider = serviceProvider;
         _currentUserContext = currentUserContext;
+        _appVersionProvider = appVersionProvider;
 
         _clockTimer = new System.Windows.Threading.DispatcherTimer
         {

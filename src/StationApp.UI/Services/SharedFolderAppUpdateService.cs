@@ -19,6 +19,7 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
     {
         PropertyNameCaseInsensitive = true
     };
+
     private readonly IConfiguration _configuration;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAppVersionProvider _versionProvider;
@@ -46,7 +47,10 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
             var manifestPath = await GetManifestPathAsync(ct);
             if (!File.Exists(manifestPath))
             {
-                return new AppUpdateCheckResult(currentVersion, false, ErrorMessage: $"Khong tim thay file manifest: {manifestPath}");
+                return new AppUpdateCheckResult(
+                    currentVersion,
+                    false,
+                    ErrorMessage: $"Không tìm thấy file manifest: {manifestPath}");
             }
 
             await using var stream = File.OpenRead(manifestPath);
@@ -54,20 +58,29 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
                 stream,
                 ManifestJsonOptions,
                 ct);
+
             if (manifest == null)
             {
-                return new AppUpdateCheckResult(currentVersion, false, ErrorMessage: "Manifest cap nhat khong hop le.");
+                return new AppUpdateCheckResult(
+                    currentVersion,
+                    false,
+                    ErrorMessage: "Manifest cập nhật không hợp lệ.");
             }
+
+            var isUpdateAvailable = AppUpdateVersionComparer.Compare(manifest.Version, currentVersion) > 0;
 
             if (AppUpdateVersionComparer.TryParse(manifest.MinSupportedVersion, out var minVersion) &&
                 AppUpdateVersionComparer.TryParse(currentVersion, out var currentParsed) &&
                 currentParsed!.CompareTo(minVersion) < 0)
             {
-                return new AppUpdateCheckResult(currentVersion, false, manifest,
-                    "Phien ban hien tai da qua cu. Vui long cap nhat thu cong.");
+                return new AppUpdateCheckResult(
+                    currentVersion,
+                    isUpdateAvailable,
+                    manifest,
+                    IsForceUpdateRequired: true,
+                    StatusMessage: "Phiên bản hiện tại đã quá cũ. Vui lòng bấm 'Cập nhật ngay' để cập nhật.");
             }
 
-            var isUpdateAvailable = AppUpdateVersionComparer.Compare(manifest.Version, currentVersion) > 0;
             return new AppUpdateCheckResult(currentVersion, isUpdateAvailable, manifest);
         }
         catch (Exception ex)
@@ -84,12 +97,12 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
             var updaterInstalledPath = GetUpdaterInstalledPath();
             if (!File.Exists(updaterInstalledPath))
             {
-                return OperationResult<bool>.Fail($"Khong tim thay updater tai: {updaterInstalledPath}");
+                return OperationResult<bool>.Fail($"Không tìm thấy updater tại: {updaterInstalledPath}");
             }
 
             if (!File.Exists(manifest.PackagePath))
             {
-                return OperationResult<bool>.Fail($"Khong tim thay goi cap nhat: {manifest.PackagePath}");
+                return OperationResult<bool>.Fail($"Không tìm thấy gói cập nhật: {manifest.PackagePath}");
             }
 
             var cacheDirectory = GetCacheDirectory();
@@ -101,7 +114,7 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
             var actualHash = await ComputeSha256Async(localPackagePath, ct);
             if (!string.Equals(actualHash, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
             {
-                return OperationResult<bool>.Fail("Hash goi cap nhat khong khop.");
+                return OperationResult<bool>.Fail("Hash gói cập nhật không khớp.");
             }
 
             var tempUpdaterDirectory = Path.Combine(cacheDirectory, "updater-run");
@@ -161,8 +174,7 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
             return appConfigValue;
         }
 
-        return _configuration["AppUpdate:SharedReleaseRoot"]?.Trim()
-               ?? string.Empty;
+        return _configuration["AppUpdate:SharedReleaseRoot"]?.Trim() ?? string.Empty;
     }
 
     private async Task<string> GetManifestPathAsync(CancellationToken ct)
@@ -218,7 +230,7 @@ public sealed class SharedFolderAppUpdateService : IAppUpdateService
         var processPath = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(processPath))
         {
-            throw new InvalidOperationException("Khong xac dinh duoc duong dan app hien tai.");
+            throw new InvalidOperationException("Không xác định được đường dẫn app hiện tại.");
         }
 
         return processPath;

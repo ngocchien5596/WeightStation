@@ -66,7 +66,7 @@ public partial class CustomDialogViewModel : ObservableObject
                 IconColor = "#2ECC71";
                 break;
             case DialogType.Warning:
-                IsCancelVisible = true;
+                IsCancelVisible = false;
                 IconGeometry = "M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"; // Alert Geometry
                 IconColor = "#F1C40F";
                 break;

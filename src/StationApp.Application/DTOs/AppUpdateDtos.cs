@@ -24,6 +24,8 @@ public sealed record AppUpdateCheckResult(
     string CurrentVersion,
     bool IsUpdateAvailable,
     AppUpdateManifest? Manifest = null,
+    bool IsForceUpdateRequired = false,
+    string? StatusMessage = null,
     string? ErrorMessage = null)
 {
     public bool Success => string.IsNullOrWhiteSpace(ErrorMessage);
