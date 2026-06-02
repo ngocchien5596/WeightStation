@@ -38,7 +38,10 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewOutgoingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewTicketList => StationAuthorization.CanViewTicketLookup(_currentUserContext.RoleCode);
     public bool CanViewDiagnostics => StationAuthorization.CanViewDiagnostics(_currentUserContext.RoleCode);
-    public bool CanViewSettingsMenu => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode) || StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
+    public bool CanViewSettingsMenu =>
+        StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode)
+        || StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode)
+        || StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
     public bool CanViewSettingsParams => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanViewSettingsDevice => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
     public bool CanViewSettingsPrint => StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);
@@ -47,6 +50,7 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanViewSettingsSync => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
     public bool CanViewSettingsAccounts => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
+    public bool CanViewAppUpdate => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
     public MainViewModel(IServiceProvider serviceProvider, ICurrentUserContext currentUserContext)
     {
@@ -210,25 +214,37 @@ public partial class MainViewModel : ObservableObject
                 case "Settings_Products":
                 case "Settings_Sync":
                 case "Settings_Accounts":
+                case "AppUpdate":
                     var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
-                    CurrentView = new SettingsView { DataContext = settingsVm };
-                    var initialSettingsTab = destination switch
+                    if (destination == "AppUpdate")
                     {
-                        "Settings_Params" => 0,
-                        "Settings_Camera" => 8,
-                        "Settings_Device" => 1,
-                        "Settings_Print" => 2,
-                        "Settings_Vehicles" => 3,
-                        "Settings_Customers" => 4,
-                        "Settings_Products" => 5,
-                        "Settings_Sync" => 6,
-                        "Settings_Accounts" => 7,
-                        _ => (int?)null
-                    };
-                    _ = RunViewInitializationAsync(
-                        () => settingsVm.LoadAsync(initialSettingsTab),
-                        destination,
-                        navigationVersion);
+                        CurrentView = new AppUpdateView { DataContext = settingsVm.AppUpdateVM };
+                        _ = RunViewInitializationAsync(
+                            () => settingsVm.AppUpdateVM.LoadAsync(),
+                            destination,
+                            navigationVersion);
+                    }
+                    else
+                    {
+                        CurrentView = new SettingsView { DataContext = settingsVm };
+                        var initialSettingsTab = destination switch
+                        {
+                            "Settings_Params" => 0,
+                            "Settings_Camera" => 8,
+                            "Settings_Device" => 1,
+                            "Settings_Print" => 2,
+                            "Settings_Vehicles" => 3,
+                            "Settings_Customers" => 4,
+                            "Settings_Products" => 5,
+                            "Settings_Sync" => 6,
+                            "Settings_Accounts" => 7,
+                            _ => (int?)null
+                        };
+                        _ = RunViewInitializationAsync(
+                            () => settingsVm.LoadAsync(initialSettingsTab),
+                            destination,
+                            navigationVersion);
+                    }
                     break;
                 default:
                     CurrentView = null;
@@ -283,6 +299,7 @@ public partial class MainViewModel : ObservableObject
             "Settings_Products" => CanViewSettingsProducts,
             "Settings_Sync" => CanViewSettingsSync,
             "Settings_Accounts" => CanViewSettingsAccounts,
+            "AppUpdate" => CanViewAppUpdate,
             _ => false
         };
     }

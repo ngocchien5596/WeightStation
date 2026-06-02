@@ -2,6 +2,14 @@
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);**\obj\**;**\bin\**;**\obj_verify\**;**\bin_verify\**;**\.codex_build\**;**\._repo_build\**;**\._wpf_build\**;**\._wpf_build_isolated\**;**\artifacts\**;**\_verify_build\**</DefaultItemExcludes>
     <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+    <StationAppVersion Condition="'$(StationAppVersion)' == ''">1.0.0</StationAppVersion>
+    <Version>$(StationAppVersion)</Version>
+    <AssemblyVersion>$(StationAppVersion)</AssemblyVersion>
+    <FileVersion>$(StationAppVersion)</FileVersion>
+    <InformationalVersion>$(StationAppVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <BaseIntermediateOutputPath Condition="'$(StationAppBuildRoot)' != '' and '$(BaseIntermediateOutputPath)' == ''">$(StationAppBuildRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(StationAppBuildRoot)' != '' and '$(BaseOutputPath)' == ''">$(StationAppBuildRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == '' and '$(MSBuildProjectName)' == 'StationApp.UI'">$(MSBuildThisFileDirectory)._wpf_build_isolated\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <BaseOutputPath Condition="'$(BaseOutputPath)' == '' and '$(MSBuildProjectName)' == 'StationApp.UI'">$(MSBuildThisFileDirectory)._wpf_build_isolated\bin\$(MSBuildProjectName)\</BaseOutputPath>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == '' and '$(MSBuildProjectName)' != 'StationApp.UI'">$(MSBuildThisFileDirectory)._repo_build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -126,7 +127,23 @@ public class AppVersionProvider : IAppVersionProvider
     public string GetVersion()
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-        return assembly.GetName().Version?.ToString() ?? "1.0.0";
+        var informationalVersion = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            return AppUpdateVersionComparer.NormalizeString(informationalVersion);
+        }
+
+        var fileVersion = assembly
+            .GetCustomAttribute<AssemblyFileVersionAttribute>()?
+            .Version;
+        if (!string.IsNullOrWhiteSpace(fileVersion))
+        {
+            return AppUpdateVersionComparer.NormalizeString(fileVersion);
+        }
+
+        return AppUpdateVersionComparer.NormalizeString(assembly.GetName().Version?.ToString());
     }
 }
 

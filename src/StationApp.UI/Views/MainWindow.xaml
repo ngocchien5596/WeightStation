@@ -111,6 +111,11 @@
 
                             <StackPanel Visibility="{Binding IsSettingsSubmenuVisible, Converter={StaticResource BoolToVis}}">
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewAppUpdate, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="AppUpdate">
+                                    <TextBlock Text="C&#x1EAD;p nh&#x1EAD;t &#x1EE9;ng d&#x1EE5;ng" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsParams, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Params">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsParams}" VerticalAlignment="Center"/>

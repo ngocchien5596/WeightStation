@@ -22,6 +22,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
     private readonly IWeightFrameParser _parser;
+    private readonly IAppVersionProvider _appVersionProvider;
 
     private int _isUiUpdatePending;
     private DateTime _lastUiUpdate = DateTime.MinValue;
@@ -49,11 +50,16 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _masterDataSyncStatus = "Unknown";
     [ObservableProperty] private string? _masterDataSyncError;
 
-    public DiagnosticsViewModel(IServiceScopeFactory scopeFactory, IScaleDevice scaleDevice, IWeightFrameParser parser)
+    public DiagnosticsViewModel(
+        IServiceScopeFactory scopeFactory,
+        IScaleDevice scaleDevice,
+        IWeightFrameParser parser,
+        IAppVersionProvider appVersionProvider)
     {
         _scopeFactory = scopeFactory;
         _scaleDevice = scaleDevice;
         _parser = parser;
+        _appVersionProvider = appVersionProvider;
     }
 
     public async Task InitializeAsync()
@@ -260,8 +266,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
 
     private void LoadAppVersion()
     {
-        var assembly = System.Reflection.Assembly.GetEntryAssembly();
-        AppVersion = assembly?.GetName().Version?.ToString() ?? "1.0.0";
+        AppVersion = _appVersionProvider.GetVersion();
     }
 
     [RelayCommand]

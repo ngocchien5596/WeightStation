@@ -8,6 +8,7 @@
     <RootNamespace>StationApp.UI</RootNamespace>
     <UseSharedCompilation>false</UseSharedCompilation>
     <RunDatabaseSchemaUpdate>true</RunDatabaseSchemaUpdate>
+    <DatabaseSchemaConfigPath Condition="'$(DatabaseSchemaConfigPath)' == ''">src/StationApp.UI/appsettings.json</DatabaseSchemaConfigPath>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\StationApp.DbMigrator\StationApp.DbMigrator.csproj"
@@ -49,6 +50,6 @@
     <PropertyGroup>
       <_RuntimeIdentifierArg Condition="'$(RuntimeIdentifier)' != ''"> -RuntimeIdentifier "$(RuntimeIdentifier)"</_RuntimeIdentifierArg>
     </PropertyGroup>
-    <Exec Command='powershell -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildThisFileDirectory)..\..\scripts\update-local-db-schema.ps1" -Configuration "$(Configuration)"$(_RuntimeIdentifierArg) -ConfigPath "src/StationApp.UI/appsettings.json"' />
+    <Exec Command='powershell -NoProfile -ExecutionPolicy Bypass -File "$(MSBuildThisFileDirectory)..\..\scripts\update-local-db-schema.ps1" -Configuration "$(Configuration)"$(_RuntimeIdentifierArg) -ConfigPath "$(DatabaseSchemaConfigPath)"' />
   </Target>
 </Project>

@@ -180,6 +180,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IPrintService, WpfPrintService>();
                     services.AddSingleton<IToastService, WpfToastService>();
                     services.AddSingleton<IDialogService, WpfDialogService>();
+                    services.AddSingleton<IAppUpdateService, SharedFolderAppUpdateService>();
                     services.AddSingleton<ScaleDeviceConfigurationResolver>();
                     services.AddSingleton<ICameraPreviewService, OpenCvCameraPreviewService>();
                     services.AddSingleton<ICameraCaptureService, RtspCameraCaptureService>();
@@ -266,6 +267,7 @@ public partial class App : System.Windows.Application
 
                     services.AddTransient<LoginViewModel>();
                     services.AddTransient<MainViewModel>();
+                    services.AddTransient<AppUpdateViewModel>();
                     services.AddTransient<WeighingViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<TicketListViewModel>();
@@ -329,7 +331,8 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.CameraPreviewDefault] = AppConfigDefaults.DefaultCameraPreview,
             [AppConfigKeys.CameraCaptureTimeoutMs] = AppConfigDefaults.DefaultCameraCaptureTimeoutMs,
             [AppConfigKeys.CameraCaptureJpegQuality] = AppConfigDefaults.DefaultCameraCaptureJpegQuality,
-            [AppConfigKeys.CameraCaptureWarmupFrames] = AppConfigDefaults.DefaultCameraCaptureWarmupFrames
+            [AppConfigKeys.CameraCaptureWarmupFrames] = AppConfigDefaults.DefaultCameraCaptureWarmupFrames,
+            [AppConfigKeys.AppUpdateSharedReleaseRoot] = AppConfigDefaults.DefaultAppUpdateSharedReleaseRoot
         };
 
         var hasChanges = false;

@@ -36,6 +36,7 @@ public static class AppConfigKeys
     public const string CameraCaptureTimeoutMs = "camera_capture_timeout_ms";
     public const string CameraCaptureJpegQuality = "camera_capture_jpeg_quality";
     public const string CameraCaptureWarmupFrames = "camera_capture_warmup_frames";
+    public const string AppUpdateSharedReleaseRoot = "app_update_shared_release_root";
 }
 
 public static class AppConfigDefaults
@@ -74,4 +75,5 @@ public static class AppConfigDefaults
     public const string DefaultCameraCaptureTimeoutMs = "3000";
     public const string DefaultCameraCaptureJpegQuality = "85";
     public const string DefaultCameraCaptureWarmupFrames = "5";
+    public const string DefaultAppUpdateSharedReleaseRoot = "";
 }

@@ -32,6 +32,7 @@ public static class StationAuthorization
     public static bool CanViewMasterData(string? roleCode) => IsAdmin(roleCode) || IsOperator(roleCode);
     public static bool CanViewOperationalScreens(string? roleCode) => IsAdmin(roleCode) || IsOperator(roleCode);
     public static bool CanViewTicketLookup(string? roleCode) => IsAdmin(roleCode) || IsOperator(roleCode);
+    public static bool CanUpdateApplication(string? roleCode) => IsAdmin(roleCode) || IsOperator(roleCode);
 
     public static bool IsSupportedRole(string? roleCode)
         => !string.IsNullOrWhiteSpace(roleCode) && StationRoles.SupportedRoles.Contains(roleCode);

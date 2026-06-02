@@ -97,7 +97,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         IReadOnlyList<PrinterDescriptor> printers,
         PrintOverlayRenderer renderer,
         IPrintTemplateProvider templateProvider,
-        bool canManageLayout)
+        bool canManageLayout,
+        int defaultCopyCount = 1)
     {
         Title = title;
         _template = template;
@@ -113,6 +114,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
 
         Printers = new ObservableCollection<PrinterDescriptor>(printers);
         SelectedPrinter = Printers.FirstOrDefault(x => x.IsDefault) ?? Printers.FirstOrDefault();
+        CopyCount = defaultCopyCount > 0 ? defaultCopyCount : 1;
 
         Profiles = new ObservableCollection<PrintTemplateProfileDescriptor>(profiles);
         SelectedProfile = Profiles.FirstOrDefault(x => string.Equals(x.ProfileKey, template.ActiveProfileKey, StringComparison.OrdinalIgnoreCase))

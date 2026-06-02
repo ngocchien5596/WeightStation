@@ -609,7 +609,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 printers,
                 renderer,
                 templateProvider,
-                false);
+                false,
+                kind == PrintDocumentKind.WeighTicket
+                    ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
+                    : 1);
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)

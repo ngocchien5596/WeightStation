@@ -28,7 +28,23 @@ public static class ProductTypes
         }
 
         var trimmed = value.Trim();
-        return All.FirstOrDefault(x => string.Equals(x, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (string.Equals(trimmed, Bagged, StringComparison.OrdinalIgnoreCase))
+        {
+            return Bagged;
+        }
+
+        if (string.Equals(trimmed, Bulk, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Roi/Xa", StringComparison.OrdinalIgnoreCase))
+        {
+            return Bulk;
+        }
+
+        if (string.Equals(trimmed, Inbound, StringComparison.OrdinalIgnoreCase))
+        {
+            return Inbound;
+        }
+
+        return null;
     }
 
     public static string? InferForTransaction(TransactionType transactionType)

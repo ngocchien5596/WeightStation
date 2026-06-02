@@ -46,7 +46,11 @@ var host = Host.CreateDefaultBuilder()
 using var scope = host.Services.CreateScope();
 var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
 var loggerFactory = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>();
-await StationDatabaseInitializer.InitializeAsync(db, loggerFactory, CancellationToken.None);
+await StationDatabaseInitializer.InitializeAsync(
+    db,
+    loggerFactory,
+    CancellationToken.None,
+    deploySqlObjects: true);
 
 static Dictionary<string, string> ParseArgs(string[] argv)
 {

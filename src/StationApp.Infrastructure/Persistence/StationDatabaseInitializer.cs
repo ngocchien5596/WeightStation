@@ -11,13 +11,20 @@ public static class StationDatabaseInitializer
         ILoggerFactory? loggerFactory,
         CancellationToken ct,
         bool runBackfill = true,
-        bool runPrimaryTicketRepair = true)
+        bool runPrimaryTicketRepair = true,
+        bool deploySqlObjects = false)
     {
         var logger = loggerFactory?.CreateLogger("SchemaCompatibilityBootstrapper");
         await ValidateSqlServerCompatibilityAsync(db, logger, ct);
         await SchemaCompatibilityBootstrapper.EnsureAsync(db, logger, ct);
         await db.Database.MigrateAsync(ct);
         await SchemaCompatibilityBootstrapper.EnsureAsync(db, logger, ct);
+
+        if (deploySqlObjects)
+        {
+            var sqlObjectLogger = loggerFactory?.CreateLogger("SqlObjectDeploymentService");
+            await SqlObjectDeploymentService.DeployRequiredObjectsAsync(db, sqlObjectLogger, ct);
+        }
 
         if (runBackfill)
         {
