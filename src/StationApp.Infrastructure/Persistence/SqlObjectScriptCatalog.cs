@@ -7,7 +7,8 @@ public static class SqlObjectScriptCatalog
     public static IReadOnlyList<string> ResourceNames { get; } =
     [
         "StationApp.Infrastructure.SqlScripts.fn_GetCutOrderNetWeight.sql",
-        "StationApp.Infrastructure.SqlScripts.sp_GetCutOrderNetWeight.sql"
+        "StationApp.Infrastructure.SqlScripts.sp_GetCutOrderNetWeight.sql",
+        "StationApp.Infrastructure.SqlScripts.sp_UpdateCutOrderErpExtras.sql"
     ];
 
     public static string ReadRequiredScript(string resourceName)

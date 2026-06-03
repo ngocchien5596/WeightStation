@@ -38,8 +38,8 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewTicketList => StationAuthorization.CanViewTicketLookup(_currentUserContext.RoleCode);
-    public bool CanViewDiagnostics => StationAuthorization.CanViewDiagnostics(_currentUserContext.RoleCode);
+    public bool CanViewTicketList => false;
+    public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
         StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode)
         || StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode)

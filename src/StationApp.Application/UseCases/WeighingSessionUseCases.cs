@@ -139,6 +139,7 @@ public sealed class CreateWeighingSessionUseCase
             registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
             registration.ProcessingStage = ProcessingStage.WEIGHING;
             registration.WeighingSessionId = session.Id;
+            registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             registration.UpdatedAt = now;
             registration.UpdatedBy = _userContext.Username;
         }
@@ -441,6 +442,7 @@ public sealed class AppendCutOrdersToWeighingSessionUseCase
             registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
             registration.ProcessingStage = ProcessingStage.WEIGHING;
             registration.WeighingSessionId = session.Id;
+            registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             registration.UpdatedAt = now;
             registration.UpdatedBy = _userContext.Username;
         }
@@ -1597,6 +1599,7 @@ public sealed class MarkWeighingSessionNoLoadUseCase
                 registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
                 registration.ProcessingStage = ProcessingStage.WEIGHING;
                 registration.WeighingSessionId = null;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             }
             else
             {
@@ -1747,11 +1750,13 @@ public sealed class CompleteWeighingSessionUseCase
                 registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
                 registration.ProcessingStage = ProcessingStage.WEIGHING;
                 registration.WeighingSessionId = null;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             }
             else
             {
                 registration.CutOrderStatus = CutOrderStatus.COMPLETED;
                 registration.ProcessingStage = ProcessingStage.OUT_YARD;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             }
 
             registration.UpdatedAt = now;
@@ -1831,11 +1836,13 @@ public sealed class CancelWeighingSessionUseCase
             {
                 registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
                 registration.ProcessingStage = ProcessingStage.WEIGHING;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             }
             else
             {
                 registration.CutOrderStatus = CutOrderStatus.REGISTERED;
                 registration.ProcessingStage = ProcessingStage.IN_YARD;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
             }
 
             registration.WeighingSessionId = null;

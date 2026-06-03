@@ -15,6 +15,11 @@ public class WeighingSessionImage
     public long FileSizeBytes { get; set; }
     public DateTime CapturedAt { get; set; }
     public string CapturedBy { get; set; } = string.Empty;
+    public ImageSyncStatus SyncStatus { get; set; } = ImageSyncStatus.PENDING;
+    public DateTime? LastSyncAttemptAt { get; set; }
+    public DateTime? LastSyncSuccessAt { get; set; }
+    public string? LastSyncError { get; set; }
+    public int RetryCount { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
     public string? DeletedBy { get; set; }

@@ -96,7 +96,9 @@ public sealed record UpdateSystemSettingsRequest(
     string ToleranceKgPerBag,
     string SyncIntervalSeconds,
     string RegistrationInboundPollSeconds,
-    string OverweightSplitStepWeight
+    string OverweightSplitStepWeight,
+    string CentralApiUrl,
+    string CentralApiKey
 );
 
 public sealed record UpdateCameraSettingsRequest(

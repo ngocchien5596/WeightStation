@@ -18,11 +18,15 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task AddAsync(WeighingSession session, CancellationToken ct)
     {
+        session.SyncStatus = SyncStatus.SYNC_QUEUED;
+        session.LastSyncError = null;
         await _db.WeighingSessions.AddAsync(session, ct);
     }
 
     public Task UpdateAsync(WeighingSession session, CancellationToken ct)
     {
+        session.SyncStatus = SyncStatus.SYNC_QUEUED;
+        session.LastSyncError = null;
         _db.WeighingSessions.Update(session);
         return Task.CompletedTask;
     }
@@ -55,6 +59,29 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         return await _db.WeighingSessions
             .Where(x => ids.Contains(x.Id) && !x.IsDeleted)
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<WeighingSession>> GetBySyncStatusAsync(SyncStatus syncStatus, int batchSize, CancellationToken ct)
+    {
+        return await _db.WeighingSessions
+            .Where(x => !x.IsDeleted && x.SyncStatus == syncStatus)
+            .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
+            .Take(batchSize)
+            .ToListAsync(ct);
+    }
+
+    public async Task ApplySyncResultAsync(Guid sessionId, SyncStatus syncStatus, DateTime attemptedAt, string? error, CancellationToken ct)
+    {
+        var session = await _db.WeighingSessions.FirstOrDefaultAsync(x => x.Id == sessionId, ct);
+        if (session == null)
+        {
+            return;
+        }
+
+        session.SyncStatus = syncStatus;
+        session.LastSyncAttemptAt = attemptedAt;
+        session.LastSyncError = error;
+        session.UpdatedAt ??= attemptedAt;
     }
 
     public async Task<IReadOnlyList<WeighingSessionListItem>> SearchActiveSessionsAsync(string? keyword, CancellationToken ct)
@@ -209,13 +236,32 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task AddLineAsync(WeighingSessionLine line, CancellationToken ct)
     {
+        line.SyncStatus = SyncStatus.SYNC_QUEUED;
+        line.LastSyncError = null;
         await _db.WeighingSessionLines.AddAsync(line, ct);
     }
 
     public Task UpdateLineAsync(WeighingSessionLine line, CancellationToken ct)
     {
+        line.SyncStatus = SyncStatus.SYNC_QUEUED;
+        line.LastSyncError = null;
         _db.WeighingSessionLines.Update(line);
         return Task.CompletedTask;
+    }
+
+    public async Task<WeighingSessionLine?> GetLineByIdAsync(Guid id, CancellationToken ct)
+    {
+        return await _db.WeighingSessionLines
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+    }
+
+    public async Task<IReadOnlyList<WeighingSessionLine>> GetLinesBySyncStatusAsync(SyncStatus syncStatus, int batchSize, CancellationToken ct)
+    {
+        return await _db.WeighingSessionLines
+            .Where(x => !x.IsDeleted && x.SyncStatus == syncStatus)
+            .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
+            .Take(batchSize)
+            .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<WeighingSessionLine>> GetLinesBySessionIdAsync(Guid sessionId, CancellationToken ct)
@@ -277,6 +323,20 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         }
 
         return items;
+    }
+
+    public async Task ApplyLineSyncResultAsync(Guid lineId, SyncStatus syncStatus, DateTime attemptedAt, string? error, CancellationToken ct)
+    {
+        var line = await _db.WeighingSessionLines.FirstOrDefaultAsync(x => x.Id == lineId, ct);
+        if (line == null)
+        {
+            return;
+        }
+
+        line.SyncStatus = syncStatus;
+        line.LastSyncAttemptAt = attemptedAt;
+        line.LastSyncError = error;
+        line.UpdatedAt ??= attemptedAt;
     }
 
     public async Task<WeighingSession?> GetReusablePendingWeight2SessionAsync(string vehiclePlate, string? moocNumber, TransactionType transactionType, CancellationToken ct)

@@ -24,5 +24,6 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\scripts\sql\fn_GetCutOrderNetWeight.sql" Link="SqlScripts\fn_GetCutOrderNetWeight.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_GetCutOrderNetWeight.sql" Link="SqlScripts\sp_GetCutOrderNetWeight.sql" />
+    <EmbeddedResource Include="..\..\scripts\sql\sp_UpdateCutOrderErpExtras.sql" Link="SqlScripts\sp_UpdateCutOrderErpExtras.sql" />
   </ItemGroup>
 </Project>

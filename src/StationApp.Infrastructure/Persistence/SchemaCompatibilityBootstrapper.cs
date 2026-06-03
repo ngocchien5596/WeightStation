@@ -60,6 +60,20 @@ public static class SchemaCompatibilityBootstrapper
         new("ProductType", "nvarchar(30) NULL")
     ];
 
+    private static readonly IReadOnlyList<ColumnPatch> WeighingSessionColumnPatches =
+    [
+        new("SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_sessions_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
+        new("LastSyncAttemptAt", "datetime2 NULL"),
+        new("LastSyncError", "nvarchar(1000) NULL")
+    ];
+
+    private static readonly IReadOnlyList<ColumnPatch> WeighingSessionLineColumnPatches =
+    [
+        new("SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
+        new("LastSyncAttemptAt", "datetime2 NULL"),
+        new("LastSyncError", "nvarchar(1000) NULL")
+    ];
+
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionImageColumnPatches =
     [
         new("Id", "uniqueidentifier NOT NULL CONSTRAINT [DF_weighing_session_images_id_bootstrap] DEFAULT (newid())"),
@@ -73,6 +87,11 @@ public static class SchemaCompatibilityBootstrapper
         new("FileSizeBytes", "bigint NOT NULL CONSTRAINT [DF_weighing_session_images_file_size_bootstrap] DEFAULT ((0))"),
         new("CapturedAt", "datetime2 NOT NULL CONSTRAINT [DF_weighing_session_images_captured_at_bootstrap] DEFAULT (sysutcdatetime())"),
         new("CapturedBy", "nvarchar(100) NOT NULL CONSTRAINT [DF_weighing_session_images_captured_by_bootstrap] DEFAULT (N'SYSTEM')"),
+        new("SyncStatus", "nvarchar(20) NOT NULL CONSTRAINT [DF_weighing_session_images_sync_status_bootstrap] DEFAULT (N'PENDING')"),
+        new("LastSyncAttemptAt", "datetime2 NULL"),
+        new("LastSyncSuccessAt", "datetime2 NULL"),
+        new("LastSyncError", "nvarchar(1000) NULL"),
+        new("RetryCount", "int NOT NULL CONSTRAINT [DF_weighing_session_images_retry_count_bootstrap] DEFAULT ((0))"),
         new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_weighing_session_images_is_deleted_bootstrap] DEFAULT ((0))"),
         new("DeletedAt", "datetime2 NULL"),
         new("DeletedBy", "nvarchar(100) NULL"),
@@ -92,6 +111,8 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
+        await EnsureTableColumnsAsync(db, logger, "weighing_sessions", WeighingSessionColumnPatches, ct);
+        await EnsureTableColumnsAsync(db, logger, "weighing_session_lines", WeighingSessionLineColumnPatches, ct);
         await EnsureWeighingSessionImagesTableAsync(db, logger, ct);
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
     }

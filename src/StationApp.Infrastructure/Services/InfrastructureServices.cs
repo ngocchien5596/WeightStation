@@ -353,6 +353,12 @@ public class SyncPayloadFactory : ISyncPayloadFactory
     public string CreatePayload(DeliveryTicket ticket)
         => JsonSerializer.Serialize(ticket, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
+    public string CreatePayload(WeighingSession session)
+        => JsonSerializer.Serialize(session, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(WeighingSessionLine line)
+        => JsonSerializer.Serialize(line, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
     public string CreatePayload(Vehicle vehicle)
         => JsonSerializer.Serialize(vehicle, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 

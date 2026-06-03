@@ -113,12 +113,6 @@ public sealed class CentralApiClient : ICentralApiClient
                 return null;
             }
 
-            if (configuredUri.IsLoopback)
-            {
-                _logger?.LogWarning("Central API URL points to loopback and is ignored on station clients: {Url}", configuredUrl);
-                return null;
-            }
-
             return EnsureTrailingSlash(configuredUri);
         }
 
@@ -136,7 +130,8 @@ public sealed class CentralApiClient : ICentralApiClient
         {
             using var scope = _scopeFactory.CreateScope();
             var config = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-            return await config.GetValueAsync("central_api_url", ct);
+            return await config.GetValueAsync(AppConfigKeys.CentralApiUrl, ct)
+                ?? await config.GetValueAsync("central_api_url", ct);
         }
         catch (Exception ex)
         {
@@ -159,6 +154,8 @@ public sealed class CentralApiClient : ICentralApiClient
             SyncAggregateTypes.CutOrder => "api/vehicle-registrations",
             SyncAggregateTypes.WeighTicket => "api/weigh-tickets",
             SyncAggregateTypes.DeliveryTicket => "api/delivery-tickets",
+            SyncAggregateTypes.WeighingSession => "api/weighing-sessions",
+            SyncAggregateTypes.WeighingSessionLine => "api/weighing-session-lines",
             SyncAggregateTypes.Vehicle => "api/vehicles",
             SyncAggregateTypes.Customer => "api/customers",
             SyncAggregateTypes.Product => "api/products",
@@ -166,4 +163,3 @@ public sealed class CentralApiClient : ICentralApiClient
         };
     }
 }
-

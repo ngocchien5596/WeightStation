@@ -34,6 +34,22 @@ public class SyncOutboxRepository : ISyncOutboxRepository
             .OrderByDescending(m => m.UpdatedAt ?? m.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
+    public async Task<int> ForceRetryNowAsync(DateTime now, CancellationToken ct)
+    {
+        var messages = await _db.SyncOutbox
+            .Where(m => m.Status == OutboxStatus.PENDING
+                || m.Status == OutboxStatus.FAILED_RETRYABLE)
+            .ToListAsync(ct);
+
+        foreach (var message in messages)
+        {
+            message.NextRetryAt = now;
+            message.UpdatedAt = now;
+        }
+
+        return messages.Count;
+    }
+
     public async Task MarkProcessingAsync(Guid id, CancellationToken ct)
     {
         var msg = await _db.SyncOutbox.FindAsync(new object[] { id }, ct);

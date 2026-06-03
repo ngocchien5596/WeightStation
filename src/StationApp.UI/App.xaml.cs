@@ -261,8 +261,17 @@ public partial class App : System.Windows.Application
                     {
                         client.Timeout = TimeSpan.FromSeconds(30);
                     }).AddHttpMessageHandler<ApiKeyDelegatingHandler>();
+                    services.AddHttpClient<ICentralApiHealthChecker, CentralApiHealthChecker>(client =>
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(10);
+                    }).AddHttpMessageHandler<ApiKeyDelegatingHandler>();
+                    services.AddHttpClient<IWeighingSessionImageSyncClient, CentralApiImageSyncClient>(client =>
+                    {
+                        client.Timeout = TimeSpan.FromMinutes(2);
+                    }).AddHttpMessageHandler<ApiKeyDelegatingHandler>();
 
                     services.AddHostedService<SyncOutboxWorker>();
+                    services.AddHostedService<WeighingSessionImageSyncWorker>();
                     services.AddHostedService<CutOrderInboundProcessor>();
 
                     services.AddTransient<LoginViewModel>();
@@ -332,7 +341,11 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.CameraCaptureTimeoutMs] = AppConfigDefaults.DefaultCameraCaptureTimeoutMs,
             [AppConfigKeys.CameraCaptureJpegQuality] = AppConfigDefaults.DefaultCameraCaptureJpegQuality,
             [AppConfigKeys.CameraCaptureWarmupFrames] = AppConfigDefaults.DefaultCameraCaptureWarmupFrames,
-            [AppConfigKeys.AppUpdateSharedReleaseRoot] = AppConfigDefaults.DefaultAppUpdateSharedReleaseRoot
+            [AppConfigKeys.AppUpdateSharedReleaseRoot] = AppConfigDefaults.DefaultAppUpdateSharedReleaseRoot,
+            [AppConfigKeys.CentralApiUrl] = AppConfigDefaults.DefaultCentralApiUrl,
+            [AppConfigKeys.CentralApiKey] = AppConfigDefaults.DefaultCentralApiKey,
+            [AppConfigKeys.SyncIntervalSeconds] = AppConfigDefaults.DefaultSyncIntervalSeconds,
+            [AppConfigKeys.RegistrationInboundPollSeconds] = AppConfigDefaults.DefaultRegistrationInboundPollSeconds
         };
 
         var hasChanges = false;
@@ -443,7 +456,8 @@ internal class ApiKeyDelegatingHandler : DelegatingHandler
         {
             using var scope = _scopeFactory.CreateScope();
             var config = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-            var apiKey = await config.GetValueAsync("central_api_key", cancellationToken);
+            var apiKey = await config.GetValueAsync(AppConfigKeys.CentralApiKey, cancellationToken)
+                ?? await config.GetValueAsync("central_api_key", cancellationToken);
             if (!string.IsNullOrEmpty(apiKey))
             {
                 request.Headers.Remove("X-Api-Key");

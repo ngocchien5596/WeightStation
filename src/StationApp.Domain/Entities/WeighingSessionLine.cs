@@ -27,6 +27,9 @@ public class WeighingSessionLine
 
     public bool HasPrintedDeliveryTicket { get; set; }
     public Guid? DeliveryTicketId { get; set; }
+    public SyncStatus SyncStatus { get; set; } = SyncStatus.SYNC_QUEUED;
+    public DateTime? LastSyncAttemptAt { get; set; }
+    public string? LastSyncError { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;

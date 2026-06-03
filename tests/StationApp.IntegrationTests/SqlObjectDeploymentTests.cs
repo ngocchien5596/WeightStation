@@ -14,6 +14,9 @@ public class SqlObjectDeploymentTests
         Assert.Contains(
             "StationApp.Infrastructure.SqlScripts.sp_GetCutOrderNetWeight.sql",
             SqlObjectScriptCatalog.ResourceNames);
+        Assert.Contains(
+            "StationApp.Infrastructure.SqlScripts.sp_UpdateCutOrderErpExtras.sql",
+            SqlObjectScriptCatalog.ResourceNames);
     }
 
     [Theory]

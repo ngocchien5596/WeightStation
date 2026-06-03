@@ -25,6 +25,7 @@ public class SyncOutboxWorkerTests
     private readonly ICutOrderRepository _registrationRepo;
     private readonly IWeighTicketRepository _weighTicketRepo;
     private readonly IDeliveryTicketRepository _deliveryTicketRepo;
+    private readonly IWeighingSessionRepository _sessionRepo;
     private readonly ISyncPayloadFactory _payloadFactory;
     private readonly IUnitOfWork _uow;
     private readonly ICentralApiClient _apiClient;
@@ -40,6 +41,7 @@ public class SyncOutboxWorkerTests
         _registrationRepo = Substitute.For<ICutOrderRepository>();
         _weighTicketRepo = Substitute.For<IWeighTicketRepository>();
         _deliveryTicketRepo = Substitute.For<IDeliveryTicketRepository>();
+        _sessionRepo = Substitute.For<IWeighingSessionRepository>();
         _payloadFactory = Substitute.For<ISyncPayloadFactory>();
         _uow = Substitute.For<IUnitOfWork>();
         _apiClient = Substitute.For<ICentralApiClient>();
@@ -52,6 +54,7 @@ public class SyncOutboxWorkerTests
         RegisterService(_registrationRepo);
         RegisterService(_weighTicketRepo);
         RegisterService(_deliveryTicketRepo);
+        RegisterService(_sessionRepo);
         RegisterService(_payloadFactory);
         RegisterService(_uow);
         RegisterService(_apiClient);
@@ -67,6 +70,10 @@ public class SyncOutboxWorkerTests
             .Returns(Array.Empty<WeighTicket>());
         _deliveryTicketRepo.GetBySyncStatusAsync(Arg.Any<SyncStatus>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<DeliveryTicket>());
+        _sessionRepo.GetBySyncStatusAsync(Arg.Any<SyncStatus>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<WeighingSession>());
+        _sessionRepo.GetLinesBySyncStatusAsync(Arg.Any<SyncStatus>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<WeighingSessionLine>());
     }
 
     [Fact]

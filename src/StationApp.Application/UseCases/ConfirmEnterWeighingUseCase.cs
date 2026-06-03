@@ -42,6 +42,7 @@ public sealed class ConfirmEnterWeighingUseCase
 
         var now = _clock.NowLocal;
         reg.ProcessingStage = ProcessingStage.WEIGHING;
+        reg.SyncStatus = SyncStatus.SYNC_QUEUED;
         reg.UpdatedAt = now;
         reg.UpdatedBy = _userContext.Username;
 

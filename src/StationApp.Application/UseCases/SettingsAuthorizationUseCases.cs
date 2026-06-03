@@ -32,13 +32,22 @@ public sealed class UpdateSystemSettingsUseCase
             throw new InvalidOperationException("OverweightSplitStepWeight must be greater than 0.0001.");
         }
 
+        var centralApiUrl = request.CentralApiUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(centralApiUrl) &&
+            !Uri.TryCreate(centralApiUrl, UriKind.Absolute, out _))
+        {
+            throw new InvalidOperationException("Central API URL is invalid.");
+        }
+
         await _configRepository.SetValueAsync("station_code", request.StationCode.Trim(), ct);
         await _configRepository.SetValueAsync("ticket_prefix", request.TicketPrefix.Trim(), ct);
         await _configRepository.SetValueAsync("delivery_prefix", request.DeliveryPrefix.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.ToleranceKgPerBag, request.ToleranceKgPerBag.Trim(), ct);
-        await _configRepository.SetValueAsync("sync_interval", request.SyncIntervalSeconds.Trim(), ct);
-        await _configRepository.SetValueAsync("registration_inbound_poll_seconds", request.RegistrationInboundPollSeconds.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.SyncIntervalSeconds, request.SyncIntervalSeconds.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.RegistrationInboundPollSeconds, request.RegistrationInboundPollSeconds.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.OverweightSplitStepWeight, request.OverweightSplitStepWeight.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CentralApiUrl, centralApiUrl, ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CentralApiKey, request.CentralApiKey.Trim(), ct);
 
         await _unitOfWork.SaveChangesAsync(ct);
     }

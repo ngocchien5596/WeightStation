@@ -70,6 +70,12 @@
                     <TextBlock Text="{StaticResource Sync.Refresh}" VerticalAlignment="Center"/>
                 </Button>
 
+                <Button Command="{Binding ResyncSelectedCommand}"
+                        Style="{StaticResource UtilityButtonStyle}"
+                        Margin="0,0,12,0">
+                    <TextBlock Text="&#x110;&#x1ED2;NG B&#x1ED8; L&#x1EA0;I CH&#x1EE8;NG T&#x1EEA;" VerticalAlignment="Center"/>
+                </Button>
+
                 <Button Command="{Binding ForceSyncCommand}"
                         Style="{StaticResource WorkflowButtonStyle}">
                     <TextBlock Text="{StaticResource Sync.Force}" VerticalAlignment="Center"/>
@@ -116,13 +122,29 @@
             </Grid>
 
             <Border Grid.Row="1" BorderBrush="#D7E3F0" BorderThickness="1" CornerRadius="6">
-                <DataGrid ItemsSource="{Binding SyncItems}"
+                <DataGrid x:Name="SyncItemsGrid"
+                          ItemsSource="{Binding SyncItems}"
+                          SelectedItem="{Binding SelectedSyncItem, Mode=TwoWay}"
                           AutoGenerateColumns="False"
                           Style="{StaticResource SystemDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                          RowStyle="{StaticResource SystemDataGridRowStyle}"
                           CellStyle="{StaticResource SystemDataGridCellStyle}"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow" BasedOn="{StaticResource SystemDataGridRowStyle}">
+                            <Setter Property="Tag"
+                                    Value="{Binding DataContext, ElementName=SyncItemsGrid}"/>
+                            <Setter Property="ContextMenu">
+                                <Setter.Value>
+                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                        <MenuItem Header="&#x110;&#x1ED2;NG B&#x1ED8; L&#x1EA0;I CH&#x1EE8;NG T&#x1EEA; N&#xC0;Y;"
+                                                  Command="{Binding PlacementTarget.Tag.ResyncItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding}"/>
+                                    </ContextMenu>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.RowStyle>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{StaticResource Sync.ColAggregate}" Binding="{Binding AggregateType}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Sync.ColBusinessNo}" Binding="{Binding BusinessNo}" Width="145" ElementStyle="{StaticResource GridTextCenter}"/>

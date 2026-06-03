@@ -33,6 +33,8 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.Property(e => e.HasPrintedMasterWeighTicket).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.UseActualWeightForBaggedCutOrders).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.IsNoLoad).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.SyncStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(e => e.LastSyncError).HasMaxLength(1000);
 
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
@@ -64,6 +66,8 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
         builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.DeletedBy).HasMaxLength(100);
         builder.Property(e => e.HasPrintedDeliveryTicket).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.SyncStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(e => e.LastSyncError).HasMaxLength(1000);
 
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
@@ -93,6 +97,8 @@ public class WeighingSessionImageEntityConfiguration : IEntityTypeConfiguration<
         builder.Property(e => e.ImageFormat).HasMaxLength(20).IsRequired();
         builder.Property(e => e.ImageBytes).HasColumnType("varbinary(max)").IsRequired();
         builder.Property(e => e.CapturedBy).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.SyncStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(e => e.LastSyncError).HasMaxLength(1000);
         builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.DeletedBy).HasMaxLength(100);
         builder.Property(e => e.CreatedAt).IsRequired();

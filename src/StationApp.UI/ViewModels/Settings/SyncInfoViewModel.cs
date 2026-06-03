@@ -8,7 +8,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
+using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 using StationApp.UI.Services;
@@ -35,6 +37,8 @@ public partial class SyncInfoViewModel : ObservableObject
             "\u0110\u004b\u0050\u0054",
             "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e",
             "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e",
+            "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
+            "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
             "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065",
             "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067",
             "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d"
@@ -53,7 +57,7 @@ public partial class SyncInfoViewModel : ObservableObject
     [ObservableProperty] private string _lastSyncSuccessAt = "N/A";
     [ObservableProperty] private string _lastSyncFailureAt = "N/A";
     [ObservableProperty] private ObservableCollection<SyncOutboxListItem> _syncItems = new();
-    [ObservableProperty] private ObservableCollection<string> _aggregateTypeOptions = new(["\u0054\u1ea5\u0074\u0020\u0063\u1ea3", "\u0110\u004b\u0050\u0054", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e"]);
+    [ObservableProperty] private ObservableCollection<string> _aggregateTypeOptions = new(["\u0054\u1ea5\u0074\u0020\u0063\u1ea3", "\u0110\u004b\u0050\u0054", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e", "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e", "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d"]);
     [ObservableProperty] private ObservableCollection<string> _outboxStatusOptions = new(["\u0054\u1ea5\u0074\u0020\u0063\u1ea3", "PENDING", "PROCESSING", "SUCCESS", "FAILED_RETRYABLE", "FAILED_FINAL"]);
     [ObservableProperty] private string _selectedAggregateType = "\u0054\u1ea5\u0074\u0020\u0063\u1ea3";
     [ObservableProperty] private string _selectedOutboxStatus = "\u0054\u1ea5\u0074\u0020\u0063\u1ea3";
@@ -64,6 +68,7 @@ public partial class SyncInfoViewModel : ObservableObject
     [ObservableProperty] private int _vehicleMasterCount;
     [ObservableProperty] private int _customerMasterCount;
     [ObservableProperty] private int _productMasterCount;
+    [ObservableProperty] private SyncOutboxListItem? _selectedSyncItem;
 
     public async Task LoadAsync()
     {
@@ -162,8 +167,107 @@ public partial class SyncInfoViewModel : ObservableObject
     private async Task ForceSyncAsync()
     {
         using var scope = _scopeFactory.CreateScope();
+        var outboxRepo = scope.ServiceProvider.GetRequiredService<StationApp.Application.Interfaces.ISyncOutboxRepository>();
+        var uow = scope.ServiceProvider.GetRequiredService<StationApp.Application.Interfaces.IUnitOfWork>();
+        var clock = scope.ServiceProvider.GetRequiredService<StationApp.Application.Interfaces.IClock>();
         var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
-        await dialogService.ShowInfoAsync("\u0054\u0068\u00f4\u006e\u0067\u0020\u0062\u00e1\u006f", "\u0059\u00ea\u0075\u0020\u0063\u1ea7\u0075\u0020\u0111\u1ea9\u0079\u0020\u0111\u1ed3\u006e\u0067\u0020\u0062\u1ed9\u0020\u006e\u0067\u0061\u0079\u0020\u006c\u1ead\u0070\u0020\u0074\u1ee9\u0063\u0020\u0111\u00e3\u0020\u0111\u01b0\u1ee3\u0063\u0020\u0067\u1eed\u0069\u0020\u0074\u1edb\u0069\u0020\u0077\u006f\u0072\u006b\u0065\u0072\u002e");
+        var affected = await outboxRepo.ForceRetryNowAsync(clock.NowLocal, CancellationToken.None);
+        await uow.SaveChangesAsync(CancellationToken.None);
+        await LoadAsync();
+
+        await dialogService.ShowInfoAsync(
+            "\u0054\u0068\u00f4\u006e\u0067\u0020\u0062\u00e1\u006f",
+            affected > 0
+                ? $"\u0110\u00e3\u0020\u006d\u1edf\u0020\u006c\u1ea1\u0069\u0020{affected}\u0020\u0062\u1ea3\u006e\u0020\u0067\u0068\u0069\u0020\u0111\u1ed3\u006e\u0067\u0020\u0062\u1ed9\u0020\u0111\u1ec3\u0020\u0077\u006f\u0072\u006b\u0065\u0072\u0020\u0072\u0065\u0074\u0072\u0079\u0020\u006e\u0067\u0061\u0079\u0020\u0074\u0072\u006f\u006e\u0067\u0020\u0063\u0068\u0075\u0020\u006b\u1ef3\u0020\u006b\u1ebf\u0020\u0074\u0069\u1ebf\u0070\u002e"
+                : "\u004b\u0068\u00f4\u006e\u0067\u0020\u0063\u00f3\u0020\u0062\u1ea3\u006e\u0020\u0067\u0068\u0069\u0020\u006e\u00e0\u006f\u0020\u0111\u1ec3\u0020\u0111\u1ed3\u006e\u0067\u0020\u0062\u1ed9\u0020\u006c\u1ea1\u0069\u002e");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanResyncSelected))]
+    private async Task ResyncSelectedAsync()
+    {
+        if (SelectedSyncItem == null)
+        {
+            return;
+        }
+
+        await ResyncItemCoreAsync(SelectedSyncItem);
+    }
+
+    [RelayCommand]
+    private async Task ResyncItemAsync(SyncOutboxListItem? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        SelectedSyncItem = item;
+        await ResyncItemCoreAsync(item);
+    }
+
+    private async Task ResyncItemCoreAsync(SyncOutboxListItem item)
+    {
+        SelectedSyncItem = item;
+
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+        var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        var userContext = scope.ServiceProvider.GetRequiredService<ICurrentUserContext>();
+        var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
+
+        try
+        {
+            var now = clock.NowLocal;
+            var actor = string.IsNullOrWhiteSpace(userContext.Username) ? "SYSTEM_MANUAL_RESYNC" : userContext.Username;
+            var payload = await PrepareAggregateForResyncAsync(context, payloadFactory, item, now, actor);
+            if (payload == null)
+            {
+                await dialogService.ShowWarningAsync("Cảnh báo", "Không tìm thấy chứng từ tương ứng để đồng bộ lại.");
+                return;
+            }
+
+            var latestOutbox = await context.SyncOutbox
+                .Where(x => x.AggregateId == item.AggregateId && x.AggregateType == item.RawAggregateType)
+                .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+                .FirstOrDefaultAsync(CancellationToken.None);
+
+            if (latestOutbox == null || latestOutbox.Status is OutboxStatus.SUCCESS or OutboxStatus.FAILED_FINAL)
+            {
+                await context.SyncOutbox.AddAsync(new SyncOutbox
+                {
+                    Id = Guid.NewGuid(),
+                    AggregateId = item.AggregateId,
+                    AggregateType = item.RawAggregateType,
+                    PayloadJson = payload.Value.PayloadJson,
+                    IdempotencyKey = payload.Value.IdempotencyKey,
+                    Status = OutboxStatus.PENDING,
+                    RetryCount = 0,
+                    LastError = null,
+                    NextRetryAt = now,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                }, CancellationToken.None);
+            }
+            else
+            {
+                latestOutbox.PayloadJson = payload.Value.PayloadJson;
+                latestOutbox.IdempotencyKey = payload.Value.IdempotencyKey;
+                latestOutbox.Status = OutboxStatus.PENDING;
+                latestOutbox.RetryCount = 0;
+                latestOutbox.LastError = null;
+                latestOutbox.NextRetryAt = now;
+                latestOutbox.UpdatedAt = now;
+            }
+
+            await context.SaveChangesAsync(CancellationToken.None);
+            await LoadAsync();
+            await dialogService.ShowInfoAsync("Thông báo", "Đã đưa chứng từ đã chọn vào hàng đợi đồng bộ lại.");
+        }
+        catch (Exception ex)
+        {
+            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi đồng bộ lại chứng từ: {ex.Message}");
+        }
     }
 
     [RelayCommand]
@@ -178,6 +282,8 @@ public partial class SyncInfoViewModel : ObservableObject
         IsMetricsVisible = false;
     }
 
+    private bool CanResyncSelected() => SelectedSyncItem != null;
+
     private static Task<int> CountPendingOutboxAsync(StationDbContext context, string aggregateType)
     {
         return context.SyncOutbox
@@ -189,6 +295,7 @@ public partial class SyncInfoViewModel : ObservableObject
     partial void OnSelectedAggregateTypeChanged(string value) => _ = LoadAsync();
     partial void OnSelectedOutboxStatusChanged(string value) => _ = LoadAsync();
     partial void OnSearchKeywordChanged(string? value) => _ = LoadAsync();
+    partial void OnSelectedSyncItemChanged(SyncOutboxListItem? value) => ResyncSelectedCommand.NotifyCanExecuteChanged();
 
     private static string FormatTimestamp(DateTime? timestamp)
     {
@@ -206,6 +313,8 @@ public partial class SyncInfoViewModel : ObservableObject
                 "\u0110\u004b\u0050\u0054" => SyncAggregateTypes.CutOrder,
                 "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e" => SyncAggregateTypes.WeighTicket,
                 "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e" => SyncAggregateTypes.DeliveryTicket,
+                "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e" => SyncAggregateTypes.WeighingSession,
+                "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e" => SyncAggregateTypes.WeighingSessionLine,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065" => SyncAggregateTypes.Vehicle,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067" => SyncAggregateTypes.Customer,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d" => SyncAggregateTypes.Product,
@@ -232,6 +341,8 @@ public partial class SyncInfoViewModel : ObservableObject
         var registrationIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.CutOrder).Select(x => x.AggregateId).Distinct().ToList();
         var weighTicketIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighTicket).Select(x => x.AggregateId).Distinct().ToList();
         var deliveryTicketIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.DeliveryTicket).Select(x => x.AggregateId).Distinct().ToList();
+        var directSessionIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighingSession).Select(x => x.AggregateId).Distinct().ToList();
+        var lineIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighingSessionLine).Select(x => x.AggregateId).Distinct().ToList();
         var vehicleIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Vehicle).Select(x => x.AggregateId).Distinct().ToList();
         var customerIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Customer).Select(x => x.AggregateId).Distinct().ToList();
         var productIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Product).Select(x => x.AggregateId).Distinct().ToList();
@@ -244,6 +355,9 @@ public partial class SyncInfoViewModel : ObservableObject
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var deliveryTickets = await context.DeliveryTickets.AsNoTracking()
             .Where(x => deliveryTicketIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, CancellationToken.None);
+        var lines = await context.WeighingSessionLines.AsNoTracking()
+            .Where(x => lineIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var vehicles = await context.Vehicles.AsNoTracking()
             .Where(x => vehicleIds.Contains(x.Id))
@@ -258,6 +372,8 @@ public partial class SyncInfoViewModel : ObservableObject
         var sessionIds = registrations.Values.Where(x => x.WeighingSessionId.HasValue).Select(x => x.WeighingSessionId!.Value)
             .Concat(weighTickets.Values.Where(x => x.WeighingSessionId.HasValue).Select(x => x.WeighingSessionId!.Value))
             .Concat(deliveryTickets.Values.Where(x => x.WeighingSessionId.HasValue).Select(x => x.WeighingSessionId!.Value))
+            .Concat(directSessionIds)
+            .Concat(lines.Values.Select(x => x.WeighingSessionId))
             .Distinct()
             .ToList();
 
@@ -303,6 +419,23 @@ public partial class SyncInfoViewModel : ObservableObject
                     vehiclePlate = deliverySession.VehiclePlate;
                 }
             }
+            else if (item.AggregateType == SyncAggregateTypes.WeighingSession && sessions.TryGetValue(item.AggregateId, out var session))
+            {
+                businessNo = session.SessionNo;
+                sessionNo = session.SessionNo;
+                vehiclePlate = session.VehiclePlate;
+                entitySyncStatus = session.SyncStatus.ToString();
+            }
+            else if (item.AggregateType == SyncAggregateTypes.WeighingSessionLine && lines.TryGetValue(item.AggregateId, out var line))
+            {
+                businessNo = $"Line {line.SequenceNo}";
+                entitySyncStatus = line.SyncStatus.ToString();
+                if (sessions.TryGetValue(line.WeighingSessionId, out var lineSession))
+                {
+                    sessionNo = lineSession.SessionNo;
+                    vehiclePlate = lineSession.VehiclePlate;
+                }
+            }
             else if (item.AggregateType == SyncAggregateTypes.Vehicle && vehicles.TryGetValue(item.AggregateId, out var vehicle))
             {
                 businessNo = string.IsNullOrWhiteSpace(vehicle.MoocNumber)
@@ -321,6 +454,8 @@ public partial class SyncInfoViewModel : ObservableObject
 
             return new SyncOutboxListItem(
                 item.Id,
+                item.AggregateId,
+                item.AggregateType,
                 aggregateDisplay,
                 businessNo,
                 sessionNo,
@@ -348,6 +483,95 @@ public partial class SyncInfoViewModel : ObservableObject
         return items.ToList();
     }
 
+    private static async Task<(string PayloadJson, Guid IdempotencyKey)?> PrepareAggregateForResyncAsync(
+        StationDbContext context,
+        ISyncPayloadFactory payloadFactory,
+        SyncOutboxListItem item,
+        DateTime now,
+        string actor)
+    {
+        switch (item.RawAggregateType)
+        {
+            case SyncAggregateTypes.CutOrder:
+            {
+                var registration = await context.CutOrders.FindAsync([item.AggregateId], CancellationToken.None);
+                if (registration == null) return null;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+                registration.LastSyncAttemptAt = null;
+                registration.LastSyncError = null;
+                registration.UpdatedAt = now;
+                registration.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(registration), registration.IdempotencyKey);
+            }
+            case SyncAggregateTypes.WeighTicket:
+            {
+                var weighTicket = await context.WeighTickets.FindAsync([item.AggregateId], CancellationToken.None);
+                if (weighTicket == null) return null;
+                weighTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
+                weighTicket.UpdatedAt = now;
+                weighTicket.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(weighTicket), weighTicket.IdempotencyKey);
+            }
+            case SyncAggregateTypes.DeliveryTicket:
+            {
+                var deliveryTicket = await context.DeliveryTickets.FindAsync([item.AggregateId], CancellationToken.None);
+                if (deliveryTicket == null) return null;
+                deliveryTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
+                deliveryTicket.UpdatedAt = now;
+                deliveryTicket.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(deliveryTicket), deliveryTicket.Id);
+            }
+            case SyncAggregateTypes.WeighingSession:
+            {
+                var session = await context.WeighingSessions.FindAsync([item.AggregateId], CancellationToken.None);
+                if (session == null) return null;
+                session.SyncStatus = SyncStatus.SYNC_QUEUED;
+                session.LastSyncAttemptAt = null;
+                session.LastSyncError = null;
+                session.UpdatedAt = now;
+                session.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(session), session.Id);
+            }
+            case SyncAggregateTypes.WeighingSessionLine:
+            {
+                var line = await context.WeighingSessionLines.FindAsync([item.AggregateId], CancellationToken.None);
+                if (line == null) return null;
+                line.SyncStatus = SyncStatus.SYNC_QUEUED;
+                line.LastSyncAttemptAt = null;
+                line.LastSyncError = null;
+                line.UpdatedAt = now;
+                line.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(line), line.Id);
+            }
+            case SyncAggregateTypes.Vehicle:
+            {
+                var vehicle = await context.Vehicles.FindAsync([item.AggregateId], CancellationToken.None);
+                if (vehicle == null) return null;
+                vehicle.UpdatedAt = now;
+                vehicle.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(vehicle), vehicle.Id);
+            }
+            case SyncAggregateTypes.Customer:
+            {
+                var customer = await context.Customers.FindAsync([item.AggregateId], CancellationToken.None);
+                if (customer == null) return null;
+                customer.UpdatedAt = now;
+                customer.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(customer), customer.Id);
+            }
+            case SyncAggregateTypes.Product:
+            {
+                var product = await context.Products.FindAsync([item.AggregateId], CancellationToken.None);
+                if (product == null) return null;
+                product.UpdatedAt = now;
+                product.UpdatedBy = actor;
+                return (payloadFactory.CreatePayload(product), product.Id);
+            }
+            default:
+                return null;
+        }
+    }
+
     private static string GetAggregateTypeDisplay(string aggregateType)
     {
         return aggregateType switch
@@ -355,6 +579,8 @@ public partial class SyncInfoViewModel : ObservableObject
             SyncAggregateTypes.CutOrder => "\u0110\u004b\u0050\u0054",
             SyncAggregateTypes.WeighTicket => "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e",
             SyncAggregateTypes.DeliveryTicket => "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e",
+            SyncAggregateTypes.WeighingSession => "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
+            SyncAggregateTypes.WeighingSessionLine => "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
             SyncAggregateTypes.Vehicle => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065",
             SyncAggregateTypes.Customer => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067",
             SyncAggregateTypes.Product => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d",
@@ -365,6 +591,8 @@ public partial class SyncInfoViewModel : ObservableObject
 
 public sealed record SyncOutboxListItem(
     Guid OutboxId,
+    Guid AggregateId,
+    string RawAggregateType,
     string AggregateType,
     string BusinessNo,
     string SessionNo,

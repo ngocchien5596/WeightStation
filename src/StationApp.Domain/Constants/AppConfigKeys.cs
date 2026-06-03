@@ -2,6 +2,10 @@ namespace StationApp.Domain.Constants;
 
 public static class AppConfigKeys
 {
+    public const string CentralApiUrl = "central_api_url";
+    public const string CentralApiKey = "central_api_key";
+    public const string SyncIntervalSeconds = "sync_interval_seconds";
+    public const string RegistrationInboundPollSeconds = "registration_inbound_poll_seconds";
     public const string OverweightSplitStepWeight = "OverweightSplitStepWeight";
     public const string ToleranceKgPerBag = "tolerance_kg_per_bag";
     public const string DeviceComPort = "device_com_port";
@@ -41,6 +45,10 @@ public static class AppConfigKeys
 
 public static class AppConfigDefaults
 {
+    public const string DefaultCentralApiUrl = "";
+    public const string DefaultCentralApiKey = "";
+    public const string DefaultSyncIntervalSeconds = "30";
+    public const string DefaultRegistrationInboundPollSeconds = "15";
     public const decimal DefaultOverweightSplitStepWeight = 0.0025m;
     public const decimal DefaultToleranceKgPerBag = 1.75m;
     public const string DefaultDeviceComPort = "COM6";

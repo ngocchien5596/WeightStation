@@ -1,8 +1,5 @@
-using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -27,9 +24,9 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private int _unsyncedTicketsCount;
     [ObservableProperty] private int _completedTodayCount;
     [ObservableProperty] private int _totalVehiclesCount;
-    [ObservableProperty] private string _networkStatus = "Đang kiểm tra...";
+    [ObservableProperty] private string _networkStatus = "Dang kiem tra...";
     [ObservableProperty] private SolidColorBrush _networkStatusBrush = new(Colors.Gray);
-    [ObservableProperty] private string _deviceStatus = "Đang kiểm tra...";
+    [ObservableProperty] private string _deviceStatus = "Dang kiem tra...";
     [ObservableProperty] private SolidColorBrush _deviceStatusBrush = new(Colors.Gray);
     [ObservableProperty] private string? _lastSyncTime;
     [ObservableProperty] private string? _stationCode;
@@ -56,9 +53,9 @@ public partial class DashboardViewModel : ObservableObject
         UnsyncedTicketsCount = 0;
         CompletedTodayCount = 0;
         TotalVehiclesCount = 0;
-        NetworkStatus = "Đang kiểm tra...";
+        NetworkStatus = "Dang kiem tra...";
         NetworkStatusBrush = new SolidColorBrush(Colors.Gray);
-        DeviceStatus = "Đang kiểm tra...";
+        DeviceStatus = "Dang kiem tra...";
         DeviceStatusBrush = new SolidColorBrush(Colors.Gray);
         LastSyncTime = null;
         StationCode = null;
@@ -96,14 +93,16 @@ public partial class DashboardViewModel : ObservableObject
             .Where(x =>
                 (x.AggregateType == SyncAggregateTypes.Vehicle
                 || x.AggregateType == SyncAggregateTypes.Customer
-                || x.AggregateType == SyncAggregateTypes.Product)
+                || x.AggregateType == SyncAggregateTypes.Product
+                || x.AggregateType == SyncAggregateTypes.WeighingSession
+                || x.AggregateType == SyncAggregateTypes.WeighingSessionLine)
                 && x.Status == OutboxStatus.SUCCESS)
             .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .FirstOrDefaultAsync(CancellationToken.None);
 
         StationCode = await appConfig.GetValueAsync("station_code", CancellationToken.None) ?? "N/A";
         LastSyncTime = lastMasterSuccess == null
-            ? "Chưa đồng bộ"
+            ? "Chua dong bo"
             : (lastMasterSuccess.UpdatedAt ?? lastMasterSuccess.CreatedAt).ToString("dd/MM/yyyy HH:mm:ss");
     }
 
@@ -111,48 +110,33 @@ public partial class DashboardViewModel : ObservableObject
     {
         if (_scaleDevice.IsConnected)
         {
-            DeviceStatus = "Đang hoạt động";
+            DeviceStatus = "Dang hoat dong";
             DeviceStatusBrush = new SolidColorBrush(Color.FromRgb(46, 213, 115));
         }
         else
         {
-            DeviceStatus = "Mất kết nối";
+            DeviceStatus = "Mat ket noi";
             DeviceStatusBrush = new SolidColorBrush(Colors.Red);
         }
     }
 
     private async Task CheckNetworkStatusAsync()
     {
-        try
+        using var scope = _scopeFactory.CreateScope();
+        var checker = scope.ServiceProvider.GetRequiredService<ICentralApiHealthChecker>();
+        var result = await checker.CheckAsync(CancellationToken.None);
+        if (result.Success)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-            var apiUrl = await appConfig.GetValueAsync("central_api_url", CancellationToken.None);
-
-            if (string.IsNullOrEmpty(apiUrl))
-            {
-                NetworkStatus = "Chưa cấu hình";
-                NetworkStatusBrush = new SolidColorBrush(Colors.Orange);
-                return;
-            }
-
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            var response = await http.GetAsync(apiUrl.TrimEnd('/') + "/health");
-            if (response.IsSuccessStatusCode)
-            {
-                NetworkStatus = "Kết nối OK";
-                NetworkStatusBrush = new SolidColorBrush(Color.FromRgb(46, 213, 115));
-            }
-            else
-            {
-                NetworkStatus = $"Lỗi ({response.StatusCode})";
-                NetworkStatusBrush = new SolidColorBrush(Colors.Red);
-            }
+            NetworkStatus = "Ket noi OK";
+            NetworkStatusBrush = new SolidColorBrush(Color.FromRgb(46, 213, 115));
+            return;
         }
-        catch
-        {
-            NetworkStatus = "Không kết nối được";
-            NetworkStatusBrush = new SolidColorBrush(Colors.Red);
-        }
+
+        NetworkStatus = result.StatusCode == "CONFIG_INVALID"
+            ? "Chua cau hinh"
+            : result.Message;
+        NetworkStatusBrush = result.StatusCode == "CONFIG_INVALID"
+            ? new SolidColorBrush(Colors.Orange)
+            : new SolidColorBrush(Colors.Red);
     }
 }

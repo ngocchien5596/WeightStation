@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading;
 using System.Windows.Media;
@@ -37,7 +36,6 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private SolidColorBrush _deviceConnectionBrush = new(Colors.Gray);
     [ObservableProperty] private decimal _liveWeight;
     [ObservableProperty] private bool _liveIsStable;
-
     [ObservableProperty] private int _pendingSyncCount;
     [ObservableProperty] private int _failedSyncCount;
     [ObservableProperty] private string? _lastSyncError;
@@ -46,6 +44,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _appVersion = string.Empty;
     [ObservableProperty] private string _dbStatus = "OK";
     [ObservableProperty] private string? _centralApiUrl;
+    [ObservableProperty] private string _centralApiKeyStatus = "Chua cau hinh";
+    [ObservableProperty] private string _centralApiHealthStatus = "Chua kiem tra";
     [ObservableProperty] private string? _lastMasterDataSync;
     [ObservableProperty] private string _masterDataSyncStatus = "Unknown";
     [ObservableProperty] private string? _masterDataSyncError;
@@ -208,6 +208,7 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<StationDbContext>();
         var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
+        var healthChecker = scope.ServiceProvider.GetRequiredService<ICentralApiHealthChecker>();
 
         PendingSyncCount = await context.SyncOutbox
             .Where(o => o.Status == OutboxStatus.PENDING || o.Status == OutboxStatus.FAILED_RETRYABLE)
@@ -231,13 +232,23 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
         LastSyncFailureAt = FormatTimestamp(lastFailure?.UpdatedAt ?? lastFailure?.CreatedAt);
         LastSyncSuccessAt = FormatTimestamp(lastSuccess?.UpdatedAt ?? lastSuccess?.CreatedAt);
 
-        CentralApiUrl = await appConfig.GetValueAsync("central_api_url", CancellationToken.None) ?? UiText.Diagnostics.CentralApiNotConfigured;
+        CentralApiUrl = await appConfig.GetValueAsync(AppConfigKeys.CentralApiUrl, CancellationToken.None)
+            ?? await appConfig.GetValueAsync("central_api_url", CancellationToken.None)
+            ?? UiText.Diagnostics.CentralApiNotConfigured;
+        var apiKey = await appConfig.GetValueAsync(AppConfigKeys.CentralApiKey, CancellationToken.None)
+            ?? await appConfig.GetValueAsync("central_api_key", CancellationToken.None);
+        CentralApiKeyStatus = string.IsNullOrWhiteSpace(apiKey) ? "Chua cau hinh" : "Da cau hinh";
+
+        var health = await healthChecker.CheckAsync(CancellationToken.None);
+        CentralApiHealthStatus = health.Message;
 
         var lastMasterSuccess = await context.SyncOutbox.AsNoTracking()
             .Where(o =>
                 (o.AggregateType == SyncAggregateTypes.Vehicle
                 || o.AggregateType == SyncAggregateTypes.Customer
-                || o.AggregateType == SyncAggregateTypes.Product)
+                || o.AggregateType == SyncAggregateTypes.Product
+                || o.AggregateType == SyncAggregateTypes.WeighingSession
+                || o.AggregateType == SyncAggregateTypes.WeighingSessionLine)
                 && o.Status == OutboxStatus.SUCCESS)
             .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
             .FirstOrDefaultAsync(CancellationToken.None);
@@ -245,7 +256,9 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             .Where(o =>
                 (o.AggregateType == SyncAggregateTypes.Vehicle
                 || o.AggregateType == SyncAggregateTypes.Customer
-                || o.AggregateType == SyncAggregateTypes.Product)
+                || o.AggregateType == SyncAggregateTypes.Product
+                || o.AggregateType == SyncAggregateTypes.WeighingSession
+                || o.AggregateType == SyncAggregateTypes.WeighingSessionLine)
                 && !string.IsNullOrWhiteSpace(o.LastError))
             .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
             .FirstOrDefaultAsync(CancellationToken.None);
@@ -253,14 +266,21 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             .Where(o =>
                 (o.AggregateType == SyncAggregateTypes.Vehicle
                 || o.AggregateType == SyncAggregateTypes.Customer
-                || o.AggregateType == SyncAggregateTypes.Product)
+                || o.AggregateType == SyncAggregateTypes.Product
+                || o.AggregateType == SyncAggregateTypes.WeighingSession
+                || o.AggregateType == SyncAggregateTypes.WeighingSessionLine)
                 && (o.Status == OutboxStatus.PENDING || o.Status == OutboxStatus.FAILED_RETRYABLE || o.Status == OutboxStatus.PROCESSING))
             .CountAsync(CancellationToken.None);
+
+        var pendingImages = await context.WeighingSessionImages.AsNoTracking()
+            .CountAsync(x => x.SyncStatus == ImageSyncStatus.PENDING || x.SyncStatus == ImageSyncStatus.FAILED, CancellationToken.None);
 
         LastMasterDataSync = lastMasterSuccess == null
             ? UiText.Diagnostics.MasterDataNotSynced
             : FormatTimestamp(lastMasterSuccess.UpdatedAt ?? lastMasterSuccess.CreatedAt);
-        MasterDataSyncStatus = pendingMasterCount > 0 ? $"Pending outbound ({pendingMasterCount})" : "No pending";
+        MasterDataSyncStatus = pendingMasterCount > 0 || pendingImages > 0
+            ? $"Pending outbound ({pendingMasterCount}), images ({pendingImages})"
+            : "No pending";
         MasterDataSyncError = lastMasterFailure?.LastError;
     }
 
@@ -285,6 +305,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
         LastSyncSuccessAt = "N/A";
         LastSyncFailureAt = "N/A";
         CentralApiUrl = null;
+        CentralApiKeyStatus = "Chua cau hinh";
+        CentralApiHealthStatus = "Chua kiem tra";
         LastMasterDataSync = null;
         MasterDataSyncStatus = "Unknown";
         MasterDataSyncError = null;

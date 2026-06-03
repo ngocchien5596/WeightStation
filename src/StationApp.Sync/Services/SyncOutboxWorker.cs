@@ -32,7 +32,8 @@ public sealed class SyncOutboxWorker : BackgroundService
                     var appRepo = scope.ServiceProvider.GetService<IAppConfigRepository>();
                     if (appRepo != null)
                     {
-                        var intervalStr = await appRepo.GetValueAsync("sync_interval", stoppingToken)
+                        var intervalStr = await appRepo.GetValueAsync(AppConfigKeys.SyncIntervalSeconds, stoppingToken)
+                            ?? await appRepo.GetValueAsync("sync_interval", stoppingToken)
                             ?? await appRepo.GetValueAsync("sync_outbox_interval_seconds", stoppingToken);
                         if (int.TryParse(intervalStr, out var intervalVal) && intervalVal > 0)
                         {
@@ -67,6 +68,7 @@ public sealed class SyncOutboxWorker : BackgroundService
         var registrationRepo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
         var weighTicketRepo = scope.ServiceProvider.GetRequiredService<IWeighTicketRepository>();
         var deliveryTicketRepo = scope.ServiceProvider.GetRequiredService<IDeliveryTicketRepository>();
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
         var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var apiClient = scope.ServiceProvider.GetRequiredService<ICentralApiClient>();
@@ -78,6 +80,7 @@ public sealed class SyncOutboxWorker : BackgroundService
             registrationRepo,
             weighTicketRepo,
             deliveryTicketRepo,
+            sessionRepo,
             payloadFactory,
             uow,
             now,
@@ -106,6 +109,7 @@ public sealed class SyncOutboxWorker : BackgroundService
                         registrationRepo,
                         weighTicketRepo,
                         deliveryTicketRepo,
+                        sessionRepo,
                         ct);
                 }
                 else
@@ -127,6 +131,7 @@ public sealed class SyncOutboxWorker : BackgroundService
                         registrationRepo,
                         weighTicketRepo,
                         deliveryTicketRepo,
+                        sessionRepo,
                         ct);
                 }
                 swPush.Stop();
@@ -149,6 +154,7 @@ public sealed class SyncOutboxWorker : BackgroundService
         ICutOrderRepository registrationRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
+        IWeighingSessionRepository sessionRepo,
         ISyncPayloadFactory payloadFactory,
         IUnitOfWork uow,
         DateTime now,
@@ -186,6 +192,30 @@ public sealed class SyncOutboxWorker : BackgroundService
                 deliveryTicket.Id,
                 SyncAggregateTypes.DeliveryTicket,
                 deliveryTicket.Id,
+                now,
+                ct);
+        }
+
+        foreach (var session in await sessionRepo.GetBySyncStatusAsync(SyncStatus.SYNC_QUEUED, 100, ct))
+        {
+            await EnsureOutboxMessageAsync(
+                outboxRepo,
+                payloadFactory.CreatePayload(session),
+                session.Id,
+                SyncAggregateTypes.WeighingSession,
+                session.Id,
+                now,
+                ct);
+        }
+
+        foreach (var line in await sessionRepo.GetLinesBySyncStatusAsync(SyncStatus.SYNC_QUEUED, 200, ct))
+        {
+            await EnsureOutboxMessageAsync(
+                outboxRepo,
+                payloadFactory.CreatePayload(line),
+                line.Id,
+                SyncAggregateTypes.WeighingSessionLine,
+                line.Id,
                 now,
                 ct);
         }
@@ -231,6 +261,7 @@ public sealed class SyncOutboxWorker : BackgroundService
         ICutOrderRepository registrationRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
+        IWeighingSessionRepository sessionRepo,
         CancellationToken ct)
     {
         switch (message.AggregateType)
@@ -270,6 +301,12 @@ public sealed class SyncOutboxWorker : BackgroundService
                 }
                 break;
             }
+            case SyncAggregateTypes.WeighingSession:
+                await sessionRepo.ApplySyncResultAsync(message.AggregateId, SyncStatus.SYNC_SUCCESS, now, null, ct);
+                break;
+            case SyncAggregateTypes.WeighingSessionLine:
+                await sessionRepo.ApplyLineSyncResultAsync(message.AggregateId, SyncStatus.SYNC_SUCCESS, now, null, ct);
+                break;
             case SyncAggregateTypes.Vehicle:
             case SyncAggregateTypes.Customer:
             case SyncAggregateTypes.Product:
@@ -284,6 +321,7 @@ public sealed class SyncOutboxWorker : BackgroundService
         ICutOrderRepository registrationRepo,
         IWeighTicketRepository weighTicketRepo,
         IDeliveryTicketRepository deliveryTicketRepo,
+        IWeighingSessionRepository sessionRepo,
         CancellationToken ct)
     {
         switch (message.AggregateType)
@@ -323,6 +361,12 @@ public sealed class SyncOutboxWorker : BackgroundService
                 }
                 break;
             }
+            case SyncAggregateTypes.WeighingSession:
+                await sessionRepo.ApplySyncResultAsync(message.AggregateId, SyncStatus.SYNC_FAILED, now, error, ct);
+                break;
+            case SyncAggregateTypes.WeighingSessionLine:
+                await sessionRepo.ApplyLineSyncResultAsync(message.AggregateId, SyncStatus.SYNC_FAILED, now, error, ct);
+                break;
             case SyncAggregateTypes.Vehicle:
             case SyncAggregateTypes.Customer:
             case SyncAggregateTypes.Product:

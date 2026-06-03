@@ -40,7 +40,8 @@ public class CutOrderInboundProcessor : BackgroundService
                     var appRepo = scope.ServiceProvider.GetService<IAppConfigRepository>();
                     if (appRepo != null)
                     {
-                        var pollStr = await appRepo.GetValueAsync("inbound_processor_poll_seconds", stoppingToken);
+                        var pollStr = await appRepo.GetValueAsync(AppConfigKeys.RegistrationInboundPollSeconds, stoppingToken)
+                            ?? await appRepo.GetValueAsync("inbound_processor_poll_seconds", stoppingToken);
                         if (int.TryParse(pollStr, out var pollVal) && pollVal > 0)
                         {
                             _pollSeconds = pollVal;
@@ -82,7 +83,8 @@ public class CutOrderInboundProcessor : BackgroundService
         var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
 
         // Dynamic polling update
-        var pollVal = await appConfig.GetValueAsync("registration_inbound_poll_seconds", ct);
+        var pollVal = await appConfig.GetValueAsync(AppConfigKeys.RegistrationInboundPollSeconds, ct)
+            ?? await appConfig.GetValueAsync("registration_inbound_poll_seconds", ct);
         if (int.TryParse(pollVal, out var secs) && secs >= 1)
         {
             _pollSeconds = secs;

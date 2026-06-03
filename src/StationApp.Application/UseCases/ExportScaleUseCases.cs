@@ -59,6 +59,7 @@ public sealed class TransitionToExportScaleUseCase
         cutOrder.CutOrderStatus = CutOrderStatus.IN_SESSION;
         cutOrder.ProcessingStage = ProcessingStage.WEIGHING;
         cutOrder.WeighingSessionId = null;
+        cutOrder.SyncStatus = SyncStatus.SYNC_QUEUED;
         cutOrder.ExportStartedAt = now;
         cutOrder.ExportStartedBy = _userContext.Username;
         cutOrder.UpdatedAt = now;

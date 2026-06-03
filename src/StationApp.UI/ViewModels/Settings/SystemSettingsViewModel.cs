@@ -24,9 +24,12 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _ticketPrefix = string.Empty;
     [ObservableProperty] private string _deliveryPrefix = string.Empty;
     [ObservableProperty] private string _toleranceKgPerBag = AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-    [ObservableProperty] private string _syncIntervalSeconds = "30";
-    [ObservableProperty] private string _registrationInboundPollSeconds = "15";
-    [ObservableProperty] private string _overweightSplitStepWeight = "0.0025";
+    [ObservableProperty] private string _syncIntervalSeconds = AppConfigDefaults.DefaultSyncIntervalSeconds;
+    [ObservableProperty] private string _registrationInboundPollSeconds = AppConfigDefaults.DefaultRegistrationInboundPollSeconds;
+    [ObservableProperty] private string _overweightSplitStepWeight = AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+    [ObservableProperty] private string _centralApiUrl = string.Empty;
+    [ObservableProperty] private string _centralApiKey = string.Empty;
+    [ObservableProperty] private string _centralApiHealthMessage = string.Empty;
 
     public bool CanManageSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
 
@@ -40,10 +43,16 @@ public partial class SystemSettingsViewModel : ObservableObject
         DeliveryPrefix = await repo.GetValueAsync("delivery_prefix", CancellationToken.None) ?? "DN";
         ToleranceKgPerBag = await repo.GetValueAsync(AppConfigKeys.ToleranceKgPerBag, CancellationToken.None)
             ?? AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-        SyncIntervalSeconds = await repo.GetValueAsync("sync_interval", CancellationToken.None) ?? "30";
-        RegistrationInboundPollSeconds = await repo.GetValueAsync("registration_inbound_poll_seconds", CancellationToken.None) ?? "15";
+        SyncIntervalSeconds = await repo.GetValueAsync(AppConfigKeys.SyncIntervalSeconds, CancellationToken.None)
+            ?? await repo.GetValueAsync("sync_interval", CancellationToken.None)
+            ?? AppConfigDefaults.DefaultSyncIntervalSeconds;
+        RegistrationInboundPollSeconds = await repo.GetValueAsync(AppConfigKeys.RegistrationInboundPollSeconds, CancellationToken.None)
+            ?? AppConfigDefaults.DefaultRegistrationInboundPollSeconds;
         OverweightSplitStepWeight = await repo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, CancellationToken.None)
             ?? AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+        CentralApiUrl = await repo.GetValueAsync(AppConfigKeys.CentralApiUrl, CancellationToken.None) ?? string.Empty;
+        CentralApiKey = await repo.GetValueAsync(AppConfigKeys.CentralApiKey, CancellationToken.None) ?? string.Empty;
+        CentralApiHealthMessage = string.Empty;
     }
 
     [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
@@ -63,17 +72,37 @@ public partial class SystemSettingsViewModel : ObservableObject
                     ToleranceKgPerBag,
                     SyncIntervalSeconds,
                     RegistrationInboundPollSeconds,
-                    OverweightSplitStepWeight),
+                    OverweightSplitStepWeight,
+                    CentralApiUrl,
+                    CentralApiKey),
                 CancellationToken.None);
-            await dialogService.ShowInfoAsync("Thông báo", "Lưu tham số hệ thống thành công!");
+            await dialogService.ShowInfoAsync("Thông báo", "Đã lưu tham số hệ thống thành công.");
         }
         catch (InvalidOperationException ex)
         {
-            await dialogService.ShowWarningAsync("Loi", ex.Message);
+            await dialogService.ShowWarningAsync("Lỗi", ex.Message);
         }
         catch (Exception ex)
         {
             await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi lưu cấu hình: {ex.Message}");
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
+    private async Task TestCentralApiConnectionAsync()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dialogService = scope.ServiceProvider.GetRequiredService<Services.IDialogService>();
+        var checker = scope.ServiceProvider.GetRequiredService<ICentralApiHealthChecker>();
+        var result = await checker.CheckAsync(CentralApiUrl, CentralApiKey, CancellationToken.None);
+        CentralApiHealthMessage = result.Message;
+
+        if (result.Success)
+        {
+            await dialogService.ShowInfoAsync("Thông báo", result.Message);
+            return;
+        }
+
+        await dialogService.ShowWarningAsync("Cảnh báo", result.Message);
     }
 }

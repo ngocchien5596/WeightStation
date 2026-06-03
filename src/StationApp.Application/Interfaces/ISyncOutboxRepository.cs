@@ -7,6 +7,7 @@ public interface ISyncOutboxRepository
     Task EnqueueAsync(SyncOutbox message, CancellationToken ct);
     Task<IReadOnlyList<SyncOutbox>> GetPendingAsync(DateTime now, int batchSize, CancellationToken ct);
     Task<SyncOutbox?> GetLatestByAggregateAsync(Guid aggregateId, string aggregateType, CancellationToken ct);
+    Task<int> ForceRetryNowAsync(DateTime now, CancellationToken ct);
     Task MarkProcessingAsync(Guid id, CancellationToken ct);
     Task MarkSuccessAsync(Guid id, CancellationToken ct);
     Task MarkFailedRetryableAsync(Guid id, string error, DateTime nextRetryAt, CancellationToken ct);
