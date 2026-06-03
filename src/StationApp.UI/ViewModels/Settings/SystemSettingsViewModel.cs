@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,13 +24,14 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _stationCode = string.Empty;
     [ObservableProperty] private string _ticketPrefix = string.Empty;
     [ObservableProperty] private string _deliveryPrefix = string.Empty;
-    [ObservableProperty] private string _toleranceKgPerBag = AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    [ObservableProperty] private string _toleranceKgPerBag = AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", CultureInfo.InvariantCulture);
     [ObservableProperty] private string _syncIntervalSeconds = AppConfigDefaults.DefaultSyncIntervalSeconds;
     [ObservableProperty] private string _registrationInboundPollSeconds = AppConfigDefaults.DefaultRegistrationInboundPollSeconds;
-    [ObservableProperty] private string _overweightSplitStepWeight = AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+    [ObservableProperty] private string _overweightSplitStepWeight = AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", CultureInfo.InvariantCulture);
     [ObservableProperty] private string _centralApiUrl = string.Empty;
     [ObservableProperty] private string _centralApiKey = string.Empty;
-    [ObservableProperty] private string _centralApiHealthMessage = string.Empty;
+    [ObservableProperty] private string _localDatabaseBackupDirectory = string.Empty;
+    [ObservableProperty] private string _centralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
 
     public bool CanManageSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
 
@@ -42,17 +44,19 @@ public partial class SystemSettingsViewModel : ObservableObject
         TicketPrefix = await repo.GetValueAsync("ticket_prefix", CancellationToken.None) ?? string.Empty;
         DeliveryPrefix = await repo.GetValueAsync("delivery_prefix", CancellationToken.None) ?? "DN";
         ToleranceKgPerBag = await repo.GetValueAsync(AppConfigKeys.ToleranceKgPerBag, CancellationToken.None)
-            ?? AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            ?? AppConfigDefaults.DefaultToleranceKgPerBag.ToString("0.##", CultureInfo.InvariantCulture);
         SyncIntervalSeconds = await repo.GetValueAsync(AppConfigKeys.SyncIntervalSeconds, CancellationToken.None)
             ?? await repo.GetValueAsync("sync_interval", CancellationToken.None)
             ?? AppConfigDefaults.DefaultSyncIntervalSeconds;
         RegistrationInboundPollSeconds = await repo.GetValueAsync(AppConfigKeys.RegistrationInboundPollSeconds, CancellationToken.None)
             ?? AppConfigDefaults.DefaultRegistrationInboundPollSeconds;
         OverweightSplitStepWeight = await repo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, CancellationToken.None)
-            ?? AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+            ?? AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", CultureInfo.InvariantCulture);
         CentralApiUrl = await repo.GetValueAsync(AppConfigKeys.CentralApiUrl, CancellationToken.None) ?? string.Empty;
         CentralApiKey = await repo.GetValueAsync(AppConfigKeys.CentralApiKey, CancellationToken.None) ?? string.Empty;
-        CentralApiHealthMessage = string.Empty;
+        LocalDatabaseBackupDirectory = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, CancellationToken.None)
+            ?? AppConfigDefaults.DefaultLocalDatabaseBackupDirectory;
+        CentralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
     }
 
     [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
@@ -74,7 +78,8 @@ public partial class SystemSettingsViewModel : ObservableObject
                     RegistrationInboundPollSeconds,
                     OverweightSplitStepWeight,
                     CentralApiUrl,
-                    CentralApiKey),
+                    CentralApiKey,
+                    LocalDatabaseBackupDirectory),
                 CancellationToken.None);
             await dialogService.ShowInfoAsync("Thông báo", "Đã lưu tham số hệ thống thành công.");
         }

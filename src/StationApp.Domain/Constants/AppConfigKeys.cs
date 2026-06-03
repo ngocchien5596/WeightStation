@@ -4,6 +4,7 @@ public static class AppConfigKeys
 {
     public const string CentralApiUrl = "central_api_url";
     public const string CentralApiKey = "central_api_key";
+    public const string LocalDatabaseBackupDirectory = "local_database_backup_directory";
     public const string SyncIntervalSeconds = "sync_interval_seconds";
     public const string RegistrationInboundPollSeconds = "registration_inbound_poll_seconds";
     public const string OverweightSplitStepWeight = "OverweightSplitStepWeight";
@@ -47,6 +48,7 @@ public static class AppConfigDefaults
 {
     public const string DefaultCentralApiUrl = "";
     public const string DefaultCentralApiKey = "";
+    public const string DefaultLocalDatabaseBackupDirectory = "";
     public const string DefaultSyncIntervalSeconds = "30";
     public const string DefaultRegistrationInboundPollSeconds = "15";
     public const decimal DefaultOverweightSplitStepWeight = 0.0025m;

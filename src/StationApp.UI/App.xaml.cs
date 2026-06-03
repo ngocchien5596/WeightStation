@@ -272,6 +272,7 @@ public partial class App : System.Windows.Application
                     services.AddHostedService<SyncOutboxWorker>();
                     services.AddHostedService<WeighingSessionImageSyncWorker>();
                     services.AddHostedService<CutOrderInboundProcessor>();
+                    services.AddHostedService<LocalDatabaseBackupWorker>();
 
                     services.AddTransient<LoginViewModel>();
                     services.AddTransient<MainViewModel>();

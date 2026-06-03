@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
@@ -39,6 +40,19 @@ public sealed class UpdateSystemSettingsUseCase
             throw new InvalidOperationException("Central API URL is invalid.");
         }
 
+        var localDatabaseBackupDirectory = request.LocalDatabaseBackupDirectory.Trim();
+        if (!string.IsNullOrWhiteSpace(localDatabaseBackupDirectory))
+        {
+            try
+            {
+                localDatabaseBackupDirectory = Path.GetFullPath(localDatabaseBackupDirectory);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Local database backup directory is invalid: {ex.Message}");
+            }
+        }
+
         await _configRepository.SetValueAsync("station_code", request.StationCode.Trim(), ct);
         await _configRepository.SetValueAsync("ticket_prefix", request.TicketPrefix.Trim(), ct);
         await _configRepository.SetValueAsync("delivery_prefix", request.DeliveryPrefix.Trim(), ct);
@@ -48,6 +62,7 @@ public sealed class UpdateSystemSettingsUseCase
         await _configRepository.SetValueAsync(AppConfigKeys.OverweightSplitStepWeight, request.OverweightSplitStepWeight.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CentralApiUrl, centralApiUrl, ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CentralApiKey, request.CentralApiKey.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, localDatabaseBackupDirectory, ct);
 
         await _unitOfWork.SaveChangesAsync(ct);
     }
