@@ -33,10 +33,31 @@ _verify_build/
 artifacts/
 scratch/
 brain/
+.script_build_cache/
+.script_build_cache_test/
 
 # Logs and DB connection info
 logs/
 db_connection_used.txt
+infra-build.log
+
+# Temporary generated files
+.tmp_versioncheck.cs
+*wpftmp.csproj
+
+# Root-only local media/test assets
+/logo.jpg
+/cong_truyen_thong.jpg
+/du_lieu.jpg
+/phieucan.jpg
+/phieugiaonhan.jpg
+/phieu_can.jpg
+/phieu_giao_nhan.jpg
+/loi_nhay_so.mp4
+/Tahoma.ttf
+/Tahoma-Bold.ttf
+/Tahoma Italic.ttf
+/Tahoma Bold Italic.ttf
 
 # OS files
 .DS_Store
