@@ -13,7 +13,6 @@ public class StationDbContext : DbContext
     public DbSet<SyncOutbox> SyncOutbox => Set<SyncOutbox>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppConfig> AppConfigs => Set<AppConfig>();
-    public DbSet<DeviceConfig> DeviceConfigs => Set<DeviceConfig>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
@@ -31,7 +30,6 @@ public class StationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new SyncOutboxEntityConfiguration());
         modelBuilder.ApplyConfiguration(new AuditLogEntityConfiguration());
         modelBuilder.ApplyConfiguration(new AppConfigEntityConfiguration());
-        modelBuilder.ApplyConfiguration(new DeviceConfigEntityConfiguration());
         modelBuilder.ApplyConfiguration(new UserEntityConfiguration());
         modelBuilder.ApplyConfiguration(new VehicleEntityConfiguration());
         modelBuilder.ApplyConfiguration(new CustomerEntityConfiguration());

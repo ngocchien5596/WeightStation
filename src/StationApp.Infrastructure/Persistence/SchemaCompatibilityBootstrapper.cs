@@ -115,6 +115,7 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureTableColumnsAsync(db, logger, "weighing_session_lines", WeighingSessionLineColumnPatches, ct);
         await EnsureWeighingSessionImagesTableAsync(db, logger, ct);
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
+        await DropLegacyDeviceConfigTableAsync(db, logger, ct);
     }
 
     private static async Task EnsureCutOrderSchemaAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
@@ -559,6 +560,19 @@ END
         await db.Database.ExecuteSqlRawAsync(sql, ct);
         await EnsureTableColumnsAsync(db, logger, "weighing_session_images", WeighingSessionImageColumnPatches, ct);
         logger?.LogDebug("Schema compatibility check completed for weighing session images table and indexes.");
+    }
+
+    private static async Task DropLegacyDeviceConfigTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[device_configs]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [device_configs];
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Dropped legacy device_configs table if it existed.");
     }
 
     private sealed record ColumnPatch(string ColumnName, string SqlDefinition);

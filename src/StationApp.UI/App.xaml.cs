@@ -150,7 +150,6 @@ public partial class App : System.Windows.Application
                     services.AddScoped<ISyncOutboxRepository, SyncOutboxRepository>();
                     services.AddScoped<IAuditLogRepository, AuditLogRepository>();
                     services.AddScoped<IAppConfigRepository, AppConfigRepository>();
-                    services.AddScoped<IDeviceConfigRepository, DeviceConfigRepository>();
                     services.AddScoped<IUserRepository, UserRepository>();
                     services.AddScoped<IVehicleRepository, VehicleRepository>();
                     services.AddScoped<ICustomerRepository, CustomerRepository>();

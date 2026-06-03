@@ -44,23 +44,6 @@ public class AppConfigRepository : IAppConfigRepository
     }
 }
 
-public class DeviceConfigRepository : IDeviceConfigRepository
-{
-    private readonly StationDbContext _db;
-    public DeviceConfigRepository(StationDbContext db) => _db = db;
-
-    public async Task<DeviceConfig?> GetActiveAsync(CancellationToken ct)
-        => await _db.DeviceConfigs.FirstOrDefaultAsync(d => d.IsActive, ct);
-
-    public async Task SaveAsync(DeviceConfig config, CancellationToken ct)
-    {
-        if (await _db.DeviceConfigs.AnyAsync(d => d.Id == config.Id, ct))
-            _db.DeviceConfigs.Update(config);
-        else
-            await _db.DeviceConfigs.AddAsync(config, ct);
-    }
-}
-
 public class UserRepository : IUserRepository
 {
     private readonly StationDbContext _db;

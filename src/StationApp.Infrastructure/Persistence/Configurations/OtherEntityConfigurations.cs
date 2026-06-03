@@ -79,26 +79,6 @@ public class AppConfigEntityConfiguration : IEntityTypeConfiguration<AppConfig>
     }
 }
 
-public class DeviceConfigEntityConfiguration : IEntityTypeConfiguration<DeviceConfig>
-{
-    public void Configure(EntityTypeBuilder<DeviceConfig> builder)
-    {
-        builder.ToTable("device_configs");
-        builder.HasKey(e => e.Id);
-        builder.Property(e => e.DeviceName).HasMaxLength(100).IsRequired();
-        builder.Property(e => e.ComPort).HasMaxLength(20).IsRequired();
-        builder.Property(e => e.Baudrate).IsRequired();
-        builder.Property(e => e.Parity).HasMaxLength(20);
-        builder.Property(e => e.FrameEndChar).HasMaxLength(10);
-        builder.Property(e => e.ParserType).HasMaxLength(50).IsRequired();
-        builder.Property(e => e.StabilityThreshold).HasColumnType("decimal(18,3)");
-        builder.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
-        builder.Property(e => e.CreatedAt).IsRequired();
-        builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
-        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
-    }
-}
-
 public class UserEntityConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)

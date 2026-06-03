@@ -33,7 +33,6 @@ public class SmokeTests : IDisposable
                 services.AddScoped<ISyncOutboxRepository, SyncOutboxRepository>();
                 services.AddScoped<IAuditLogRepository, AuditLogRepository>();
                 services.AddScoped<IAppConfigRepository, AppConfigRepository>();
-                services.AddScoped<IDeviceConfigRepository, DeviceConfigRepository>();
                 services.AddScoped<IUserRepository, UserRepository>();
                 services.AddScoped<IUnitOfWork, EfUnitOfWork>();
                 services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
