@@ -13,10 +13,14 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
     public TicketRepository(StationDbContext db) => _db = db;
 
     public async Task AddAsync(WeighTicket ticket, CancellationToken ct)
-        => await _db.WeighTickets.AddAsync(ticket, ct);
+    {
+        SyncTrackedEntityUpdateHelper.PrepareForAdd(ticket);
+        await _db.WeighTickets.AddAsync(ticket, ct);
+    }
 
     public Task UpdateAsync(WeighTicket ticket, CancellationToken ct)
     {
+        SyncTrackedEntityUpdateHelper.PrepareForUpdate(_db, ticket);
         _db.WeighTickets.Update(ticket);
         return Task.CompletedTask;
     }

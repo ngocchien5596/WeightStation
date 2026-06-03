@@ -26,11 +26,13 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task AddAsync(CutOrder registration, CancellationToken ct)
     {
+        SyncTrackedEntityUpdateHelper.PrepareForAdd(registration);
         await _db.CutOrders.AddAsync(registration, ct);
     }
 
     public Task UpdateAsync(CutOrder registration, CancellationToken ct)
     {
+        SyncTrackedEntityUpdateHelper.PrepareForUpdate(_db, registration);
         _db.CutOrders.Update(registration);
         return Task.CompletedTask;
     }

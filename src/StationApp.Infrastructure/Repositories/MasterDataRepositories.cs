@@ -245,11 +245,13 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
 
     public async Task AddAsync(DeliveryTicket ticket, CancellationToken ct)
     {
+        SyncTrackedEntityUpdateHelper.PrepareForAdd(ticket);
         await _context.DeliveryTickets.AddAsync(ticket, ct);
     }
 
     public async Task UpdateAsync(DeliveryTicket ticket, CancellationToken ct)
     {
+        SyncTrackedEntityUpdateHelper.PrepareForUpdate(_context, ticket);
         _context.DeliveryTickets.Update(ticket);
         await Task.CompletedTask;
     }
