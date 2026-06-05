@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
@@ -210,11 +210,17 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
                 Field("VehiclePlate", vehicleLine),
                 Field("VehicleRegistrationNo", FirstNonEmpty(ticket.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(ticket.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
-                Field("CustomerName", FirstNonEmpty(ticket.CustomerName, registration.CustomerName)),
-                Field("ProductName", FirstNonEmpty(ticket.ProductName, registration.ProductName)?.ToUpperInvariant()),
+                Field("CustomerName", string.Equals(ticket.RecordRole, WeighTicketRecordRoles.MasterSession, StringComparison.OrdinalIgnoreCase)
+                    ? FirstNonEmpty(registration.CustomerName, ticket.CustomerName)
+                    : FirstNonEmpty(ticket.CustomerName, registration.CustomerName)),
+                Field("ProductName", (string.Equals(ticket.RecordRole, WeighTicketRecordRoles.MasterSession, StringComparison.OrdinalIgnoreCase)
+                    ? FirstNonEmpty(registration.ProductName, ticket.ProductName)
+                    : FirstNonEmpty(ticket.ProductName, registration.ProductName))?.ToUpperInvariant()),
                 Field("LotNo", registration.LotNo),
                 Field("RepresentativeName", registration.RepresentativeName),
-                Field("Notes", FirstNonEmpty(ticket.Notes, registration.Notes)),
+                Field("Notes", string.Equals(ticket.RecordRole, WeighTicketRecordRoles.MasterSession, StringComparison.OrdinalIgnoreCase)
+                    ? FirstNonEmpty(registration.Notes, ticket.Notes)
+                    : FirstNonEmpty(ticket.Notes, registration.Notes)),
                 Field("Weight1DateTime", FormatDateTimeWithSeconds(ticket.Weight1Time)),
                 Field("Weight2DateTime", FormatDateTimeWithSeconds(ticket.Weight2Time)),
                 Field("EmptyWeight", FormatWeight(emptyWeight)),

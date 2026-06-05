@@ -566,8 +566,12 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             var weighPages = ticketsToPrint
                 .Select(ticket =>
                 {
-                    var registration = context.RegistrationsById.GetValueOrDefault(ticket.CutOrderId)
-                        ?? context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
+                    var registration = context.RegistrationsById.GetValueOrDefault(ticket.CutOrderId);
+                    if (registration == null || ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+                    {
+                        var primaryRegistration = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
+                        registration = BuildDeliveryMasterRegistration(context, primaryRegistration);
+                    }
                     var page = composer.Compose(registration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
@@ -765,7 +769,12 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             CustomerCode = primaryRegistration.CustomerCode,
             CustomerName = distinctCustomerNames.Count == 1 ? distinctCustomerNames[0] : "Nhiều khách hàng",
             ProductCode = primaryRegistration.ProductCode,
-            ProductName = distinctProductNames.Count == 1 ? distinctProductNames[0] : "Nhiều cắt lệnh",
+            ProductName = distinctProductNames.Count switch
+            {
+                0 => primaryRegistration.ProductName,
+                1 => distinctProductNames[0],
+                _ => string.Join(" / ", distinctProductNames)
+            },
             ProductType = primaryRegistration.ProductType,
             Market = distinctMarkets.Count == 0 ? null : string.Join(" / ", distinctMarkets),
             ConsumptionPlace = distinctConsumptionPlaces.Count == 0 ? null : string.Join(" / ", distinctConsumptionPlaces),

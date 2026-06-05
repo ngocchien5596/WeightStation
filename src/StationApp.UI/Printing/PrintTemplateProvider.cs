@@ -546,7 +546,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("GrossWeight", 199, 52, 12, PrintFieldAlignment.Left, 11.8, PrintFieldWeight.Bold),
 
         new("StaticProductLabel", 32, 62, 16, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "H\u00e0ng h\u00f3a:"),
-        new("ProductName", 52, 62, 82, PrintFieldAlignment.Left, 10.6, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("ProductName", 52, 62, 82, PrintFieldAlignment.Left, 10.6, PrintFieldWeight.Normal, 3, PrintWrapMode.Wrap),
         new("StaticEmptyWeightLabel", 157, 62, 22, PrintFieldAlignment.Right, 9.4, PrintFieldWeight.Normal, LiteralValue: "Tr\u1ecdng l\u01b0\u1ee3ng xe (t\u1ea5n):"),
         new("EmptyWeight", 199, 62, 12, PrintFieldAlignment.Left, 11.8, PrintFieldWeight.Bold),
 
@@ -586,7 +586,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("ConsumptionPlace", 27, 104, 103, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("LoadingPlace", 27, 122, 103, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
         new("CustomerCode", 147, 122, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("ProductName", 25, 149, 42, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("ProductName", 25, 149, 42, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal, 4, PrintWrapMode.Wrap),
         new("PlannedWeight", 79, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
         new("BagCount", 95, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
         new("ActualWeight", 118, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),

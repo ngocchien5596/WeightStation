@@ -122,7 +122,7 @@
     <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
     <sys:String x:Key="Outgoing.Label.CompletedDate">Th&#x1EDD;i gian xong:</sys:String>
     <sys:String x:Key="Outgoing.Action.ViewDetails">XEM CHI TI&#x1EBE;T</sys:String>
-    <sys:String x:Key="Outgoing.Action.BaggedActualWeightOverride">KH&#x00D4;NG L&#x1EA4;Y &#x0110;&#x00DA;NG S&#x1ED0; L&#x01AF;&#x1EE2;NG</sys:String>
+    <sys:String x:Key="Outgoing.Action.BaggedActualWeightOverride">K L&#x1EA4;Y &#x0110;&#x1EE6; S&#x1ED0; L&#x01AF;&#x1EE2;NG</sys:String>
     <sys:String x:Key="Outgoing.Column.SessionNo">S&#x1ED0; L&#x01AF;&#x1EE2;T C&#x00C2;N</sys:String>
     <sys:String x:Key="Outgoing.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
@@ -186,4 +186,3 @@
     <sys:String x:Key="MainWindow.Nav.SettingsAccounts">Qu&#x1EA3;n l&#x00FD; t&#x00E0;i kho&#x1EA3;n</sys:String>
     <sys:String x:Key="MainWindow.Nav.Logout">&#x0110;&#x0103;ng xu&#x1EA5;t</sys:String>
 </ResourceDictionary>
-
