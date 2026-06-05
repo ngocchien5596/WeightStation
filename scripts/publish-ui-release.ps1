@@ -93,6 +93,7 @@ if (-not $SkipDatabaseSchemaUpdate) {
 
     $schemaArgs = @{
         Configuration = $Configuration
+        BuildRoot = $buildRoot
         ConfigPath = $ConfigPath
     }
 

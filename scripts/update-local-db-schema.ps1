@@ -6,13 +6,27 @@ param(
     [string]$RuntimeIdentifier = "",
 
     [Parameter(Mandatory = $false)]
+    [string]$BuildRoot = "",
+
+    [Parameter(Mandatory = $false)]
     [string]$ConfigPath = ".\src\StationApp.UI\appsettings.json"
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$migratorBaseDir = Join-Path $repoRoot "._repo_build\bin\StationApp.DbMigrator\$Configuration\net8.0"
+
+if ([string]::IsNullOrWhiteSpace($BuildRoot)) {
+    $buildOutputRoot = Join-Path $repoRoot "._repo_build"
+}
+elseif ([System.IO.Path]::IsPathRooted($BuildRoot)) {
+    $buildOutputRoot = [System.IO.Path]::GetFullPath($BuildRoot)
+}
+else {
+    $buildOutputRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $BuildRoot))
+}
+
+$migratorBaseDir = Join-Path $buildOutputRoot "bin\StationApp.DbMigrator\$Configuration\net8.0"
 $resolvedConfigPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $ConfigPath))
 
 if ([string]::IsNullOrWhiteSpace($RuntimeIdentifier)) {
@@ -36,8 +50,12 @@ if (-not $migratorDll -and (Test-Path $migratorBaseDir)) {
         Select-Object -ExpandProperty FullName -First 1
 }
 
-if (-not (Test-Path $migratorDll)) {
+if ([string]::IsNullOrWhiteSpace($migratorDll) -or -not (Test-Path $migratorDll)) {
     $searchedPaths = ($candidatePaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ", "
+    if ([string]::IsNullOrWhiteSpace($searchedPaths)) {
+        $searchedPaths = $migratorBaseDir
+    }
+
     throw "Db migrator not found. Searched: $searchedPaths"
 }
 
