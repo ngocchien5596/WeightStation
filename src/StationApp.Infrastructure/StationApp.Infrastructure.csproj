@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.11">
@@ -24,6 +25,8 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\scripts\sql\fn_GetCutOrderNetWeight.sql" Link="SqlScripts\fn_GetCutOrderNetWeight.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_GetCutOrderNetWeight.sql" Link="SqlScripts\sp_GetCutOrderNetWeight.sql" />
+    <EmbeddedResource Include="..\..\scripts\sql\sp_AdjustWeighingResult.sql" Link="SqlScripts\sp_AdjustWeighingResult.sql" />
+    <EmbeddedResource Include="..\..\scripts\sql\sp_MarkCutOrderErpExportCompleted.sql" Link="SqlScripts\sp_MarkCutOrderErpExportCompleted.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_UpdateCutOrderErpExtras.sql" Link="SqlScripts\sp_UpdateCutOrderErpExtras.sql" />
   </ItemGroup>
 </Project>

@@ -390,6 +390,7 @@ public sealed record OutgoingVehicleListItem(
     bool HasPrintedWeighTicket,
     bool HasPrintedDeliveryTicket,
     bool UseActualWeightForBaggedCutOrders,
+    bool ErpExportCompleted,
     bool IsNoLoad,
     bool HighlightAsSplitOverweight
 );
@@ -458,6 +459,11 @@ public sealed record CreateExportVehicleSessionRequest(
 public sealed record CreateExportVehicleSessionResult(
     Guid SessionId,
     string SessionNo
+);
+
+public sealed record TransferExportVehicleTripRequest(
+    Guid SessionId,
+    Guid TargetCutOrderId
 );
 
 public sealed record FinalizeExportCutOrderRequest(Guid CutOrderId);

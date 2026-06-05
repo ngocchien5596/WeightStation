@@ -11,10 +11,12 @@ using StationApp.Domain.Constants;
 namespace StationApp.UI.Services;
 
 public sealed class LocalDatabaseBackupWorker : BackgroundService
+    , ILocalDatabaseBackupService
 {
     private static readonly TimeSpan ScheduledBackupTime = new(3, 0, 0);
     private static readonly TimeSpan RetryDelayOnFailure = TimeSpan.FromMinutes(30);
     private const int RetentionDays = 10;
+    private readonly SemaphoreSlim _runLock = new(1, 1);
     private readonly IConfiguration _configuration;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<LocalDatabaseBackupWorker> _logger;
@@ -31,7 +33,7 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        var connectionString = ResolveConnectionString();
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             _logger.LogWarning("Local DB backup worker disabled because DefaultConnection is missing.");
@@ -64,11 +66,12 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
             {
                 try
                 {
-                    await BackupDatabaseAsync(connectionString, databaseName, todayFilePath, stoppingToken);
+                    var result = await RunBackupCoreAsync(connectionString, databaseName, todayFilePath, stoppingToken);
                     _logger.LogInformation(
-                        "Local DB backup completed successfully. Database={DatabaseName} File={BackupFile}",
+                        "Local DB backup completed successfully. Database={DatabaseName} File={BackupFile} Trigger={Trigger}",
                         databaseName,
-                        todayFilePath);
+                        result.BackupFilePath,
+                        "Scheduled");
                 }
                 catch (Exception ex)
                 {
@@ -114,10 +117,97 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
         }
     }
 
+    public async Task<LocalDatabaseBackupRunResult> RunBackupNowAsync(CancellationToken cancellationToken)
+    {
+        var connectionString = ResolveConnectionString();
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            const string message = "Không tìm thấy cấu hình kết nối DB local để sao lưu.";
+            _logger.LogWarning("Manual local DB backup rejected because DefaultConnection is missing.");
+            return new LocalDatabaseBackupRunResult(false, message);
+        }
+
+        var databaseName = ResolveDatabaseName(connectionString);
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            const string message = "Không xác định được tên DB local để sao lưu.";
+            _logger.LogWarning("Manual local DB backup rejected because database name could not be resolved from DefaultConnection.");
+            return new LocalDatabaseBackupRunResult(false, message);
+        }
+
+        var backupDirectory = await ResolveBackupDirectoryAsync(cancellationToken);
+        Directory.CreateDirectory(backupDirectory);
+        var backupFilePath = BuildBackupFilePath(backupDirectory, databaseName, DateTime.Today);
+
+        try
+        {
+            var result = await RunBackupCoreAsync(connectionString, databaseName, backupFilePath, cancellationToken);
+            CleanupExpiredBackups(backupDirectory, DateTime.Today.AddDays(-RetentionDays));
+            _logger.LogInformation(
+                "Manual local DB backup completed successfully. Database={DatabaseName} File={BackupFile}",
+                databaseName,
+                result.BackupFilePath);
+            return result with
+            {
+                Message = $"Đã sao lưu DB local thành công: {result.BackupFilePath}"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Manual local DB backup failed. Database={DatabaseName} File={BackupFile}",
+                databaseName,
+                backupFilePath);
+            return new LocalDatabaseBackupRunResult(false, $"Sao lưu DB local thất bại: {ex.Message}");
+        }
+    }
+
     private static DateTime GetNextRunAt(DateTime now)
     {
         var todayTarget = now.Date.Add(ScheduledBackupTime);
         return now < todayTarget ? todayTarget : todayTarget.AddDays(1);
+    }
+
+    private string? ResolveConnectionString()
+    {
+        var configured = _configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured;
+        }
+
+        var appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        if (!File.Exists(appSettingsPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var fallbackConfiguration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .Build();
+
+            var fallbackConnectionString = fallbackConfiguration.GetConnectionString("DefaultConnection");
+            if (!string.IsNullOrWhiteSpace(fallbackConnectionString))
+            {
+                _logger.LogInformation(
+                    "Local DB backup worker resolved DefaultConnection from appsettings.json in executable directory. BaseDirectory={BaseDirectory}",
+                    AppContext.BaseDirectory);
+            }
+
+            return fallbackConnectionString;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Local DB backup worker failed to resolve DefaultConnection from appsettings.json in executable directory. BaseDirectory={BaseDirectory}",
+                AppContext.BaseDirectory);
+            return null;
+        }
     }
 
     private static string ResolveDatabaseName(string connectionString)
@@ -144,6 +234,27 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
 
     private static string BuildBackupFilePath(string backupDirectory, string databaseName, DateTime date)
         => Path.Combine(backupDirectory, $"{date:yyyyMMdd}_{databaseName}.bak");
+
+    private async Task<LocalDatabaseBackupRunResult> RunBackupCoreAsync(
+        string connectionString,
+        string databaseName,
+        string backupFilePath,
+        CancellationToken ct)
+    {
+        await _runLock.WaitAsync(ct);
+        try
+        {
+            await BackupDatabaseAsync(connectionString, databaseName, backupFilePath, ct);
+            return new LocalDatabaseBackupRunResult(
+                true,
+                $"Đã sao lưu DB local thành công: {backupFilePath}",
+                backupFilePath);
+        }
+        finally
+        {
+            _runLock.Release();
+        }
+    }
 
     private void CleanupExpiredBackups(string backupDirectory, DateTime cutoffDate)
     {

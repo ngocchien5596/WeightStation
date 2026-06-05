@@ -31,7 +31,7 @@ public sealed class CentralApiHealthChecker : ICentralApiHealthChecker
     {
         if (baseUri == null)
         {
-            return new CentralApiHealthCheckResult(false, "CONFIG_INVALID", "Central API URL chua duoc cau hinh hop le.");
+            return new CentralApiHealthCheckResult(false, "CONFIG_INVALID", "Central API URL chưa được cấu hình hợp lệ.");
         }
 
         try
@@ -46,7 +46,7 @@ public sealed class CentralApiHealthChecker : ICentralApiHealthChecker
             using var response = await _httpClient.SendAsync(request, ct);
             if (response.IsSuccessStatusCode)
             {
-                return new CentralApiHealthCheckResult(true, "OK", "Ket noi Central API thanh cong.");
+                return new CentralApiHealthCheckResult(true, "OK", "Kết nối Central API thành công.");
             }
 
             var body = await response.Content.ReadAsStringAsync(ct);
@@ -54,7 +54,7 @@ public sealed class CentralApiHealthChecker : ICentralApiHealthChecker
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
-            return new CentralApiHealthCheckResult(false, "TIMEOUT", "Ket noi Central API bi timeout.");
+            return new CentralApiHealthCheckResult(false, "TIMEOUT", "Kết nối Central API bị timeout.");
         }
         catch (HttpRequestException ex)
         {

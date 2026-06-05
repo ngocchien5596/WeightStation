@@ -54,6 +54,7 @@ public class CutOrder
     public string? ExportFinalizedBy { get; set; }
     public DateTime? ExportStartedAt { get; set; }
     public string? ExportStartedBy { get; set; }
+    public bool ErpExportCompleted { get; set; }
 
     public SyncStatus SyncStatus { get; set; }
     public Guid IdempotencyKey { get; set; }

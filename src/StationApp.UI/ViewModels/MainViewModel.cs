@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private object? _currentView;
     [ObservableProperty] private string? _currentDestination;
     [ObservableProperty] private bool _isSettingsSubmenuVisible;
+    [ObservableProperty] private bool _isReportsSubmenuVisible;
     [ObservableProperty] private bool _isSidebarCollapsed;
     [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -38,6 +39,9 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewReportsMenu => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewExportSummaryReport => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewInboundSummaryReport => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewTicketList => false;
     public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
@@ -92,6 +96,17 @@ public partial class MainViewModel : ObservableObject
         }
 
         IsSettingsSubmenuVisible = !IsSettingsSubmenuVisible;
+    }
+
+    [RelayCommand]
+    private void ToggleReportsSubmenu()
+    {
+        if (!CanViewReportsMenu || IsSidebarCollapsed)
+        {
+            return;
+        }
+
+        IsReportsSubmenuVisible = !IsReportsSubmenuVisible;
     }
 
     [RelayCommand]
@@ -194,6 +209,22 @@ public partial class MainViewModel : ObservableObject
                         destination,
                         navigationVersion);
                     break;
+                case "Reports_ExportSummary":
+                    var exportSummaryVm = _serviceProvider.GetRequiredService<ExportSummaryReportViewModel>();
+                    CurrentView = new ExportSummaryReportView { DataContext = exportSummaryVm };
+                    _ = RunViewInitializationAsync(
+                        () => exportSummaryVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
+                case "Reports_InboundSummary":
+                    var inboundSummaryVm = _serviceProvider.GetRequiredService<InboundSummaryReportViewModel>();
+                    CurrentView = new InboundSummaryReportView { DataContext = inboundSummaryVm };
+                    _ = RunViewInitializationAsync(
+                        () => inboundSummaryVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
                 case "TicketList":
                     var ticketVm = _serviceProvider.GetRequiredService<TicketListViewModel>();
                     CurrentView = new TicketListView { DataContext = ticketVm };
@@ -293,6 +324,8 @@ public partial class MainViewModel : ObservableObject
             "Weighing" => CanViewWeighing,
             "ExportWeighing" => CanViewExportWeighing,
             "OutgoingVehicles" => CanViewOutgoingVehicles,
+            "Reports_ExportSummary" => CanViewExportSummaryReport,
+            "Reports_InboundSummary" => CanViewInboundSummaryReport,
             "TicketList" => CanViewTicketList,
             "Diagnostics" => CanViewDiagnostics,
             "Settings" => CanViewSettingsMenu,
@@ -352,6 +385,7 @@ public partial class MainViewModel : ObservableObject
         if (value)
         {
             IsSettingsSubmenuVisible = false;
+            IsReportsSubmenuVisible = false;
         }
     }
 }

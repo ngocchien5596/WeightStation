@@ -122,6 +122,12 @@ public partial class App : System.Windows.Application
         using (Helpers.PerformanceLogger.Track("DI Container Build"))
         {
             _host = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((context, configurationBuilder) =>
+                {
+                    configurationBuilder
+                        .SetBasePath(AppContext.BaseDirectory)
+                        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+                })
                 .UseSerilog((context, services, configuration) =>
                 {
                     var isDiag = context.Configuration.GetValue<bool>("DiagnosticMode");
@@ -157,6 +163,10 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IDeliveryTicketRepository, DeliveryTicketRepository>();
                     services.AddScoped<IUnitOfWork, EfUnitOfWork>();
                     services.AddScoped<IWeighingSessionImageRepository, WeighingSessionImageRepository>();
+                    services.AddScoped<IExportSummaryReportService, ExportSummaryReportService>();
+                    services.AddScoped<IExportSummaryReportExporter, ExportSummaryReportExcelExporter>();
+                    services.AddScoped<IInboundSummaryReportService, InboundSummaryReportService>();
+                    services.AddScoped<IInboundSummaryReportExporter, InboundSummaryReportExcelExporter>();
 
                     services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                     services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
@@ -229,7 +239,14 @@ public partial class App : System.Windows.Application
                     services.AddScoped<GetWeighingSessionsUseCase>();
                     services.AddScoped<TransitionToExportScaleUseCase>();
                     services.AddScoped<CreateExportVehicleSessionUseCase>();
+                    services.AddScoped<TransferExportVehicleTripUseCase>();
                     services.AddScoped<FinalizeExportCutOrderUseCase>();
+                    services.AddScoped<BuildExportSummaryReportUseCase>();
+                    services.AddScoped<ExportExportSummaryReportUseCase>();
+                    services.AddScoped<GetExportSummaryReportLookupOptionsUseCase>();
+                    services.AddScoped<BuildInboundSummaryReportUseCase>();
+                    services.AddScoped<ExportInboundSummaryReportUseCase>();
+                    services.AddScoped<GetInboundSummaryReportLookupOptionsUseCase>();
  
                     services.AddTransient<IncomingVehicleListViewModel>();
                     services.AddTransient<OutgoingVehicleListViewModel>();
@@ -272,13 +289,17 @@ public partial class App : System.Windows.Application
                     services.AddHostedService<SyncOutboxWorker>();
                     services.AddHostedService<WeighingSessionImageSyncWorker>();
                     services.AddHostedService<CutOrderInboundProcessor>();
-                    services.AddHostedService<LocalDatabaseBackupWorker>();
+                    services.AddSingleton<LocalDatabaseBackupWorker>();
+                    services.AddSingleton<ILocalDatabaseBackupService>(sp => sp.GetRequiredService<LocalDatabaseBackupWorker>());
+                    services.AddHostedService(sp => sp.GetRequiredService<LocalDatabaseBackupWorker>());
 
                     services.AddTransient<LoginViewModel>();
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<AppUpdateViewModel>();
                     services.AddTransient<WeighingViewModel>();
                     services.AddTransient<DashboardViewModel>();
+                    services.AddTransient<ExportSummaryReportViewModel>();
+                    services.AddTransient<InboundSummaryReportViewModel>();
                     services.AddTransient<TicketListViewModel>();
                     services.AddTransient<DiagnosticsViewModel>();
                     services.AddTransient<SettingsViewModel>();
@@ -344,6 +365,7 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.AppUpdateSharedReleaseRoot] = AppConfigDefaults.DefaultAppUpdateSharedReleaseRoot,
             [AppConfigKeys.CentralApiUrl] = AppConfigDefaults.DefaultCentralApiUrl,
             [AppConfigKeys.CentralApiKey] = AppConfigDefaults.DefaultCentralApiKey,
+            [AppConfigKeys.LocalDatabaseBackupDirectory] = AppConfigDefaults.DefaultLocalDatabaseBackupDirectory,
             [AppConfigKeys.SyncIntervalSeconds] = AppConfigDefaults.DefaultSyncIntervalSeconds,
             [AppConfigKeys.RegistrationInboundPollSeconds] = AppConfigDefaults.DefaultRegistrationInboundPollSeconds
         };

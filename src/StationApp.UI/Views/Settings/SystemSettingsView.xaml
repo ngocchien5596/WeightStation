@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="720"
+             d:DesignHeight="760"
              d:DesignWidth="860"
              Background="Transparent">
 
@@ -26,20 +26,20 @@
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Padding" Value="8,4"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="MinWidth" Value="360"/>
+                <Setter Property="MinWidth" Value="480"/>
             </Style>
 
             <Style x:Key="FormPasswordBox" TargetType="PasswordBox" BasedOn="{StaticResource StandardPasswordBoxStyle}">
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Padding" Value="8,4"/>
-                <Setter Property="MinWidth" Value="360"/>
+                <Setter Property="MinWidth" Value="480"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid Background="#F8FAFC">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Margin="16" MaxWidth="900" HorizontalAlignment="Center">
+            <Grid Margin="16" MaxWidth="920" HorizontalAlignment="Center">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
@@ -79,10 +79,9 @@
                         <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="280"/>
-                                <ColumnDefinition Width="480"/>
+                                <ColumnDefinition Width="500"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -120,53 +119,53 @@
                             <TextBox Grid.Column="1" Grid.Row="7" Text="{Binding CentralApiUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
                             <TextBlock Grid.Column="0" Grid.Row="8" Text="Central API Key" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                            <PasswordBox x:Name="CentralApiKeyBox"
-                                         Grid.Column="1"
-                                         Grid.Row="8"
-                                         PasswordChanged="CentralApiKeyBox_OnPasswordChanged"
-                                         Style="{StaticResource FormPasswordBox}"
-                                         Margin="0,0,0,12"/>
+                            <Grid Grid.Column="1" Grid.Row="8" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="180"/>
+                                </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Grid.Row="9" Text="Thư mục backup DB local" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                            <TextBox Grid.Column="1"
-                                     Grid.Row="9"
-                                     Text="{Binding LocalDatabaseBackupDirectory, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource FormBox}"
-                                     Margin="0,0,0,12"
-                                     ToolTip="Để trống để dùng mặc định: C:\ProgramData\StationApp\SqlBackups"/>
+                                <PasswordBox x:Name="CentralApiKeyBox"
+                                             Grid.Column="0"
+                                             PasswordChanged="CentralApiKeyBox_OnPasswordChanged"
+                                             Style="{StaticResource FormPasswordBox}"
+                                             Margin="0"
+                                             MinWidth="0"/>
 
-                            <TextBlock Grid.Column="0"
-                                       Grid.Row="10"
-                                       Text="Trạng thái kết nối"
-                                       Style="{StaticResource FormLabel}"
-                                       VerticalAlignment="Top"/>
-                            <Grid Grid.Column="1" Grid.Row="10">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <Button Grid.Row="0"
+                                <Button Grid.Column="2"
                                         Command="{Binding TestCentralApiConnectionCommand}"
                                         Style="{StaticResource UtilityButtonStyle}"
-                                        Width="180"
                                         Height="32"
-                                        HorizontalAlignment="Right">
+                                        HorizontalAlignment="Stretch">
                                     <TextBlock Text="KIỂM TRA KẾT NỐI" FontWeight="SemiBold"/>
                                 </Button>
-
-                                <Border Grid.Row="1"
-                                        Margin="0,10,0,0"
-                                        Padding="10,8"
-                                        Background="#F8FAFC"
-                                        BorderBrush="#D5E3F2"
-                                        BorderThickness="1"
-                                        CornerRadius="6">
-                                    <TextBlock Text="{Binding CentralApiHealthMessage, TargetNullValue=Chưa kiểm tra kết nối Central API.}"
-                                               Foreground="#334155"
-                                               TextWrapping="Wrap"/>
-                                </Border>
                             </Grid>
+
+                            <TextBlock Grid.Column="0" Grid.Row="9" Text="Thư mục backup DB local" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                            <Grid Grid.Column="1" Grid.Row="9" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="180"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding LocalDatabaseBackupDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource FormBox}"
+                                         Margin="0"
+                                         MinWidth="0"
+                                         ToolTip="Để trống để dùng mặc định: C:\ProgramData\StationApp\SqlBackups"/>
+
+                                <Button Grid.Column="2"
+                                        Command="{Binding RunLocalDatabaseBackupNowCommand}"
+                                        Style="{StaticResource UtilityButtonStyle}"
+                                        Height="32"
+                                        HorizontalAlignment="Stretch">
+                                    <TextBlock Text="SAO LƯU NGAY" FontWeight="SemiBold"/>
+                                </Button>
+                            </Grid>
+
                         </Grid>
                     </Grid>
                 </Border>

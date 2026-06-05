@@ -299,14 +299,13 @@
                     <DataGridTextColumn Header="{StaticResource Incoming.ColRegistrationCode}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.VehiclePlateLabel}" Binding="{Binding VehiclePlate}" Width="115" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="115" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="LO&#x1EA0;I" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.DriverLabel}" Binding="{Binding ReceiverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="TT TI&#xEA;U TH&#x1EE4;" Binding="{Binding ConsumptionPlace}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="TH&#x1ECA; TR&#x1AF;&#x1EDC;NG" Binding="{Binding Market}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="{StaticResource Incoming.ColProductCode}" Binding="{Binding ProductCode}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Incoming.ProductLabel}" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="LO&#x1EA0;I" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="HTVC" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="SL &#x110;&#x1EB6;T (KG)" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="115" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="S&#x1ED0; BAO" Binding="{Binding BagCount}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="TH&#x1EDC;I GIAN T&#x1EA0;O" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>

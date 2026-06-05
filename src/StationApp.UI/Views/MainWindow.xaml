@@ -88,6 +88,33 @@
                                     CommandParameter="OutgoingVehicles">
                                 <TextBlock Text="{StaticResource MainWindow.Nav.Outgoing}" VerticalAlignment="Center"/>
                             </Button>
+                            <Button Style="{StaticResource SidebarExpandableItemStyle}"
+                                    Visibility="{Binding CanViewReportsMenu, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding ToggleReportsSubmenuCommand}">
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="Báo cáo" VerticalAlignment="Center"/>
+                                    <TextBlock DockPanel.Dock="Right"
+                                               Margin="10,0,0,0"
+                                               Text="&#xE70D;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="11"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                               VerticalAlignment="Center"/>
+                                </DockPanel>
+                            </Button>
+
+                            <StackPanel Visibility="{Binding IsReportsSubmenuVisible, Converter={StaticResource BoolToVis}}">
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewExportSummaryReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_ExportSummary">
+                                    <TextBlock Text="Báo cáo xuất" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewInboundSummaryReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_InboundSummary">
+                                    <TextBlock Text="Báo cáo nhập" VerticalAlignment="Center"/>
+                                </Button>
+                            </StackPanel>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewTicketList, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"

@@ -32,6 +32,7 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _centralApiKey = string.Empty;
     [ObservableProperty] private string _localDatabaseBackupDirectory = string.Empty;
     [ObservableProperty] private string _centralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
+    [ObservableProperty] private string _localDatabaseBackupMessage = "Chưa chạy sao lưu DB local thủ công.";
 
     public bool CanManageSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
 
@@ -57,6 +58,7 @@ public partial class SystemSettingsViewModel : ObservableObject
         LocalDatabaseBackupDirectory = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, CancellationToken.None)
             ?? AppConfigDefaults.DefaultLocalDatabaseBackupDirectory;
         CentralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
+        LocalDatabaseBackupMessage = $"Thư mục backup hiện tại: {LocalDatabaseBackupDirectory}";
     }
 
     [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
@@ -101,6 +103,24 @@ public partial class SystemSettingsViewModel : ObservableObject
         var checker = scope.ServiceProvider.GetRequiredService<ICentralApiHealthChecker>();
         var result = await checker.CheckAsync(CentralApiUrl, CentralApiKey, CancellationToken.None);
         CentralApiHealthMessage = result.Message;
+
+        if (result.Success)
+        {
+            await dialogService.ShowInfoAsync("Thông báo", result.Message);
+            return;
+        }
+
+        await dialogService.ShowWarningAsync("Cảnh báo", result.Message);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
+    private async Task RunLocalDatabaseBackupNowAsync()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dialogService = scope.ServiceProvider.GetRequiredService<Services.IDialogService>();
+        var backupService = scope.ServiceProvider.GetRequiredService<Services.ILocalDatabaseBackupService>();
+        var result = await backupService.RunBackupNowAsync(CancellationToken.None);
+        LocalDatabaseBackupMessage = result.Message;
 
         if (result.Success)
         {

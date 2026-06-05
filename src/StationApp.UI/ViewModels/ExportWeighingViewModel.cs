@@ -106,6 +106,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         && !string.IsNullOrWhiteSpace(NewVehiclePlate);
 
     public bool CanOpenTrip => SelectedTrip != null && !IsLoading;
+    public bool CanTransferTrip =>
+        SelectedCutOrder != null
+        && SelectedTrip != null
+        && !SelectedCutOrder.IsFinalized
+        && !IsLoading;
 
     public bool CanFinalize =>
         SelectedCutOrder != null
@@ -269,6 +274,87 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         }
 
         NavigateToWeighingRequested?.Invoke(SelectedTrip.SessionId);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanTransferTrip))]
+    private async Task TransferTripAsync()
+    {
+        if (SelectedCutOrder == null || SelectedTrip == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var sessionId = SelectedTrip.SessionId;
+            using var scope = _scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var availableCutOrders = await repo.GetActiveExportScaleCutOrdersAsync(
+                new ExportScaleCutOrderFilter(null, null, null, null, null),
+                CancellationToken.None);
+
+            var options = availableCutOrders
+                .Where(x => x.CutOrderId != SelectedCutOrder.CutOrderId)
+                .Where(x => !x.IsFinalized)
+                .OrderBy(x => x.ErpCutOrderId)
+                .Select(x => new ExportTripTransferOption(
+                    x.CutOrderId,
+                    x.ErpCutOrderId,
+                    x.VehiclePlate,
+                    x.CustomerName,
+                    x.ProductName,
+                    x.PlannedWeight,
+                    x.RemainingWeight,
+                    x.TripCount,
+                    x.LastTripAt))
+                .ToList();
+
+            if (options.Count == 0)
+            {
+                await _dialogService.ShowWarningAsync("Thông báo", "Không còn cắt lệnh xuất khẩu nào khác để chuyển chuyến.");
+                return;
+            }
+
+            var dialogVm = new ExportTripTransferDialogViewModel(options);
+            var selection = await _dialogService.ShowCustomDialogAsync<ExportTripTransferDialogViewModel, ExportTripTransferDialogResult>(dialogVm);
+            if (selection == null)
+            {
+                return;
+            }
+
+            var targetOption = options.First(x => x.CutOrderId == selection.CutOrderId);
+            var confirmed = await _dialogService.ShowConfirmAsync(
+                "Xác nhận chuyển chuyến",
+                $"Chuyển chuyến {SelectedTrip.SessionNo} từ cắt lệnh {SelectedCutOrder.ErpCutOrderId} sang cắt lệnh {targetOption.ErpCutOrderId}?",
+                "Chuyển",
+                "Hủy");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var useCase = scope.ServiceProvider.GetRequiredService<TransferExportVehicleTripUseCase>();
+            await useCase.ExecuteAsync(
+                new TransferExportVehicleTripRequest(sessionId, targetOption.CutOrderId),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã chuyển chuyến xe sang cắt lệnh mới.");
+            await LoadCutOrdersAsync(targetOption.CutOrderId);
+            if (SelectedCutOrder != null)
+            {
+                await LoadTripsAsync(SelectedCutOrder.CutOrderId, sessionId);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(ex, "Transfer export trip rejected by business validation");
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Transfer export trip failed");
+            _toastService.ShowError("Không thể chuyển chuyến xe sang cắt lệnh khác.");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanCaptureWeight1))]
@@ -1486,6 +1572,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(CanCreateTrip));
         OnPropertyChanged(nameof(CanOpenTrip));
+        OnPropertyChanged(nameof(CanTransferTrip));
         OnPropertyChanged(nameof(CanFinalize));
         OnPropertyChanged(nameof(CanPrintWeighTicket));
         OnPropertyChanged(nameof(CanPrintDeliveryTicket));
@@ -1497,6 +1584,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTripFormReadOnly));
         CreateTripCommand.NotifyCanExecuteChanged();
         OpenTripCommand.NotifyCanExecuteChanged();
+        TransferTripCommand.NotifyCanExecuteChanged();
         FinalizeCommand.NotifyCanExecuteChanged();
         PrintWeighTicketCommand.NotifyCanExecuteChanged();
         PrintDeliveryTicketCommand.NotifyCanExecuteChanged();

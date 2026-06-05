@@ -58,7 +58,8 @@ Ví dụ:
     "CentralConnection": "Server=10.0.0.1;Database=StationAppCentral;User Id=tramcan;Password=MatKhauMoiManh123!_2;Encrypt=False;TrustServerCertificate=True;"
   },
   "CentralApi": {
-    "ApiKey": "05051996"
+    "ApiKey": "05051996",
+    "LogDirectory": "C:\\ProgramData\\StationApp\\CentralApi\\logs"
   },
   "Logging": {
     "LogLevel": {
@@ -73,6 +74,23 @@ Yêu cầu:
 
 - `CentralConnection` phải connect được DB server
 - `ApiKey` phải đúng với key nhập ở app trạm
+- `LogDirectory` nên trỏ đến ổ đĩa local của server, không trỏ vào thư mục dùng chung qua network share
+
+## 5.1. Thư mục log Central API
+
+Central API ghi log mặc định vào:
+
+```text
+C:\ProgramData\StationApp\CentralApi\logs
+```
+
+File log tạo theo ngày:
+
+```text
+central-api-yyyyMMdd.log
+```
+
+Không nên chạy Central API trực tiếp từ thư mục dùng chung. Nếu API chạy trên network share và ghi log trong thư mục đó, Windows có thể báo `File In Use` khi xóa/copy bản publish.
 
 ## 6. Chạy API trên server
 

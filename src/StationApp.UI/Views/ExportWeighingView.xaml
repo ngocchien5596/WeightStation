@@ -366,6 +366,7 @@
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <Button Content="TẠO CHUYẾN XE" Command="{Binding CreateTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="CHUYỂN CHUYẾN" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="XEM &#x1EA2;NH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>

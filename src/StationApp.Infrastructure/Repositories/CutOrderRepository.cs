@@ -17,7 +17,6 @@ public class CutOrderRepository : ICutOrderRepository
 {
     private readonly StationDbContext _db;
     private static readonly TimeSpan ReuseWeight1Window = TimeSpan.FromHours(24);
-    private static readonly TimeZoneInfo VnTimeZone = GetVnTimeZone();
 
     public CutOrderRepository(StationDbContext db)
     {
@@ -498,33 +497,7 @@ public class CutOrderRepository : ICutOrderRepository
     }
 
     private static DateTime NormalizeCreatedAtForDisplay(CutOrderSource source, DateTime createdAt)
-    {
-        if (source != CutOrderSource.ERP)
-        {
-            return createdAt;
-        }
-
-        var utcValue = createdAt.Kind switch
-        {
-            DateTimeKind.Utc => createdAt,
-            DateTimeKind.Local => createdAt.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(createdAt, DateTimeKind.Utc)
-        };
-
-        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, VnTimeZone);
-    }
-
-    private static TimeZoneInfo GetVnTimeZone()
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
-        }
-    }
+        => createdAt;
 
     public async Task<IReadOnlyList<OutgoingVehicleListItem>> GetOutgoingListAsync(OutgoingVehicleListFilter filter, CancellationToken ct)
     {
@@ -732,6 +705,7 @@ public class CutOrderRepository : ICutOrderRepository
                 displayWeigh?.IsPrinted ?? session?.HasPrintedMasterWeighTicket == true,
                 displayDelivery?.IsPrinted == true,
                 session?.UseActualWeightForBaggedCutOrders == true,
+                vr.ErpExportCompleted,
                 isNoLoad,
                 hasSplitOverweight
             );
@@ -899,6 +873,7 @@ public class CutOrderRepository : ICutOrderRepository
                 weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
                 deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket,
                 session.UseActualWeightForBaggedCutOrders,
+                vr.ErpExportCompleted,
                 session.IsNoLoad,
                 false);
         }).ToList().AsReadOnly();

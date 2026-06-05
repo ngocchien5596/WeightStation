@@ -62,6 +62,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.ExportFinalizedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.ExportFinalizedBy).HasMaxLength(100);
         builder.Property(e => e.ExportStartedBy).HasMaxLength(100);
+        builder.Property(e => e.ErpExportCompleted).IsRequired().HasDefaultValue(false);
 
         builder.Property(e => e.IsInboundProcessed).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.InboundProcessedAt);

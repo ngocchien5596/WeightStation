@@ -57,8 +57,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @NowUtc DATETIME2(7) = COALESCE(@UpdatedAt, @CreatedAt, @CreatedAtUtc, SYSUTCDATETIME());
-    DECLARE @CreateUtc DATETIME2(7) = COALESCE(@CreatedAt, @CreatedAtUtc, @NowUtc);
+    DECLARE @NowLocal DATETIME2(7) = COALESCE(@UpdatedAt, @CreatedAt, @CreatedAtUtc, SYSDATETIME());
+    DECLARE @CreateLocal DATETIME2(7) = COALESCE(@CreatedAt, @CreatedAtUtc, @NowLocal);
     DECLARE @SystemUser NVARCHAR(200) = COALESCE(NULLIF(LTRIM(RTRIM(@UpdatedBy)), N''), NULLIF(LTRIM(RTRIM(@CreatedBy)), N''), N'ERP_SQL_PROC');
     DECLARE @CutOrderId UNIQUEIDENTIFIER;
     DECLARE @ExistingProcessingStage NVARCHAR(60);
@@ -231,7 +231,7 @@ BEGIN
             InboundErrorMessage = NULL,
             LastSyncAttemptAt = NULL,
             LastSyncError = NULL,
-            UpdatedAt = @NowUtc,
+            UpdatedAt = @NowLocal,
             UpdatedBy = @SystemUser
         WHERE Id = @CutOrderId;
 
@@ -325,9 +325,9 @@ BEGIN
         NULL,
         NULL,
         NULL,
-        @CreateUtc,
+        @CreateLocal,
         COALESCE(NULLIF(LTRIM(RTRIM(@CreatedBy)), N''), @SystemUser),
-        @NowUtc,
+        @NowLocal,
         @SystemUser
     );
 END

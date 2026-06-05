@@ -13,6 +13,18 @@ using StationApp.Domain.Entities;
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, services, configuration) =>
 {
+    var logDirectory = context.Configuration["CentralApi:LogDirectory"];
+    if (string.IsNullOrWhiteSpace(logDirectory))
+    {
+        logDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "StationApp",
+            "CentralApi",
+            "logs");
+    }
+
+    var logPath = Path.Combine(logDirectory, "central-api-.log");
+
     configuration
         .MinimumLevel.Information()
         .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -23,7 +35,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.Console(
             outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
         .WriteTo.File(
-            path: "logs/central-api-.log",
+            path: logPath,
             rollingInterval: RollingInterval.Day,
             retainedFileCountLimit: 30,
             shared: true,
@@ -226,6 +238,8 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
             CREATE INDEX [IX_weighing_session_images_captured_at] ON [weighing_session_images]([CapturedAt]);
         END
         """);
+
+    await EnsureColumnAsync(db, "cut_orders", "ErpExportCompleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_erp_export_completed_bootstrap] DEFAULT ((0))");
 
     await EnsureColumnAsync(db, "weighing_sessions", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_sessions_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
     await EnsureColumnAsync(db, "weighing_sessions", "LastSyncAttemptAt", "datetime2 NULL");

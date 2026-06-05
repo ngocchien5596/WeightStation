@@ -20,7 +20,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @NowUtc DATETIME2(7) = COALESCE(@UpdatedAt, SYSUTCDATETIME());
+    DECLARE @NowLocal DATETIME2(7) = COALESCE(@UpdatedAt, SYSDATETIME());
     DECLARE @SystemUser NVARCHAR(200) = COALESCE(NULLIF(LTRIM(RTRIM(@UpdatedBy)), N''), N'ERP_PATCH_EXTRAS');
     DECLARE @ActiveCount INT;
 
@@ -48,7 +48,7 @@ BEGIN
         SyncStatus = N'SYNC_QUEUED',
         LastSyncAttemptAt = NULL,
         LastSyncError = NULL,
-        UpdatedAt = @NowUtc,
+        UpdatedAt = @NowLocal,
         UpdatedBy = @SystemUser
     WHERE ErpCutOrderId = @ErpCutOrderId
       AND ISNULL(IsDeleted, 0) = 0;

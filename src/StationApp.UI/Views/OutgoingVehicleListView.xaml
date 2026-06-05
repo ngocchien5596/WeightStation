@@ -163,6 +163,7 @@
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridCheckBoxColumn Header="IN PC" Binding="{Binding HasPrintedWeighTicket, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="75" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridCheckBoxColumn Header="Hoàn thành xuất hàng ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="170" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

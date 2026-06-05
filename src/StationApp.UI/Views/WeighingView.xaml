@@ -124,7 +124,7 @@
                               HorizontalAlignment="Left"
                               Margin="4,0,0,0"
                               Visibility="{Binding ShowBaggedActualWeightOverride, Converter={StaticResource BoolToVis}}"
-                              Content="K LẤY ĐÚNG SỐ LƯỢNG"/>
+                              Content="K LẤY ĐỦ SỐ LƯỢNG"/>
                     <CheckBox Grid.Row="7" Grid.Column="2"
                               Grid.ColumnSpan="2"
                               IsChecked="{Binding IsNoLoadMarked, Mode=TwoWay}"
