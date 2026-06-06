@@ -32,7 +32,10 @@ public class CutOrderRepository : ICutOrderRepository
     public Task UpdateAsync(CutOrder registration, CancellationToken ct)
     {
         SyncTrackedEntityUpdateHelper.PrepareForUpdate(_db, registration);
-        _db.CutOrders.Update(registration);
+        if (_db.Entry(registration).State == EntityState.Detached)
+        {
+            _db.CutOrders.Update(registration);
+        }
         return Task.CompletedTask;
     }
 

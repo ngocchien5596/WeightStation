@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -176,6 +176,12 @@ public class CutOrderInboundProcessor : BackgroundService
             var vehicleChanged = false;
             if (existingVehicle == null)
             {
+                var byPlate = await vehicleRepo.GetByPlateAsync(reg.VehiclePlate, innerCt);
+                var fallbackVehicle = byPlate.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.VehicleRegistrationNo) || x.VehicleRegistrationExpiryDate != null);
+                var byMooc = !string.IsNullOrWhiteSpace(reg.MoocNumber)
+                    ? await vehicleRepo.GetByMoocAsync(reg.MoocNumber, innerCt)
+                    : Array.Empty<Vehicle>();
+                var fallbackMooc = byMooc.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.MoocRegistrationNo) || x.MoocRegistrationExpiryDate != null);
                 existingVehicle = new Vehicle
                 {
                     Id = Guid.NewGuid(),
@@ -183,6 +189,10 @@ public class CutOrderInboundProcessor : BackgroundService
                     MoocNumber = reg.MoocNumber,
                     DriverName = reg.ReceiverName,
                     TransportMethod = reg.TransportMethod?.ToString(),
+                    VehicleRegistrationNo = fallbackVehicle?.VehicleRegistrationNo,
+                    VehicleRegistrationExpiryDate = fallbackVehicle?.VehicleRegistrationExpiryDate,
+                    MoocRegistrationNo = fallbackMooc?.MoocRegistrationNo,
+                    MoocRegistrationExpiryDate = fallbackMooc?.MoocRegistrationExpiryDate,
                     CreatedAt = now,
                     CreatedBy = "SYSTEM_INBOUND_PROCESSOR"
                 };

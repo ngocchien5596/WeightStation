@@ -27,7 +27,10 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
     {
         session.SyncStatus = SyncStatus.SYNC_QUEUED;
         session.LastSyncError = null;
-        _db.WeighingSessions.Update(session);
+        if (_db.Entry(session).State == EntityState.Detached)
+        {
+            _db.WeighingSessions.Update(session);
+        }
         return Task.CompletedTask;
     }
 
@@ -245,7 +248,10 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
     {
         line.SyncStatus = SyncStatus.SYNC_QUEUED;
         line.LastSyncError = null;
-        _db.WeighingSessionLines.Update(line);
+        if (_db.Entry(line).State == EntityState.Detached)
+        {
+            _db.WeighingSessionLines.Update(line);
+        }
         return Task.CompletedTask;
     }
 

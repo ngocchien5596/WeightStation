@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
@@ -24,7 +24,10 @@ public class VehicleRepository : IVehicleRepository
 
     public async Task UpdateAsync(Vehicle vehicle, CancellationToken ct)
     {
-        _context.Vehicles.Update(vehicle);
+        if (_context.Entry(vehicle).State == EntityState.Detached)
+        {
+            _context.Vehicles.Update(vehicle);
+        }
         await Task.CompletedTask;
     }
 
@@ -38,6 +41,14 @@ public class VehicleRepository : IVehicleRepository
     {
         var list = await _context.Vehicles
             .Where(v => v.VehiclePlate == vehiclePlate)
+            .ToListAsync(ct);
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<Vehicle>> GetByMoocAsync(string moocNumber, CancellationToken ct)
+    {
+        var list = await _context.Vehicles
+            .Where(v => v.MoocNumber == moocNumber)
             .ToListAsync(ct);
         return list.AsReadOnly();
     }
@@ -137,7 +148,10 @@ public class CustomerRepository : ICustomerRepository
 
     public async Task UpdateAsync(Customer customer, CancellationToken ct)
     {
-        _context.Customers.Update(customer);
+        if (_context.Entry(customer).State == EntityState.Detached)
+        {
+            _context.Customers.Update(customer);
+        }
         await Task.CompletedTask;
     }
 
@@ -193,7 +207,10 @@ public class ProductRepository : IProductRepository
 
     public async Task UpdateAsync(Product product, CancellationToken ct)
     {
-        _context.Products.Update(product);
+        if (_context.Entry(product).State == EntityState.Detached)
+        {
+            _context.Products.Update(product);
+        }
         await Task.CompletedTask;
     }
 
@@ -252,7 +269,10 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
     public async Task UpdateAsync(DeliveryTicket ticket, CancellationToken ct)
     {
         SyncTrackedEntityUpdateHelper.PrepareForUpdate(_context, ticket);
-        _context.DeliveryTickets.Update(ticket);
+        if (_context.Entry(ticket).State == EntityState.Detached)
+        {
+            _context.DeliveryTickets.Update(ticket);
+        }
         await Task.CompletedTask;
     }
 

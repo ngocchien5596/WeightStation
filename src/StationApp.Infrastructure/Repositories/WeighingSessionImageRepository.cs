@@ -24,7 +24,10 @@ public sealed class WeighingSessionImageRepository : IWeighingSessionImageReposi
 
     public Task UpdateAsync(WeighingSessionImage image, CancellationToken ct)
     {
-        _db.WeighingSessionImages.Update(image);
+        if (_db.Entry(image).State == EntityState.Detached)
+        {
+            _db.WeighingSessionImages.Update(image);
+        }
         return Task.CompletedTask;
     }
 

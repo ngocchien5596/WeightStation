@@ -1,4 +1,4 @@
-﻿using StationApp.Application.Interfaces;
+using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -142,11 +142,22 @@ public class SyncMasterDataFromInboundTicketUseCase
         var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(plate, mooc, ct);
         if (vehicle == null)
         {
+            var byPlate = await _vehicleRepo.GetByPlateAsync(plate, ct);
+            var fallbackVehicle = byPlate.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.VehicleRegistrationNo) || x.VehicleRegistrationExpiryDate != null);
+            var byMooc = !string.IsNullOrWhiteSpace(mooc)
+                ? await _vehicleRepo.GetByMoocAsync(mooc, ct)
+                : Array.Empty<Vehicle>();
+            var fallbackMooc = byMooc.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.MoocRegistrationNo) || x.MoocRegistrationExpiryDate != null);
+
             vehicle = new Vehicle
             {
                 Id = Guid.NewGuid(),
                 VehiclePlate = plate,
                 MoocNumber = mooc,
+                VehicleRegistrationNo = fallbackVehicle?.VehicleRegistrationNo,
+                VehicleRegistrationExpiryDate = fallbackVehicle?.VehicleRegistrationExpiryDate,
+                MoocRegistrationNo = fallbackMooc?.MoocRegistrationNo,
+                MoocRegistrationExpiryDate = fallbackMooc?.MoocRegistrationExpiryDate,
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
@@ -244,37 +255,191 @@ public class SyncMasterDataFromInboundTicketUseCase
         var mooc = ticket.MoocNumber ?? "";
 
         var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(plate, mooc, ct);
+        var isNew = false;
         if (vehicle == null)
         {
+            isNew = true;
+            var byPlate = await _vehicleRepo.GetByPlateAsync(plate, ct);
+            var fallbackVehicle = byPlate.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.VehicleRegistrationNo) || x.VehicleRegistrationExpiryDate != null);
+            var byMooc = !string.IsNullOrWhiteSpace(mooc)
+                ? await _vehicleRepo.GetByMoocAsync(mooc, ct)
+                : Array.Empty<Vehicle>();
+            var fallbackMooc = byMooc.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.MoocRegistrationNo) || x.MoocRegistrationExpiryDate != null);
+
             vehicle = new Vehicle
             {
                 Id = Guid.NewGuid(),
                 VehiclePlate = plate,
                 MoocNumber = mooc,
+                VehicleRegistrationNo = fallbackVehicle?.VehicleRegistrationNo,
+                VehicleRegistrationExpiryDate = fallbackVehicle?.VehicleRegistrationExpiryDate,
+                MoocRegistrationNo = fallbackMooc?.MoocRegistrationNo,
+                MoocRegistrationExpiryDate = fallbackMooc?.MoocRegistrationExpiryDate,
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
             await _vehicleRepo.AddAsync(vehicle, ct);
         }
 
+        var changed = false;
         // Update fields if payload not empty
-        if (!string.IsNullOrEmpty(ticket.DriverName)) vehicle.DriverName = ticket.DriverName;
-        if (ticket.TransportMethod.HasValue) vehicle.TransportMethod = ticket.TransportMethod.ToString();
+        if (!string.IsNullOrEmpty(ticket.DriverName) && vehicle.DriverName != ticket.DriverName)
+        {
+            vehicle.DriverName = ticket.DriverName;
+            changed = true;
+        }
+        if (ticket.TransportMethod.HasValue && vehicle.TransportMethod != ticket.TransportMethod.ToString())
+        {
+            vehicle.TransportMethod = ticket.TransportMethod.ToString();
+            changed = true;
+        }
         
         // These fields are coming from the ticket delta / inbound payload
         // In a real scenario, the inbound DTO would have these. 
         // For now we assume they are populated in the ticket entity during inbound processing.
-        if (ticket.Ttcp10WeightSnapshot.HasValue) vehicle.TtcpWeight = ticket.Ttcp10WeightSnapshot;
-        if (!string.IsNullOrEmpty(ticket.VehicleRegistrationNoSnapshot)) vehicle.VehicleRegistrationNo = ticket.VehicleRegistrationNoSnapshot;
-        if (ticket.VehicleRegistrationExpirySnapshot.HasValue) vehicle.VehicleRegistrationExpiryDate = ticket.VehicleRegistrationExpirySnapshot;
-        if (!string.IsNullOrEmpty(ticket.MoocRegistrationNoSnapshot)) vehicle.MoocRegistrationNo = ticket.MoocRegistrationNoSnapshot;
-        if (ticket.MoocRegistrationExpirySnapshot.HasValue) vehicle.MoocRegistrationExpiryDate = ticket.MoocRegistrationExpirySnapshot;
+        if (ticket.Ttcp10WeightSnapshot.HasValue && vehicle.TtcpWeight != ticket.Ttcp10WeightSnapshot)
+        {
+            vehicle.TtcpWeight = ticket.Ttcp10WeightSnapshot;
+            changed = true;
+        }
 
-        vehicle.UpdatedAt = _clock.NowLocal;
-        vehicle.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+        var hasValidInputVehicleRegNo = !string.IsNullOrWhiteSpace(ticket.VehicleRegistrationNoSnapshot);
+        var hasValidInputVehicleRegExpiry = ticket.VehicleRegistrationExpirySnapshot.HasValue;
+        var hasValidInputMoocRegNo = !string.IsNullOrWhiteSpace(ticket.MoocRegistrationNoSnapshot);
+        var hasValidInputMoocRegExpiry = ticket.MoocRegistrationExpirySnapshot.HasValue;
 
-        await _vehicleRepo.UpdateAsync(vehicle, ct);
+        if (hasValidInputVehicleRegNo && vehicle.VehicleRegistrationNo != ticket.VehicleRegistrationNoSnapshot)
+        {
+            vehicle.VehicleRegistrationNo = ticket.VehicleRegistrationNoSnapshot;
+            changed = true;
+        }
+        if (hasValidInputVehicleRegExpiry && vehicle.VehicleRegistrationExpiryDate != ticket.VehicleRegistrationExpirySnapshot)
+        {
+            vehicle.VehicleRegistrationExpiryDate = ticket.VehicleRegistrationExpirySnapshot;
+            changed = true;
+        }
+        if (hasValidInputMoocRegNo && vehicle.MoocRegistrationNo != ticket.MoocRegistrationNoSnapshot)
+        {
+            vehicle.MoocRegistrationNo = ticket.MoocRegistrationNoSnapshot;
+            changed = true;
+        }
+        if (hasValidInputMoocRegExpiry && vehicle.MoocRegistrationExpiryDate != ticket.MoocRegistrationExpirySnapshot)
+        {
+            vehicle.MoocRegistrationExpiryDate = ticket.MoocRegistrationExpirySnapshot;
+            changed = true;
+        }
+
+        if (changed || isNew)
+        {
+            vehicle.UpdatedAt = _clock.NowLocal;
+            vehicle.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+            await _vehicleRepo.UpdateAsync(vehicle, ct);
+        }
+
+        await PropagateRegistrationInfoAsync(
+            vehicle,
+            hasValidInputVehicleRegNo ? ticket.VehicleRegistrationNoSnapshot : null,
+            hasValidInputVehicleRegExpiry ? ticket.VehicleRegistrationExpirySnapshot : null,
+            hasValidInputMoocRegNo ? ticket.MoocRegistrationNoSnapshot : null,
+            hasValidInputMoocRegExpiry ? ticket.MoocRegistrationExpirySnapshot : null,
+            vehicle.UpdatedAt ?? _clock.NowLocal,
+            ct);
+
         return vehicle;
+    }
+
+    private async Task PropagateRegistrationInfoAsync(
+        Vehicle existing,
+        string? validVehicleRegNo,
+        DateTime? validVehicleRegExpiryDate,
+        string? validMoocRegNo,
+        DateTime? validMoocRegExpiryDate,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var username = _currentUser.Username ?? "SYSTEM";
+        
+        // 1. Propagate Vehicle Registration to all vehicles with the same plate
+        if (validVehicleRegNo != null || validVehicleRegExpiryDate != null)
+        {
+            var otherVehiclesWithSamePlate = (await _vehicleRepo.GetByPlateAsync(existing.VehiclePlate, ct))
+                .Where(x => x.Id != existing.Id)
+                .ToList();
+
+            foreach (var other in otherVehiclesWithSamePlate)
+            {
+                var otherChanged = false;
+                if (validVehicleRegNo != null && other.VehicleRegistrationNo != validVehicleRegNo)
+                {
+                    other.VehicleRegistrationNo = validVehicleRegNo;
+                    otherChanged = true;
+                }
+                if (validVehicleRegExpiryDate != null && other.VehicleRegistrationExpiryDate != validVehicleRegExpiryDate)
+                {
+                    other.VehicleRegistrationExpiryDate = validVehicleRegExpiryDate;
+                    otherChanged = true;
+                }
+                if (otherChanged)
+                {
+                    other.UpdatedAt = now;
+                    other.UpdatedBy = username;
+                    await _vehicleRepo.UpdateAsync(other, ct);
+                    await _outboxRepo.EnqueueAsync(new SyncOutbox
+                    {
+                        Id = Guid.NewGuid(),
+                        AggregateId = other.Id,
+                        AggregateType = SyncAggregateTypes.Vehicle,
+                        PayloadJson = _payloadFactory.CreatePayload(other),
+                        IdempotencyKey = other.Id,
+                        Status = OutboxStatus.PENDING,
+                        RetryCount = 0,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    }, ct);
+                }
+            }
+        }
+
+        // 2. Propagate Mooc Registration to all vehicles with the same Mooc number
+        if (!string.IsNullOrWhiteSpace(existing.MoocNumber) && (validMoocRegNo != null || validMoocRegExpiryDate != null))
+        {
+            var otherVehiclesWithSameMooc = (await _vehicleRepo.GetByMoocAsync(existing.MoocNumber, ct))
+                .Where(x => x.Id != existing.Id)
+                .ToList();
+
+            foreach (var other in otherVehiclesWithSameMooc)
+            {
+                var otherChanged = false;
+                if (validMoocRegNo != null && other.MoocRegistrationNo != validMoocRegNo)
+                {
+                    other.MoocRegistrationNo = validMoocRegNo;
+                    otherChanged = true;
+                }
+                if (validMoocRegExpiryDate != null && other.MoocRegistrationExpiryDate != validMoocRegExpiryDate)
+                {
+                    other.MoocRegistrationExpiryDate = validMoocRegExpiryDate;
+                    otherChanged = true;
+                }
+                if (otherChanged)
+                {
+                    other.UpdatedAt = now;
+                    other.UpdatedBy = username;
+                    await _vehicleRepo.UpdateAsync(other, ct);
+                    await _outboxRepo.EnqueueAsync(new SyncOutbox
+                    {
+                        Id = Guid.NewGuid(),
+                        AggregateId = other.Id,
+                        AggregateType = SyncAggregateTypes.Vehicle,
+                        PayloadJson = _payloadFactory.CreatePayload(other),
+                        IdempotencyKey = other.Id,
+                        Status = OutboxStatus.PENDING,
+                        RetryCount = 0,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    }, ct);
+                }
+            }
+        }
     }
 
     private async Task<Customer?> UpsertCustomerAsync(WeighTicket ticket, CancellationToken ct)

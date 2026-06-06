@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -21,7 +21,10 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
     public Task UpdateAsync(WeighTicket ticket, CancellationToken ct)
     {
         SyncTrackedEntityUpdateHelper.PrepareForUpdate(_db, ticket);
-        _db.WeighTickets.Update(ticket);
+        if (_db.Entry(ticket).State == EntityState.Detached)
+        {
+            _db.WeighTickets.Update(ticket);
+        }
         return Task.CompletedTask;
     }
 
