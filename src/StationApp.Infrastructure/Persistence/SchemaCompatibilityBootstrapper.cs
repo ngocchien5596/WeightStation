@@ -443,24 +443,24 @@ WHERE [SessionStatus] = N'READY_TO_PRINT';
         try
         {
             const string uniqueIndexSql = """
-IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[dbo].[weighing_session_lines]'))
 BEGIN
     DECLARE @weighingSessionLinesIndexFilter NVARCHAR(MAX);
     SELECT @weighingSessionLinesIndexFilter = i.filter_definition
     FROM sys.indexes i
-    WHERE i.object_id = OBJECT_ID(N'[weighing_session_lines]')
+    WHERE i.object_id = OBJECT_ID(N'[dbo].[weighing_session_lines]')
       AND i.name = 'UX_weighing_session_lines_session_registration';
 
     IF @weighingSessionLinesIndexFilter IS NULL OR @weighingSessionLinesIndexFilter <> N'([IsDeleted]=(0))'
     BEGIN
-        DROP INDEX [UX_weighing_session_lines_session_registration] ON [weighing_session_lines];
+        DROP INDEX [UX_weighing_session_lines_session_registration] ON [dbo].[weighing_session_lines];
     END
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[weighing_session_lines]'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_session_lines_session_registration' AND object_id = OBJECT_ID(N'[dbo].[weighing_session_lines]'))
 BEGIN
     CREATE UNIQUE INDEX [UX_weighing_session_lines_session_registration]
-        ON [weighing_session_lines]([WeighingSessionId], [CutOrderId])
+        ON [dbo].[weighing_session_lines]([WeighingSessionId], [CutOrderId])
         WHERE [IsDeleted] = 0;
 END
 """;
