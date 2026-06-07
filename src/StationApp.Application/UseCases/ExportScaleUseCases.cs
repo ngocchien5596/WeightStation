@@ -112,14 +112,6 @@ public sealed class CreateExportVehicleSessionUseCase
 
         ValidateOpenExportCutOrder(cutOrder);
 
-        var existingTrips = await _cutOrderRepo.GetExportVehicleTripsAsync(cutOrder.Id, ct);
-        if (existingTrips.Any(x => x.SessionStatus is WeighingSessionStatus.PENDING_WEIGHT1
-                or WeighingSessionStatus.PENDING_WEIGHT2
-                or WeighingSessionStatus.ALLOCATION_PENDING))
-        {
-            throw new InvalidOperationException("C\u1eaft l\u1ec7nh \u0111ang c\u00f3 chuy\u1ebfn xe ch\u01b0a ho\u00e0n t\u1ea5t c\u00e2n/ph\u00e2n b\u1ed5.");
-        }
-
         var plannedWeightForTrip = await ResolveRemainingPlannedWeightAsync(cutOrder, ct);
         var now = _clock.NowLocal;
         var session = new WeighingSession

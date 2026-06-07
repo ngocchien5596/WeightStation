@@ -141,6 +141,7 @@
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="80" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.Mooc}" Binding="{Binding MoocNumber}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
@@ -163,7 +164,6 @@
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridCheckBoxColumn Header="IN PC" Binding="{Binding HasPrintedWeighTicket, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="75" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
-                    <DataGridCheckBoxColumn Header="Hoàn thành xuất hàng ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="170" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

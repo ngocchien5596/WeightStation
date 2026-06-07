@@ -274,7 +274,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             return false;
         }
 
-        reportedAt = session.UpdatedAt ?? session.Weight2Time ?? session.CreatedAt;
+        reportedAt = session.Weight2Time ?? session.CreatedAt;
         return true;
     }
 
@@ -604,15 +604,15 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         totalLabelRange.Style.Font.Bold = true;
         totalLabelRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        sheet.Cell(totalRow, 12).Value = document.Rows.Sum(x => x.PlannedBagCount);
         sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 14).Value = document.Rows.Sum(x => x.ActualBagCount);
         sheet.Cell(totalRow, 15).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 3, MidpointRounding.AwayFromZero);
         sheet.Cell(totalRow, 17).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 3, MidpointRounding.AwayFromZero);
         sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.000";
         sheet.Range(totalRow, 15, totalRow, 15).Style.NumberFormat.Format = "#,##0.000";
         sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.000";
         sheet.Range(totalRow, 18, totalRow, 18).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Cell(totalRow, 12).Value = string.Empty;
+        sheet.Cell(totalRow, 14).Value = string.Empty;
 
         var totalBaggedRows = document.Rows.Where(x => x.ActualBagCount > 0).ToList();
         if (totalBaggedRows.Count > 0)
@@ -748,15 +748,15 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         totalLabelRange.Style.Font.Bold = true;
         totalLabelRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        sheet.Cell(totalRow, 10).Value = document.Rows.Sum(x => x.PlannedBagCount);
         sheet.Cell(totalRow, 11).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 12).Value = document.Rows.Sum(x => x.ActualBagCount);
         sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 3, MidpointRounding.AwayFromZero);
         sheet.Cell(totalRow, 16).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 3, MidpointRounding.AwayFromZero);
         sheet.Range(totalRow, 11, totalRow, 11).Style.NumberFormat.Format = "#,##0.000";
         sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.000";
         sheet.Range(totalRow, 16, totalRow, 16).Style.NumberFormat.Format = "#,##0.000";
         sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Cell(totalRow, 10).Value = string.Empty;
+        sheet.Cell(totalRow, 12).Value = string.Empty;
 
         var totalBaggedRows = document.Rows.Where(x => x.ActualBagCount > 0).ToList();
         if (totalBaggedRows.Count > 0)

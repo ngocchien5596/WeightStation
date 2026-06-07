@@ -1,4 +1,4 @@
-﻿using NSubstitute;
+using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -816,7 +816,7 @@ public class WeighingSessionTicketSyncTests
             currentUser,
             clock);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<BaggedWeightToleranceExceededException>(() =>
             sut.ExecuteAsync(
                 new CaptureSessionWeightRequest(session.Id, 11_400m, true, WeightMode.AUTO),
                 CancellationToken.None));
@@ -901,7 +901,7 @@ public class WeighingSessionTicketSyncTests
             currentUser,
             clock);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<BaggedWeightToleranceExceededException>(() =>
             sut.ExecuteAsync(
                 new CaptureSessionWeightRequest(session.Id, 9_900m, true, WeightMode.AUTO),
                 CancellationToken.None));

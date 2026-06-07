@@ -769,6 +769,13 @@ public sealed class CaptureSessionWeight1UseCase
     }
 }
 
+public class BaggedWeightToleranceExceededException : InvalidOperationException
+{
+    public BaggedWeightToleranceExceededException(string message) : base(message)
+    {
+    }
+}
+
 public sealed class CaptureSessionWeight2UseCase
 {
     private const decimal DefaultBagWeightKg = 50m;
@@ -844,7 +851,10 @@ public sealed class CaptureSessionWeight2UseCase
             throw new InvalidOperationException("Phiếu nhập hàng yêu cầu Cân lần 1 phải lớn hơn hoặc bằng Cân lần 2.");
         }
 
-        await ValidateBaggedWeightToleranceAsync(registrations, netWeight, ct);
+        if (!request.BypassTolerance)
+        {
+            await ValidateBaggedWeightToleranceAsync(registrations, netWeight, ct);
+        }
 
         session.Weight2 = request.Weight;
         session.Weight2Time = now;
@@ -863,6 +873,7 @@ public sealed class CaptureSessionWeight2UseCase
 
         var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
         var lineToAutoAllocate = lines.Count == 1 ? lines[0] : null;
+        var inboundRegistrationsToComplete = new List<CutOrder>();
         var deliveryTicketToCreate = (DeliveryTicket?)null;
         var deliveryTicketToUpdate = (DeliveryTicket?)null;
 
@@ -917,16 +928,38 @@ public sealed class CaptureSessionWeight2UseCase
             deliveryTicket.UpdatedBy = _userContext.Username;
             lineToAutoAllocate.DeliveryTicketId = deliveryTicket.Id;
 
-            _overweightService.RefreshSessionOverweightState(
-                session,
-                lines,
-                [ticket],
-                sessionDeliveryTickets,
-                now,
-                _userContext.Username);
+            if (session.TransactionType == TransactionType.INBOUND)
+            {
+                session.IsOverweight = false;
+                session.OverweightAmount = 0m;
+                session.OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE;
+                session.OverweightResolvedAt = null;
+                session.OverweightResolvedBy = null;
+                session.SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE;
 
-            deliveryTicket.IsOverWeight = session.IsOverweight;
-            session.SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE;
+                foreach (var registrationToComplete in registrations)
+                {
+                    registrationToComplete.CutOrderStatus = CutOrderStatus.COMPLETED;
+                    registrationToComplete.ProcessingStage = ProcessingStage.OUT_YARD;
+                    registrationToComplete.SyncStatus = SyncStatus.SYNC_QUEUED;
+                    registrationToComplete.UpdatedAt = now;
+                    registrationToComplete.UpdatedBy = _userContext.Username;
+                    inboundRegistrationsToComplete.Add(registrationToComplete);
+                }
+            }
+            else
+            {
+                _overweightService.RefreshSessionOverweightState(
+                    session,
+                    lines,
+                    [ticket],
+                    sessionDeliveryTickets,
+                    now,
+                    _userContext.Username);
+
+                deliveryTicket.IsOverWeight = session.IsOverweight;
+                session.SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE;
+            }
         }
 
         _ticketSyncService.SyncMasterTicketFromSession(
@@ -950,6 +983,10 @@ public sealed class CaptureSessionWeight2UseCase
                 {
                     await _deliveryRepo.UpdateAsync(deliveryTicketToUpdate, innerCt);
                 }
+            }
+            foreach (var registrationToComplete in inboundRegistrationsToComplete)
+            {
+                await _regRepo.UpdateAsync(registrationToComplete, innerCt);
             }
             await _weighRepo.UpdateAsync(ticket, innerCt);
         }, ct);
@@ -996,7 +1033,7 @@ public sealed class CaptureSessionWeight2UseCase
         var allowedWeight = plannedWeight + toleranceKg;
         if (netWeight > allowedWeight)
         {
-            throw new InvalidOperationException(
+            throw new BaggedWeightToleranceExceededException(
                 $"Khối lượng hàng {netWeight:N0} kg vượt khối lượng kế hoạch {plannedWeight:N0} kg và vượt dung sai cho phép {toleranceKg:N0} kg ({toleranceKgPerBag:N##0.###} kg/bao x {plannedBagCount:N0} bao).");
         }
     }
@@ -1905,9 +1942,9 @@ public sealed class GetWeighingSessionsUseCase
         _sessionRepo = sessionRepo;
     }
 
-    public Task<IReadOnlyList<WeighingSessionListItem>> ExecuteAsync(string? keyword, CancellationToken ct)
+    public Task<IReadOnlyList<WeighingSessionListItem>> ExecuteAsync(string? keyword, TransactionType? transactionType, CancellationToken ct)
     {
-        return _sessionRepo.SearchActiveSessionsAsync(keyword, ct);
+        return _sessionRepo.SearchActiveSessionsAsync(keyword, transactionType, ct);
     }
 }
 

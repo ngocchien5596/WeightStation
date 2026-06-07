@@ -57,8 +57,6 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     private static readonly SolidColorBrush StableBrush = new(Color.FromRgb(46, 213, 115));
     private static readonly SolidColorBrush UnstableBrush = new(Colors.Orange);
 
-    public event Action<Guid>? NavigateToWeighingRequested;
-
     public AutocompleteInputViewModel TripVehiclePlateInput { get; }
     public AutocompleteInputViewModel TripMoocInput { get; }
     public AutocompleteInputViewModel TripDriverInput { get; }
@@ -100,12 +98,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
     public bool CanCreateTrip =>
         SelectedCutOrder != null
-        && SelectedTrip == null
         && !SelectedCutOrder.IsFinalized
         && !IsLoading
         && !string.IsNullOrWhiteSpace(NewVehiclePlate);
 
-    public bool CanOpenTrip => SelectedTrip != null && !IsLoading;
     public bool CanTransferTrip =>
         SelectedCutOrder != null
         && SelectedTrip != null
@@ -126,7 +122,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     public bool IsAutoMode => CurrentCaptureMode == AutoModeText;
     public bool IsManualMode => CurrentCaptureMode == ManualModeText;
     public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
-    public bool IsTripFormEditable => SelectedCutOrder != null && SelectedTrip == null && !SelectedCutOrder.IsFinalized && !IsLoading;
+    public bool IsTripFormEditable => SelectedCutOrder != null && !SelectedCutOrder.IsFinalized && !IsLoading;
     public bool IsTripFormReadOnly => !IsTripFormEditable;
     public bool IsVehicleRegistrationExpired => IsExpiredDate(VehicleRegistrationExpiryDate);
     public bool IsMoocRegistrationExpired => IsExpiredDate(MoocRegistrationExpiryDate);
@@ -263,17 +259,6 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             _logger?.LogError(ex, "Create export vehicle session failed");
             _toastService.ShowError(ex.Message);
         }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanOpenTrip))]
-    private void OpenTrip()
-    {
-        if (SelectedTrip == null)
-        {
-            return;
-        }
-
-        NavigateToWeighingRequested?.Invoke(SelectedTrip.SessionId);
     }
 
     [RelayCommand(CanExecute = nameof(CanTransferTrip))]
@@ -439,13 +424,38 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 }
 
                 var uc = scope.ServiceProvider.GetRequiredService<CaptureSessionWeight2UseCase>();
-                await uc.ExecuteAsync(
-                    new CaptureSessionWeightRequest(
-                        selectedTripId,
-                        _pendingCapturedWeight2!.Value,
-                        _pendingWeight2IsStable,
-                        _pendingWeight2Mode),
-                    CancellationToken.None);
+                try
+                {
+                    await uc.ExecuteAsync(
+                        new CaptureSessionWeightRequest(
+                            selectedTripId,
+                            _pendingCapturedWeight2!.Value,
+                            _pendingWeight2IsStable,
+                            _pendingWeight2Mode,
+                            BypassTolerance: false),
+                        CancellationToken.None);
+                }
+                catch (BaggedWeightToleranceExceededException ex)
+                {
+                    var confirmed = await _dialogService.ShowConfirmAsync(
+                        "Cảnh báo vượt dung sai",
+                        $"{ex.Message}\n\nBạn vẫn muốn tiếp tục lưu cân lần 2?",
+                        "Vẫn lưu",
+                        "Hủy");
+                    if (!confirmed)
+                    {
+                        return;
+                    }
+
+                    await uc.ExecuteAsync(
+                        new CaptureSessionWeightRequest(
+                            selectedTripId,
+                            _pendingCapturedWeight2!.Value,
+                            _pendingWeight2IsStable,
+                            _pendingWeight2Mode,
+                            BypassTolerance: true),
+                        CancellationToken.None);
+                }
 
                 _toastService.ShowSuccess(UiText.Weighing.Weight2Saved);
             }
@@ -1571,7 +1581,6 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     private void RefreshCommandStates()
     {
         OnPropertyChanged(nameof(CanCreateTrip));
-        OnPropertyChanged(nameof(CanOpenTrip));
         OnPropertyChanged(nameof(CanTransferTrip));
         OnPropertyChanged(nameof(CanFinalize));
         OnPropertyChanged(nameof(CanPrintWeighTicket));
@@ -1583,7 +1592,6 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTripFormEditable));
         OnPropertyChanged(nameof(IsTripFormReadOnly));
         CreateTripCommand.NotifyCanExecuteChanged();
-        OpenTripCommand.NotifyCanExecuteChanged();
         TransferTripCommand.NotifyCanExecuteChanged();
         FinalizeCommand.NotifyCanExecuteChanged();
         PrintWeighTicketCommand.NotifyCanExecuteChanged();

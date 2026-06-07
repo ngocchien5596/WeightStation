@@ -11,6 +11,8 @@ GO
 
 ALTER PROCEDURE [dbo].[sp_MarkCutOrderErpExportCompleted]
     @ErpCutOrderId NVARCHAR(100),
+    @ErpRegistrationCode NVARCHAR(100) = NULL,
+    @OrderCode NVARCHAR(100) = NULL,
     @IsCompleted BIT = 1,
     @UpdatedAt DATETIME2(7) = NULL,
     @UpdatedBy NVARCHAR(200) = NULL
@@ -20,20 +22,29 @@ BEGIN
 
     DECLARE @NowLocal DATETIME2(7) = COALESCE(@UpdatedAt, SYSDATETIME());
     DECLARE @SystemUser NVARCHAR(200) = COALESCE(NULLIF(LTRIM(RTRIM(@UpdatedBy)), N''), N'ERP_EXPORT_COMPLETE');
-    DECLARE @ActiveCount INT;
+    DECLARE @MatchedCount INT;
 
     SET @ErpCutOrderId = NULLIF(LTRIM(RTRIM(@ErpCutOrderId)), N'');
+    SET @ErpRegistrationCode = NULLIF(LTRIM(RTRIM(@ErpRegistrationCode)), N'');
+    SET @OrderCode = NULLIF(LTRIM(RTRIM(@OrderCode)), N'');
+
+    IF @ErpRegistrationCode IS NULL
+        SET @ErpRegistrationCode = @ErpCutOrderId;
+
+    IF @OrderCode IS NULL
+        SET @OrderCode = @ErpCutOrderId;
 
     IF @ErpCutOrderId IS NULL
         THROW 51031, N'ErpCutOrderId la bat buoc.', 1;
 
-    SELECT @ActiveCount = COUNT(1)
+    SELECT @MatchedCount = COUNT(1)
     FROM dbo.cut_orders
-    WHERE ErpCutOrderId = @ErpCutOrderId
-      AND ISNULL(IsDeleted, 0) = 0;
+    WHERE ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR ErpRegistrationCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode);
 
-    IF @ActiveCount = 0
-        THROW 51032, N'Khong tim thay cut order active tuong ung de cap nhat trang thai hoan thanh ERP.', 1;
+    IF @MatchedCount = 0
+        THROW 51032, N'Khong tim thay cut order tuong ung de cap nhat trang thai hoan thanh ERP.', 1;
 
     UPDATE dbo.cut_orders
     SET
@@ -43,18 +54,22 @@ BEGIN
         LastSyncError = NULL,
         UpdatedAt = @NowLocal,
         UpdatedBy = @SystemUser
-    WHERE ErpCutOrderId = @ErpCutOrderId
-      AND ISNULL(IsDeleted, 0) = 0;
+    WHERE ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR ErpRegistrationCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode);
 
     SELECT
         Id,
         ErpCutOrderId,
+        ErpRegistrationCode,
+        OrderCode,
         ErpExportCompleted,
         UpdatedAt,
         UpdatedBy
     FROM dbo.cut_orders
-    WHERE ErpCutOrderId = @ErpCutOrderId
-      AND ISNULL(IsDeleted, 0) = 0
+    WHERE ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR ErpRegistrationCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
     ORDER BY UpdatedAt DESC, CreatedAt DESC;
 END
 GO

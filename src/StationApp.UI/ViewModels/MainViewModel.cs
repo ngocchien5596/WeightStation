@@ -174,11 +174,6 @@ public partial class MainViewModel : ObservableObject
                     break;
                 case "ExportWeighing":
                     var exportVm = _serviceProvider.GetRequiredService<ExportWeighingViewModel>();
-                    exportVm.NavigateToWeighingRequested += async sessionId =>
-                    {
-                        _pendingWeighingSessionId = sessionId;
-                        await NavigateAsync("Weighing");
-                    };
                     CurrentView = new ExportWeighingView { DataContext = exportVm };
                     _ = RunViewInitializationAsync(async () =>
                     {

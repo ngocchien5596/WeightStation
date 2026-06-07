@@ -544,25 +544,21 @@ public class CutOrderRepository : ICutOrderRepository
         {
             var start = filter.CompletedDate.Value.Date;
             var end = start.AddDays(1);
+            query = query.Where(x =>
+                x.Session != null
+                    ? ((x.Session.Weight2Time ?? x.Session.Weight1Time ?? x.Session.CreatedAt) >= start
+                        && (x.Session.Weight2Time ?? x.Session.Weight1Time ?? x.Session.CreatedAt) < end)
+                    : ((x.Registration.UpdatedAt ?? x.Registration.CreatedAt) >= start
+                        && (x.Registration.UpdatedAt ?? x.Registration.CreatedAt) < end));
         }
 
         var registrations = await query
-            .OrderByDescending(x => (x.Session != null ? x.Session.UpdatedAt : x.Registration.UpdatedAt) ?? (x.Session != null ? x.Session.CreatedAt : x.Registration.CreatedAt))
+            .OrderByDescending(x => x.Session != null
+                ? (x.Session.Weight2Time ?? x.Session.Weight1Time ?? x.Session.CreatedAt)
+                : (x.Registration.UpdatedAt ?? x.Registration.CreatedAt))
             .Take(200)
             .ToListAsync(ct);
 
-        if (filter.CompletedDate.HasValue)
-        {
-            var start = filter.CompletedDate.Value.Date;
-            var end = start.AddDays(1);
-            registrations = registrations
-                .Where(x =>
-                {
-                    var completedAt = ResolveOutgoingCompletedAt(x.Registration, x.Session);
-                    return completedAt >= start && completedAt < end;
-                })
-                .ToList();
-        }
         var regIds = registrations.Select(x => x.Registration.Id).ToList();
         var sessionIds = registrations
             .Where(x => x.Session != null)
@@ -886,7 +882,9 @@ public class CutOrderRepository : ICutOrderRepository
     {
         if (session != null)
         {
-            return session.UpdatedAt ?? session.CreatedAt;
+            return session.Weight2Time
+                ?? session.Weight1Time
+                ?? session.CreatedAt;
         }
 
         return registration.UpdatedAt ?? NormalizeCreatedAtForDisplay(registration.CutOrderSource, registration.CreatedAt);
@@ -997,9 +995,14 @@ public class CutOrderRepository : ICutOrderRepository
     {
         var tripRows = await (
             from line in _db.WeighingSessionLines.AsNoTracking()
+            join cutOrder in _db.CutOrders.AsNoTracking()
+                on line.CutOrderId equals cutOrder.Id
             join session in _db.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
             where line.CutOrderId == cutOrderId
+                && cutOrder.IsExportScale
+                && cutOrder.TransactionType == TransactionType.OUTBOUND
+                && !cutOrder.IsDeleted
                 && !line.IsDeleted
                 && !session.IsDeleted
             orderby session.CreatedAt descending

@@ -247,7 +247,6 @@ public partial class DashboardViewModel : ObservableObject
         }
 
         return snapshot.Session.Weight2Time
-            ?? snapshot.Session.UpdatedAt
             ?? snapshot.Session.CreatedAt;
     }
 

@@ -339,7 +339,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<GetWeighingSessionsUseCase>();
-            var list = await uc.ExecuteAsync(null, CancellationToken.None);
+            var list = await uc.ExecuteAsync(null, null, CancellationToken.None);
             var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
             var filtered = new List<WeighingSessionListItem>();
             var cutOrderKeyword = SearchErpCutOrderId?.Trim();
@@ -772,6 +772,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         SelectedSession?.SessionStatus is WeighingSessionStatus.PENDING_WEIGHT1 or WeighingSessionStatus.PENDING_WEIGHT2;
     private bool CanShowOverweightHandling() =>
         SelectedSession != null
+        && SelectedSession.TransactionType != TransactionType.INBOUND
         && SelectedSession.IsOverweight
         && SelectedSession.OverweightResolutionStatus == OverweightResolutionStatus.PENDING;
     private bool CanPrintWeighTicket() =>
@@ -887,13 +888,38 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             else if (SelectedSession.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
             {
                 var uc = scope.ServiceProvider.GetRequiredService<CaptureSessionWeight2UseCase>();
-                await uc.ExecuteAsync(
-                    new CaptureSessionWeightRequest(
-                        SelectedSession.SessionId,
-                        _pendingCapturedWeight2!.Value,
-                        _pendingWeight2IsStable,
-                        _pendingWeight2Mode),
-                    CancellationToken.None);
+                try
+                {
+                    await uc.ExecuteAsync(
+                        new CaptureSessionWeightRequest(
+                            SelectedSession.SessionId,
+                            _pendingCapturedWeight2!.Value,
+                            _pendingWeight2IsStable,
+                            _pendingWeight2Mode,
+                            BypassTolerance: false),
+                        CancellationToken.None);
+                }
+                catch (BaggedWeightToleranceExceededException ex)
+                {
+                    var confirmed = await _dialogService.ShowConfirmAsync(
+                        "Cảnh báo vượt dung sai",
+                        $"{ex.Message}\n\nBạn vẫn muốn tiếp tục lưu cân lần 2?",
+                        "Vẫn lưu",
+                        "Hủy");
+                    if (!confirmed)
+                    {
+                        return;
+                    }
+
+                    await uc.ExecuteAsync(
+                        new CaptureSessionWeightRequest(
+                            SelectedSession.SessionId,
+                            _pendingCapturedWeight2!.Value,
+                            _pendingWeight2IsStable,
+                            _pendingWeight2Mode,
+                            BypassTolerance: true),
+                        CancellationToken.None);
+                }
 
                 _toastService.ShowSuccess(UiText.Weighing.Weight2Saved);
             }
@@ -1442,6 +1468,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     {
         if (SelectedSession == null)
         {
+            return;
+        }
+
+        if (SelectedSession.TransactionType == TransactionType.INBOUND)
+        {
+            _toastService.ShowWarning("Phiếu nhập hàng không áp dụng tách tải.");
             return;
         }
 

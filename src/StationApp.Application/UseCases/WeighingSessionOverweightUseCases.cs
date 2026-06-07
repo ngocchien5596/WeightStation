@@ -85,6 +85,11 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
 
     internal static void EnsureSessionPendingOverweight(WeighingSession session)
     {
+        if (session.TransactionType == TransactionType.INBOUND)
+        {
+            throw new InvalidOperationException("Phiếu nhập hàng không áp dụng tách tải.");
+        }
+
         if (session.SessionStatus != WeighingSessionStatus.READY_TO_COMPLETE)
         {
             throw new InvalidOperationException("Lượt cân chưa ở trạng thái sẵn sàng tách tải.");

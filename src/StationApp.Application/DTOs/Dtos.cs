@@ -540,7 +540,8 @@ public sealed record CaptureSessionWeightRequest(
     Guid SessionId,
     decimal Weight,
     bool IsStable,
-    WeightMode Mode
+    WeightMode Mode,
+    bool BypassTolerance = false
 );
 
 public sealed record AllocateWeighingSessionLineRequest(

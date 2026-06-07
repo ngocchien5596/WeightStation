@@ -87,10 +87,47 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         session.UpdatedAt ??= attemptedAt;
     }
 
-    public async Task<IReadOnlyList<WeighingSessionListItem>> SearchActiveSessionsAsync(string? keyword, CancellationToken ct)
+    public async Task<IReadOnlyList<WeighingSessionListItem>> SearchActiveSessionsAsync(string? keyword, TransactionType? transactionType, CancellationToken ct)
     {
         var sessionsQuery = _db.WeighingSessions.AsNoTracking()
             .Where(x => !x.IsDeleted && !x.IsCancelled && x.SessionStatus != WeighingSessionStatus.COMPLETED && x.SessionStatus != WeighingSessionStatus.CANCELLED);
+
+        if (transactionType is null)
+        {
+            var exportSessionIdsByLine = await (
+                from line in _db.WeighingSessionLines.AsNoTracking()
+                join cutOrder in _db.CutOrders.AsNoTracking()
+                    on line.CutOrderId equals cutOrder.Id
+                where !line.IsDeleted
+                    && !cutOrder.IsDeleted
+                    && cutOrder.IsExportScale
+                select line.WeighingSessionId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            var exportSessionIdsByCutOrder = await _db.CutOrders.AsNoTracking()
+                .Where(x => !x.IsDeleted
+                    && x.IsExportScale
+                    && x.WeighingSessionId.HasValue)
+                .Select(x => x.WeighingSessionId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+            var exportSessionIds = exportSessionIdsByLine
+                .Concat(exportSessionIdsByCutOrder)
+                .Distinct()
+                .ToList();
+
+            if (exportSessionIds.Count > 0)
+            {
+                sessionsQuery = sessionsQuery.Where(x => !exportSessionIds.Contains(x.Id));
+            }
+        }
+
+        if (transactionType.HasValue)
+        {
+            sessionsQuery = sessionsQuery.Where(x => x.TransactionType == transactionType.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -184,12 +221,12 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             var start = completedDate.Value.Date;
             var end = start.AddDays(1);
             query = query.Where(x =>
-                (x.UpdatedAt ?? x.CreatedAt) >= start &&
-                (x.UpdatedAt ?? x.CreatedAt) < end);
+                (x.Weight2Time ?? x.Weight1Time ?? x.CreatedAt) >= start &&
+                (x.Weight2Time ?? x.Weight1Time ?? x.CreatedAt) < end);
         }
 
         var sessions = await query
-            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .OrderByDescending(x => x.Weight2Time ?? x.Weight1Time ?? x.CreatedAt)
             .Take(200)
             .ToListAsync(ct);
 
@@ -233,7 +270,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 sessionLines.Count,
                 session.HasPrintedMasterWeighTicket,
                 sessionLines.Count > 0 && sessionLines.All(x => x.HasPrintedDeliveryTicket),
-                session.UpdatedAt ?? session.CreatedAt);
+                session.Weight2Time ?? session.Weight1Time ?? session.CreatedAt);
         }).ToList();
     }
 
