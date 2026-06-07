@@ -139,7 +139,7 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="M&#xE3; c&#x1EAF;t l&#x1EC7;nh" Grid.Row="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedCutOrder.ErpCutOrderId, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedCutOrder.DisplayCutOrderCode, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
                     <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding SelectedCutOrder.ProductName, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
@@ -365,6 +365,7 @@
                     <WrapPanel HorizontalAlignment="Center"/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
+            <Button Content="T&#x1EA0;O C&#x1EAE;T L&#x1EC6;NH T&#x1EA0;M" Command="{Binding CreateTemporaryCutOrderCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="TẠO CHUYẾN XE" Command="{Binding CreateTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="CHUYỂN CHUYẾN" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
@@ -376,7 +377,7 @@
         <Grid Grid.Row="3" Margin="12,0,12,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="140"/>
+                <RowDefinition Height="185"/>
                 <RowDefinition Height="16"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -397,7 +398,7 @@
                           ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           FrozenColumnCount="3">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="M&#xC3; C&#x1EAE;T L&#x1EC6;NH" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="M&#xC3; C&#x1EAE;T L&#x1EC6;NH" Binding="{Binding DisplayCutOrderCode, Mode=OneWay}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="S&#x1ED0; PTVC G&#x1ED0;C" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
@@ -418,7 +419,7 @@
                     <Run Text=" - T&#x1ED5;ng chuy&#x1EBF;n &#x111;&#xE3; l&#x1EA5;y: "/>
                     <Run Text="{Binding SelectedCutOrder.TripCount, FallbackValue='0', TargetNullValue='0'}" Foreground="#2980B9"/>
                     <Run Text=" (C&#x1EAF;t l&#x1EC7;nh: "/>
-                    <Run Text="{Binding SelectedCutOrder.ErpCutOrderId, FallbackValue='Ch&#x1B0;a ch&#x1ECD;n', TargetNullValue='Ch&#x1B0;a ch&#x1ECD;n'}" Foreground="#2980B9"/>
+                    <Run Text="{Binding SelectedCutOrder.DisplayCutOrderCode, Mode=OneWay, FallbackValue='Ch&#x1B0;a ch&#x1ECD;n', TargetNullValue='Ch&#x1B0;a ch&#x1ECD;n'}" Foreground="#2980B9"/>
                     <Run Text=")"/>
                 </TextBlock>
             </StackPanel>

@@ -55,6 +55,14 @@ public class CutOrder
     public DateTime? ExportStartedAt { get; set; }
     public string? ExportStartedBy { get; set; }
     public bool ErpExportCompleted { get; set; }
+    public bool IsTemporaryExport { get; set; }
+    public Guid? MappedRealCutOrderId { get; set; }
+    public Guid? MappedTemporaryCutOrderId { get; set; }
+    public string? TemporaryExportCreatedReason { get; set; }
+    public string? TemporaryExportDisplayCode { get; set; }
+    public string? TemporaryExportSourceErpCutOrderId { get; set; }
+    public DateTime? MappedAt { get; set; }
+    public string? MappedBy { get; set; }
 
     public SyncStatus SyncStatus { get; set; }
     public Guid IdempotencyKey { get; set; }

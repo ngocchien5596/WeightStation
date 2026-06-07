@@ -10,7 +10,8 @@ public static class SqlObjectScriptCatalog
         "StationApp.Infrastructure.SqlScripts.sp_GetCutOrderNetWeight.sql",
         "StationApp.Infrastructure.SqlScripts.sp_AdjustWeighingResult.sql",
         "StationApp.Infrastructure.SqlScripts.sp_MarkCutOrderErpExportCompleted.sql",
-        "StationApp.Infrastructure.SqlScripts.sp_UpdateCutOrderErpExtras.sql"
+        "StationApp.Infrastructure.SqlScripts.sp_UpdateCutOrderErpExtras.sql",
+        "StationApp.Infrastructure.SqlScripts.sp_SoftDeleteCutOrderDocumentsForReissue.sql"
     ];
 
     public static string ReadRequiredScript(string resourceName)

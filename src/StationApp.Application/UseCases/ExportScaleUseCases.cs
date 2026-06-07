@@ -39,17 +39,18 @@ public sealed class TransitionToExportScaleUseCase
             throw new InvalidOperationException("Ch\u1ec9 h\u1ed7 tr\u1ee3 c\u00e2n xu\u1ea5t kh\u1ea9u cho c\u1eaft l\u1ec7nh xu\u1ea5t h\u00e0ng.");
         }
 
-        if (cutOrder.IsExportScale)
+        if (cutOrder.ExportFinalizedAt.HasValue || cutOrder.CutOrderStatus == CutOrderStatus.COMPLETED)
         {
-            return;
+            throw new InvalidOperationException("C\u1eaft l\u1ec7nh \u0111\u00e3 ch\u1ed1t, kh\u00f4ng th\u1ec3 chuy\u1ec3n sang c\u00e2n xu\u1ea5t kh\u1ea9u.");
         }
 
-        if (cutOrder.CutOrderStatus != CutOrderStatus.REGISTERED || cutOrder.ProcessingStage != ProcessingStage.IN_YARD)
+        if (!cutOrder.IsExportScale
+            && (cutOrder.CutOrderStatus != CutOrderStatus.REGISTERED || cutOrder.ProcessingStage != ProcessingStage.IN_YARD))
         {
             throw new InvalidOperationException("C\u1eaft l\u1ec7nh kh\u00f4ng c\u00f2n \u1edf tr\u1ea1ng th\u00e1i xe v\u00e0o \u0111\u1ec3 chuy\u1ec3n sang c\u00e2n xu\u1ea5t kh\u1ea9u.");
         }
 
-        if (cutOrder.WeighingSessionId.HasValue)
+        if (!cutOrder.IsExportScale && cutOrder.WeighingSessionId.HasValue)
         {
             throw new InvalidOperationException("C\u1eaft l\u1ec7nh \u0111\u00e3 thu\u1ed9c m\u1ed9t l\u01b0\u1ee3t c\u00e2n kh\u00e1c.");
         }
@@ -60,14 +61,349 @@ public sealed class TransitionToExportScaleUseCase
         cutOrder.ProcessingStage = ProcessingStage.WEIGHING;
         cutOrder.WeighingSessionId = null;
         cutOrder.SyncStatus = SyncStatus.SYNC_QUEUED;
-        cutOrder.ExportStartedAt = now;
-        cutOrder.ExportStartedBy = _userContext.Username;
+        cutOrder.ExportStartedAt ??= now;
+        cutOrder.ExportStartedBy ??= _userContext.Username;
         cutOrder.UpdatedAt = now;
         cutOrder.UpdatedBy = _userContext.Username;
 
         await _uow.ExecuteInTransactionAsync(
             innerCt => _cutOrderRepo.UpdateAsync(cutOrder, innerCt),
             ct);
+    }
+}
+
+public sealed class CreateTemporaryExportCutOrderUseCase
+{
+    private readonly ICutOrderRepository _cutOrderRepo;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _userContext;
+    private readonly IClock _clock;
+
+    public CreateTemporaryExportCutOrderUseCase(
+        ICutOrderRepository cutOrderRepo,
+        IUnitOfWork uow,
+        ICurrentUserContext userContext,
+        IClock clock)
+    {
+        _cutOrderRepo = cutOrderRepo;
+        _uow = uow;
+        _userContext = userContext;
+        _clock = clock;
+    }
+
+    public async Task<Guid> ExecuteAsync(CreateTemporaryExportCutOrderRequest request, CancellationToken ct)
+    {
+        var now = _clock.NowLocal;
+        var displayCode = await _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(ct);
+        var cutOrder = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            ErpCutOrderId = null,
+            CutOrderSource = CutOrderSource.MANUAL,
+            CutOrderStatus = CutOrderStatus.IN_SESSION,
+            TransactionType = TransactionType.OUTBOUND,
+            TransportMethod = TransportMethod.ROAD,
+            VehiclePlate = displayCode,
+            CustomerCode = NormalizeOptional(request.CustomerCode),
+            CustomerName = NormalizeOptional(request.CustomerName),
+            ProductCode = NormalizeOptional(request.ProductCode),
+            ProductName = NormalizeOptional(request.ProductName),
+            ProductType = NormalizeOptional(request.ProductType),
+            PlannedWeight = request.PlannedWeight,
+            BagCount = request.BagCount,
+            Notes = NormalizeOptional(request.Notes),
+            ProcessingStage = ProcessingStage.WEIGHING,
+            IsExportScale = true,
+            IsTemporaryExport = true,
+            TemporaryExportCreatedReason = "MANUAL_PRELOAD",
+            TemporaryExportDisplayCode = displayCode,
+            SyncStatus = SyncStatus.SYNC_QUEUED,
+            IdempotencyKey = Guid.NewGuid(),
+            CreatedAt = now,
+            CreatedBy = _userContext.Username
+        };
+
+        await _uow.ExecuteInTransactionAsync(
+            innerCt => _cutOrderRepo.AddAsync(cutOrder, innerCt),
+            ct);
+
+        return cutOrder.Id;
+    }
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
+
+public sealed class MapTemporaryExportCutOrderUseCase
+{
+    private readonly ICutOrderRepository _cutOrderRepo;
+    private readonly IWeighingSessionRepository _sessionRepo;
+    private readonly IWeighTicketRepository _weighRepo;
+    private readonly IDeliveryTicketRepository _deliveryRepo;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _userContext;
+    private readonly IClock _clock;
+
+    public MapTemporaryExportCutOrderUseCase(
+        ICutOrderRepository cutOrderRepo,
+        IWeighingSessionRepository sessionRepo,
+        IWeighTicketRepository weighRepo,
+        IDeliveryTicketRepository deliveryRepo,
+        IUnitOfWork uow,
+        ICurrentUserContext userContext,
+        IClock clock)
+    {
+        _cutOrderRepo = cutOrderRepo;
+        _sessionRepo = sessionRepo;
+        _weighRepo = weighRepo;
+        _deliveryRepo = deliveryRepo;
+        _uow = uow;
+        _userContext = userContext;
+        _clock = clock;
+    }
+
+    public async Task ExecuteAsync(MapTemporaryExportCutOrderRequest request, CancellationToken ct)
+    {
+        var temporaryCutOrder = await _cutOrderRepo.GetByIdAsync(request.TemporaryCutOrderId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy cắt lệnh tạm.");
+        var realCutOrder = await _cutOrderRepo.GetByIdAsync(request.RealCutOrderId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy cắt lệnh thật.");
+
+        ValidateTemporaryCutOrder(temporaryCutOrder);
+        ValidateRealCutOrder(realCutOrder);
+
+        if (temporaryCutOrder.Id == realCutOrder.Id)
+        {
+            return;
+        }
+
+        var trips = await _cutOrderRepo.GetExportVehicleTripsAsync(temporaryCutOrder.Id, ct);
+        var sessions = new List<WeighingSession>();
+        var lines = new List<WeighingSessionLine>();
+        var weighTickets = new List<WeighTicket>();
+        var deliveryTickets = new List<DeliveryTicket>();
+
+        foreach (var trip in trips)
+        {
+            var session = await _sessionRepo.GetByIdAsync(trip.SessionId, ct)
+                ?? throw new InvalidOperationException("Không tìm thấy chuyến xe thuộc cắt lệnh tạm.");
+            var sessionLines = (await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct))
+                .Where(x => !x.IsDeleted && x.CutOrderId == temporaryCutOrder.Id)
+                .ToList();
+
+            if (sessionLines.Count != 1)
+            {
+                throw new InvalidOperationException("Chỉ hỗ trợ map chuyến xe xuất khẩu có đúng 1 dòng cắt lệnh.");
+            }
+
+            sessions.Add(session);
+            lines.Add(sessionLines[0]);
+            weighTickets.AddRange((await _weighRepo.GetByWeighingSessionIdAsync(session.Id, ct)).Where(x => !x.IsDeleted));
+            deliveryTickets.AddRange((await _deliveryRepo.GetByWeighingSessionIdAsync(session.Id, ct)).Where(x => !x.IsDeleted));
+        }
+
+        var now = _clock.NowLocal;
+        var username = _userContext.Username;
+        var targetExistingWeighTickets = await _weighRepo.GetAllByCutOrderIdAsync(realCutOrder.Id, ct);
+        var targetExistingDeliveryTickets = await _deliveryRepo.GetAllByCutOrderIdAsync(realCutOrder.Id, ct);
+
+        realCutOrder.IsExportScale = true;
+        realCutOrder.IsTemporaryExport = false;
+        realCutOrder.CutOrderStatus = CutOrderStatus.IN_SESSION;
+        realCutOrder.ProcessingStage = ProcessingStage.WEIGHING;
+        realCutOrder.WeighingSessionId = null;
+        realCutOrder.ExportStartedAt ??= now;
+        realCutOrder.ExportStartedBy ??= username;
+        realCutOrder.MappedTemporaryCutOrderId = temporaryCutOrder.Id;
+        realCutOrder.MappedAt = now;
+        realCutOrder.MappedBy = username;
+        realCutOrder.SyncStatus = SyncStatus.SYNC_QUEUED;
+        realCutOrder.UpdatedAt = now;
+        realCutOrder.UpdatedBy = username;
+
+        temporaryCutOrder.MappedRealCutOrderId = realCutOrder.Id;
+        temporaryCutOrder.MappedAt = now;
+        temporaryCutOrder.MappedBy = username;
+        temporaryCutOrder.CutOrderStatus = CutOrderStatus.COMPLETED;
+        temporaryCutOrder.ProcessingStage = ProcessingStage.OUT_YARD;
+        temporaryCutOrder.SyncStatus = SyncStatus.SYNC_QUEUED;
+        temporaryCutOrder.UpdatedAt = now;
+        temporaryCutOrder.UpdatedBy = username;
+
+        var targetPlannedWeight = ResolveTargetPlannedWeight(realCutOrder);
+        foreach (var line in lines)
+        {
+            line.CutOrderId = realCutOrder.Id;
+            line.CustomerCode = realCutOrder.CustomerCode;
+            line.CustomerName = realCutOrder.CustomerName;
+            line.DistributorCode = realCutOrder.CustomerCode;
+            line.DistributorName = realCutOrder.CustomerName;
+            line.ProductCode = realCutOrder.ProductCode;
+            line.ProductName = realCutOrder.ProductName;
+            line.PlannedWeight = targetPlannedWeight;
+            line.PlannedBagCount = realCutOrder.BagCount;
+            line.SyncStatus = SyncStatus.SYNC_QUEUED;
+            line.LastSyncAttemptAt = null;
+            line.LastSyncError = null;
+            line.UpdatedAt = now;
+            line.UpdatedBy = username;
+        }
+
+        foreach (var session in sessions)
+        {
+            session.SyncStatus = SyncStatus.SYNC_QUEUED;
+            session.LastSyncAttemptAt = null;
+            session.LastSyncError = null;
+            session.UpdatedAt = now;
+            session.UpdatedBy = username;
+        }
+
+        foreach (var ticket in weighTickets)
+        {
+            ticket.CutOrderId = realCutOrder.Id;
+            ticket.ErpCutOrderId = realCutOrder.ErpCutOrderId;
+            ticket.CustomerCode = realCutOrder.CustomerCode;
+            ticket.CustomerName = realCutOrder.CustomerName;
+            ticket.ProductCode = realCutOrder.ProductCode;
+            ticket.ProductName = realCutOrder.ProductName;
+            ticket.PlannedWeight = targetPlannedWeight;
+            ticket.BagCount = realCutOrder.BagCount;
+            ticket.Notes = realCutOrder.Notes;
+            ticket.TransportMethod = realCutOrder.TransportMethod;
+            ticket.SyncStatus = SyncStatus.SYNC_QUEUED;
+            ticket.UpdatedAt = now;
+            ticket.UpdatedBy = username;
+        }
+
+        foreach (var ticket in deliveryTickets)
+        {
+            ticket.CutOrderId = realCutOrder.Id;
+            ticket.ErpCutOrderId = realCutOrder.ErpCutOrderId ?? string.Empty;
+            ticket.CustomerCode = realCutOrder.CustomerCode;
+            ticket.ProductCode = realCutOrder.ProductCode;
+            ticket.Notes = realCutOrder.Notes;
+            ticket.SyncStatus = SyncStatus.SYNC_QUEUED;
+            ticket.UpdatedAt = now;
+            ticket.UpdatedBy = username;
+        }
+
+        realCutOrder.CurrentPrimaryWeighTicketId = SelectPrimaryWeighTicket(targetExistingWeighTickets.Concat(weighTickets))?.Id;
+        realCutOrder.CurrentPrimaryDeliveryTicketId = SelectPrimaryDeliveryTicket(targetExistingDeliveryTickets.Concat(deliveryTickets))?.Id;
+        temporaryCutOrder.CurrentPrimaryWeighTicketId = null;
+        temporaryCutOrder.CurrentPrimaryDeliveryTicketId = null;
+
+        await _uow.ExecuteInTransactionAsync(async innerCt =>
+        {
+            foreach (var session in sessions)
+            {
+                await _sessionRepo.UpdateAsync(session, innerCt);
+            }
+
+            foreach (var line in lines)
+            {
+                await _sessionRepo.UpdateLineAsync(line, innerCt);
+            }
+
+            foreach (var ticket in weighTickets)
+            {
+                await _weighRepo.UpdateAsync(ticket, innerCt);
+            }
+
+            foreach (var ticket in deliveryTickets)
+            {
+                await _deliveryRepo.UpdateAsync(ticket, innerCt);
+            }
+
+            await _cutOrderRepo.UpdateAsync(temporaryCutOrder, innerCt);
+            await _cutOrderRepo.UpdateAsync(realCutOrder, innerCt);
+        }, ct);
+    }
+
+    private static void ValidateTemporaryCutOrder(CutOrder cutOrder)
+    {
+        if (!cutOrder.IsTemporaryExport || !cutOrder.IsExportScale)
+        {
+            throw new InvalidOperationException("Cắt lệnh nguồn không phải cắt lệnh xuất khẩu tạm.");
+        }
+
+        if (cutOrder.IsDeleted || cutOrder.IsCancelled)
+        {
+            throw new InvalidOperationException("Cắt lệnh tạm đã bị hủy hoặc xóa.");
+        }
+
+        if (cutOrder.TransactionType != TransactionType.OUTBOUND
+            || cutOrder.CutOrderStatus != CutOrderStatus.IN_SESSION
+            || cutOrder.ProcessingStage != ProcessingStage.WEIGHING)
+        {
+            throw new InvalidOperationException("Cắt lệnh tạm không ở trạng thái cân xuất khẩu đang hoạt động.");
+        }
+
+        if (cutOrder.ExportFinalizedAt.HasValue)
+        {
+            throw new InvalidOperationException("Cắt lệnh tạm đã chốt tổng, không thể map.");
+        }
+    }
+
+    private static void ValidateRealCutOrder(CutOrder cutOrder)
+    {
+        if (cutOrder.IsTemporaryExport)
+        {
+            throw new InvalidOperationException("Cắt lệnh đích phải là cắt lệnh thật từ ERP.");
+        }
+
+        if (cutOrder.IsDeleted || cutOrder.IsCancelled)
+        {
+            throw new InvalidOperationException("Cắt lệnh thật đã bị hủy hoặc xóa.");
+        }
+
+        if (cutOrder.TransactionType != TransactionType.OUTBOUND)
+        {
+            throw new InvalidOperationException("Chỉ hỗ trợ map sang cắt lệnh xuất hàng.");
+        }
+
+        if (cutOrder.ExportFinalizedAt.HasValue || cutOrder.CutOrderStatus == CutOrderStatus.COMPLETED)
+        {
+            throw new InvalidOperationException("Cắt lệnh thật đã chốt tổng, không thể map.");
+        }
+
+        if (cutOrder.IsExportScale)
+        {
+            if (cutOrder.CutOrderStatus != CutOrderStatus.IN_SESSION || cutOrder.ProcessingStage != ProcessingStage.WEIGHING)
+            {
+                throw new InvalidOperationException("Cắt lệnh thật không ở trạng thái cân xuất khẩu.");
+            }
+
+            return;
+        }
+
+        if (cutOrder.CutOrderStatus != CutOrderStatus.REGISTERED || cutOrder.ProcessingStage != ProcessingStage.IN_YARD)
+        {
+            throw new InvalidOperationException("Cắt lệnh thật không còn ở trạng thái xe vào để map sang cân xuất khẩu.");
+        }
+
+        if (cutOrder.WeighingSessionId.HasValue)
+        {
+            throw new InvalidOperationException("Cắt lệnh thật đã thuộc một lượt cân khác.");
+        }
+    }
+
+    private static decimal? ResolveTargetPlannedWeight(CutOrder cutOrder)
+        => cutOrder.PlannedWeight;
+
+    private static WeighTicket? SelectPrimaryWeighTicket(IEnumerable<WeighTicket> tickets)
+    {
+        return tickets
+            .Where(x => !x.IsDeleted && !x.IsCancelled)
+            .OrderByDescending(x => x.Weight2Time ?? x.Weight1Time ?? x.UpdatedAt ?? x.CreatedAt)
+            .FirstOrDefault();
+    }
+
+    private static DeliveryTicket? SelectPrimaryDeliveryTicket(IEnumerable<DeliveryTicket> tickets)
+    {
+        return tickets
+            .Where(x => !x.IsDeleted)
+            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .FirstOrDefault();
     }
 }
 
@@ -110,6 +446,7 @@ public sealed class CreateExportVehicleSessionUseCase
         var cutOrder = await _cutOrderRepo.GetByIdAsync(request.CutOrderId, ct)
             ?? throw new InvalidOperationException("Kh\u00f4ng t\u00ecm th\u1ea5y c\u1eaft l\u1ec7nh.");
 
+        NormalizeRecoverableExportCutOrderState(cutOrder);
         ValidateOpenExportCutOrder(cutOrder);
 
         var plannedWeightForTrip = await ResolveRemainingPlannedWeightAsync(cutOrder, ct);
@@ -260,6 +597,29 @@ public sealed class CreateExportVehicleSessionUseCase
         {
             throw new InvalidOperationException("C\u1eaft l\u1ec7nh kh\u00f4ng \u1edf tr\u1ea1ng th\u00e1i c\u00e2n xu\u1ea5t kh\u1ea9u.");
         }
+    }
+
+    private static void NormalizeRecoverableExportCutOrderState(CutOrder cutOrder)
+    {
+        if (!cutOrder.IsExportScale
+            || cutOrder.TransactionType != TransactionType.OUTBOUND
+            || cutOrder.IsDeleted
+            || cutOrder.IsCancelled
+            || cutOrder.ExportFinalizedAt.HasValue
+            || cutOrder.CutOrderStatus == CutOrderStatus.COMPLETED)
+        {
+            return;
+        }
+
+        var recoverableStatus = cutOrder.CutOrderStatus is CutOrderStatus.REGISTERED or CutOrderStatus.IN_SESSION;
+        var recoverableStage = cutOrder.ProcessingStage is ProcessingStage.IN_YARD or ProcessingStage.WEIGHING;
+        if (!recoverableStatus || !recoverableStage)
+        {
+            return;
+        }
+
+        cutOrder.CutOrderStatus = CutOrderStatus.IN_SESSION;
+        cutOrder.ProcessingStage = ProcessingStage.WEIGHING;
     }
 
     private static string? NormalizeOptional(string? value)

@@ -238,6 +238,8 @@ public partial class App : System.Windows.Application
                     services.AddScoped<CancelWeighingSessionUseCase>();
                     services.AddScoped<GetWeighingSessionsUseCase>();
                     services.AddScoped<TransitionToExportScaleUseCase>();
+                    services.AddScoped<CreateTemporaryExportCutOrderUseCase>();
+                    services.AddScoped<MapTemporaryExportCutOrderUseCase>();
                     services.AddScoped<CreateExportVehicleSessionUseCase>();
                     services.AddScoped<TransferExportVehicleTripUseCase>();
                     services.AddScoped<FinalizeExportCutOrderUseCase>();

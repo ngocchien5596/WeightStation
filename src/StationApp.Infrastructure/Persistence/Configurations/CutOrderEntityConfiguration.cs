@@ -63,6 +63,14 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.ExportFinalizedBy).HasMaxLength(100);
         builder.Property(e => e.ExportStartedBy).HasMaxLength(100);
         builder.Property(e => e.ErpExportCompleted).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.IsTemporaryExport).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.MappedRealCutOrderId);
+        builder.Property(e => e.MappedTemporaryCutOrderId);
+        builder.Property(e => e.TemporaryExportCreatedReason).HasMaxLength(50);
+        builder.Property(e => e.TemporaryExportDisplayCode).HasMaxLength(100);
+        builder.Property(e => e.TemporaryExportSourceErpCutOrderId).HasMaxLength(100);
+        builder.Property(e => e.MappedAt);
+        builder.Property(e => e.MappedBy).HasMaxLength(100);
 
         builder.Property(e => e.IsInboundProcessed).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.InboundProcessedAt);
@@ -90,6 +98,12 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_cut_orders_weighing_session_id");
         builder.HasIndex(e => new { e.IsExportScale, e.CutOrderStatus, e.ProcessingStage, e.IsDeleted })
                .HasDatabaseName("IX_cut_orders_is_export_scale_status");
+        builder.HasIndex(e => new { e.IsTemporaryExport, e.IsExportScale, e.ProcessingStage, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_temp_export");
+        builder.HasIndex(e => new { e.MappedRealCutOrderId, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_mapped_real");
+        builder.HasIndex(e => new { e.TemporaryExportSourceErpCutOrderId, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_temp_source_erp");
         
         builder.HasIndex(e => new { e.ErpCutOrderId, e.IsDeleted })
                .HasDatabaseName("IX_cut_orders_erp_cut_order_id_deleted");

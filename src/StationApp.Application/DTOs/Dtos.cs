@@ -419,7 +419,28 @@ public sealed record ExportScaleCutOrderListItem(
     bool IsFinalized,
     CutOrderStatus CutOrderStatus,
     ProcessingStage ProcessingStage,
-    string? Notes
+    string? Notes,
+    bool IsTemporaryExport = false,
+    string? TemporaryExportDisplayCode = null)
+{
+    public string DisplayCutOrderCode => IsTemporaryExport
+        ? TemporaryExportDisplayCode ?? ErpCutOrderId ?? string.Empty
+        : ErpCutOrderId ?? string.Empty;
+}
+
+public sealed record TemporaryExportCutOrderOption(
+    Guid CutOrderId,
+    string DisplayCode,
+    string? CustomerCode,
+    string? CustomerName,
+    string? ProductCode,
+    string? ProductName,
+    decimal? PlannedWeight,
+    decimal AccumulatedWeight,
+    int TripCount,
+    DateTime? LastTripAt,
+    string? Notes,
+    int MatchScore
 );
 
 public sealed record ExportVehicleTripListItem(
@@ -443,6 +464,22 @@ public sealed record ExportVehicleTripListItem(
 );
 
 public sealed record TransitionToExportScaleRequest(Guid CutOrderId);
+
+public sealed record CreateTemporaryExportCutOrderRequest(
+    string? CustomerCode = null,
+    string? CustomerName = null,
+    string? ProductCode = null,
+    string? ProductName = null,
+    string? ProductType = null,
+    decimal? PlannedWeight = null,
+    int? BagCount = null,
+    string? Notes = null
+);
+
+public sealed record MapTemporaryExportCutOrderRequest(
+    Guid TemporaryCutOrderId,
+    Guid RealCutOrderId
+);
 
 public sealed record CreateExportVehicleSessionRequest(
     Guid CutOrderId,

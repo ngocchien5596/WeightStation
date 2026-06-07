@@ -217,6 +217,30 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         await LoadCameraPreviewAsync();
     }
 
+    [RelayCommand]
+    private async Task CreateTemporaryCutOrderAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<CreateTemporaryExportCutOrderUseCase>();
+            var cutOrderId = await uc.ExecuteAsync(new CreateTemporaryExportCutOrderRequest(), CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã tạo cắt lệnh xuất khẩu tạm.");
+            await LoadCutOrdersAsync(cutOrderId);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Create temporary export cut order failed");
+            _toastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanCreateTrip))]
     private async Task CreateTripAsync()
     {
@@ -281,10 +305,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             var options = availableCutOrders
                 .Where(x => x.CutOrderId != SelectedCutOrder.CutOrderId)
                 .Where(x => !x.IsFinalized)
-                .OrderBy(x => x.ErpCutOrderId)
+                .OrderBy(x => x.DisplayCutOrderCode)
                 .Select(x => new ExportTripTransferOption(
                     x.CutOrderId,
-                    x.ErpCutOrderId,
+                    x.DisplayCutOrderCode,
                     x.VehiclePlate,
                     x.CustomerName,
                     x.ProductName,
@@ -631,7 +655,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Load export scale cut orders failed");
-            _toastService.ShowError("Kh\u00f4ng th\u1ec3 t\u1ea3i danh s\u00e1ch c\u1eaft l\u1ec7nh xu\u1ea5t kh\u1ea9u.");
+            var message = ex.Message.Contains("Invalid column name", StringComparison.OrdinalIgnoreCase)
+                ? "Không thể tải danh sách cắt lệnh xuất khẩu. CSDL local chưa được cập nhật schema mới, vui lòng chạy DbMigrator/update schema rồi mở lại app."
+                : $"Không thể tải danh sách cắt lệnh xuất khẩu: {ex.Message}";
+            _toastService.ShowError(message);
         }
         finally
         {

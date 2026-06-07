@@ -15,6 +15,7 @@ namespace StationApp.UI.ViewModels;
 public partial class DashboardViewModel : ObservableObject
 {
     private sealed record SessionDashboardSnapshot(WeighingSession Session, bool IsExportScale);
+    private sealed record WaitingCutOrderSnapshot(CutOrder CutOrder);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
@@ -130,9 +131,21 @@ public partial class DashboardViewModel : ObservableObject
             .Select(x => new SessionDashboardSnapshot(x, exportSessionIds.Contains(x.Id)))
             .ToList();
 
+        var waitingCutOrders = await dbContext.CutOrders.AsNoTracking()
+            .Where(x => !x.IsDeleted
+                && !x.IsCancelled
+                && x.CutOrderStatus == CutOrderStatus.REGISTERED
+                && x.ProcessingStage == ProcessingStage.IN_YARD
+                && !x.WeighingSessionId.HasValue
+                && x.CreatedAt >= selectedDate
+                && x.CreatedAt < nextDate)
+            .Select(x => new WaitingCutOrderSnapshot(x))
+            .ToListAsync(CancellationToken.None);
+
         ApplyKpiMetrics(
             TransactionType.INBOUND,
             sessions,
+            waitingCutOrders,
             selectedDate,
             nextDate,
             waitingSetter: value => InboundWaitingCount = value,
@@ -143,6 +156,7 @@ public partial class DashboardViewModel : ObservableObject
         ApplyKpiMetrics(
             TransactionType.OUTBOUND,
             sessions,
+            waitingCutOrders,
             selectedDate,
             nextDate,
             waitingSetter: value => OutboundWaitingCount = value,
@@ -185,6 +199,7 @@ public partial class DashboardViewModel : ObservableObject
     private static void ApplyKpiMetrics(
         TransactionType transactionType,
         IReadOnlyCollection<SessionDashboardSnapshot> sessions,
+        IReadOnlyCollection<WaitingCutOrderSnapshot> waitingCutOrders,
         DateTime selectedDate,
         DateTime nextDate,
         Action<int> waitingSetter,
@@ -198,9 +213,12 @@ public partial class DashboardViewModel : ObservableObject
             .Where(x => IsInSelectedDate(ResolveCompletedAt(x), selectedDate, nextDate))
             .ToList();
 
-        waitingSetter(sessionsByType.Count(x =>
+        var pendingWeight1SessionCount = sessionsByType.Count(x =>
             IsInSelectedDate(x.Session.CreatedAt, selectedDate, nextDate)
-            && x.Session.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1));
+            && x.Session.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1);
+        var waitingCutOrderCount = waitingCutOrders.Count(x => x.CutOrder.TransactionType == transactionType);
+
+        waitingSetter(waitingCutOrderCount + pendingWeight1SessionCount);
 
         processingSetter(sessionsByType.Count(x =>
             IsInSelectedDate(x.Session.CreatedAt, selectedDate, nextDate)

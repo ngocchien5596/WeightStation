@@ -616,6 +616,32 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         try
         {
             using var scope = _scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var temporaryOptions = await repo.GetActiveTemporaryExportCutOrderOptionsAsync(selected.CutOrderId, CancellationToken.None);
+
+            if (temporaryOptions.Count > 0)
+            {
+                var dialogVm = new TemporaryExportCutOrderMapDialogViewModel(temporaryOptions);
+                var mapResult = await _dialogService.ShowCustomDialogAsync<TemporaryExportCutOrderMapDialogViewModel, TemporaryExportCutOrderMapDialogResult>(dialogVm);
+                if (mapResult == null)
+                {
+                    return;
+                }
+
+                if (!mapResult.SkipMapping && mapResult.TemporaryCutOrderId.HasValue)
+                {
+                    var mapUc = scope.ServiceProvider.GetRequiredService<MapTemporaryExportCutOrderUseCase>();
+                    await mapUc.ExecuteAsync(
+                        new MapTemporaryExportCutOrderRequest(mapResult.TemporaryCutOrderId.Value, selected.CutOrderId),
+                        CancellationToken.None);
+
+                    _toastService.ShowSuccess("Đã map cắt lệnh tạm sang cắt lệnh thật.");
+                    await LoadVehiclesAsync();
+                    NavigateToExportWeighingRequested?.Invoke(selected.CutOrderId);
+                    return;
+                }
+            }
+
             var uc = scope.ServiceProvider.GetRequiredService<TransitionToExportScaleUseCase>();
             await uc.ExecuteAsync(new TransitionToExportScaleRequest(selected.CutOrderId), CancellationToken.None);
 

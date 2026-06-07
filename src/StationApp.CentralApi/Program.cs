@@ -240,6 +240,14 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
         """);
 
     await EnsureColumnAsync(db, "cut_orders", "ErpExportCompleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_erp_export_completed_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "cut_orders", "IsTemporaryExport", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_temporary_export_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "cut_orders", "MappedRealCutOrderId", "uniqueidentifier NULL");
+    await EnsureColumnAsync(db, "cut_orders", "MappedTemporaryCutOrderId", "uniqueidentifier NULL");
+    await EnsureColumnAsync(db, "cut_orders", "TemporaryExportCreatedReason", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "TemporaryExportDisplayCode", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "TemporaryExportSourceErpCutOrderId", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "MappedAt", "datetime2 NULL");
+    await EnsureColumnAsync(db, "cut_orders", "MappedBy", "nvarchar(100) NULL");
 
     await EnsureColumnAsync(db, "weighing_sessions", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_sessions_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
     await EnsureColumnAsync(db, "weighing_sessions", "LastSyncAttemptAt", "datetime2 NULL");

@@ -841,6 +841,9 @@ public class CutOrderRepository : ICutOrderRepository
                 .OrderByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
                 .FirstOrDefault();
             var completedAt = session.Weight2Time ?? session.UpdatedAt ?? session.CreatedAt;
+            var actualWeightKg = deliveryTicket?.AllocatedWeight
+                ?? line.ActualAllocatedWeight
+                ?? session.NetWeight;
 
             return new OutgoingVehicleListItem(
                 vr.Id,
@@ -857,10 +860,10 @@ public class CutOrderRepository : ICutOrderRepository
                 vr.ProductName,
                 resolvedProductType,
                 session.DriverName,
-                vr.PlannedWeight,
+                actualWeightKg,
                 isBagged ? vr.BagCount : null,
                 weighTicket?.Weight1 ?? session.Weight1,
-                deliveryTicket?.AllocatedWeight ?? line.ActualAllocatedWeight ?? session.NetWeight,
+                actualWeightKg,
                 isBagged ? (deliveryTicket?.AllocatedBagCount ?? line.ActualAllocatedBagCount) : null,
                 session.NetWeight,
                 isBagged ? line.ActualAllocatedBagCount : null,
@@ -987,8 +990,158 @@ public class CutOrderRepository : ICutOrderRepository
                 co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED,
                 co.CutOrderStatus,
                 co.ProcessingStage,
-                co.Notes);
+                co.Notes,
+                co.IsTemporaryExport,
+                co.TemporaryExportDisplayCode);
         }).ToList().AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<TemporaryExportCutOrderOption>> GetActiveTemporaryExportCutOrderOptionsAsync(Guid? realCutOrderId, CancellationToken ct)
+    {
+        CutOrder? realCutOrder = null;
+        if (realCutOrderId.HasValue)
+        {
+            realCutOrder = await _db.CutOrders.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == realCutOrderId.Value, ct);
+        }
+
+        var query = _db.CutOrders.AsNoTracking()
+            .Where(co => co.IsTemporaryExport
+                && co.IsExportScale
+                && co.TransactionType == TransactionType.OUTBOUND
+                && co.ProcessingStage == ProcessingStage.WEIGHING
+                && co.CutOrderStatus == CutOrderStatus.IN_SESSION
+                && !co.IsDeleted
+                && !co.IsCancelled
+                && !co.ExportFinalizedAt.HasValue
+                && !_db.CutOrders.Any(activeReal =>
+                    activeReal.Id == co.MappedRealCutOrderId
+                    && !activeReal.IsDeleted
+                    && !activeReal.IsCancelled
+                    && !activeReal.IsTemporaryExport));
+
+        var temporaryCutOrders = await query
+            .OrderByDescending(co => co.UpdatedAt ?? co.CreatedAt)
+            .Take(100)
+            .ToListAsync(ct);
+
+        var cutOrderIds = temporaryCutOrders.Select(co => co.Id).ToList();
+        var tripRows = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where cutOrderIds.Contains(line.CutOrderId)
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+            select new
+            {
+                line.CutOrderId,
+                line.WeighingSessionId,
+                line.ActualAllocatedWeight,
+                session.Weight2Time,
+                session.UpdatedAt,
+                session.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        var progressByCutOrder = tripRows
+            .GroupBy(x => x.CutOrderId)
+            .ToDictionary(
+                x => x.Key,
+                x => new
+                {
+                    AccumulatedWeight = x.Sum(item => item.ActualAllocatedWeight ?? 0m),
+                    TripCount = x.Select(item => item.WeighingSessionId).Distinct().Count(),
+                    LastTripAt = x.Max(item => item.Weight2Time ?? item.UpdatedAt ?? item.CreatedAt)
+                });
+
+        return temporaryCutOrders
+            .Select(co =>
+            {
+                progressByCutOrder.TryGetValue(co.Id, out var progress);
+
+                return new TemporaryExportCutOrderOption(
+                    co.Id,
+                    co.TemporaryExportDisplayCode ?? co.ErpCutOrderId ?? co.Id.ToString("N")[..8],
+                    co.CustomerCode,
+                    co.CustomerName,
+                    co.ProductCode,
+                    co.ProductName,
+                    co.PlannedWeight,
+                    progress?.AccumulatedWeight ?? 0m,
+                    progress?.TripCount ?? 0,
+                    progress?.LastTripAt,
+                    co.Notes,
+                    CalculateTemporaryExportMatchScore(co, realCutOrder));
+            })
+            .OrderByDescending(x => x.MatchScore)
+            .ThenByDescending(x => x.LastTripAt ?? DateTime.MinValue)
+            .ThenByDescending(x => x.TripCount)
+            .ToList()
+            .AsReadOnly();
+    }
+
+    private static int CalculateTemporaryExportMatchScore(CutOrder temporaryCutOrder, CutOrder? realCutOrder)
+    {
+        if (realCutOrder == null)
+        {
+            return 0;
+        }
+
+        var score = 0;
+        if (!string.IsNullOrWhiteSpace(temporaryCutOrder.TemporaryExportSourceErpCutOrderId)
+            && string.Equals(temporaryCutOrder.TemporaryExportSourceErpCutOrderId, realCutOrder.ErpCutOrderId, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 100;
+        }
+
+        if (!string.IsNullOrWhiteSpace(temporaryCutOrder.CustomerCode)
+            && string.Equals(temporaryCutOrder.CustomerCode, realCutOrder.CustomerCode, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 30;
+        }
+        else if (!string.IsNullOrWhiteSpace(temporaryCutOrder.CustomerName)
+            && string.Equals(temporaryCutOrder.CustomerName, realCutOrder.CustomerName, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 20;
+        }
+
+        if (!string.IsNullOrWhiteSpace(temporaryCutOrder.ProductCode)
+            && string.Equals(temporaryCutOrder.ProductCode, realCutOrder.ProductCode, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 30;
+        }
+        else if (!string.IsNullOrWhiteSpace(temporaryCutOrder.ProductName)
+            && string.Equals(temporaryCutOrder.ProductName, realCutOrder.ProductName, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 20;
+        }
+
+        if (!string.IsNullOrWhiteSpace(temporaryCutOrder.Notes)
+            && !string.IsNullOrWhiteSpace(realCutOrder.Notes)
+            && temporaryCutOrder.Notes.Contains(realCutOrder.Notes, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 10;
+        }
+
+        return score;
+    }
+
+    public async Task<string> GenerateTemporaryExportDisplayCodeAsync(CancellationToken ct)
+    {
+        const string prefix = "CL-TAM-";
+        var codes = await _db.CutOrders.AsNoTracking()
+            .Where(x => x.TemporaryExportDisplayCode != null && x.TemporaryExportDisplayCode.StartsWith(prefix))
+            .Select(x => x.TemporaryExportDisplayCode!)
+            .ToListAsync(ct);
+
+        var next = codes
+            .Select(code => int.TryParse(code[prefix.Length..], out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
+        return $"{prefix}{next:0000}";
     }
 
     public async Task<IReadOnlyList<ExportVehicleTripListItem>> GetExportVehicleTripsAsync(Guid cutOrderId, CancellationToken ct)

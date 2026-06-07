@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "BRD Creation": {
+      "source": "danhvb/my-ba-skills",
+      "sourceType": "github",
+      "skillPath": "multi-agent-ba/.agent/skills/senior-ba/brd-creation/SKILL.md",
+      "computedHash": "7d74f09d87a28ba153ef060bbe4d3395581ba58ef4904a54c2af766427dd1491"
+    },
     "database-optimizer": {
       "source": "jeffallan/claude-skills",
       "sourceType": "github",
       "skillPath": "skills/database-optimizer/SKILL.md",
       "computedHash": "68cf96c6db0436f5a98b72cfa976ba583c87495a409b7bcb414a7c49ad5955d1"
+    },
+    "srs-documentation": {
+      "source": "doubleslashse/claude-marketplace",
+      "sourceType": "github",
+      "skillPath": "Plugins/business-analyst/skills/srs-documentation/SKILL.md",
+      "computedHash": "921340aa7b55d17dec17553d0e7c8218c9355c87bd099684ab269b935e004bab"
     }
   }
 }

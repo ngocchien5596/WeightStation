@@ -25,6 +25,14 @@ public static class SchemaCompatibilityBootstrapper
         new("ExportStartedAt", "datetime2 NULL"),
         new("ExportStartedBy", "nvarchar(100) NULL"),
         new("ErpExportCompleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_erp_export_completed_bootstrap] DEFAULT ((0))"),
+        new("IsTemporaryExport", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_temporary_export_bootstrap] DEFAULT ((0))"),
+        new("MappedRealCutOrderId", "uniqueidentifier NULL"),
+        new("MappedTemporaryCutOrderId", "uniqueidentifier NULL"),
+        new("TemporaryExportCreatedReason", "nvarchar(50) NULL"),
+        new("TemporaryExportDisplayCode", "nvarchar(100) NULL"),
+        new("TemporaryExportSourceErpCutOrderId", "nvarchar(100) NULL"),
+        new("MappedAt", "datetime2 NULL"),
+        new("MappedBy", "nvarchar(100) NULL"),
         new("ErpRegistrationCode", "nvarchar(100) NULL"),
         new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_deleted_bootstrap] DEFAULT ((0))"),
         new("DeletedAt", "datetime2 NULL"),
@@ -262,6 +270,27 @@ IF COL_LENGTH('cut_orders', 'IsExportScale') IS NOT NULL
 BEGIN
     CREATE INDEX [IX_cut_orders_is_export_scale_status]
     ON [cut_orders]([IsExportScale], [CutOrderStatus], [ProcessingStage], [IsDeleted]);
+END
+
+IF COL_LENGTH('cut_orders', 'IsTemporaryExport') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_temp_export' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    CREATE INDEX [IX_cut_orders_temp_export]
+    ON [cut_orders]([IsTemporaryExport], [IsExportScale], [ProcessingStage], [IsDeleted]);
+END
+
+IF COL_LENGTH('cut_orders', 'MappedRealCutOrderId') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_mapped_real' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    CREATE INDEX [IX_cut_orders_mapped_real]
+    ON [cut_orders]([MappedRealCutOrderId], [IsDeleted]);
+END
+
+IF COL_LENGTH('cut_orders', 'TemporaryExportSourceErpCutOrderId') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_temp_source_erp' AND object_id = OBJECT_ID(N'[cut_orders]'))
+BEGIN
+    CREATE INDEX [IX_cut_orders_temp_source_erp]
+    ON [cut_orders]([TemporaryExportSourceErpCutOrderId], [IsDeleted]);
 END
 """;
 
