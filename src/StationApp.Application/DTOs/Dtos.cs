@@ -400,7 +400,8 @@ public sealed record ExportScaleCutOrderFilter(
     string? VehiclePlate,
     string? CustomerName,
     string? ProductCode,
-    string? ProductName
+    string? ProductName,
+    bool IncludeErpCompletedFinalized = false
 );
 
 public sealed record ExportScaleCutOrderListItem(
@@ -417,6 +418,7 @@ public sealed record ExportScaleCutOrderListItem(
     int TripCount,
     DateTime? LastTripAt,
     bool IsFinalized,
+    bool ErpExportCompleted,
     CutOrderStatus CutOrderStatus,
     ProcessingStage ProcessingStage,
     string? Notes,

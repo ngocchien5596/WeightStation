@@ -28,8 +28,7 @@ RETURN
             AS decimal(18,3)
         ) AS NetWeightTon,
         CAST(sessionAgg.Weight1Time AS datetime2(7)) AS Weight1Time,
-        CAST(sessionAgg.Weight2Time AS datetime2(7)) AS Weight2Time,
-        CAST(sessionAgg.Weight2Time AS datetime2(7)) AS PickupTime
+        CAST(sessionAgg.Weight2Time AS datetime2(7)) AS Weight2Time
     FROM cut_orders co
     LEFT JOIN products p
         ON p.ProductCode = co.ProductCode
@@ -48,7 +47,7 @@ RETURN
     OUTER APPLY
     (
         SELECT
-            MAX(ws.Weight1Time) AS Weight1Time,
+            MIN(ws.Weight1Time) AS Weight1Time,
             MAX(ws.Weight2Time) AS Weight2Time,
             MAX(CASE WHEN ISNULL(ws.UseActualWeightForBaggedCutOrders, 0) = 1 THEN 1 ELSE 0 END) AS UseActualWeightForBaggedCutOrders
         FROM weighing_session_lines wsl

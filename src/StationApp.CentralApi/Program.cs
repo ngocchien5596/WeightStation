@@ -249,6 +249,8 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "cut_orders", "MappedAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "cut_orders", "MappedBy", "nvarchar(100) NULL");
 
+    await EnsureDeliveryTicketSyncStatusSchemaAsync(db);
+
     await EnsureColumnAsync(db, "weighing_sessions", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_sessions_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
     await EnsureColumnAsync(db, "weighing_sessions", "LastSyncAttemptAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "weighing_sessions", "LastSyncError", "nvarchar(1000) NULL");
@@ -290,6 +292,65 @@ static Task EnsureColumnAsync(CentralSyncDbContext db, string tableName, string 
         ALTER TABLE [{tableName}] ADD [{columnName}] {sqlDefinition};
     END
     """;
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task EnsureDeliveryTicketSyncStatusSchemaAsync(CentralSyncDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
+   AND EXISTS (
+       SELECT 1
+       FROM sys.columns c
+       INNER JOIN sys.types t ON t.user_type_id = c.user_type_id
+       WHERE c.object_id = OBJECT_ID(N'[delivery_tickets]')
+         AND c.name = N'SyncStatus'
+         AND t.name = N'int'
+   )
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_delivery_tickets_sync_status' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        DROP INDEX [IX_delivery_tickets_sync_status] ON [delivery_tickets];
+    END
+
+    DECLARE @DefaultConstraintName sysname;
+    SELECT @DefaultConstraintName = dc.name
+    FROM sys.default_constraints dc
+    INNER JOIN sys.columns c
+        ON c.object_id = dc.parent_object_id
+       AND c.column_id = dc.parent_column_id
+    WHERE dc.parent_object_id = OBJECT_ID(N'[delivery_tickets]')
+      AND c.name = N'SyncStatus';
+
+    IF @DefaultConstraintName IS NOT NULL
+    BEGIN
+        EXEC(N'ALTER TABLE [delivery_tickets] DROP CONSTRAINT [' + @DefaultConstraintName + N']');
+    END
+
+    ALTER TABLE [delivery_tickets] ADD [SyncStatusText] nvarchar(40) NULL;
+
+    EXEC(N'UPDATE [delivery_tickets]
+    SET [SyncStatusText] =
+        CASE [SyncStatus]
+            WHEN 1 THEN N''SYNC_QUEUED''
+            WHEN 2 THEN N''SYNC_SUCCESS''
+            WHEN 3 THEN N''SYNC_FAILED''
+            ELSE N''SYNC_QUEUED''
+        END');
+
+    EXEC(N'ALTER TABLE [delivery_tickets] DROP COLUMN [SyncStatus]');
+    EXEC sp_rename N'delivery_tickets.SyncStatusText', N'SyncStatus', N'COLUMN';
+    EXEC(N'ALTER TABLE [delivery_tickets] ALTER COLUMN [SyncStatus] nvarchar(40) NOT NULL');
+END
+
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
+   AND COL_LENGTH('delivery_tickets', 'SyncStatus') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_delivery_tickets_sync_status' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+BEGIN
+    CREATE INDEX [IX_delivery_tickets_sync_status] ON [delivery_tickets]([SyncStatus]);
+END
+""";
 
     return db.Database.ExecuteSqlRawAsync(sql);
 }

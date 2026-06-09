@@ -43,8 +43,7 @@ BEGIN
     SELECT
         NetWeightTon,
         Weight1Time,
-        Weight2Time,
-        PickupTime
+        Weight2Time
     FROM #Result;
 END;
 GO

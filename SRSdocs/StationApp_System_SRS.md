@@ -5,7 +5,7 @@
 | Trường | Giá trị |
 |-------|-------|
 | Tên Dự án | WeightStation (Ứng dụng Trạm cân) |
-| Phiên bản Tài liệu | 1.4 |
+| Phiên bản Tài liệu | 1.5 |
 | Ngày tạo | 07/06/2026 |
 | Tác giả | Antigravity AI |
 | Trạng thái | Đang được duyệt |
@@ -19,6 +19,7 @@
 | 1.2 | 07/06/2026 | Antigravity AI | Cập nhật đồng bộ với tài liệu Yêu cầu Kinh doanh (BRD) mới: Việt hóa thuật ngữ, bổ sung hiển thị camera thời gian thực để giám sát đỗ xe, và phân tách quy trình cân nội địa / cân xuất khẩu. |
 | 1.3 | 07/06/2026 | Codex | Cập nhật công thức KPI Dashboard: xe chờ cân phải tính cả cắt lệnh đang ở trạng thái `REGISTERED` + `IN_YARD` nhưng chưa phát sinh lượt cân, không chỉ dựa trên `weighing_sessions`. |
 | 1.4 | 08/06/2026 | Codex | Cập nhật luồng cắt lệnh tạm xuất khẩu `CL-TAM-####`, cơ chế map sang cắt lệnh thật, xử lý ERP RA/CO giữ chuyến xe xuất khẩu, và quy tắc hiển thị `KL KH = KL Thực` cho chuyến xe xuất khẩu ở Danh sách xe ra. |
+| 1.5 | 09/06/2026 | Codex | Cập nhật màn Cân xuất khẩu: bổ sung checkbox `Đã hoàn thành` để cho phép hiển thị thêm các cắt lệnh đã chốt tổng và đã hoàn thành trên ERP (`ErpExportCompleted = true`). |
 
 ---
 
@@ -158,6 +159,7 @@ Bảng này lưu trữ thông tin đăng ký phương tiện, sản phẩm xuấ
 | `ExportFinalizedWeight` | `decimal(18,3)` | NULL | Tổng khối lượng tịnh đã chốt của đơn xuất khẩu lớn. |
 | `ExportFinalizedAt` | `datetime2` | NULL | Thời điểm chốt sản lượng đơn xuất khẩu. |
 | `ExportFinalizedBy` | `nvarchar(100)` | NULL | Tài khoản thực hiện chốt đơn xuất khẩu. |
+| `ErpExportCompleted` | `bit` | NOT NULL, DEFAULT 0 | Cờ xác định ERP đã ghi nhận hoàn thành xuất hàng cho cắt lệnh. Dùng để đối chiếu trạng thái ERP và hỗ trợ lọc/hiển thị lại các cắt lệnh xuất khẩu đã chốt tổng trên màn Cân xuất khẩu. |
 | `SyncStatus` | `nvarchar(20)` | NOT NULL | Trạng thái đồng bộ (`SYNC_QUEUED`, `SYNC_SUCCESS`, `SYNC_FAILED`). |
 | `IdempotencyKey` | `uniqueidentifier` | NOT NULL | Khóa chống trùng lặp dữ liệu khi gửi lên Server. |
 | `CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy` | Nhiều kiểu | Audit Fields | Trường thông tin kiểm toán ghi nhận người tạo, thời gian tạo và cập nhật. |
@@ -826,11 +828,12 @@ Màn hình chuyên dụng quản lý hợp đồng xuất khẩu lớn (ví dụ
 | UI-EXP-HDR-TXT-PLATE | `TextBox` | `SearchVehiclePlate` | Nhập biển số xe con để tìm kiếm nhanh các đơn hàng xuất khẩu lớn liên quan. Nhấn Enter để lọc. |
 | UI-EXP-HDR-BTN-REFRESH | `Button` | `RefreshCommand` | Làm sạch các bộ lọc tìm kiếm và tải lại toàn bộ danh sách đơn hàng xuất khẩu từ database cục bộ. |
 | UI-EXP-HDR-BTN-TEMP | `Button` | `CreateTemporaryCutOrderCommand` | Tạo cắt lệnh tạm xuất khẩu `CL-TAM-####` để cân trước các chuyến xe khi ERP chưa truyền cắt lệnh thật. |
+| UI-EXP-CHK-COMPLETED | `CheckBox` | `ShowCompletedCutOrders` | Checkbox `Đã hoàn thành`, mặc định không tích. Khi được tích, lưới danh sách cắt lệnh xuất khẩu hiển thị thêm các cắt lệnh đã chốt tổng và có `ErpExportCompleted = true`. |
 
 ##### B. Lưới danh sách đơn hàng xuất khẩu lớn (Lưới phía trên)
 | Mã phần tử | Loại Control | Tên / Binding | Mô tả chức năng |
 | :--- | :--- | :--- | :--- |
-| UI-EXP-GRID-CO | `DataGrid` | `ItemsSource={Binding CutOrders}` | Bảng danh sách các đơn hàng xuất khẩu lớn đang hoạt động tại trạm. Nhân viên chọn một dòng để quản lý các chuyến xe con tương ứng. |
+| UI-EXP-GRID-CO | `DataGrid` | `ItemsSource={Binding CutOrders}` | Bảng danh sách các đơn hàng xuất khẩu lớn tại trạm. Mặc định ẩn các cắt lệnh đã chốt tổng và đã hoàn thành ERP; khi tích `Đã hoàn thành` thì hiển thị thêm nhóm cắt lệnh này để tra cứu/đối chiếu. Nhân viên chọn một dòng để quản lý hoặc xem các chuyến xe con tương ứng. |
 
 ##### C. Bảng chi tiết đơn hàng cha (Export Cut Order Details Panel)
 | Mã phần tử | Loại Control | Tên / Binding | Mô tả chức năng |
@@ -897,7 +900,7 @@ Màn hình chuyên dụng quản lý hợp đồng xuất khẩu lớn (ví dụ
 ##### 1. Thời điểm nạp dữ liệu (Data Loading Triggers)
 Hệ thống tự động thực hiện truy vấn và nạp dữ liệu vào các lưới dữ liệu trong các trường hợp sau:
 - **Khi truy cập màn hình**: Khi người dùng nhấn chọn chức năng "Cân Xuất Khẩu" từ Menu chính, hệ thống sẽ gọi phương thức `InitializeAsync()` để nạp danh sách đơn hàng xuất khẩu cục bộ.
-- **Khi tìm kiếm/Tải lại**: Nhập thông tin bộ lọc tìm kiếm và bấm nút Tải lại (`RefreshCommand`). Hệ thống sẽ gọi repository `ICutOrderRepository.GetActiveExportScaleCutOrdersAsync()` để lấy ra các đơn xuất khẩu lớn có trạng thái `REGISTERED` (chưa chốt).
+- **Khi tìm kiếm/Tải lại**: Nhập thông tin bộ lọc tìm kiếm và bấm nút Tải lại (`RefreshCommand`). Hệ thống gọi repository `ICutOrderRepository.GetActiveExportScaleCutOrdersAsync()` để lấy danh sách cắt lệnh xuất khẩu đang vận hành hoặc đã chốt tổng nhưng còn cần theo dõi. Mặc định hệ thống không trả về nhóm cắt lệnh đã đồng thời thỏa mãn `ExportFinalizedAt IS NOT NULL` và `ErpExportCompleted = true`. Khi người dùng tích checkbox **Đã hoàn thành** (`ShowCompletedCutOrders = true`), repository mở rộng truy vấn để hiển thị thêm nhóm cắt lệnh đã chốt tổng và ERP đã xác nhận hoàn thành. Các cắt lệnh đã chốt tổng vẫn bị khóa thao tác tạo chuyến/cân/chốt lại, chỉ phục vụ tra cứu và đối chiếu.
 - **Khi click chọn đơn cắt lệnh cha (CutOrder Grid - Lưới phía trên)**: Hệ thống lập tức gọi `LoadTripsAsync` để truy vấn danh sách chuyến xe con (`Trips`) của cắt lệnh đó từ cơ sở dữ liệu và hiển thị lên lưới chuyến con ở dưới cùng, đồng thời cập nhật thông tin chung của đơn cha lên Form hiển thị.
 - **Khi click chọn chuyến xe con (Trips Grid - Lưới phía dưới)**: Hệ thống lấy thông tin trọng lượng (Cân lần 1, Cân lần 2, Net Weight) của chuyến xe con đó nạp lên Panel cân và nạp các thông tin biển số xe, mooc, tài xế, đăng kiểm của chuyến xe con đó lên Form chi tiết chuyến xe để nhân viên kiểm tra hoặc lấy số cân lần tiếp theo.
 

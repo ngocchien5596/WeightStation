@@ -377,20 +377,28 @@
         <Grid Grid.Row="3" Margin="12,0,12,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="185"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="16"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
-                <TextBlock Text="DANH S&#x00C1;CH C&#x1EAE;T L&#x1EC6;NH XU&#x1EA4;T KH&#x1EA8;U" FontSize="12.5" FontWeight="SemiBold" Foreground="#203B73" VerticalAlignment="Center"/>
-                <TextBlock Text="(Ch&#x1ECD;n m&#x1ED9;t d&#x00F2;ng c&#x1EAF;t l&#x1EC7;nh &#x111;&#x1EC3; hi&#x1EC3;n th&#x1ECB; danh s&#x00E1;ch chuy&#x1EBF;n xe t&#x01B0;&#x01A1;ng &#x1EE9;ng &#x1EDF; ph&#x00ED;a d&#x01B0;&#x1EDB;i)" FontSize="12" Foreground="#7F8C8D" FontStyle="Italic" VerticalAlignment="Center" Margin="10,0,0,0"/>
-            </StackPanel>
+            <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                <CheckBox Content="&#x110;&#x00E3; ho&#x00E0;n th&#x00E0;nh"
+                          IsChecked="{Binding ShowCompletedCutOrders, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Style="{StaticResource StandardCheckBoxStyle}"
+                          VerticalAlignment="Center"
+                          DockPanel.Dock="Right"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="DANH S&#x00C1;CH C&#x1EAE;T L&#x1EC6;NH XU&#x1EA4;T KH&#x1EA8;U" FontSize="12.5" FontWeight="SemiBold" Foreground="#203B73" VerticalAlignment="Center"/>
+                    <TextBlock Text="(Ch&#x1ECD;n m&#x1ED9;t d&#x00F2;ng c&#x1EAF;t l&#x1EC7;nh &#x111;&#x1EC3; hi&#x1EC3;n th&#x1ECB; danh s&#x00E1;ch chuy&#x1EBF;n xe t&#x01B0;&#x01A1;ng &#x1EE9;ng &#x1EDF; ph&#x00ED;a d&#x01B0;&#x1EDB;i)" FontSize="12" Foreground="#7F8C8D" FontStyle="Italic" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                </StackPanel>
+            </DockPanel>
 
             <Border Grid.Row="1" Background="White" BorderBrush="#ECF0F1" BorderThickness="1" CornerRadius="4">
                 <DataGrid ItemsSource="{Binding CutOrders}" SelectedItem="{Binding SelectedCutOrder}"
                           IsSynchronizedWithCurrentItem="False"
+                          MaxHeight="185"
                           Style="{StaticResource SystemDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                           RowStyle="{StaticResource SystemDataGridRowStyle}"
@@ -398,6 +406,7 @@
                           ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           FrozenColumnCount="3">
                     <DataGrid.Columns>
+                        <DataGridCheckBoxColumn Header="ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                         <DataGridTextColumn Header="M&#xC3; C&#x1EAE;T L&#x1EC6;NH" Binding="{Binding DisplayCutOrderCode, Mode=OneWay}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="S&#x1ED0; PTVC G&#x1ED0;C" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>

@@ -67,6 +67,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private ExportVehicleTripListItem? _selectedTrip;
     [ObservableProperty] private string? _searchErpCutOrderId;
     [ObservableProperty] private string? _searchVehiclePlate;
+    [ObservableProperty] private bool _showCompletedCutOrders;
     [ObservableProperty] private string? _newVehiclePlate;
     [ObservableProperty] private string? _newMoocNumber;
     [ObservableProperty] private string? _newDriverName;
@@ -637,7 +638,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                     SearchVehiclePlate,
                     null,
                     null,
-                    null),
+                    null,
+                    ShowCompletedCutOrders),
                 CancellationToken.None);
 
             CutOrders = new ObservableCollection<ExportScaleCutOrderListItem>(list);
@@ -1694,6 +1696,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     }
 
     partial void OnIsLoadingChanged(bool value) => RefreshCommandStates();
+
+    partial void OnShowCompletedCutOrdersChanged(bool value)
+    {
+        _ = LoadCutOrdersAsync();
+    }
 
     partial void OnCurrentCaptureModeChanged(string value)
     {

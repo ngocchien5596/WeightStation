@@ -903,6 +903,11 @@ public class CutOrderRepository : ICutOrderRepository
                 && (co.ProcessingStage == ProcessingStage.WEIGHING
                     || (co.ExportFinalizedAt.HasValue && co.CutOrderStatus == CutOrderStatus.COMPLETED)));
 
+        if (!filter.IncludeErpCompletedFinalized)
+        {
+            query = query.Where(co => !(co.ExportFinalizedAt.HasValue && co.ErpExportCompleted));
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
         {
             query = query.Where(co => co.ErpCutOrderId != null && co.ErpCutOrderId.Contains(filter.ErpCutOrderId));
@@ -988,6 +993,7 @@ public class CutOrderRepository : ICutOrderRepository
                 progress?.TripCount ?? 0,
                 progress?.LastTripAt,
                 co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED,
+                co.ErpExportCompleted,
                 co.CutOrderStatus,
                 co.ProcessingStage,
                 co.Notes,

@@ -173,6 +173,8 @@ Quản lý các hợp đồng xuất khẩu khối lượng lớn xuống tàu/s
 #### A. THAO TÁC KHỞI ĐỘNG ĐƠN HÀNG XUẤT KHẨU
 * **Bước 1:** Trên Menu điều hướng bên trái, bấm vào **Cân xuất khẩu**.
 * **Bước 2:** Click chọn đơn cắt lệnh xuất khẩu lớn đang hoạt động tại lưới **DANH SÁCH CẮT LỆNH XUẤT KHẨU** ở phía trên. Thông tin chi tiết về sản lượng kế hoạch, lũy kế đã bốc và sản lượng còn lại sẽ hiển thị trên Panel chi tiết đơn hàng cha.
+  * Mặc định lưới này ẩn các cắt lệnh đã **chốt tổng** và đã được ERP xác nhận **Hoàn thành xuất hàng**.
+  * Khi cần tra cứu/đối chiếu lại các cắt lệnh đã hoàn thành ERP, tích checkbox **Đã hoàn thành** ở cùng dòng tiêu đề **DANH SÁCH CẮT LỆNH XUẤT KHẨU**. Hệ thống sẽ hiển thị thêm các cắt lệnh đã chốt tổng và có trạng thái ERP hoàn thành. Các cắt lệnh này chỉ dùng để xem lại, không cho tạo thêm chuyến xe hoặc cân tiếp.
   * **Trường hợp chưa có cắt lệnh thật từ ERP:**
     * Bấm nút **TẠO CẮT LỆNH TẠM** trên thanh công cụ phía trên.
     * Hệ thống sẽ tự động tạo một cắt lệnh tạm với mã hiển thị có định dạng `CL-TAM-####`.
@@ -713,16 +715,19 @@ Sử dụng khi một xe con đã lấy hàng xong nhưng cần chuyển sản l
 ### Q26: Tại sao cột khối lượng kế hoạch của chuyến xe xuất khẩu ở Danh sách xe ra lại hiển thị bằng khối lượng thực tế?
 **Trả lời:** Vì đơn xuất khẩu lớn có khối lượng kế hoạch chung hàng nghìn tấn cho cả lô tàu/sà lan. Đối với từng chuyến xe con đơn lẻ, khối lượng kế hoạch hiển thị bằng khối lượng thực tế của chuyến đó để tránh việc hiển thị sai lệch số lượng lớn trên danh sách xe ra.
 
-### Q27: Làm thế nào để xuất báo cáo sản lượng cân trong tháng ra file Excel?
+### Q27: Làm thế nào để xem lại cắt lệnh xuất khẩu đã chốt tổng và đã hoàn thành trên ERP?
+**Trả lời:** Vào màn hình **Cân xuất khẩu**, tích checkbox **Đã hoàn thành** ở cùng dòng tiêu đề **DANH SÁCH CẮT LỆNH XUẤT KHẨU**. Lưới sẽ hiển thị thêm các cắt lệnh đã chốt tổng và có trạng thái ERP hoàn thành. Các dòng này chỉ phục vụ xem lại/đối chiếu, không dùng để tạo chuyến xe mới hoặc cân tiếp.
+
+### Q28: Làm thế nào để xuất báo cáo sản lượng cân trong tháng ra file Excel?
 **Trả lời:** Vào màn hình **Báo cáo** -> Chọn báo cáo nhập hàng hoặc báo cáo xuất hàng -> Chọn khoảng thời gian Ngày/Giờ bắt đầu và kết thúc -> Bấm **XUẤT BÁO CÁO** -> Chọn thư mục lưu file trên máy tính (mặc định gợi ý thư mục Downloads) và lưu file `.xlsx`.
 
-### Q28: Tôi có thể sửa đổi số cân của phiếu cân đã in hoàn thành và cho xe ra không?
+### Q29: Tôi có thể sửa đổi số cân của phiếu cân đã in hoàn thành và cho xe ra không?
 **Trả lời:** **Tuyệt đối không.** Hệ thống chặn cứng việc sửa đổi số cân lần 1, số cân lần 2 và Net Weight của các phiếu cân đã hoàn thành nhằm chống gian lận thương mại. Mọi chỉnh sửa chỉ được phép thực hiện trên các trường thông tin phi số liệu (Tên tài xế, Ghi chú).
 
-### Q29: Làm thế nào khi phần mềm trạm cân bị đơ/treo không bấm được nút?
+### Q30: Làm thế nào khi phần mềm trạm cân bị đơ/treo không bấm được nút?
 **Trả lời:** Nhấn tổ hợp phím **Ctrl + Shift + Esc** để mở cửa sổ Task Manager -> Chọn ứng dụng StationApp và bấm **End Task** để đóng phần mềm. Sau đó nhấp đúp chuột mở lại phần mềm trên Desktop và đăng nhập lại.
 
-### Q30: Khi nào thì tôi cần liên hệ ngay với bộ phận IT để được hỗ trợ?
+### Q31: Khi nào thì tôi cần liên hệ ngay với bộ phận IT để được hỗ trợ?
 **Trả lời:** Khi máy tính không lên nguồn, bàn cân bị hỏng vật lý hoặc số cân nhảy liên tục không dừng khi xe đã tắt máy, máy in bị lỗi phần cứng hỏng sấy, hoặc cơ sở dữ liệu cục bộ bị lỗi không kết nối được.
 
 ---

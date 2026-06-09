@@ -280,7 +280,11 @@
                     Style="{StaticResource UtilityButtonStyle}"
                     Margin="0,0,4,4"
                     Visibility="{Binding ShowAllocationAction, Converter={StaticResource BoolToVis}}"/>
-            <Button Content="{StaticResource Weighing.Action.HandleOverweight}" Command="{Binding ShowOverweightHandlingCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="{StaticResource Weighing.Action.HandleOverweight}"
+                    Command="{Binding ShowOverweightHandlingCommand}"
+                    Style="{StaticResource DangerButtonStyle}"
+                    Margin="0,0,4,4"
+                    Visibility="{Binding ShowOverweightHandlingAction, Converter={StaticResource BoolToVis}}"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>

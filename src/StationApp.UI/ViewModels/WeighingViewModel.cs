@@ -158,6 +158,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         && SessionLines.Any(x =>
             x.LineStatus != WeighingSessionLineStatus.ALLOCATED
             || !x.ActualAllocatedWeight.HasValue);
+    public bool ShowOverweightHandlingAction => CanShowOverweightHandling();
     public bool ShowBaggedActualWeightOverride =>
         SessionLines.Count > 0
         && SessionLines.All(x =>
@@ -1314,6 +1315,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private void NotifySessionActionStateChanged()
     {
         OnPropertyChanged(nameof(ShowAllocationAction));
+        OnPropertyChanged(nameof(ShowOverweightHandlingAction));
         OnPropertyChanged(nameof(CanToggleNoLoad));
         OpenAllocationCommand.NotifyCanExecuteChanged();
         CaptureWeight1Command.NotifyCanExecuteChanged();

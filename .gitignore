@@ -30,6 +30,7 @@ _verify_build/
 # AI & Agent artifacts
 .agent/
 .gemini/
+.tmp/
 artifacts/
 scratch/
 brain/
