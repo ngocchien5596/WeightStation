@@ -193,7 +193,7 @@ BEGIN
         SET
             AllocatedWeight = @TargetActualWeight,
             AllocatedBagCount = @TargetActualBagCount,
-            SyncStatus = 1,
+            SyncStatus = N'SYNC_QUEUED',
             UpdatedAt = @Now,
             UpdatedBy = @Actor
         WHERE CutOrderId = @CutOrderId

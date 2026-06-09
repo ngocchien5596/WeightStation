@@ -1,0 +1,12 @@
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.Domain\Release\net8.0\StationApp.Domain.deps.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.Domain\Release\net8.0\StationApp.Domain.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.Domain\Release\net8.0\StationApp.Domain.pdb
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.GeneratedMSBuildEditorConfig.editorconfig
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.AssemblyInfoInputs.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.AssemblyInfo.cs
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.csproj.CoreCompileInputs.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.sourcelink.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\refint\StationApp.Domain.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\StationApp.Domain.pdb
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.Domain\Release\net8.0\ref\StationApp.Domain.dll

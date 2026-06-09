@@ -169,7 +169,6 @@ public sealed class MapTemporaryExportCutOrderUseCase
         var realCutOrder = await _cutOrderRepo.GetByIdAsync(request.RealCutOrderId, ct)
             ?? throw new InvalidOperationException("Không tìm thấy cắt lệnh thật.");
 
-        ValidateTemporaryCutOrder(temporaryCutOrder);
         ValidateRealCutOrder(realCutOrder);
 
         if (temporaryCutOrder.Id == realCutOrder.Id)
@@ -178,6 +177,9 @@ public sealed class MapTemporaryExportCutOrderUseCase
         }
 
         var trips = await _cutOrderRepo.GetExportVehicleTripsAsync(temporaryCutOrder.Id, ct);
+        NormalizeRecoverableTemporaryCutOrderState(temporaryCutOrder, trips.Count);
+        ValidateTemporaryCutOrder(temporaryCutOrder);
+
         var sessions = new List<WeighingSession>();
         var lines = new List<WeighingSessionLine>();
         var weighTickets = new List<WeighTicket>();
@@ -342,6 +344,23 @@ public sealed class MapTemporaryExportCutOrderUseCase
         {
             throw new InvalidOperationException("Cắt lệnh tạm đã chốt tổng, không thể map.");
         }
+    }
+
+    private static void NormalizeRecoverableTemporaryCutOrderState(CutOrder cutOrder, int tripCount)
+    {
+        if (!cutOrder.IsTemporaryExport
+            || !cutOrder.IsExportScale
+            || cutOrder.IsDeleted
+            || cutOrder.IsCancelled
+            || cutOrder.ExportFinalizedAt.HasValue
+            || cutOrder.TransactionType != TransactionType.OUTBOUND
+            || tripCount <= 0)
+        {
+            return;
+        }
+
+        cutOrder.CutOrderStatus = CutOrderStatus.IN_SESSION;
+        cutOrder.ProcessingStage = ProcessingStage.WEIGHING;
     }
 
     private static void ValidateRealCutOrder(CutOrder cutOrder)

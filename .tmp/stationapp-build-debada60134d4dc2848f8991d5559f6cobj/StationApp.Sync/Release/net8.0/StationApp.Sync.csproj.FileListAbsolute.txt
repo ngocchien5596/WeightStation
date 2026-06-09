@@ -1,0 +1,14 @@
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cbin\StationApp.Sync\Release\net8.0\StationApp.Sync.deps.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cbin\StationApp.Sync\Release\net8.0\StationApp.Sync.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cbin\StationApp.Sync\Release\net8.0\StationApp.Sync.pdb
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.csproj.AssemblyReference.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.GeneratedMSBuildEditorConfig.editorconfig
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.AssemblyInfoInputs.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.AssemblyInfo.cs
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.csproj.CoreCompileInputs.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.sourcelink.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationA.5465579A.Up2Date
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\refint\StationApp.Sync.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\StationApp.Sync.pdb
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-debada60134d4dc2848f8991d5559f6cobj\StationApp.Sync\Release\net8.0\ref\StationApp.Sync.dll

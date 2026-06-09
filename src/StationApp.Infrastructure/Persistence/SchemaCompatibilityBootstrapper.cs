@@ -49,6 +49,7 @@ public static class SchemaCompatibilityBootstrapper
 
     private static readonly IReadOnlyList<ColumnPatch> DeliveryTicketColumnPatches =
     [
+        new("SyncStatus", "nvarchar(40) NOT NULL CONSTRAINT [DF_delivery_tickets_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
         new("WeighingSessionId", "uniqueidentifier NULL"),
         new("WeighingSessionLineId", "uniqueidentifier NULL"),
         new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_delivery_tickets_is_deleted_bootstrap] DEFAULT ((0))"),
@@ -117,6 +118,7 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureCutOrderIndexesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "delivery_tickets", DeliveryTicketColumnPatches, ct);
+        await EnsureDeliveryTicketSyncStatusSchemaAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
@@ -260,6 +262,66 @@ END";
                 tableName,
                 patch.ColumnName);
         }
+    }
+
+    private static async Task EnsureDeliveryTicketSyncStatusSchemaAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
+   AND EXISTS (
+       SELECT 1
+       FROM sys.columns c
+       INNER JOIN sys.types t ON t.user_type_id = c.user_type_id
+       WHERE c.object_id = OBJECT_ID(N'[delivery_tickets]')
+         AND c.name = N'SyncStatus'
+         AND t.name = N'int'
+   )
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_delivery_tickets_sync_status' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        DROP INDEX [IX_delivery_tickets_sync_status] ON [delivery_tickets];
+    END
+
+    DECLARE @DefaultConstraintName sysname;
+    SELECT @DefaultConstraintName = dc.name
+    FROM sys.default_constraints dc
+    INNER JOIN sys.columns c
+        ON c.object_id = dc.parent_object_id
+       AND c.column_id = dc.parent_column_id
+    WHERE dc.parent_object_id = OBJECT_ID(N'[delivery_tickets]')
+      AND c.name = N'SyncStatus';
+
+    IF @DefaultConstraintName IS NOT NULL
+    BEGIN
+        EXEC(N'ALTER TABLE [delivery_tickets] DROP CONSTRAINT [' + @DefaultConstraintName + N']');
+    END
+
+    ALTER TABLE [delivery_tickets] ADD [SyncStatusText] nvarchar(40) NULL;
+
+    EXEC(N'UPDATE [delivery_tickets]
+    SET [SyncStatusText] =
+        CASE [SyncStatus]
+            WHEN 1 THEN N''SYNC_QUEUED''
+            WHEN 2 THEN N''SYNC_SUCCESS''
+            WHEN 3 THEN N''SYNC_FAILED''
+            ELSE N''SYNC_QUEUED''
+        END');
+
+    EXEC(N'ALTER TABLE [delivery_tickets] DROP COLUMN [SyncStatus]');
+    EXEC sp_rename N'delivery_tickets.SyncStatusText', N'SyncStatus', N'COLUMN';
+    EXEC(N'ALTER TABLE [delivery_tickets] ALTER COLUMN [SyncStatus] nvarchar(40) NOT NULL');
+END
+
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
+   AND COL_LENGTH('delivery_tickets', 'SyncStatus') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_delivery_tickets_sync_status' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+BEGIN
+    CREATE INDEX [IX_delivery_tickets_sync_status] ON [delivery_tickets]([SyncStatus]);
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for delivery_tickets.SyncStatus.");
     }
 
     private static async Task EnsureCutOrderIndexesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)

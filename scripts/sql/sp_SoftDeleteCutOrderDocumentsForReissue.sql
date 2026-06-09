@@ -217,7 +217,7 @@ BEGIN
         SET
             CutOrderId = @TempCutOrderId,
             ErpCutOrderId = N'',
-            SyncStatus = 1,
+            SyncStatus = N'SYNC_QUEUED',
             UpdatedAt = @Now,
             UpdatedBy = N'ERP_REISSUE'
         WHERE CutOrderId = @CutOrderId
@@ -334,7 +334,7 @@ BEGIN
         IsDeleted = 1,
         AllocatedWeight = 0,
         AllocatedBagCount = 0,
-        SyncStatus = 1,
+        SyncStatus = N'SYNC_QUEUED',
         DeletedAt = @Now,
         DeletedBy = N'ERP_REISSUE',
         UpdatedAt = @Now,

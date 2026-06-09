@@ -1,0 +1,17 @@
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.exe
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.deps.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.runtimeconfig.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2bin\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.pdb
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.csproj.AssemblyReference.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.GeneratedMSBuildEditorConfig.editorconfig
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.AssemblyInfoInputs.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.AssemblyInfo.cs
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.csproj.CoreCompileInputs.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.sourcelink.json
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationA.1B4C4E72.Up2Date
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\refint\StationApp.DbMigrator.dll
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.pdb
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\StationApp.DbMigrator.genruntimeconfig.cache
+G:\Source-code\pmcan_C#\.tmp\stationapp-build-15e2737bf8c542bfa0c4dfbc336006c2obj\StationApp.DbMigrator\Release\net8.0\ref\StationApp.DbMigrator.dll

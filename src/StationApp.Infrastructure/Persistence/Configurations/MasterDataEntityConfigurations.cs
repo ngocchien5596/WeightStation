@@ -83,6 +83,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.Property(e => e.DeletedBy).HasMaxLength(100);
         builder.Property(e => e.LastPrintedAt);
         builder.Property(e => e.LastPrintError).HasMaxLength(500);
+        builder.Property(e => e.SyncStatus).HasConversion<string>().HasMaxLength(40).IsRequired();
 
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);

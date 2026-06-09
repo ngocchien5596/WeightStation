@@ -161,6 +161,11 @@
     <Style TargetType="DataGrid">
         <Setter Property="ClipboardCopyMode" Value="ExcludeHeader"/>
         <Setter Property="helpers:DataGridCellCopyBehavior.EnableCurrentCellCopy" Value="True"/>
+        <Setter Property="EnableRowVirtualization" Value="True"/>
+        <Setter Property="EnableColumnVirtualization" Value="True"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
     </Style>
 
     <Style x:Key="SystemDataGridStyle" TargetType="DataGrid">
@@ -168,6 +173,11 @@
         <Setter Property="IsReadOnly" Value="True"/>
         <Setter Property="ClipboardCopyMode" Value="ExcludeHeader"/>
         <Setter Property="helpers:DataGridCellCopyBehavior.EnableCurrentCellCopy" Value="True"/>
+        <Setter Property="EnableRowVirtualization" Value="True"/>
+        <Setter Property="EnableColumnVirtualization" Value="True"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
         <Setter Property="FontSize" Value="13.5"/>
         <Setter Property="GridLinesVisibility" Value="All"/>
         <Setter Property="HorizontalGridLinesBrush" Value="#BDC3C7"/>

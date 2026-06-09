@@ -1079,7 +1079,7 @@ public sealed class CaptureSessionWeight2UseCase
             return 0;
         }
 
-        return (int)decimal.Round(actualWeight / DefaultBagWeightKg, 0, MidpointRounding.AwayFromZero);
+        return (int)decimal.Floor(actualWeight / DefaultBagWeightKg);
     }
 
     private void EnsureManualPermission(WeightMode mode)

@@ -1009,11 +1009,18 @@ public class CutOrderRepository : ICutOrderRepository
             .Where(co => co.IsTemporaryExport
                 && co.IsExportScale
                 && co.TransactionType == TransactionType.OUTBOUND
-                && co.ProcessingStage == ProcessingStage.WEIGHING
-                && co.CutOrderStatus == CutOrderStatus.IN_SESSION
                 && !co.IsDeleted
                 && !co.IsCancelled
                 && !co.ExportFinalizedAt.HasValue
+                && (
+                    (co.ProcessingStage == ProcessingStage.WEIGHING && co.CutOrderStatus == CutOrderStatus.IN_SESSION)
+                    || _db.WeighingSessionLines.Any(line =>
+                        line.CutOrderId == co.Id
+                        && !line.IsDeleted
+                        && _db.WeighingSessions.Any(session =>
+                            session.Id == line.WeighingSessionId
+                            && !session.IsDeleted
+                            && !session.IsCancelled)))
                 && !_db.CutOrders.Any(activeReal =>
                     activeReal.Id == co.MappedRealCutOrderId
                     && !activeReal.IsDeleted

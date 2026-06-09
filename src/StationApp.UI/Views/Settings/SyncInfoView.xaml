@@ -121,45 +121,94 @@
                 </Button>
             </Grid>
 
-            <Border Grid.Row="1" BorderBrush="#D7E3F0" BorderThickness="1" CornerRadius="6">
-                <DataGrid x:Name="SyncItemsGrid"
-                          ItemsSource="{Binding SyncItems}"
-                          SelectedItem="{Binding SelectedSyncItem, Mode=TwoWay}"
-                          AutoGenerateColumns="False"
-                          Style="{StaticResource SystemDataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                          CellStyle="{StaticResource SystemDataGridCellStyle}"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                    <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow" BasedOn="{StaticResource SystemDataGridRowStyle}">
-                            <Setter Property="Tag"
-                                    Value="{Binding DataContext, ElementName=SyncItemsGrid}"/>
-                            <Setter Property="ContextMenu">
-                                <Setter.Value>
-                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                        <MenuItem Header="&#x110;&#x1ED2;NG B&#x1ED8; L&#x1EA0;I CH&#x1EE8;NG T&#x1EEA; N&#xC0;Y;"
-                                                  Command="{Binding PlacementTarget.Tag.ResyncItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="{Binding}"/>
-                                    </ContextMenu>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </DataGrid.RowStyle>
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColAggregate}" Binding="{Binding AggregateType}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColBusinessNo}" Binding="{Binding BusinessNo}" Width="145" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColSessionNo}" Binding="{Binding SessionNo}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="Sync entity" Binding="{Binding EntitySyncStatus}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="Outbox" Binding="{Binding OutboxStatus}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="Retry" Binding="{Binding RetryCount}" Width="70" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColCreatedAt}" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColUpdatedAt}" Binding="{Binding UpdatedAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColNextRetry}" Binding="{Binding NextRetryAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Sync.ColLastError}" Binding="{Binding LastError}" Width="340" ElementStyle="{StaticResource GridTextLeft}"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Border>
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" BorderBrush="#D7E3F0" BorderThickness="1" CornerRadius="6">
+                    <DataGrid x:Name="SyncItemsGrid"
+                              ItemsSource="{Binding SyncItems}"
+                              SelectedItem="{Binding SelectedSyncItem, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              Style="{StaticResource SystemDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                              CellStyle="{StaticResource SystemDataGridCellStyle}"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource SystemDataGridRowStyle}">
+                                <Setter Property="Tag"
+                                        Value="{Binding DataContext, ElementName=SyncItemsGrid}"/>
+                                <Setter Property="ContextMenu">
+                                    <Setter.Value>
+                                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                            <MenuItem Header="&#x110;&#x1ED2;NG B&#x1ED8; L&#x1EA0;I CH&#x1EE8;NG T&#x1EEA; N&#xC0;Y;"
+                                                      Command="{Binding PlacementTarget.Tag.ResyncItemCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}"/>
+                                        </ContextMenu>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColAggregate}" Binding="{Binding AggregateType}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColBusinessNo}" Binding="{Binding BusinessNo}" Width="145" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColSessionNo}" Binding="{Binding SessionNo}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColVehiclePlate}" Binding="{Binding VehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="Sync entity" Binding="{Binding EntitySyncStatus}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="Outbox" Binding="{Binding OutboxStatus}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="Retry" Binding="{Binding RetryCount}" Width="70" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColCreatedAt}" Binding="{Binding CreatedAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColUpdatedAt}" Binding="{Binding UpdatedAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColNextRetry}" Binding="{Binding NextRetryAt, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
+                            <DataGridTextColumn Header="{StaticResource Sync.ColLastError}" Binding="{Binding LastError}" Width="340" ElementStyle="{StaticResource GridTextLeft}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Background="#F8FBFE"
+                        BorderBrush="#D7E3F0"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0,0,6,6"
+                        Padding="10,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding PageSummary}"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="#50627A"/>
+
+                        <Button Grid.Column="1"
+                                Command="{Binding PreviousPageCommand}"
+                                IsEnabled="{Binding CanGoToPreviousPage}"
+                                Style="{StaticResource UtilityButtonStyle}"
+                                Margin="0,0,8,0"
+                                Width="42"
+                                Height="30"
+                                Padding="0">
+                            <TextBlock Text="&lt;" FontSize="16" FontWeight="Bold"/>
+                        </Button>
+
+                        <Button Grid.Column="2"
+                                Command="{Binding NextPageCommand}"
+                                IsEnabled="{Binding CanGoToNextPage}"
+                                Style="{StaticResource UtilityButtonStyle}"
+                                Width="42"
+                                Height="30"
+                                Padding="0">
+                            <TextBlock Text="&gt;" FontSize="16" FontWeight="Bold"/>
+                        </Button>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
 
         <Grid Grid.RowSpan="2"

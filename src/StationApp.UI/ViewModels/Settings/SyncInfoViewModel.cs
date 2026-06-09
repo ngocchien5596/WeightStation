@@ -19,6 +19,8 @@ namespace StationApp.UI.ViewModels.Settings;
 
 public partial class SyncInfoViewModel : ObservableObject
 {
+    private const int DefaultPageSize = 100;
+
     private static readonly string[] MasterAggregateTypes =
     [
         SyncAggregateTypes.Vehicle,
@@ -27,6 +29,7 @@ public partial class SyncInfoViewModel : ObservableObject
     ];
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private CancellationTokenSource? _searchDebounceCts;
 
     public SyncInfoViewModel(IServiceScopeFactory scopeFactory)
     {
@@ -69,6 +72,12 @@ public partial class SyncInfoViewModel : ObservableObject
     [ObservableProperty] private int _customerMasterCount;
     [ObservableProperty] private int _productMasterCount;
     [ObservableProperty] private SyncOutboxListItem? _selectedSyncItem;
+    [ObservableProperty] private int _pageNumber = 1;
+    [ObservableProperty] private int _pageSize = DefaultPageSize;
+    [ObservableProperty] private int _totalSyncItemsCount;
+    [ObservableProperty] private string _pageSummary = "Không có dữ liệu";
+    [ObservableProperty] private bool _canGoToPreviousPage;
+    [ObservableProperty] private bool _canGoToNextPage;
 
     public async Task LoadAsync()
     {
@@ -155,6 +164,7 @@ public partial class SyncInfoViewModel : ObservableObject
         VehicleMasterCount = 0;
         CustomerMasterCount = 0;
         ProductMasterCount = 0;
+        PageNumber = 1;
 
         await LoadAsync();
 
@@ -284,6 +294,30 @@ public partial class SyncInfoViewModel : ObservableObject
 
     private bool CanResyncSelected() => SelectedSyncItem != null;
 
+    [RelayCommand]
+    private async Task PreviousPageAsync()
+    {
+        if (PageNumber <= 1)
+        {
+            return;
+        }
+
+        PageNumber--;
+        await LoadAsync();
+    }
+
+    [RelayCommand]
+    private async Task NextPageAsync()
+    {
+        if (!CanGoToNextPage)
+        {
+            return;
+        }
+
+        PageNumber++;
+        await LoadAsync();
+    }
+
     private static Task<int> CountPendingOutboxAsync(StationDbContext context, string aggregateType)
     {
         return context.SyncOutbox
@@ -292,10 +326,43 @@ public partial class SyncInfoViewModel : ObservableObject
             .CountAsync(CancellationToken.None);
     }
 
-    partial void OnSelectedAggregateTypeChanged(string value) => _ = LoadAsync();
-    partial void OnSelectedOutboxStatusChanged(string value) => _ = LoadAsync();
-    partial void OnSearchKeywordChanged(string? value) => _ = LoadAsync();
+    partial void OnSelectedAggregateTypeChanged(string value)
+    {
+        PageNumber = 1;
+        _ = LoadAsync();
+    }
+
+    partial void OnSelectedOutboxStatusChanged(string value)
+    {
+        PageNumber = 1;
+        _ = LoadAsync();
+    }
+
+    partial void OnSearchKeywordChanged(string? value)
+    {
+        PageNumber = 1;
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts = new CancellationTokenSource();
+        var token = _searchDebounceCts.Token;
+
+        _ = DebouncedLoadAsync(token);
+    }
     partial void OnSelectedSyncItemChanged(SyncOutboxListItem? value) => ResyncSelectedCommand.NotifyCanExecuteChanged();
+
+    private async Task DebouncedLoadAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(350, token);
+            if (!token.IsCancellationRequested)
+            {
+                await LoadAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
 
     private static string FormatTimestamp(DateTime? timestamp)
     {
@@ -332,11 +399,29 @@ public partial class SyncInfoViewModel : ObservableObject
             query = query.Where(x => x.Status == outboxStatus);
         }
 
+        query = ApplySearchFilter(context, query, SearchKeyword);
+
+        TotalSyncItemsCount = await query.CountAsync(CancellationToken.None);
+        var pageSize = Math.Max(20, PageSize);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(TotalSyncItemsCount / (double)pageSize));
+        if (PageNumber > totalPages)
+        {
+            PageNumber = totalPages;
+        }
+
+        var skip = (PageNumber - 1) * pageSize;
         var outboxItems = await query
             .OrderBy(x => x.Status == OutboxStatus.PENDING ? 0 : x.Status == OutboxStatus.FAILED_RETRYABLE ? 1 : x.Status == OutboxStatus.PROCESSING ? 2 : 3)
             .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
-            .Take(300)
+            .Skip(skip)
+            .Take(pageSize)
             .ToListAsync(CancellationToken.None);
+
+        CanGoToPreviousPage = PageNumber > 1;
+        CanGoToNextPage = PageNumber < totalPages;
+        PageSummary = TotalSyncItemsCount == 0
+            ? "Không có dữ liệu"
+            : $"Hiển thị {skip + 1:N0}-{skip + outboxItems.Count:N0} / {TotalSyncItemsCount:N0} bản ghi";
 
         var registrationIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.CutOrder).Select(x => x.AggregateId).Distinct().ToList();
         var weighTicketIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighTicket).Select(x => x.AggregateId).Distinct().ToList();
@@ -469,18 +554,70 @@ public partial class SyncInfoViewModel : ObservableObject
                 item.NextRetryAt);
         });
 
-        if (!string.IsNullOrWhiteSpace(SearchKeyword))
+        return items.ToList();
+    }
+
+    private static IQueryable<SyncOutbox> ApplySearchFilter(StationDbContext context, IQueryable<SyncOutbox> query, string? searchKeyword)
+    {
+        if (string.IsNullOrWhiteSpace(searchKeyword))
         {
-            var keyword = SearchKeyword.Trim();
-            items = items.Where(x =>
-                x.AggregateType.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                x.BusinessNo.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                x.SessionNo.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                x.VehiclePlate.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                (x.LastError?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false));
+            return query;
         }
 
-        return items.ToList();
+        var keyword = searchKeyword.Trim();
+        return query.Where(o =>
+            o.AggregateType.Contains(keyword)
+            || (o.LastError != null && o.LastError.Contains(keyword))
+            || (o.AggregateType == SyncAggregateTypes.CutOrder && context.CutOrders.Any(x =>
+                x.Id == o.AggregateId
+                && ((x.ErpCutOrderId != null && x.ErpCutOrderId.Contains(keyword))
+                    || (x.OrderCode != null && x.OrderCode.Contains(keyword))
+                    || x.VehiclePlate.Contains(keyword)
+                    || (x.CustomerName != null && x.CustomerName.Contains(keyword))
+                    || (x.ProductName != null && x.ProductName.Contains(keyword)))))
+            || (o.AggregateType == SyncAggregateTypes.WeighTicket && context.WeighTickets.Any(x =>
+                x.Id == o.AggregateId
+                && (x.TicketNo.Contains(keyword)
+                    || x.VehiclePlate.Contains(keyword)
+                    || (x.CustomerName != null && x.CustomerName.Contains(keyword))
+                    || (x.ProductName != null && x.ProductName.Contains(keyword)))))
+            || (o.AggregateType == SyncAggregateTypes.DeliveryTicket && context.DeliveryTickets.Any(x =>
+                x.Id == o.AggregateId
+                && (x.DeliveryNo.Contains(keyword)
+                    || x.ErpCutOrderId.Contains(keyword)
+                    || (x.CustomerCode != null && x.CustomerCode.Contains(keyword))
+                    || (x.ProductCode != null && x.ProductCode.Contains(keyword))
+                    || (x.Notes != null && x.Notes.Contains(keyword)))))
+            || (o.AggregateType == SyncAggregateTypes.WeighingSession && context.WeighingSessions.Any(x =>
+                x.Id == o.AggregateId
+                && (x.SessionNo.Contains(keyword)
+                    || x.VehiclePlate.Contains(keyword)
+                    || (x.MoocNumber != null && x.MoocNumber.Contains(keyword))
+                    || (x.DriverName != null && x.DriverName.Contains(keyword)))))
+            || (o.AggregateType == SyncAggregateTypes.WeighingSessionLine && context.WeighingSessionLines.Any(line =>
+                line.Id == o.AggregateId
+                && ((line.CustomerName != null && line.CustomerName.Contains(keyword))
+                    || (line.CustomerCode != null && line.CustomerCode.Contains(keyword))
+                    || (line.ProductName != null && line.ProductName.Contains(keyword))
+                    || (line.ProductCode != null && line.ProductCode.Contains(keyword))
+                    || context.CutOrders.Any(cutOrder =>
+                        cutOrder.Id == line.CutOrderId
+                        && ((cutOrder.ErpCutOrderId != null && cutOrder.ErpCutOrderId.Contains(keyword))
+                            || cutOrder.VehiclePlate.Contains(keyword)))
+                    || context.WeighingSessions.Any(session =>
+                        session.Id == line.WeighingSessionId
+                        && (session.SessionNo.Contains(keyword) || session.VehiclePlate.Contains(keyword))))))
+            || (o.AggregateType == SyncAggregateTypes.Vehicle && context.Vehicles.Any(x =>
+                x.Id == o.AggregateId
+                && (x.VehiclePlate.Contains(keyword)
+                    || x.MoocNumber.Contains(keyword)
+                    || (x.DriverName != null && x.DriverName.Contains(keyword)))))
+            || (o.AggregateType == SyncAggregateTypes.Customer && context.Customers.Any(x =>
+                x.Id == o.AggregateId
+                && (x.CustomerCode.Contains(keyword) || x.CustomerName.Contains(keyword))))
+            || (o.AggregateType == SyncAggregateTypes.Product && context.Products.Any(x =>
+                x.Id == o.AggregateId
+                && (x.ProductCode.Contains(keyword) || x.ProductName.Contains(keyword)))));
     }
 
     private static async Task<(string PayloadJson, Guid IdempotencyKey)?> PrepareAggregateForResyncAsync(

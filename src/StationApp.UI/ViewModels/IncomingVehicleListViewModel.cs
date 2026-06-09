@@ -508,7 +508,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                             var actualBagCount =
                                 string.Equals(ProductTypes.Normalize(singleLine.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase)
                                 && singleLine.PlannedBagCount.HasValue
-                                    ? (int?)decimal.Round(session.NetWeight.Value / 50m, 0, MidpointRounding.AwayFromZero)
+                                    ? (int?)decimal.Floor(session.NetWeight.Value / 50m)
                                     : null;
 
                             var allocateUc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();

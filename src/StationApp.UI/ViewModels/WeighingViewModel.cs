@@ -1570,10 +1570,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             ? editedWeight
             : decimal.Round(NetWeight.Value - editedWeight, 3, MidpointRounding.AwayFromZero);
 
-        await RefreshOverweightPreviewAsync(isManualOverride: true, firstSplitWeight: firstSplitWeight);
+        await RefreshOverweightPreviewAsync(
+            isManualOverride: true,
+            firstSplitWeight: firstSplitWeight,
+            editedTicket: isFirstTicket ? 1 : 2);
     }
 
-    private async Task RefreshOverweightPreviewAsync(bool isManualOverride, decimal? firstSplitWeight)
+    private async Task RefreshOverweightPreviewAsync(bool isManualOverride, decimal? firstSplitWeight, int? editedTicket = null)
     {
         if (SelectedSession == null)
         {
@@ -1598,7 +1601,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            ApplyOverweightPreview(preview);
+            ApplyOverweightPreview(preview, editedTicket);
         }
         catch (InvalidOperationException ex)
         {
@@ -1607,18 +1610,25 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            ApplyOverweightPreviewError(isManualOverride, firstSplitWeight, ex.Message);
+            ApplyOverweightPreviewError(isManualOverride, firstSplitWeight, ex.Message, editedTicket);
         }
     }
 
-    private void ApplyOverweightPreview(OverweightSplitPreviewDto preview)
+    private void ApplyOverweightPreview(OverweightSplitPreviewDto preview, int? editedTicket = null)
     {
         _isUpdatingOverweightSplitInputs = true;
         try
         {
             OverweightSplitStepWeight = preview.OverweightSplitStepWeight;
-            OverweightSplitTicket1WeightText = FormatOverweightSplitWeight(preview.SplitTicket1NetWeight);
-            OverweightSplitTicket2WeightText = FormatOverweightSplitWeight(preview.SplitTicket2NetWeight);
+            if (editedTicket != 1)
+            {
+                OverweightSplitTicket1WeightText = FormatOverweightSplitWeight(preview.SplitTicket1NetWeight);
+            }
+
+            if (editedTicket != 2)
+            {
+                OverweightSplitTicket2WeightText = FormatOverweightSplitWeight(preview.SplitTicket2NetWeight);
+            }
         }
         finally
         {
@@ -1637,7 +1647,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         SetOverweightSplitValidation(null);
     }
 
-    private void ApplyOverweightPreviewError(bool isManualOverride, decimal? firstSplitWeight, string message)
+    private void ApplyOverweightPreviewError(bool isManualOverride, decimal? firstSplitWeight, string message, int? editedTicket = null)
     {
         IsManualSplitOverride = isManualOverride;
         OverweightSplitModeText = SplitModeDisplayMapper.ToDisplayString(isManualOverride);
@@ -1648,12 +1658,20 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             _isUpdatingOverweightSplitInputs = true;
             try
             {
-                OverweightSplitTicket1WeightText = FormatOverweightSplitWeight(firstSplitWeight.Value);
+                if (editedTicket != 1)
+                {
+                    OverweightSplitTicket1WeightText = FormatOverweightSplitWeight(firstSplitWeight.Value);
+                }
+
                 if (NetWeight.HasValue)
                 {
-                    OverweightSplitTicket2WeightText = FormatOverweightSplitWeight(
-                        decimal.Round(NetWeight.Value - firstSplitWeight.Value, 3, MidpointRounding.AwayFromZero));
+                    if (editedTicket != 2)
+                    {
+                        OverweightSplitTicket2WeightText = FormatOverweightSplitWeight(
+                            decimal.Round(NetWeight.Value - firstSplitWeight.Value, 3, MidpointRounding.AwayFromZero));
+                    }
                 }
+
             }
             finally
             {
@@ -2607,7 +2625,7 @@ public partial class WeighingSessionLineRow : ObservableObject
             return;
         }
 
-        ActualAllocatedBagCount = (int)decimal.Round(value.Value / DefaultBagWeightKg, 0, MidpointRounding.AwayFromZero);
+        ActualAllocatedBagCount = (int)decimal.Floor(value.Value / DefaultBagWeightKg);
     }
 
     public WeighingSessionLineRow Clone()

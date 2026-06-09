@@ -11,6 +11,8 @@ namespace StationApp.Infrastructure.Services;
 
 public sealed class ExportSummaryReportService : IExportSummaryReportService
 {
+    private const decimal BagWeightKg = 50m;
+
     private readonly StationDbContext _dbContext;
     private readonly IAppConfigRepository _appConfigRepository;
 
@@ -346,7 +348,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
 
             return x.CutOrder.PlannedWeight ?? x.Line.PlannedWeight ?? 0m;
         });
-        var actualBagCount = enrichedLines.Sum(x => x.IsBagged ? (x.Line.ActualAllocatedBagCount ?? 0) : 0);
+        var actualBagCount = enrichedLines.Sum(x => x.IsBagged ? CalculateReportBagCount(x.Line.ActualAllocatedWeight, x.Line.ActualAllocatedBagCount) : 0);
         var actualWeightKg = enrichedLines.Sum(x => x.Line.ActualAllocatedWeight ?? 0m);
         if (actualWeightKg <= 0m)
         {
@@ -432,6 +434,16 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             standardKgPerBag,
             actualKgPerBag,
             status);
+    }
+
+    private static int CalculateReportBagCount(decimal? actualWeightKg, int? persistedBagCount)
+    {
+        if (!actualWeightKg.HasValue || actualWeightKg.Value <= 0m)
+        {
+            return persistedBagCount ?? 0;
+        }
+
+        return (int)decimal.Floor(actualWeightKg.Value / BagWeightKg);
     }
 
     private static string? ResolveProductType(CutOrder cutOrder, IReadOnlyDictionary<string, Product> productLookup)
