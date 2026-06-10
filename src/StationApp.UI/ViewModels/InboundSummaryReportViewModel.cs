@@ -114,11 +114,13 @@ public partial class InboundSummaryReportViewModel : ObservableObject
         try
         {
             IsBusy = true;
+            var selectedProduct = SelectedProduct ?? ResolveSelectedLookup(ProductOptions, ProductSearchText);
+            var selectedCustomer = SelectedCustomer ?? ResolveSelectedLookup(CustomerOptions, CustomerSearchText);
             var filter = new InboundSummaryReportFilter(
                 fromTime,
                 toTime,
-                NormalizeCode(ResolveSelectedLookup(ProductOptions, ProductSearchText)),
-                NormalizeCode(ResolveSelectedLookup(CustomerOptions, CustomerSearchText)));
+                NormalizeCode(selectedProduct),
+                NormalizeCode(selectedCustomer));
 
             var document = await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
             await _exportUseCase.ExecuteAsync(document, saveDialog.FileName, CancellationToken.None);

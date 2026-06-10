@@ -38,6 +38,7 @@ public class AutocompleteService : IAutocompleteService
             AutocompleteFieldType.Mooc => await SearchMoocAsync(keyword, limit, ct),
             AutocompleteFieldType.Driver => await SearchDriverAsync(keyword, limit, ct),
             AutocompleteFieldType.Customer => await SearchCustomerAsync(keyword, limit, ct),
+            AutocompleteFieldType.CustomerCode => await SearchCustomerCodeAsync(keyword, limit, ct),
             AutocompleteFieldType.ProductCode => await SearchProductCodeAsync(keyword, limit, ct),
             AutocompleteFieldType.ProductName => await SearchProductNameAsync(keyword, limit, ct),
             _ => Array.Empty<AutocompleteItem>()
@@ -151,6 +152,32 @@ public class AutocompleteService : IAutocompleteService
                 x.CustomerName,
                 string.IsNullOrWhiteSpace(x.CustomerCode) ? null : $"Ma {x.CustomerCode}",
                 AutocompleteFieldType.Customer,
+                new AutocompletePayload(
+                    CustomerCode: x.CustomerCode,
+                    CustomerName: x.CustomerName)))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    private async Task<IReadOnlyList<AutocompleteItem>> SearchCustomerCodeAsync(string keyword, int limit, CancellationToken ct)
+    {
+        var master = await _customerRepository.SearchAutocompleteAsync(keyword, limit, ct);
+        var recent = await _vehicleRegistrationRepository.SearchCustomerHistorySourcesAsync(keyword, limit, ct);
+
+        return master
+            .Concat(recent)
+            .Where(x => !string.IsNullOrWhiteSpace(x.CustomerCode))
+            .GroupBy(x => Normalize(x.CustomerCode) + "|" + Normalize(x.CustomerName))
+            .Select(x => x.First())
+            .OrderByDescending(x => x.Source == "MASTER")
+            .ThenBy(x => RankStartsWith(x.CustomerCode, keyword))
+            .ThenBy(x => x.CustomerCode, StringComparer.OrdinalIgnoreCase)
+            .Take(limit)
+            .Select(x => new AutocompleteItem(
+                x.CustomerCode!,
+                x.CustomerCode!,
+                x.CustomerName,
+                AutocompleteFieldType.CustomerCode,
                 new AutocompletePayload(
                     CustomerCode: x.CustomerCode,
                     CustomerName: x.CustomerName)))

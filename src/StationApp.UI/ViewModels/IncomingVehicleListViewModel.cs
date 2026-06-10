@@ -71,6 +71,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public AutocompleteInputViewModel FormVehiclePlateInput { get; }
     public AutocompleteInputViewModel FormMoocInput { get; }
     public AutocompleteInputViewModel FormDriverInput { get; }
+    public AutocompleteInputViewModel FormCustomerCodeInput { get; }
     public AutocompleteInputViewModel FormCustomerInput { get; }
     public AutocompleteInputViewModel FormProductCodeInput { get; }
     public AutocompleteInputViewModel FormProductNameInput { get; }
@@ -114,6 +115,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         FormVehiclePlateInput = CreateAutocompleteField(AutocompleteFieldType.Vehicle, 1, ApplyVehicleSelection);
         FormMoocInput = CreateAutocompleteField(AutocompleteFieldType.Mooc, 1, ApplyMoocSelection);
         FormDriverInput = CreateAutocompleteField(AutocompleteFieldType.Driver, 2, item => FormDriverName = item.Value);
+        FormCustomerCodeInput = CreateAutocompleteField(AutocompleteFieldType.CustomerCode, 1, ApplyCustomerSelection);
         FormCustomerInput = CreateAutocompleteField(AutocompleteFieldType.Customer, 2, ApplyCustomerSelection);
         FormProductCodeInput = CreateAutocompleteField(AutocompleteFieldType.ProductCode, 1, ApplyProductSelection);
         FormProductNameInput = CreateAutocompleteField(AutocompleteFieldType.ProductName, 2, ApplyProductSelection);
@@ -122,6 +124,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         WireTextState(FormVehiclePlateInput, value => FormVehiclePlate = value);
         WireTextState(FormMoocInput, value => FormMoocNumber = value);
         WireTextState(FormDriverInput, value => FormDriverName = value);
+        WireTextState(FormCustomerCodeInput, value => FormCustomerCode = value);
         WireTextState(FormCustomerInput, value => FormCustomerName = value);
         WireTextState(FormProductCodeInput, value => FormProductCode = value);
         WireTextState(FormProductNameInput, value => FormProductName = value);
@@ -722,7 +725,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             SetFormVehiclePlate(registration.VehiclePlate);
             SetFormMoocNumber(registration.MoocNumber);
             SetFormDriverName(registration.ReceiverName);
-            FormCustomerCode = registration.CustomerCode;
+            SetFormCustomerCode(registration.CustomerCode);
             SetFormCustomerName(registration.CustomerName);
             SetFormProductCode(registration.ProductCode);
             SetFormProductName(registration.ProductName);
@@ -807,7 +810,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         SetFormVehiclePlate(null);
         SetFormMoocNumber(null);
         SetFormDriverName(null);
-        FormCustomerCode = null;
+        SetFormCustomerCode(null);
         SetFormCustomerName(null);
         SetFormProductCode(null);
         SetFormProductName(null);
@@ -903,7 +906,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     private void ApplyCustomerSelection(AutocompleteItem item)
     {
-        FormCustomerCode = item.Payload?.CustomerCode;
+        SetFormCustomerCode(item.Payload?.CustomerCode ?? item.Value);
         SetFormCustomerName(item.Payload?.CustomerName ?? item.Value);
     }
 
@@ -984,7 +987,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             {
                 if (!string.Equals(FormCustomerCode, normalizedCode, StringComparison.Ordinal))
                 {
-                    FormCustomerCode = normalizedCode;
+                    SetFormCustomerCode(normalizedCode);
                 }
 
                 SetFormCustomerName(customer.CustomerName);
@@ -1030,6 +1033,12 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         FormCustomerName = value;
         FormCustomerInput.SetText(value);
+    }
+
+    private void SetFormCustomerCode(string? value)
+    {
+        FormCustomerCode = value;
+        FormCustomerCodeInput.SetText(value);
     }
 
     private void SetFormProductCode(string? value)
@@ -1148,7 +1157,9 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(FormDriverName))
+        var requiresOutboundPlanningFields = FormTransactionType == TransactionType.OUTBOUND;
+
+        if (requiresOutboundPlanningFields && string.IsNullOrWhiteSpace(FormDriverName))
         {
             _toastService.ShowWarning(UiText.Common.RequiredDriverName);
             return false;
@@ -1172,7 +1183,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return false;
         }
 
-        if (!FormPlannedWeight.HasValue || FormPlannedWeight.Value <= 0)
+        if (requiresOutboundPlanningFields && (!FormPlannedWeight.HasValue || FormPlannedWeight.Value <= 0))
         {
             _toastService.ShowWarning(UiText.Common.RequiredPlannedWeight);
             return false;

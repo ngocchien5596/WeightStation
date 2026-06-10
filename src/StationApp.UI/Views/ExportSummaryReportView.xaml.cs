@@ -1,11 +1,14 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using StationApp.Application.DTOs;
 
 namespace StationApp.UI.Views;
 
 public partial class ExportSummaryReportView : UserControl
 {
+    private bool _suppressLookupRefresh;
+
     public ExportSummaryReportView()
     {
         InitializeComponent();
@@ -28,8 +31,44 @@ public partial class ExportSummaryReportView : UserControl
         editableTextBox.TextChanged += LookupEditableTextBox_TextChanged;
     }
 
-    private static void LookupEditableTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    private void LookupComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (sender is not ComboBox comboBox || comboBox.SelectedItem is not ReportLookupOptionDto option)
+        {
+            return;
+        }
+
+        var displayText = string.IsNullOrWhiteSpace(option.Code) ? string.Empty : option.DisplayName;
+        comboBox.Dispatcher.BeginInvoke(
+            () =>
+            {
+                try
+                {
+                    _suppressLookupRefresh = true;
+                    comboBox.Text = displayText;
+                    comboBox.IsDropDownOpen = false;
+
+                    if (comboBox.Template.FindName("PART_EditableTextBox", comboBox) is TextBox editableTextBox)
+                    {
+                        editableTextBox.CaretIndex = editableTextBox.Text.Length;
+                        editableTextBox.SelectionLength = 0;
+                    }
+                }
+                finally
+                {
+                    _suppressLookupRefresh = false;
+                }
+            },
+            DispatcherPriority.ContextIdle);
+    }
+
+    private void LookupEditableTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressLookupRefresh)
+        {
+            return;
+        }
+
         if (sender is not TextBox editableTextBox || !editableTextBox.IsKeyboardFocusWithin)
         {
             return;

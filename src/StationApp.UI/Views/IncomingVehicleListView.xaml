@@ -167,10 +167,10 @@
                              Style="{StaticResource FormBox}"/>
 
                     <TextBlock Text="M&#xE3; KH" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="3" Grid.Column="1"
-                              Text="{Binding FormCustomerCode, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource FormBox}"
-                              IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="1"
+                                                   State="{Binding FormCustomerCodeInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
 
                     <TextBlock Text="{StaticResource Incoming.CustomerLabel}" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="3"

@@ -717,7 +717,8 @@ public enum AutocompleteFieldType
     Driver = 3,
     Customer = 4,
     ProductCode = 5,
-    ProductName = 6
+    ProductName = 6,
+    CustomerCode = 7
 }
 
 public sealed record AutocompleteQuery(
