@@ -53,6 +53,12 @@ public sealed class UpdateSystemSettingsUseCase
             }
         }
 
+        var localDatabaseBackupTime = request.LocalDatabaseBackupTime.Trim();
+        if (!TryParseBackupTime(localDatabaseBackupTime, out var backupTime))
+        {
+            throw new InvalidOperationException("Local database backup time is invalid. Use HH:mm, for example 01:00.");
+        }
+
         await _configRepository.SetValueAsync("station_code", request.StationCode.Trim(), ct);
         await _configRepository.SetValueAsync("ticket_prefix", request.TicketPrefix.Trim(), ct);
         await _configRepository.SetValueAsync("delivery_prefix", request.DeliveryPrefix.Trim(), ct);
@@ -63,8 +69,20 @@ public sealed class UpdateSystemSettingsUseCase
         await _configRepository.SetValueAsync(AppConfigKeys.CentralApiUrl, centralApiUrl, ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CentralApiKey, request.CentralApiKey.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, localDatabaseBackupDirectory, ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.LocalDatabaseBackupTime, backupTime.ToString(@"hh\:mm", CultureInfo.InvariantCulture), ct);
 
         await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    private static bool TryParseBackupTime(string value, out TimeSpan backupTime)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            value = AppConfigDefaults.DefaultLocalDatabaseBackupTime;
+        }
+
+        return TimeSpan.TryParseExact(value, @"hh\:mm", CultureInfo.InvariantCulture, out backupTime)
+            || TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out backupTime);
     }
 }
 

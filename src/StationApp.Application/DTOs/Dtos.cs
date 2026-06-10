@@ -99,7 +99,8 @@ public sealed record UpdateSystemSettingsRequest(
     string OverweightSplitStepWeight,
     string CentralApiUrl,
     string CentralApiKey,
-    string LocalDatabaseBackupDirectory
+    string LocalDatabaseBackupDirectory,
+    string LocalDatabaseBackupTime
 );
 
 public sealed record UpdateCameraSettingsRequest(

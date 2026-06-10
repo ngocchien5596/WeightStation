@@ -368,6 +368,7 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.CentralApiUrl] = AppConfigDefaults.DefaultCentralApiUrl,
             [AppConfigKeys.CentralApiKey] = AppConfigDefaults.DefaultCentralApiKey,
             [AppConfigKeys.LocalDatabaseBackupDirectory] = AppConfigDefaults.DefaultLocalDatabaseBackupDirectory,
+            [AppConfigKeys.LocalDatabaseBackupTime] = AppConfigDefaults.DefaultLocalDatabaseBackupTime,
             [AppConfigKeys.SyncIntervalSeconds] = AppConfigDefaults.DefaultSyncIntervalSeconds,
             [AppConfigKeys.RegistrationInboundPollSeconds] = AppConfigDefaults.DefaultRegistrationInboundPollSeconds
         };

@@ -92,6 +92,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Column="0" Grid.Row="0" Text="Mã trạm (Station Code)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
@@ -142,8 +143,16 @@
                                 </Button>
                             </Grid>
 
-                            <TextBlock Grid.Column="0" Grid.Row="9" Text="Thư mục backup DB local" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
-                            <Grid Grid.Column="1" Grid.Row="9" Margin="0,0,0,12">
+                            <TextBlock Grid.Column="0" Grid.Row="9" Text="Giờ backup DB local (24h)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1"
+                                     Grid.Row="9"
+                                     Text="{Binding LocalDatabaseBackupTime, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource FormBox}"
+                                     Margin="0,0,0,12"
+                                     ToolTip="Định dạng 24 giờ HH:mm. Ví dụ: 01:00 là 1 giờ sáng, 13:30 là 1 giờ 30 chiều."/>
+
+                            <TextBlock Grid.Column="0" Grid.Row="10" Text="Thư mục backup DB local" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                            <Grid Grid.Column="1" Grid.Row="10" Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="12"/>

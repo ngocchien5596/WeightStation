@@ -31,6 +31,7 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _centralApiUrl = string.Empty;
     [ObservableProperty] private string _centralApiKey = string.Empty;
     [ObservableProperty] private string _localDatabaseBackupDirectory = string.Empty;
+    [ObservableProperty] private string _localDatabaseBackupTime = AppConfigDefaults.DefaultLocalDatabaseBackupTime;
     [ObservableProperty] private string _centralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
     [ObservableProperty] private string _localDatabaseBackupMessage = "Chưa chạy sao lưu DB local thủ công.";
 
@@ -57,6 +58,8 @@ public partial class SystemSettingsViewModel : ObservableObject
         CentralApiKey = await repo.GetValueAsync(AppConfigKeys.CentralApiKey, CancellationToken.None) ?? string.Empty;
         LocalDatabaseBackupDirectory = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, CancellationToken.None)
             ?? AppConfigDefaults.DefaultLocalDatabaseBackupDirectory;
+        LocalDatabaseBackupTime = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupTime, CancellationToken.None)
+            ?? AppConfigDefaults.DefaultLocalDatabaseBackupTime;
         CentralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
         LocalDatabaseBackupMessage = $"Thư mục backup hiện tại: {LocalDatabaseBackupDirectory}";
     }
@@ -81,7 +84,8 @@ public partial class SystemSettingsViewModel : ObservableObject
                     OverweightSplitStepWeight,
                     CentralApiUrl,
                     CentralApiKey,
-                    LocalDatabaseBackupDirectory),
+                    LocalDatabaseBackupDirectory,
+                    LocalDatabaseBackupTime),
                 CancellationToken.None);
             await dialogService.ShowInfoAsync("Thông báo", "Đã lưu tham số hệ thống thành công.");
         }

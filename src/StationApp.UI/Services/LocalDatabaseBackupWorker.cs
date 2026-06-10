@@ -13,7 +13,11 @@ namespace StationApp.UI.Services;
 public sealed class LocalDatabaseBackupWorker : BackgroundService
     , ILocalDatabaseBackupService
 {
-    private static readonly TimeSpan ScheduledBackupTime = new(3, 0, 0);
+    private static readonly TimeSpan DefaultScheduledBackupTime = TimeSpan.ParseExact(
+        AppConfigDefaults.DefaultLocalDatabaseBackupTime,
+        @"hh\:mm",
+        CultureInfo.InvariantCulture);
+    private static readonly TimeSpan MaxScheduleRefreshDelay = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan RetryDelayOnFailure = TimeSpan.FromMinutes(30);
     private const int RetentionDays = 10;
     private readonly SemaphoreSlim _runLock = new(1, 1);
@@ -48,19 +52,19 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "Local DB backup worker started. Database={DatabaseName} ScheduledTime={ScheduledTime} RetentionDays={RetentionDays}",
+            "Local DB backup worker started. Database={DatabaseName} RetentionDays={RetentionDays}",
             databaseName,
-            ScheduledBackupTime,
             RetentionDays);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             var backupDirectory = await ResolveBackupDirectoryAsync(stoppingToken);
+            var scheduledBackupTime = await ResolveBackupTimeAsync(stoppingToken);
             Directory.CreateDirectory(backupDirectory);
 
             var now = DateTime.Now;
             var todayFilePath = BuildBackupFilePath(backupDirectory, databaseName, now.Date);
-            var todayTargetTime = now.Date.Add(ScheduledBackupTime);
+            var todayTargetTime = now.Date.Add(scheduledBackupTime);
 
             if (now >= todayTargetTime && !File.Exists(todayFilePath))
             {
@@ -100,16 +104,21 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
                     RetentionDays);
             }
 
-            var nextRunAt = GetNextRunAt(DateTime.Now);
+            var nextRunAt = GetNextRunAt(DateTime.Now, scheduledBackupTime);
             var delay = nextRunAt - DateTime.Now;
             if (delay < TimeSpan.FromMinutes(1))
             {
                 delay = TimeSpan.FromMinutes(1);
             }
+            else if (delay > MaxScheduleRefreshDelay)
+            {
+                delay = MaxScheduleRefreshDelay;
+            }
 
             _logger.LogDebug(
-                "Next local DB backup check scheduled. Database={DatabaseName} NextCheckAt={NextCheckAt} BackupDirectory={BackupDirectory}",
+                "Next local DB backup check scheduled. Database={DatabaseName} ConfiguredTime={ConfiguredTime} NextCheckAt={NextCheckAt} BackupDirectory={BackupDirectory}",
                 databaseName,
+                scheduledBackupTime,
                 nextRunAt,
                 backupDirectory);
 
@@ -163,9 +172,9 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
         }
     }
 
-    private static DateTime GetNextRunAt(DateTime now)
+    private static DateTime GetNextRunAt(DateTime now, TimeSpan scheduledBackupTime)
     {
-        var todayTarget = now.Date.Add(ScheduledBackupTime);
+        var todayTarget = now.Date.Add(scheduledBackupTime);
         return now < todayTarget ? todayTarget : todayTarget.AddDays(1);
     }
 
@@ -230,6 +239,36 @@ public sealed class LocalDatabaseBackupWorker : BackgroundService
 
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         return Path.Combine(programData, "StationApp", "SqlBackups");
+    }
+
+    private async Task<TimeSpan> ResolveBackupTimeAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
+        var configuredValue = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupTime, ct);
+
+        if (TryParseBackupTime(configuredValue, out var backupTime))
+        {
+            return backupTime;
+        }
+
+        _logger.LogWarning(
+            "Invalid local DB backup time config. ConfiguredValue={ConfiguredValue} FallbackTime={FallbackTime}",
+            configuredValue,
+            DefaultScheduledBackupTime);
+        return DefaultScheduledBackupTime;
+    }
+
+    private static bool TryParseBackupTime(string? value, out TimeSpan backupTime)
+    {
+        var trimmed = value?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            trimmed = AppConfigDefaults.DefaultLocalDatabaseBackupTime;
+        }
+
+        return TimeSpan.TryParseExact(trimmed, @"hh\:mm", CultureInfo.InvariantCulture, out backupTime)
+            || TimeSpan.TryParseExact(trimmed, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out backupTime);
     }
 
     private static string BuildBackupFilePath(string backupDirectory, string databaseName, DateTime date)
