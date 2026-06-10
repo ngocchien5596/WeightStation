@@ -476,8 +476,11 @@ public partial class SyncInfoViewModel : ObservableObject
 
             if (item.AggregateType == SyncAggregateTypes.CutOrder && registrations.TryGetValue(item.AggregateId, out var registration))
             {
-                businessNo = registration.ErpCutOrderId ?? registration.OrderCode ?? registration.Id.ToString("N")[..8];
-                vehiclePlate = registration.VehiclePlate;
+                businessNo = registration.ErpCutOrderId
+                    ?? registration.OrderCode
+                    ?? registration.VehiclePlate
+                    ?? registration.Id.ToString("N")[..8];
+                vehiclePlate = registration.VehiclePlate ?? string.Empty;
                 entitySyncStatus = registration.SyncStatus.ToString();
                 if (registration.WeighingSessionId.HasValue && sessions.TryGetValue(registration.WeighingSessionId.Value, out var registrationSession))
                 {
