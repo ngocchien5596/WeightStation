@@ -74,13 +74,13 @@
                     </TextBox>
 
                     <TextBlock Text="{StaticResource Incoming.SearchVehiclePlateLabel}" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
-                    <controls:AutocompleteTextBox Width="168"
-                                                  State="{Binding SearchVehiclePlateInput}"
-                                                  TextBoxStyle="{StaticResource StandardTextBoxStyle}">
-                        <controls:AutocompleteTextBox.InputBindings>
+                    <TextBox Width="168"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             Text="{Binding SearchVehiclePlate, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
                             <KeyBinding Key="Enter" Command="{Binding RefreshCommand}"/>
-                        </controls:AutocompleteTextBox.InputBindings>
-                    </controls:AutocompleteTextBox>
+                        </TextBox.InputBindings>
+                    </TextBox>
 
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
                         <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>

@@ -112,6 +112,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     public bool CanFinalize =>
         SelectedCutOrder != null
         && !SelectedCutOrder.IsFinalized
+        && !SelectedCutOrder.IsTemporaryExport
         && !IsLoading
         && Trips.Any(x => x.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED);
 
@@ -221,6 +222,17 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CreateTemporaryCutOrderAsync()
     {
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "Xác nhận tạo cắt lệnh tạm",
+            "Bạn có chắc chắn muốn tạo cắt lệnh tạm cho luồng cân xuất khẩu không?\n\nChỉ tạo khi cần cân/tạo chuyến xe trước khi ERP truyền cắt lệnh thật xuống.",
+            "Tạo cắt lệnh tạm",
+            "Hủy");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
         try
         {
             IsLoading = true;
@@ -544,6 +556,12 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     {
         if (SelectedCutOrder == null)
         {
+            return;
+        }
+
+        if (SelectedCutOrder.IsTemporaryExport)
+        {
+            _toastService.ShowWarning("Không thể chốt tổng cắt lệnh tạm. Vui lòng map sang cắt lệnh thật trước khi chốt.");
             return;
         }
 

@@ -113,7 +113,7 @@
                             <TextBlock Grid.Column="0" Grid.Row="5" Text="Thời gian thăm dò ERP (giây)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
                             <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding RegistrationInboundPollSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
-                            <TextBlock Grid.Column="0" Grid.Row="6" Text="Bước tách quá tải (tỷ lệ)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="0" Grid.Row="6" Text="Tỉ lệ tách tải tối đa (%)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
                             <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding OverweightSplitStepWeight, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,12"/>
 
                             <TextBlock Grid.Column="0" Grid.Row="7" Text="Central API URL" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>

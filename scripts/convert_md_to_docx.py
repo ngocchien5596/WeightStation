@@ -359,4 +359,15 @@ def convert_md_to_docx(md_path: Path, docx_path: Path) -> None:
         print(f"Warning: File {docx_path} was locked. Saved copy as: {alt_path}")
 
 if __name__ == "__main__":
-    convert_md_to_docx(MD_PATH, DOCX_PATH)
+    import sys
+    md_in = MD_PATH
+    docx_out = DOCX_PATH
+    if len(sys.argv) > 2:
+        md_in = Path(sys.argv[1]).resolve()
+        docx_out = Path(sys.argv[2]).resolve()
+    elif len(sys.argv) > 1:
+        md_in = Path(sys.argv[1]).resolve()
+        docx_out = md_in.with_suffix(".docx")
+    
+    convert_md_to_docx(md_in, docx_out)
+

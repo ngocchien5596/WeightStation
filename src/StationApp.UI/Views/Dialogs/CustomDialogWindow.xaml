@@ -91,10 +91,11 @@
 
             <!-- Footer Action Buttons -->
             <Border Grid.Row="2" Background="{StaticResource SubCardBrush}" CornerRadius="0,0,7,7" Padding="15,10">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <!-- Cancel Button -->
                     <Button Content="{Binding CancelText}"
-                            Width="100"
+                            MinWidth="100"
+                            MaxWidth="180"
                             Height="32"
                             Margin="0,0,10,0"
                             Visibility="{Binding IsCancelVisible, Converter={StaticResource BoolToVis}}"
@@ -109,7 +110,12 @@
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Button">
                                             <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="12,6">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{TemplateBinding Content}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
@@ -130,12 +136,17 @@
                     </Button>
 
                     <!-- Confirm Button -->
-                    <Button Content="{Binding ConfirmText}"
-                            Width="110"
+                    <Button MinWidth="110"
+                            MaxWidth="210"
                             Height="32"
                             Style="{StaticResource PrimaryButton}"
-                            Command="{Binding ConfirmCommand}"/>
-                </StackPanel>
+                            Command="{Binding ConfirmCommand}">
+                        <TextBlock Text="{Binding ConfirmText}"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Button>
+                </WrapPanel>
             </Border>
         </Grid>
     </Border>
