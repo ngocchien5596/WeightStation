@@ -167,6 +167,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IExportSummaryReportExporter, ExportSummaryReportExcelExporter>();
                     services.AddScoped<IInboundSummaryReportService, InboundSummaryReportService>();
                     services.AddScoped<IInboundSummaryReportExporter, InboundSummaryReportExcelExporter>();
+                    services.AddScoped<IExternalDatacanQueryService, ExternalDatacanQueryService>();
 
                     services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                     services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();

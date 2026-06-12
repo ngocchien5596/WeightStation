@@ -103,6 +103,25 @@ public sealed record UpdateSystemSettingsRequest(
     string LocalDatabaseBackupTime
 );
 
+public sealed record ExternalDatacanRecordDto(
+    string? TicketNo,
+    string? VehiclePlate,
+    string? GroupName,
+    string? CustomerName,
+    string? ProductName,
+    DateTime? Weight1Time,
+    DateTime? Weight2Time,
+    decimal? Weight1,
+    decimal? Weight2,
+    decimal? NetWeight,
+    string? OperatorName
+);
+
+public sealed record ExternalDatacanQueryResult(
+    IReadOnlyList<ExternalDatacanRecordDto> Records,
+    bool HasNextPage
+);
+
 public sealed record UpdateCameraSettingsRequest(
     bool Camera1Enabled,
     string Camera1Name,

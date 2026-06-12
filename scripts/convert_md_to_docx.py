@@ -87,6 +87,15 @@ def add_formatted_text(paragraph, text: str) -> None:
         else:
             paragraph.add_run(part)
 
+def resolve_image_path(md_path: Path, image_ref: str) -> Path:
+    image_ref = image_ref.strip()
+    if image_ref.startswith("file:///"):
+        return Path(image_ref.replace("file:///", ""))
+    image_path = Path(image_ref)
+    if image_path.is_absolute():
+        return image_path
+    return (md_path.parent / image_path).resolve()
+
 def fetch_mermaid_image(mermaid_code: str) -> bytes | None:
     # Try mermaid.ink first (GET request with base64)
     print(f"Fetching Mermaid diagram from mermaid.ink...")
@@ -270,6 +279,24 @@ def convert_md_to_docx(md_path: Path, docx_path: Path) -> None:
                 table_rows = []
                 in_table = False
 
+        # Handle local markdown images: ![alt](relative/path.png)
+        image_match = re.fullmatch(r"!\[(.*?)\]\((.*?)\)", stripped)
+        if image_match:
+            image_path = resolve_image_path(md_path, image_match.group(2))
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(8)
+            p.paragraph_format.space_before = Pt(8)
+            if image_path.exists():
+                try:
+                    p.add_run().add_picture(str(image_path), width=Cm(15))
+                except Exception:
+                    add_formatted_text(p, f"[Không thể nhúng ảnh: {image_match.group(2)}]")
+            else:
+                add_formatted_text(p, f"[Không tìm thấy ảnh: {image_match.group(2)}]")
+            i += 1
+            continue
+
         # Handle Headers
         if stripped.startswith("#"):
             # Count hashes
@@ -370,4 +397,3 @@ if __name__ == "__main__":
         docx_out = md_in.with_suffix(".docx")
     
     convert_md_to_docx(md_in, docx_out)
-

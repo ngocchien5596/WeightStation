@@ -190,6 +190,11 @@
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsSync}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewSettingsExternalDatacan, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Settings_ExternalDatacan">
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsExternalDatacan}" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsAccounts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Accounts">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsAccounts}" VerticalAlignment="Center"/>

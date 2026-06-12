@@ -317,6 +317,29 @@ Sử dụng khi một xe con đã lấy hàng xong nhưng cần chuyển sản l
 
 ![Hình minh họa](images/HDSD_TramCan_docx_017.png)
 
+### 3.5. LỊCH SỬ CÂN (PM CŨ)
+
+- Mục đích: Dùng để Admin tra cứu dữ liệu cân lịch sử từ phần mềm cân cũ. Chức năng này chỉ đọc dữ liệu, không sửa dữ liệu PM cũ và không ảnh hưởng dữ liệu vận hành của phần mềm cân hiện tại.
+
+- Điều kiện truy cập: Chỉ tài khoản Admin nhìn thấy menu này.
+
+- Bước 1: Trên Menu điều hướng bên trái, bấm vào Cấu hình hệ thống > Lịch sử cân (PM cũ).
+
+- Bước 2: Nhập điều kiện tìm kiếm nếu cần:
+  - Biển số xe: tìm theo biển số phương tiện.
+  - Sản phẩm: tìm theo tên hàng hóa/sản phẩm.
+  - Khách hàng: tìm theo tên khách hàng.
+
+- Bước 3: Bấm nút TÌM KIẾM để lọc dữ liệu theo điều kiện đã nhập.
+
+- Bước 4: Bấm nút TẢI LẠI để tải lại dữ liệu theo bộ lọc hiện tại.
+
+- Bước 5: Sử dụng nút < và > ở cuối màn hình để chuyển trang dữ liệu.
+
+- Dữ liệu trên lưới gồm: Số phiếu, Biển số xe, Loại, Khách hàng, Hàng hóa, Giờ cân lần 1, Giờ cân lần 2, Cân lần 1, Cân lần 2, Trọng lượng hàng, Người cân.
+
+- Lưu ý: Nếu màn hình báo lỗi kết nối, cần kiểm tra lại máy chủ database cũ `XIM_TRANSPORT`, mạng nội bộ, tài khoản kết nối và cấu hình `ExternalDatacanConnection`.
+
 # PHẦN 4. BÁO CÁO
 
 ### 4.1. BÁO CÁO XUẤT HÀNG

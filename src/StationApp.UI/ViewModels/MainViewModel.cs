@@ -55,6 +55,7 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsCustomers => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanViewSettingsSync => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
+    public bool CanViewSettingsExternalDatacan => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
     public bool CanViewSettingsAccounts => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
     public bool CanViewAppUpdate => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
@@ -245,6 +246,7 @@ public partial class MainViewModel : ObservableObject
                 case "Settings_Customers":
                 case "Settings_Products":
                 case "Settings_Sync":
+                case "Settings_ExternalDatacan":
                 case "Settings_Accounts":
                 case "AppUpdate":
                     var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
@@ -262,14 +264,15 @@ public partial class MainViewModel : ObservableObject
                         var initialSettingsTab = destination switch
                         {
                             "Settings_Params" => 0,
-                            "Settings_Camera" => 8,
+                            "Settings_Camera" => 9,
                             "Settings_Device" => 1,
                             "Settings_Print" => 2,
                             "Settings_Vehicles" => 3,
                             "Settings_Customers" => 4,
                             "Settings_Products" => 5,
                             "Settings_Sync" => 6,
-                            "Settings_Accounts" => 7,
+                            "Settings_ExternalDatacan" => 7,
+                            "Settings_Accounts" => 8,
                             _ => (int?)null
                         };
                         _ = RunViewInitializationAsync(
@@ -332,6 +335,7 @@ public partial class MainViewModel : ObservableObject
             "Settings_Customers" => CanViewSettingsCustomers,
             "Settings_Products" => CanViewSettingsProducts,
             "Settings_Sync" => CanViewSettingsSync,
+            "Settings_ExternalDatacan" => CanViewSettingsExternalDatacan,
             "Settings_Accounts" => CanViewSettingsAccounts,
             "AppUpdate" => CanViewAppUpdate,
             _ => false

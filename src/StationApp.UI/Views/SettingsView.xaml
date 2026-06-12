@@ -103,6 +103,10 @@
                 <settings:SyncInfoView DataContext="{Binding SyncInfoVM}"/>
             </TabItem>
 
+            <TabItem Header="L&#x1ECA;CH S&#x1EEC; C&#xC2;N (PM C&#x168;)" Visibility="{Binding CanAccessExternalDatacan, Converter={StaticResource BoolToVis}}">
+                <settings:ExternalDatacanView DataContext="{Binding ExternalDatacanVM}"/>
+            </TabItem>
+
             <TabItem Header="QU&#x1EA2;N L&#xDD; T&#xC0;I KHO&#x1EA2;N" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
                 <settings:AccountManagementView DataContext="{Binding AccountManagementVM}"/>
             </TabItem>

@@ -183,6 +183,7 @@
     <sys:String x:Key="MainWindow.Nav.SettingsCustomers">Danh m&#x1EE5;c Kh&#x00E1;ch h&#x00E0;ng</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsProducts">Danh m&#x1EE5;c S&#x1EA3;n ph&#x1EA9;m</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsSync">C&#x1EA5;u h&#x00EC;nh &#x0111;&#x1ED3;ng b&#x1ED9;</sys:String>
+    <sys:String x:Key="MainWindow.Nav.SettingsExternalDatacan">L&#x1ECB;ch s&#x1EED; c&#x00E2;n (PM c&#x0169;)</sys:String>
     <sys:String x:Key="MainWindow.Nav.SettingsAccounts">Qu&#x1EA3;n l&#x00FD; t&#x00E0;i kho&#x1EA3;n</sys:String>
     <sys:String x:Key="MainWindow.Nav.Logout">&#x0110;&#x0103;ng xu&#x1EA5;t</sys:String>
 </ResourceDictionary>
