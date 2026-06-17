@@ -141,29 +141,29 @@
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>
-                    <DataGridCheckBoxColumn Header="ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="80" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.Mooc}" Binding="{Binding MoocNumber}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.DriverName}" Binding="{Binding DriverName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CustomerName}" Binding="{Binding CustomerName}" Width="250" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductCode}" Binding="{Binding ProductCode}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductName}" Binding="{Binding ProductName}" Width="250" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="85" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualTon}" Binding="{Binding ActualWeightKg, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualBags}" Binding="{Binding ActualBagCount}" Width="85" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TotalTon}" Binding="{Binding TotalWeightKg, StringFormat=N0}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TotalBags}" Binding="{Binding TotalBagCount}" Width="85" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.WeighDate}" Binding="{Binding WeighDate, StringFormat='dd/MM/yyyy HH:mm'}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.WeighUser}" Binding="{Binding WeighUser}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TransactionType}" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TransportMethod}" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.WeighTicketNo}" Binding="{Binding WeighTicketNo}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.DeliveryNo}" Binding="{Binding DeliveryNo}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridCheckBoxColumn Header="IN PC" Binding="{Binding HasPrintedWeighTicket, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
-                    <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="75" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridCheckBoxColumn Header="ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="60" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.Mooc}" Binding="{Binding MoocNumber}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.DriverName}" Binding="{Binding DriverName}" Width="130" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.CustomerName}" Binding="{Binding CustomerName}" Width="230" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductCode}" Binding="{Binding ProductCode}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ProductName}" Binding="{Binding ProductName}" Width="230" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat=N0}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="65" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualTon}" Binding="{Binding ActualWeightKg, StringFormat=N0}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.ActualBags}" Binding="{Binding ActualBagCount}" Width="65" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TotalTon}" Binding="{Binding TotalWeightKg, StringFormat=N0}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TotalBags}" Binding="{Binding TotalBagCount}" Width="65" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.WeighDate}" Binding="{Binding WeighDate, StringFormat='dd/MM/yyyy HH:mm'}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.WeighUser}" Binding="{Binding WeighUser}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TransactionType}" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="75" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.TransportMethod}" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="75" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.WeighTicketNo}" Binding="{Binding WeighTicketNo}" Width="115" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.DeliveryNo}" Binding="{Binding DeliveryNo}" Width="115" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="{StaticResource Outgoing.Column.SessionNo}" Binding="{Binding SessionNo}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridCheckBoxColumn Header="IN PC" Binding="{Binding HasPrintedWeighTicket, Mode=OneWay}" Width="50" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridCheckBoxColumn Header="IN PGN" Binding="{Binding HasPrintedDeliveryTicket, Mode=OneWay}" Width="55" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
@@ -260,5 +260,3 @@
         </Grid>
     </Grid>
 </UserControl>
-
-

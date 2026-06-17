@@ -17,6 +17,9 @@ public partial class ExternalDatacanViewModel : ObservableObject
         _scopeFactory = scopeFactory;
     }
 
+    public List<string> Sources { get; } = new() { "Trạm cân NMC", "Trạm đập" };
+    [ObservableProperty] private string _selectedSource = "Trạm cân NMC";
+
     [ObservableProperty] private ObservableCollection<ExternalDatacanRecordDto> _records = new();
     [ObservableProperty] private string? _vehiclePlateKeyword;
     [ObservableProperty] private string? _productKeyword;
@@ -51,6 +54,11 @@ public partial class ExternalDatacanViewModel : ObservableObject
         SearchCommand.NotifyCanExecuteChanged();
         PreviousPageCommand.NotifyCanExecuteChanged();
         NextPageCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedSourceChanged(string value)
+    {
+        _ = LoadPageAsync(resetPage: true);
     }
 
     public async Task LoadAsync()
@@ -116,6 +124,7 @@ public partial class ExternalDatacanViewModel : ObservableObject
             using var scope = _scopeFactory.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IExternalDatacanQueryService>();
             var result = await service.GetLatestAsync(
+                SelectedSource,
                 VehiclePlateKeyword,
                 ProductKeyword,
                 CustomerKeyword,

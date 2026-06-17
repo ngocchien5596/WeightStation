@@ -318,7 +318,7 @@
 
     <!-- Grid Text Alignment Styles -->
     <Style x:Key="GridTextCenter" TargetType="TextBlock">
-        <Setter Property="Margin" Value="10,6"/>
+        <Setter Property="Margin" Value="10,3"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -326,7 +326,7 @@
     </Style>
 
     <Style x:Key="GridTextRight" TargetType="TextBlock">
-        <Setter Property="Margin" Value="10,6"/>
+        <Setter Property="Margin" Value="10,3"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -334,7 +334,7 @@
     </Style>
 
     <Style x:Key="GridTextLeft" TargetType="TextBlock">
-        <Setter Property="Margin" Value="10,6"/>
+        <Setter Property="Margin" Value="10,3"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="VerticalAlignment" Value="Center"/>

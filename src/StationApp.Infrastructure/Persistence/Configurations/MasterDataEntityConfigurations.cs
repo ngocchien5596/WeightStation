@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StationApp.Domain.Entities;
 
@@ -25,7 +25,8 @@ public class VehicleEntityConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
-        builder.HasIndex(e => new { e.VehiclePlate, e.MoocNumber }).IsUnique().HasDatabaseName("UX_vehicles_plate_mooc");
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
+        builder.HasIndex(e => new { e.StationCode, e.VehiclePlate, e.MoocNumber }).IsUnique().HasDatabaseName("UX_vehicles_station_plate_mooc");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_vehicles_plate");
         builder.HasIndex(e => e.IsActive).HasDatabaseName("IX_vehicles_is_active");
         builder.HasIndex(e => new { e.IsInternalVehicle, e.VehiclePlate }).HasDatabaseName("IX_vehicles_internal_plate");
@@ -45,7 +46,8 @@ public class CustomerEntityConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
-        builder.HasIndex(e => e.CustomerCode).IsUnique().HasDatabaseName("UX_customers_code");
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
+        builder.HasIndex(e => new { e.StationCode, e.CustomerCode }).IsUnique().HasDatabaseName("UX_customers_station_code");
     }
 }
 
@@ -63,7 +65,8 @@ public class ProductEntityConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
-        builder.HasIndex(e => e.ProductCode).IsUnique().HasDatabaseName("UX_products_code");
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
+        builder.HasIndex(e => new { e.StationCode, e.ProductCode }).IsUnique().HasDatabaseName("UX_products_station_code");
     }
 }
 

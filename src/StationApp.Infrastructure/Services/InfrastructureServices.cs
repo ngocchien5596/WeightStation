@@ -4,6 +4,7 @@ using System.Text.Json;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
+using StationApp.Contracts.Sync;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -14,35 +15,26 @@ namespace StationApp.Infrastructure.Services;
 
 public class TicketNumberGenerator : ITicketNumberGenerator
 {
-    private readonly StationDbContext _db;
     private readonly IAppConfigRepository _configRepo;
+    private readonly IDocumentCounterService _counterService;
     private readonly IClock _clock;
 
-    public TicketNumberGenerator(StationDbContext db, IAppConfigRepository configRepo, IClock clock)
+    public TicketNumberGenerator(IAppConfigRepository configRepo, IDocumentCounterService counterService, IClock clock)
     {
-        _db = db; _configRepo = configRepo; _clock = clock;
+        _configRepo = configRepo;
+        _counterService = counterService;
+        _clock = clock;
     }
 
     public async Task<string> GenerateAsync(CancellationToken ct)
     {
         var prefix = await _configRepo.GetValueAsync("ticket_prefix", ct) ?? "QN";
-        var stationCode = await StationCodeResolver.ResolveAsync(_configRepo, ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         var ticketPrefix = $"{prefix}{yearMonth}";
 
-        var lastTicket = await _db.WeighTickets
-            .Where(t => t.StationCode == stationCode && t.TicketNo.StartsWith(ticketPrefix))
-            .OrderByDescending(t => t.TicketNo)
-            .Select(t => t.TicketNo)
-            .FirstOrDefaultAsync(ct);
-
-        int nextSeq = 1;
-        if (lastTicket != null && lastTicket.Length > ticketPrefix.Length)
-        {
-            if (int.TryParse(lastTicket[ticketPrefix.Length..], out var lastSeq))
-                nextSeq = lastSeq + 1;
-        }
+        var counterKey = $"WeighTicket_{ticketPrefix}";
+        var nextSeq = await _counterService.GetNextSequenceAsync(counterKey, ct);
 
         return $"{ticketPrefix}{nextSeq:D4}";
     }
@@ -50,35 +42,26 @@ public class TicketNumberGenerator : ITicketNumberGenerator
 
 public class DeliveryNumberGenerator : IDeliveryNumberGenerator
 {
-    private readonly StationDbContext _db;
     private readonly IAppConfigRepository _configRepo;
+    private readonly IDocumentCounterService _counterService;
     private readonly IClock _clock;
 
-    public DeliveryNumberGenerator(StationDbContext db, IAppConfigRepository configRepo, IClock clock)
+    public DeliveryNumberGenerator(IAppConfigRepository configRepo, IDocumentCounterService counterService, IClock clock)
     {
-        _db = db; _configRepo = configRepo; _clock = clock;
+        _configRepo = configRepo;
+        _counterService = counterService;
+        _clock = clock;
     }
 
     public async Task<string> GenerateAsync(CancellationToken ct)
     {
         var prefix = await _configRepo.GetValueAsync("delivery_prefix", ct) ?? "DN";
-        var stationCode = await StationCodeResolver.ResolveAsync(_configRepo, ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         var deliveryPrefix = $"{prefix}{yearMonth}";
 
-        var lastTicket = await _db.DeliveryTickets
-            .Where(t => t.StationCode == stationCode && t.DeliveryNo.StartsWith(deliveryPrefix))
-            .OrderByDescending(t => t.DeliveryNo)
-            .Select(t => t.DeliveryNo)
-            .FirstOrDefaultAsync(ct);
-
-        int nextSeq = 1;
-        if (lastTicket != null && lastTicket.Length > deliveryPrefix.Length)
-        {
-            if (int.TryParse(lastTicket[deliveryPrefix.Length..], out var lastSeq))
-                nextSeq = lastSeq + 1;
-        }
+        var counterKey = $"DeliveryTicket_{deliveryPrefix}";
+        var nextSeq = await _counterService.GetNextSequenceAsync(counterKey, ct);
 
         return $"{deliveryPrefix}{nextSeq:D4}";
     }
@@ -86,14 +69,14 @@ public class DeliveryNumberGenerator : IDeliveryNumberGenerator
 
 public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
 {
-    private readonly StationDbContext _db;
     private readonly IAppConfigRepository _configRepo;
+    private readonly IDocumentCounterService _counterService;
     private readonly IClock _clock;
 
-    public WeighingSessionNumberGenerator(StationDbContext db, IAppConfigRepository configRepo, IClock clock)
+    public WeighingSessionNumberGenerator(IAppConfigRepository configRepo, IDocumentCounterService counterService, IClock clock)
     {
-        _db = db;
         _configRepo = configRepo;
+        _counterService = counterService;
         _clock = clock;
     }
 
@@ -104,32 +87,10 @@ public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
         const string sessionPrefixBase = "LC";
         var sessionPrefix = $"{sessionPrefixBase}{yearMonth}";
 
-        var lastSessionNo = await _db.WeighingSessions
-            .Where(s => s.SessionNo.StartsWith(sessionPrefix))
-            .OrderByDescending(s => s.SessionNo)
-            .Select(s => s.SessionNo)
-            .FirstOrDefaultAsync(ct);
+        var counterKey = $"WeighingSession_{sessionPrefix}";
+        var nextSeq = await _counterService.GetNextSequenceAsync(counterKey, ct);
 
-        var nextSeq = 1;
-        if (lastSessionNo != null && lastSessionNo.Length > sessionPrefix.Length)
-        {
-            if (int.TryParse(lastSessionNo[sessionPrefix.Length..], out var lastSeq))
-            {
-                nextSeq = lastSeq + 1;
-            }
-        }
-
-        while (true)
-        {
-            var candidate = $"{sessionPrefix}{nextSeq:D4}";
-            var exists = await _db.WeighingSessions.AnyAsync(s => s.SessionNo == candidate, ct);
-            if (!exists)
-            {
-                return candidate;
-            }
-
-            nextSeq++;
-        }
+        return $"{sessionPrefix}{nextSeq:D4}";
     }
 }
 
@@ -268,37 +229,17 @@ public class CameraSettingsProvider : ICameraSettingsProvider
 
     public async Task<CameraSystemSettings> GetForStationAsync(string stationCode, CancellationToken ct)
     {
-        bool isC6 = string.Equals(stationCode, "C6", StringComparison.OrdinalIgnoreCase);
+        var profile = CameraStationProfile.Resolve(stationCode);
 
-        var c1EnabledKey = isC6 ? AppConfigKeys.CameraC6_1Enabled : AppConfigKeys.Camera1Enabled;
-        var c1NameKey = isC6 ? AppConfigKeys.CameraC6_1Name : AppConfigKeys.Camera1Name;
-        var c1RtspKey = isC6 ? AppConfigKeys.CameraC6_1RtspUrl : AppConfigKeys.Camera1RtspUrl;
-        var c1PrevKey = isC6 ? AppConfigKeys.CameraC6_1PreviewRtspUrl : AppConfigKeys.Camera1PreviewRtspUrl;
+        var camera1Enabled = ParseBool(await _configRepo.GetValueAsync(profile.Camera1EnabledKey, ct), profile.Camera1EnabledDefault);
+        var camera1Name = await _configRepo.GetValueAsync(profile.Camera1NameKey, ct) ?? profile.Camera1NameDefault;
+        var camera1Rtsp = await _configRepo.GetValueAsync(profile.Camera1RtspKey, ct) ?? profile.Camera1RtspDefault;
+        var camera1PreviewRtsp = await _configRepo.GetValueAsync(profile.Camera1PreviewRtspKey, ct) ?? profile.Camera1PreviewRtspDefault;
 
-        var c1EnabledDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1Enabled : AppConfigDefaults.DefaultCamera1Enabled;
-        var c1NameDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1Name : AppConfigDefaults.DefaultCamera1Name;
-        var c1RtspDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1RtspUrl : AppConfigDefaults.DefaultCamera1RtspUrl;
-        var c1PrevDef = isC6 ? AppConfigDefaults.DefaultCameraC6_1PreviewRtspUrl : AppConfigDefaults.DefaultCamera1PreviewRtspUrl;
-
-        var c2EnabledKey = isC6 ? AppConfigKeys.CameraC6_2Enabled : AppConfigKeys.Camera2Enabled;
-        var c2NameKey = isC6 ? AppConfigKeys.CameraC6_2Name : AppConfigKeys.Camera2Name;
-        var c2RtspKey = isC6 ? AppConfigKeys.CameraC6_2RtspUrl : AppConfigKeys.Camera2RtspUrl;
-        var c2PrevKey = isC6 ? AppConfigKeys.CameraC6_2PreviewRtspUrl : AppConfigKeys.Camera2PreviewRtspUrl;
-
-        var c2EnabledDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2Enabled : AppConfigDefaults.DefaultCamera2Enabled;
-        var c2NameDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2Name : AppConfigDefaults.DefaultCamera2Name;
-        var c2RtspDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2RtspUrl : AppConfigDefaults.DefaultCamera2RtspUrl;
-        var c2PrevDef = isC6 ? AppConfigDefaults.DefaultCameraC6_2PreviewRtspUrl : AppConfigDefaults.DefaultCamera2PreviewRtspUrl;
-
-        var camera1Enabled = ParseBool(await _configRepo.GetValueAsync(c1EnabledKey, ct), c1EnabledDef);
-        var camera1Name = await _configRepo.GetValueAsync(c1NameKey, ct) ?? c1NameDef;
-        var camera1Rtsp = await _configRepo.GetValueAsync(c1RtspKey, ct) ?? c1RtspDef;
-        var camera1PreviewRtsp = await _configRepo.GetValueAsync(c1PrevKey, ct) ?? c1PrevDef;
-
-        var camera2Enabled = ParseBool(await _configRepo.GetValueAsync(c2EnabledKey, ct), c2EnabledDef);
-        var camera2Name = await _configRepo.GetValueAsync(c2NameKey, ct) ?? c2NameDef;
-        var camera2Rtsp = await _configRepo.GetValueAsync(c2RtspKey, ct) ?? c2RtspDef;
-        var camera2PreviewRtsp = await _configRepo.GetValueAsync(c2PrevKey, ct) ?? c2PrevDef;
+        var camera2Enabled = ParseBool(await _configRepo.GetValueAsync(profile.Camera2EnabledKey, ct), profile.Camera2EnabledDefault);
+        var camera2Name = await _configRepo.GetValueAsync(profile.Camera2NameKey, ct) ?? profile.Camera2NameDefault;
+        var camera2Rtsp = await _configRepo.GetValueAsync(profile.Camera2RtspKey, ct) ?? profile.Camera2RtspDefault;
+        var camera2PreviewRtsp = await _configRepo.GetValueAsync(profile.Camera2PreviewRtspKey, ct) ?? profile.Camera2PreviewRtspDefault;
 
         var previewDefault = await _configRepo.GetValueAsync(AppConfigKeys.CameraPreviewDefault, ct) ?? AppConfigDefaults.DefaultCameraPreview;
         var timeoutMs = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureTimeoutMs, ct), AppConfigDefaults.DefaultCameraCaptureTimeoutMs);
@@ -332,6 +273,109 @@ public class CameraSettingsProvider : ICameraSettingsProvider
         }
 
         return int.TryParse(fallback, out result) ? result : 0;
+    }
+
+    private sealed record CameraStationProfile(
+        string Camera1EnabledKey,
+        string Camera1NameKey,
+        string Camera1RtspKey,
+        string Camera1PreviewRtspKey,
+        string Camera1EnabledDefault,
+        string Camera1NameDefault,
+        string Camera1RtspDefault,
+        string Camera1PreviewRtspDefault,
+        string Camera2EnabledKey,
+        string Camera2NameKey,
+        string Camera2RtspKey,
+        string Camera2PreviewRtspKey,
+        string Camera2EnabledDefault,
+        string Camera2NameDefault,
+        string Camera2RtspDefault,
+        string Camera2PreviewRtspDefault)
+    {
+        public static CameraStationProfile Resolve(string? stationCode)
+        {
+            if (string.Equals(stationCode, "C6", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CameraStationProfile(
+                    AppConfigKeys.CameraC6_1Enabled,
+                    AppConfigKeys.CameraC6_1Name,
+                    AppConfigKeys.CameraC6_1RtspUrl,
+                    AppConfigKeys.CameraC6_1PreviewRtspUrl,
+                    AppConfigDefaults.DefaultCameraC6_1Enabled,
+                    AppConfigDefaults.DefaultCameraC6_1Name,
+                    AppConfigDefaults.DefaultCameraC6_1RtspUrl,
+                    AppConfigDefaults.DefaultCameraC6_1PreviewRtspUrl,
+                    AppConfigKeys.CameraC6_2Enabled,
+                    AppConfigKeys.CameraC6_2Name,
+                    AppConfigKeys.CameraC6_2RtspUrl,
+                    AppConfigKeys.CameraC6_2PreviewRtspUrl,
+                    AppConfigDefaults.DefaultCameraC6_2Enabled,
+                    AppConfigDefaults.DefaultCameraC6_2Name,
+                    AppConfigDefaults.DefaultCameraC6_2RtspUrl,
+                    AppConfigDefaults.DefaultCameraC6_2PreviewRtspUrl);
+            }
+
+            if (string.Equals(stationCode, "CRUSHER", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CameraStationProfile(
+                    AppConfigKeys.CameraCrusher_1Enabled,
+                    AppConfigKeys.CameraCrusher_1Name,
+                    AppConfigKeys.CameraCrusher_1RtspUrl,
+                    AppConfigKeys.CameraCrusher_1PreviewRtspUrl,
+                    AppConfigDefaults.DefaultCameraCrusher_1Enabled,
+                    AppConfigDefaults.DefaultCameraCrusher_1Name,
+                    AppConfigDefaults.DefaultCameraCrusher_1RtspUrl,
+                    AppConfigDefaults.DefaultCameraCrusher_1PreviewRtspUrl,
+                    AppConfigKeys.CameraCrusher_2Enabled,
+                    AppConfigKeys.CameraCrusher_2Name,
+                    AppConfigKeys.CameraCrusher_2RtspUrl,
+                    AppConfigKeys.CameraCrusher_2PreviewRtspUrl,
+                    AppConfigDefaults.DefaultCameraCrusher_2Enabled,
+                    AppConfigDefaults.DefaultCameraCrusher_2Name,
+                    AppConfigDefaults.DefaultCameraCrusher_2RtspUrl,
+                    AppConfigDefaults.DefaultCameraCrusher_2PreviewRtspUrl);
+            }
+
+            if (string.Equals(stationCode, "CLAY", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CameraStationProfile(
+                    AppConfigKeys.CameraClay_1Enabled,
+                    AppConfigKeys.CameraClay_1Name,
+                    AppConfigKeys.CameraClay_1RtspUrl,
+                    AppConfigKeys.CameraClay_1PreviewRtspUrl,
+                    AppConfigDefaults.DefaultCameraClay_1Enabled,
+                    AppConfigDefaults.DefaultCameraClay_1Name,
+                    AppConfigDefaults.DefaultCameraClay_1RtspUrl,
+                    AppConfigDefaults.DefaultCameraClay_1PreviewRtspUrl,
+                    AppConfigKeys.CameraClay_2Enabled,
+                    AppConfigKeys.CameraClay_2Name,
+                    AppConfigKeys.CameraClay_2RtspUrl,
+                    AppConfigKeys.CameraClay_2PreviewRtspUrl,
+                    AppConfigDefaults.DefaultCameraClay_2Enabled,
+                    AppConfigDefaults.DefaultCameraClay_2Name,
+                    AppConfigDefaults.DefaultCameraClay_2RtspUrl,
+                    AppConfigDefaults.DefaultCameraClay_2PreviewRtspUrl);
+            }
+
+            return new CameraStationProfile(
+                AppConfigKeys.Camera1Enabled,
+                AppConfigKeys.Camera1Name,
+                AppConfigKeys.Camera1RtspUrl,
+                AppConfigKeys.Camera1PreviewRtspUrl,
+                AppConfigDefaults.DefaultCamera1Enabled,
+                AppConfigDefaults.DefaultCamera1Name,
+                AppConfigDefaults.DefaultCamera1RtspUrl,
+                AppConfigDefaults.DefaultCamera1PreviewRtspUrl,
+                AppConfigKeys.Camera2Enabled,
+                AppConfigKeys.Camera2Name,
+                AppConfigKeys.Camera2RtspUrl,
+                AppConfigKeys.Camera2PreviewRtspUrl,
+                AppConfigDefaults.DefaultCamera2Enabled,
+                AppConfigDefaults.DefaultCamera2Name,
+                AppConfigDefaults.DefaultCamera2RtspUrl,
+                AppConfigDefaults.DefaultCamera2PreviewRtspUrl);
+        }
     }
 }
 
@@ -379,6 +423,9 @@ public class SyncPayloadFactory : ISyncPayloadFactory
 
     public string CreatePayload(WeighingSessionLine line)
         => JsonSerializer.Serialize(line, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(SyncStationMasterDataRequest station)
+        => JsonSerializer.Serialize(station, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
     public string CreatePayload(Vehicle vehicle)
         => JsonSerializer.Serialize(vehicle, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });

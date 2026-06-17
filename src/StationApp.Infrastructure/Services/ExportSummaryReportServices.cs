@@ -100,9 +100,9 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
                 x => x.Key,
                 x => x.OrderByDescending(y => y.UpdatedAt ?? y.CreatedAt).First());
 
-        var weighTicketsByCutOrderId = weighTickets
-            .Where(x => !x.IsDeleted)
-            .GroupBy(x => x.CutOrderId)
+        var weighTicketsBySessionAndCutOrder = weighTickets
+            .Where(x => !x.IsDeleted && x.WeighingSessionId.HasValue)
+            .GroupBy(x => (SessionId: x.WeighingSessionId!.Value, CutOrderId: x.CutOrderId))
             .ToDictionary(
                 x => x.Key,
                 x => x.OrderByDescending(y => y.IsPrimaryDisplay)
@@ -177,7 +177,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
                     .DistinctBy(x => x.Id)
                     .ToList();
 
-                var cutOrderWeighTicket = weighTicketsByCutOrderId.GetValueOrDefault(cutOrder.Id) ?? primaryWeighTicket;
+                var cutOrderWeighTicket = weighTicketsBySessionAndCutOrder.GetValueOrDefault((session.Id, cutOrder.Id)) ?? primaryWeighTicket;
 
                 rows.Add(BuildRow(
                     reportedAt,

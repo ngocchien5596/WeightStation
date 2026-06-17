@@ -213,7 +213,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         }).ToList();
     }
 
-    public async Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchCrusherSessionsAsync(string? keyword, CancellationToken ct)
+    public async Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchCrusherSessionsAsync(string? keyword, DateTime? selectedDate, CancellationToken ct)
     {
         var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var query = _db.WeighingSessions.AsNoTracking()
@@ -223,13 +223,19 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 && x.TransactionType == TransactionType.INBOUND
                 && x.InternalVehicleNo != null);
 
+        if (selectedDate.HasValue)
+        {
+            var date = selectedDate.Value.Date;
+            var nextDate = date.AddDays(1);
+            query = query.Where(x =>
+                (x.Weight2Time != null && x.Weight2Time >= date && x.Weight2Time < nextDate)
+                || (x.Weight2Time == null && x.CreatedAt >= date && x.CreatedAt < nextDate));
+        }
+
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var normalized = keyword.Trim();
-            query = query.Where(x =>
-                x.SessionNo.Contains(normalized) ||
-                x.VehiclePlate.Contains(normalized) ||
-                (x.DriverName != null && x.DriverName.Contains(normalized)));
+            query = query.Where(x => x.VehiclePlate.Contains(normalized));
         }
 
         return await query
@@ -250,7 +256,63 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 x.StandardTareSourceSnapshot,
                 x.SessionStatus,
                 x.CreatedAt,
-                x.UpdatedAt))
+                x.UpdatedAt,
+                // Crusher Weighing: Product and Customer Information
+                x.ProductCode,
+                x.ProductName,
+                x.CustomerCode,
+                x.CustomerName))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchClaySessionsAsync(string? keyword, DateTime? selectedDate, CancellationToken ct)
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var query = _db.WeighingSessions.AsNoTracking()
+            .Where(x => x.StationCode == stationCode
+                && !x.IsDeleted
+                && !x.IsCancelled
+                && x.TransactionType == TransactionType.INBOUND
+                && x.InternalVehicleNo != null);
+
+        if (selectedDate.HasValue)
+        {
+            var date = selectedDate.Value.Date;
+            var nextDate = date.AddDays(1);
+            query = query.Where(x =>
+                (x.Weight2Time != null && x.Weight2Time >= date && x.Weight2Time < nextDate)
+                || (x.Weight2Time == null && x.CreatedAt >= date && x.CreatedAt < nextDate));
+        }
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var normalized = keyword.Trim();
+            query = query.Where(x => x.VehiclePlate.Contains(normalized));
+        }
+
+        return await query
+            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .Take(200)
+            .Select(x => new CrusherWeighingSessionListItem(
+                x.Id,
+                x.SessionNo,
+                x.VehiclePlate,
+                x.DriverName,
+                x.Weight1,
+                x.Weight1Time,
+                x.Weight2,
+                x.Weight2Time,
+                x.NetWeight,
+                x.WeighingMode,
+                x.StandardTareWeightSnapshot,
+                x.StandardTareSourceSnapshot,
+                x.SessionStatus,
+                x.CreatedAt,
+                x.UpdatedAt,
+                x.ProductCode,
+                x.ProductName,
+                x.CustomerCode,
+                x.CustomerName))
             .ToListAsync(ct);
     }
 
@@ -476,5 +538,4 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .FirstOrDefaultAsync(ct);
     }
 }
-
 

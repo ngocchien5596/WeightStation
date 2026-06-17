@@ -1,9 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using StationApp.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace StationApp.Infrastructure.Migrations
 {
+    [DbContext(typeof(StationDbContext))]
+    [Migration("20260428101500_FixWeighTicketPrimaryDisplayDefault")]
     public partial class FixWeighTicketPrimaryDisplayDefault : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

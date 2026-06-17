@@ -11,7 +11,13 @@ public sealed record CreateCrusherSessionRequest(
     string WeighingMode,
     decimal Weight1,
     bool Weight1IsStable,
-    WeightMode Weight1Mode);
+    WeightMode Weight1Mode,
+    // Crusher Weighing: Product and Customer Information
+    string? ProductCode,
+    string? ProductName,
+    string? CustomerCode,
+    string? CustomerName
+);
 
 public sealed record CaptureCrusherWeight2Request(
     Guid SessionId,
@@ -22,29 +28,41 @@ public sealed record CaptureCrusherWeight2Request(
 public sealed class CrusherWeighingUseCases
 {
     private readonly IVehicleRepository _vehicleRepository;
+    private readonly ICustomerRepository _customerRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IWeighingSessionRepository _sessionRepository;
     private readonly IWeighingSessionNumberGenerator _sessionNoGenerator;
     private readonly IStationScope _stationScope;
     private readonly IStationOperationSettingsRepository _operationSettings;
+    private readonly ISyncOutboxRepository _syncOutboxRepository;
+    private readonly ISyncPayloadFactory _syncPayloadFactory;
     private readonly IClock _clock;
     private readonly ICurrentUserContext _currentUser;
     private readonly IUnitOfWork _unitOfWork;
 
     public CrusherWeighingUseCases(
         IVehicleRepository vehicleRepository,
+        ICustomerRepository customerRepository,
+        IProductRepository productRepository,
         IWeighingSessionRepository sessionRepository,
         IWeighingSessionNumberGenerator sessionNoGenerator,
         IStationScope stationScope,
         IStationOperationSettingsRepository operationSettings,
+        ISyncOutboxRepository syncOutboxRepository,
+        ISyncPayloadFactory syncPayloadFactory,
         IClock clock,
         ICurrentUserContext currentUser,
         IUnitOfWork unitOfWork)
     {
         _vehicleRepository = vehicleRepository;
+        _customerRepository = customerRepository;
+        _productRepository = productRepository;
         _sessionRepository = sessionRepository;
         _sessionNoGenerator = sessionNoGenerator;
         _stationScope = stationScope;
         _operationSettings = operationSettings;
+        _syncOutboxRepository = syncOutboxRepository;
+        _syncPayloadFactory = syncPayloadFactory;
         _clock = clock;
         _currentUser = currentUser;
         _unitOfWork = unitOfWork;
@@ -63,8 +81,8 @@ public sealed class CrusherWeighingUseCases
             .ToList();
     }
 
-    public Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchSessionsAsync(string? keyword, CancellationToken ct)
-        => _sessionRepository.SearchCrusherSessionsAsync(keyword, ct);
+    public Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchSessionsAsync(string? keyword, DateTime? selectedDate, CancellationToken ct)
+        => _sessionRepository.SearchCrusherSessionsAsync(keyword, selectedDate, ct);
 
     public async Task<string> GetDefaultWeighingModeAsync(CancellationToken ct)
     {
@@ -94,6 +112,9 @@ public sealed class CrusherWeighingUseCases
 
         var now = _clock.NowLocal;
         var stationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
+        await EnsureCustomerAsync(request.CustomerCode, request.CustomerName, now, ct);
+        await EnsureProductAsync(request.ProductCode, request.ProductName, now, ct);
+
         var session = new WeighingSession
         {
             Id = Guid.NewGuid(),
@@ -115,6 +136,11 @@ public sealed class CrusherWeighingUseCases
             StandardTareVehicleId = vehicle.Id,
             StandardTareWeightSnapshot = vehicle.TtcpWeight,
             StandardTareSourceSnapshot = vehicle.StandardTareSource,
+            // Crusher Weighing: Product and Customer Information
+            ProductCode = request.ProductCode,
+            ProductName = request.ProductName,
+            CustomerCode = request.CustomerCode,
+            CustomerName = request.CustomerName,
             WeighingMode = mode,
             NetWeightCalculationMode = mode == CrusherWeighingModes.SingleWithStandardTare
                 ? NetWeightCalculationModes.Weight1MinusStandardTare
@@ -172,6 +198,154 @@ public sealed class CrusherWeighingUseCases
 
         await _sessionRepository.UpdateAsync(session, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureCustomerAsync(string? customerCode, string? customerName, DateTime now, CancellationToken ct)
+    {
+        var normalizedCode = NormalizeOptional(customerCode);
+        var normalizedName = NormalizeOptional(customerName);
+        if (string.IsNullOrWhiteSpace(normalizedCode))
+        {
+            return;
+        }
+
+        var existing = await _customerRepository.GetByCodeAsync(normalizedCode, ct);
+        if (existing == null)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedName))
+            {
+                return;
+            }
+
+            existing = new Customer
+            {
+                Id = Guid.NewGuid(),
+                CustomerCode = normalizedCode,
+                CustomerName = normalizedName,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedBy = CurrentUsername()
+            };
+            await _customerRepository.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
+            return;
+        }
+
+        var changed = false;
+        if (!existing.IsActive)
+        {
+            existing.IsActive = true;
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedName)
+            && !string.Equals(existing.CustomerName, normalizedName, StringComparison.Ordinal))
+        {
+            existing.CustomerName = normalizedName;
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        existing.UpdatedAt = now;
+        existing.UpdatedBy = CurrentUsername();
+        await _customerRepository.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
+    }
+
+    private async Task EnsureProductAsync(string? productCode, string? productName, DateTime now, CancellationToken ct)
+    {
+        var normalizedCode = NormalizeOptional(productCode);
+        var normalizedName = NormalizeOptional(productName);
+        if (string.IsNullOrWhiteSpace(normalizedCode))
+        {
+            return;
+        }
+
+        var productType = ProductTypes.InferForTransaction(TransactionType.INBOUND);
+        var existing = await _productRepository.GetByCodeAsync(normalizedCode, ct);
+        if (existing == null)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedName))
+            {
+                return;
+            }
+
+            existing = new Product
+            {
+                Id = Guid.NewGuid(),
+                ProductCode = normalizedCode,
+                ProductName = normalizedName,
+                ProductType = productType,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedBy = CurrentUsername()
+            };
+            await _productRepository.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Product, _syncPayloadFactory.CreatePayload(existing), now, ct);
+            return;
+        }
+
+        var changed = false;
+        if (!existing.IsActive)
+        {
+            existing.IsActive = true;
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedName)
+            && !string.Equals(existing.ProductName, normalizedName, StringComparison.Ordinal))
+        {
+            existing.ProductName = normalizedName;
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(productType)
+            && !string.Equals(existing.ProductType, productType, StringComparison.Ordinal))
+        {
+            existing.ProductType = productType;
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        existing.UpdatedAt = now;
+        existing.UpdatedBy = CurrentUsername();
+        await _productRepository.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Product, _syncPayloadFactory.CreatePayload(existing), now, ct);
+    }
+
+    private async Task EnqueueMasterSyncAsync(
+        Guid aggregateId,
+        string aggregateType,
+        string payloadJson,
+        DateTime now,
+        CancellationToken ct)
+    {
+        await _syncOutboxRepository.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = aggregateId,
+            AggregateType = aggregateType,
+            PayloadJson = payloadJson,
+            IdempotencyKey = aggregateId,
+            Status = OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now
+        }, ct);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
     private static string NormalizeMode(string? mode)

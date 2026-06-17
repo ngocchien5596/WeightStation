@@ -19,4 +19,5 @@ public static class StationOperationSettingKeys
     public const string CrusherRequireStandardTareForSingleWeigh = "crusher_require_standard_tare_for_single_weigh";
     public const string CrusherStandardTareToleranceKg = "crusher_standard_tare_tolerance_kg";
     public const string CrusherDefaultProductCode = "crusher_default_product_code";
+    public const string CrusherDefaultCustomerCode = "crusher_default_customer_code";
 }

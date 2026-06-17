@@ -1034,7 +1034,7 @@ public sealed class CaptureSessionWeight2UseCase
         if (netWeight > allowedWeight)
         {
             throw new BaggedWeightToleranceExceededException(
-                $"Khối lượng hàng {netWeight:N0} kg vượt khối lượng kế hoạch {plannedWeight:N0} kg và vượt dung sai cho phép {toleranceKg:N0} kg ({toleranceKgPerBag:N##0.###} kg/bao x {plannedBagCount:N0} bao).");
+                $"Khối lượng hàng {netWeight:N0} kg vượt khối lượng kế hoạch {plannedWeight:N0} kg và vượt dung sai cho phép {toleranceKg:N0} kg ({toleranceKgPerBag:##0.###} kg/bao x {plannedBagCount:N0} bao).");
         }
     }
 

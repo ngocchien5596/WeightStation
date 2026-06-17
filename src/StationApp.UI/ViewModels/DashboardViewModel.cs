@@ -1,4 +1,4 @@
-using System.Windows.Media;
+﻿using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +32,18 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private int _outboundProcessingCount;
     [ObservableProperty] private int _outboundCompletedCount;
     [ObservableProperty] private decimal _outboundCompletedTonnage;
+
+    [ObservableProperty] private int _crusherWaitingCount;
+    [ObservableProperty] private int _crusherProcessingCount;
+    [ObservableProperty] private int _crusherCompletedCount;
+    [ObservableProperty] private int _crusherActiveCount;
+    [ObservableProperty] private decimal _crusherCompletedTonnage;
+    [ObservableProperty] private string _specialStationCompletedTonnageLabel = "Số tấn nhập trạm đập";
+
+    [ObservableProperty] private bool _showInboundKpi = true;
+    [ObservableProperty] private bool _showOutboundKpi = true;
+    [ObservableProperty] private bool _showCrusherKpi;
+    [ObservableProperty] private string _dashboardKpiTitle = "KPI theo ngày";
 
     [ObservableProperty] private string _networkStatus = "Đang kiểm tra...";
     [ObservableProperty] private SolidColorBrush _networkStatusBrush = new(Colors.Gray);
@@ -86,6 +98,16 @@ public partial class DashboardViewModel : ObservableObject
         OutboundProcessingCount = 0;
         OutboundCompletedCount = 0;
         OutboundCompletedTonnage = 0m;
+        CrusherWaitingCount = 0;
+        CrusherProcessingCount = 0;
+        CrusherCompletedCount = 0;
+        CrusherActiveCount = 0;
+        CrusherCompletedTonnage = 0m;
+        SpecialStationCompletedTonnageLabel = "Số tấn nhập trạm đập";
+        ShowInboundKpi = true;
+        ShowOutboundKpi = true;
+        ShowCrusherKpi = false;
+        DashboardKpiTitle = "KPI theo ngày";
         NetworkStatus = "Đang kiểm tra...";
         NetworkStatusBrush = new SolidColorBrush(Colors.Gray);
         DeviceStatus = "Đang kiểm tra...";
@@ -97,12 +119,24 @@ public partial class DashboardViewModel : ObservableObject
     private async Task LoadCountersAsync()
     {
         using var scope = _scopeFactory.CreateScope();
-        var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
+        var stationScope = scope.ServiceProvider.GetRequiredService<IStationScope>();
+        var stationFeatureService = scope.ServiceProvider.GetRequiredService<IStationFeatureService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<StationDbContext>();
 
         var selectedDate = (SelectedDate ?? DateTime.Today).Date;
         var nextDate = selectedDate.AddDays(1);
-        var currentStationCode = await appConfig.GetValueAsync(AppConfigKeys.StationCode, CancellationToken.None) ?? "QN01";
+        var currentStationCode = await stationScope.GetCurrentStationCodeAsync(CancellationToken.None);
+        var stationFeatures = await stationFeatureService.GetFeaturesAsync(currentStationCode, CancellationToken.None);
+
+        var isCrusherStation = stationFeatures.ShowMenuCrusherWeighing;
+        var isClayStation = stationFeatures.ShowMenuClayWeighing;
+        ShowCrusherKpi = isCrusherStation || isClayStation;
+        ShowInboundKpi = stationFeatures.ShowDashboardInboundKpi && !ShowCrusherKpi;
+        ShowOutboundKpi = stationFeatures.ShowDashboardOutboundKpi && !ShowCrusherKpi;
+        DashboardKpiTitle = ShowCrusherKpi && !ShowInboundKpi && !ShowOutboundKpi
+            ? (isClayStation ? "KPI cân mỏ sét theo ngày" : "KPI cân trạm đập theo ngày")
+            : "KPI theo ngày";
+        SpecialStationCompletedTonnageLabel = isClayStation ? "Số tấn nhập mỏ sét" : "Số tấn nhập trạm đập";
 
         var sessionCandidates = await dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == currentStationCode && !x.IsDeleted && !x.IsCancelled)
@@ -130,7 +164,12 @@ public partial class DashboardViewModel : ObservableObject
                 .ToListAsync(CancellationToken.None))
             .ToHashSet();
 
+        var crusherSessions = sessionCandidates
+            .Where(IsCrusherSession)
+            .ToList();
+
         var sessions = sessionCandidates
+            .Where(x => !IsCrusherSession(x))
             .Select(x => new SessionDashboardSnapshot(x, exportSessionIds.Contains(x.Id)))
             .ToList();
 
@@ -146,27 +185,38 @@ public partial class DashboardViewModel : ObservableObject
             .Select(x => new WaitingCutOrderSnapshot(x))
             .ToListAsync(CancellationToken.None);
 
-        ApplyKpiMetrics(
-            TransactionType.INBOUND,
-            sessions,
-            waitingCutOrders,
-            selectedDate,
-            nextDate,
-            waitingSetter: value => InboundWaitingCount = value,
-            processingSetter: value => InboundProcessingCount = value,
-            completedSetter: value => InboundCompletedCount = value,
-            tonnageSetter: value => InboundCompletedTonnage = value);
+        if (ShowInboundKpi)
+        {
+            ApplyKpiMetrics(
+                TransactionType.INBOUND,
+                sessions,
+                waitingCutOrders,
+                selectedDate,
+                nextDate,
+                waitingSetter: value => InboundWaitingCount = value,
+                processingSetter: value => InboundProcessingCount = value,
+                completedSetter: value => InboundCompletedCount = value,
+                tonnageSetter: value => InboundCompletedTonnage = value);
+        }
 
-        ApplyKpiMetrics(
-            TransactionType.OUTBOUND,
-            sessions,
-            waitingCutOrders,
-            selectedDate,
-            nextDate,
-            waitingSetter: value => OutboundWaitingCount = value,
-            processingSetter: value => OutboundProcessingCount = value,
-            completedSetter: value => OutboundCompletedCount = value,
-            tonnageSetter: value => OutboundCompletedTonnage = value);
+        if (ShowOutboundKpi)
+        {
+            ApplyKpiMetrics(
+                TransactionType.OUTBOUND,
+                sessions,
+                waitingCutOrders,
+                selectedDate,
+                nextDate,
+                waitingSetter: value => OutboundWaitingCount = value,
+                processingSetter: value => OutboundProcessingCount = value,
+                completedSetter: value => OutboundCompletedCount = value,
+                tonnageSetter: value => OutboundCompletedTonnage = value);
+        }
+
+        if (ShowCrusherKpi)
+        {
+            ApplyCrusherKpiMetrics(crusherSessions, selectedDate, nextDate);
+        }
 
         var completedOutboundSessions = sessions
             .Where(x => x.Session.TransactionType == TransactionType.OUTBOUND)
@@ -175,15 +225,19 @@ public partial class DashboardViewModel : ObservableObject
             .Where(x => !x.Session.IsNoLoad)
             .ToList();
 
-        OutboundCompletedTonnage = await CalculateOutboundCompletedTonnageAsync(
-            dbContext,
-            completedOutboundSessions,
-            CancellationToken.None);
+        if (ShowOutboundKpi)
+        {
+            OutboundCompletedTonnage = await CalculateOutboundCompletedTonnageAsync(
+                dbContext,
+                completedOutboundSessions,
+                CancellationToken.None);
+        }
 
         var lastMasterSuccess = await dbContext.SyncOutbox.AsNoTracking()
             .Where(x => x.StationCode == currentStationCode
                 && (
-                (x.AggregateType == SyncAggregateTypes.Vehicle
+                (x.AggregateType == SyncAggregateTypes.Station
+                 || x.AggregateType == SyncAggregateTypes.Vehicle
                  || x.AggregateType == SyncAggregateTypes.Customer
                  || x.AggregateType == SyncAggregateTypes.Product
                  || x.AggregateType == SyncAggregateTypes.WeighingSession
@@ -199,6 +253,39 @@ public partial class DashboardViewModel : ObservableObject
         LastSyncTime = lastMasterSuccess == null
             ? "Chưa đồng bộ"
             : (lastMasterSuccess.UpdatedAt ?? lastMasterSuccess.CreatedAt).ToString("dd/MM/yyyy HH:mm:ss");
+    }
+
+    private static bool IsCrusherSession(WeighingSession session)
+        => !string.IsNullOrWhiteSpace(session.InternalVehicleNo);
+
+    private void ApplyCrusherKpiMetrics(
+        IReadOnlyCollection<WeighingSession> crusherSessions,
+        DateTime selectedDate,
+        DateTime nextDate)
+    {
+        CrusherWaitingCount = crusherSessions.Count(x =>
+            IsInSelectedDate(x.CreatedAt, selectedDate, nextDate)
+            && x.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1);
+
+        CrusherProcessingCount = crusherSessions.Count(x =>
+            IsInSelectedDate(x.CreatedAt, selectedDate, nextDate)
+            && x.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2);
+
+        CrusherActiveCount = crusherSessions.Count(x =>
+            IsInSelectedDate(x.CreatedAt, selectedDate, nextDate)
+            && x.SessionStatus != WeighingSessionStatus.COMPLETED);
+
+        var completed = crusherSessions
+            .Where(x => x.SessionStatus == WeighingSessionStatus.COMPLETED)
+            .Where(x => IsInSelectedDate(x.Weight2Time ?? x.UpdatedAt ?? x.CreatedAt, selectedDate, nextDate))
+            .Where(x => !x.IsNoLoad)
+            .ToList();
+
+        CrusherCompletedCount = completed.Count;
+        CrusherCompletedTonnage = decimal.Round(
+            completed.Sum(x => (x.NetWeight ?? 0m) / 1000m),
+            3,
+            MidpointRounding.AwayFromZero);
     }
 
     private static void ApplyKpiMetrics(

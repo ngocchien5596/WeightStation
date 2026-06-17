@@ -3,6 +3,7 @@ namespace StationApp.Domain.Entities;
 public class Product
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public string ProductCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
     public string? ProductType { get; set; }

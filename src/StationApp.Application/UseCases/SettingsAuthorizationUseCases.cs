@@ -126,6 +126,26 @@ public sealed class UpdateCameraSettingsUseCase
         await _configRepository.SetValueAsync(AppConfigKeys.CameraC6_2RtspUrl, request.CameraC6_2RtspUrl.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CameraC6_2PreviewRtspUrl, request.CameraC6_2PreviewRtspUrl.Trim(), ct);
 
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_1Enabled, request.CameraCrusher_1Enabled.ToString().ToLowerInvariant(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_1Name, request.CameraCrusher_1Name.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_1RtspUrl, request.CameraCrusher_1RtspUrl.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_1PreviewRtspUrl, request.CameraCrusher_1PreviewRtspUrl.Trim(), ct);
+
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_2Enabled, request.CameraCrusher_2Enabled.ToString().ToLowerInvariant(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_2Name, request.CameraCrusher_2Name.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_2RtspUrl, request.CameraCrusher_2RtspUrl.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraCrusher_2PreviewRtspUrl, request.CameraCrusher_2PreviewRtspUrl.Trim(), ct);
+
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_1Enabled, request.CameraClay_1Enabled.ToString().ToLowerInvariant(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_1Name, request.CameraClay_1Name.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_1RtspUrl, request.CameraClay_1RtspUrl.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_1PreviewRtspUrl, request.CameraClay_1PreviewRtspUrl.Trim(), ct);
+
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_2Enabled, request.CameraClay_2Enabled.ToString().ToLowerInvariant(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_2Name, request.CameraClay_2Name.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_2RtspUrl, request.CameraClay_2RtspUrl.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.CameraClay_2PreviewRtspUrl, request.CameraClay_2PreviewRtspUrl.Trim(), ct);
+
         await _configRepository.SetValueAsync(AppConfigKeys.CameraPreviewDefault, request.CameraPreviewDefault.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CameraCaptureTimeoutMs, request.CameraCaptureTimeoutMs.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CameraCaptureJpegQuality, request.CameraCaptureJpegQuality.Trim(), ct);

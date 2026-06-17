@@ -38,29 +38,33 @@ public class VehicleRepository : IVehicleRepository
 
     public async Task<Vehicle?> GetByPlateAndMoocAsync(string vehiclePlate, string moocNumber, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         return await _context.Vehicles
-            .FirstOrDefaultAsync(v => v.VehiclePlate == vehiclePlate && v.MoocNumber == moocNumber, ct);
+            .FirstOrDefaultAsync(v => v.StationCode == stationCode && v.VehiclePlate == vehiclePlate && v.MoocNumber == moocNumber, ct);
     }
 
     public async Task<IReadOnlyList<Vehicle>> GetByPlateAsync(string vehiclePlate, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         var list = await _context.Vehicles
-            .Where(v => v.VehiclePlate == vehiclePlate)
+            .Where(v => v.StationCode == stationCode && v.VehiclePlate == vehiclePlate)
             .ToListAsync(ct);
         return list.AsReadOnly();
     }
 
     public async Task<IReadOnlyList<Vehicle>> GetByMoocAsync(string moocNumber, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         var list = await _context.Vehicles
-            .Where(v => v.MoocNumber == moocNumber)
+            .Where(v => v.StationCode == stationCode && v.MoocNumber == moocNumber)
             .ToListAsync(ct);
         return list.AsReadOnly();
     }
 
     public async Task<IReadOnlyList<Vehicle>> SearchAsync(string? keyword, CancellationToken ct)
     {
-        var query = _context.Vehicles.AsQueryable();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
+        var query = _context.Vehicles.Where(v => v.StationCode == stationCode);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(v => v.VehiclePlate.Contains(keyword) || v.MoocNumber.Contains(keyword));
@@ -71,8 +75,9 @@ public class VehicleRepository : IVehicleRepository
 
     public async Task<IReadOnlyList<Vehicle>> SearchInternalVehiclesAsync(string? keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         var query = _context.Vehicles.AsNoTracking()
-            .Where(v => v.IsActive && v.IsInternalVehicle);
+            .Where(v => v.StationCode == stationCode && v.IsActive && v.IsInternalVehicle);
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -93,9 +98,10 @@ public class VehicleRepository : IVehicleRepository
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleSourcesAsync(string keyword, int limit, CancellationToken ct)
     {
         var normalized = keyword.Trim();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
         var list = await _context.Vehicles.AsNoTracking()
-            .Where(v => v.IsActive && v.VehiclePlate != null && v.VehiclePlate.Contains(normalized))
+            .Where(v => v.StationCode == stationCode && v.IsActive && v.VehiclePlate != null && v.VehiclePlate.Contains(normalized))
             .OrderByDescending(v => v.VehiclePlate.StartsWith(normalized))
             .ThenBy(v => v.VehiclePlate)
             .Take(limit)
@@ -117,9 +123,10 @@ public class VehicleRepository : IVehicleRepository
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchMoocSourcesAsync(string keyword, int limit, CancellationToken ct)
     {
         var normalized = keyword.Trim();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
         var list = await _context.Vehicles.AsNoTracking()
-            .Where(v => v.IsActive && v.MoocNumber != null && v.MoocNumber.Contains(normalized))
+            .Where(v => v.StationCode == stationCode && v.IsActive && v.MoocNumber != null && v.MoocNumber.Contains(normalized))
             .OrderByDescending(v => v.MoocNumber != null && v.MoocNumber.StartsWith(normalized))
             .ThenBy(v => v.MoocNumber)
             .Take(limit)
@@ -141,9 +148,10 @@ public class VehicleRepository : IVehicleRepository
     public async Task<IReadOnlyList<DriverAutocompleteSource>> SearchDriverSourcesAsync(string keyword, int limit, CancellationToken ct)
     {
         var normalized = keyword.Trim();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
         var list = await _context.Vehicles.AsNoTracking()
-            .Where(v => v.IsActive && v.DriverName != null && v.DriverName.Contains(normalized))
+            .Where(v => v.StationCode == stationCode && v.IsActive && v.DriverName != null && v.DriverName.Contains(normalized))
             .OrderByDescending(v => v.DriverName != null && v.DriverName.StartsWith(normalized))
             .ThenBy(v => v.DriverName)
             .Take(limit)
@@ -174,6 +182,50 @@ public sealed class StationOperationSettingsRepository : IStationOperationSettin
             .Select(x => x.SettingValue)
             .FirstOrDefaultAsync(ct);
     }
+
+    public async Task<IReadOnlyDictionary<string, string>> GetSettingsByStationAsync(string stationCode, CancellationToken ct)
+    {
+        var list = await _context.StationOperationSettings.AsNoTracking()
+            .Where(x => x.StationCode == stationCode)
+            .ToListAsync(ct);
+        return list.ToDictionary(x => x.SettingKey, x => x.SettingValue);
+    }
+
+    public async Task SaveSettingsAsync(string stationCode, IReadOnlyDictionary<string, string> settings, string actor, CancellationToken ct)
+    {
+        var existingSettings = await _context.StationOperationSettings
+            .Where(x => x.StationCode == stationCode)
+            .ToListAsync(ct);
+
+        var now = DateTime.Now;
+
+        foreach (var kvp in settings)
+        {
+            var existing = existingSettings.FirstOrDefault(x => x.SettingKey == kvp.Key);
+            if (existing != null)
+            {
+                if (existing.SettingValue != kvp.Value)
+                {
+                    existing.SettingValue = kvp.Value;
+                    existing.UpdatedAt = now;
+                    existing.UpdatedBy = actor;
+                }
+            }
+            else
+            {
+                var newSetting = new StationOperationSetting
+                {
+                    Id = Guid.NewGuid(),
+                    StationCode = stationCode,
+                    SettingKey = kvp.Key,
+                    SettingValue = kvp.Value,
+                    CreatedAt = now,
+                    CreatedBy = actor
+                };
+                await _context.StationOperationSettings.AddAsync(newSetting, ct);
+            }
+        }
+    }
 }
 
 public class CustomerRepository : ICustomerRepository
@@ -201,13 +253,15 @@ public class CustomerRepository : ICustomerRepository
 
     public async Task<Customer?> GetByCodeAsync(string customerCode, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         return await _context.Customers
-            .FirstOrDefaultAsync(c => c.CustomerCode == customerCode, ct);
+            .FirstOrDefaultAsync(c => c.StationCode == stationCode && c.CustomerCode == customerCode, ct);
     }
 
     public async Task<IReadOnlyList<Customer>> SearchAsync(string? keyword, CancellationToken ct)
     {
-        var query = _context.Customers.AsQueryable();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
+        var query = _context.Customers.Where(c => c.StationCode == stationCode);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(c => c.CustomerCode.Contains(keyword) || c.CustomerName.Contains(keyword));
@@ -219,9 +273,10 @@ public class CustomerRepository : ICustomerRepository
     public async Task<IReadOnlyList<CustomerAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct)
     {
         var normalized = keyword.Trim();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
         var list = await _context.Customers.AsNoTracking()
-            .Where(c => c.IsActive && (c.CustomerCode.Contains(normalized) || c.CustomerName.Contains(normalized)))
+            .Where(c => c.StationCode == stationCode && c.IsActive && (c.CustomerCode.Contains(normalized) || c.CustomerName.Contains(normalized)))
             .OrderByDescending(c => c.CustomerName.StartsWith(normalized) || c.CustomerCode.StartsWith(normalized))
             .ThenBy(c => c.CustomerName)
             .Take(limit)
@@ -260,13 +315,15 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product?> GetByCodeAsync(string productCode, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         return await _context.Products
-            .FirstOrDefaultAsync(p => p.ProductCode == productCode, ct);
+            .FirstOrDefaultAsync(p => p.StationCode == stationCode && p.ProductCode == productCode, ct);
     }
 
     public async Task<IReadOnlyList<Product>> SearchAsync(string? keyword, CancellationToken ct)
     {
-        var query = _context.Products.AsQueryable();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
+        var query = _context.Products.Where(p => p.StationCode == stationCode);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(p => p.ProductCode.Contains(keyword) || p.ProductName.Contains(keyword));
@@ -278,9 +335,10 @@ public class ProductRepository : IProductRepository
     public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct)
     {
         var normalized = keyword.Trim();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
         var list = await _context.Products.AsNoTracking()
-            .Where(p => p.IsActive && (p.ProductCode.Contains(normalized) || p.ProductName.Contains(normalized)))
+            .Where(p => p.StationCode == stationCode && p.IsActive && (p.ProductCode.Contains(normalized) || p.ProductName.Contains(normalized)))
             .OrderByDescending(p => p.ProductCode.StartsWith(normalized) || p.ProductName.StartsWith(normalized))
             .ThenBy(p => p.ProductCode)
             .Take(limit)

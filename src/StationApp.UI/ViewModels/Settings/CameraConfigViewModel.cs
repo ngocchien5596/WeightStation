@@ -43,6 +43,28 @@ public partial class CameraConfigViewModel : ObservableObject
     [ObservableProperty] private string _cameraC6_2RtspUrl = string.Empty;
     [ObservableProperty] private string _cameraC6_2PreviewRtspUrl = string.Empty;
 
+    // Crusher cameras
+    [ObservableProperty] private bool _cameraCrusher_1Enabled;
+    [ObservableProperty] private string _cameraCrusher_1Name = AppConfigDefaults.DefaultCameraCrusher_1Name;
+    [ObservableProperty] private string _cameraCrusher_1RtspUrl = string.Empty;
+    [ObservableProperty] private string _cameraCrusher_1PreviewRtspUrl = string.Empty;
+
+    [ObservableProperty] private bool _cameraCrusher_2Enabled;
+    [ObservableProperty] private string _cameraCrusher_2Name = AppConfigDefaults.DefaultCameraCrusher_2Name;
+    [ObservableProperty] private string _cameraCrusher_2RtspUrl = string.Empty;
+    [ObservableProperty] private string _cameraCrusher_2PreviewRtspUrl = string.Empty;
+
+    // Clay cameras
+    [ObservableProperty] private bool _cameraClay_1Enabled;
+    [ObservableProperty] private string _cameraClay_1Name = AppConfigDefaults.DefaultCameraClay_1Name;
+    [ObservableProperty] private string _cameraClay_1RtspUrl = string.Empty;
+    [ObservableProperty] private string _cameraClay_1PreviewRtspUrl = string.Empty;
+
+    [ObservableProperty] private bool _cameraClay_2Enabled;
+    [ObservableProperty] private string _cameraClay_2Name = AppConfigDefaults.DefaultCameraClay_2Name;
+    [ObservableProperty] private string _cameraClay_2RtspUrl = string.Empty;
+    [ObservableProperty] private string _cameraClay_2PreviewRtspUrl = string.Empty;
+
     // Common Parameters
     [ObservableProperty] private string _cameraPreviewDefault = AppConfigDefaults.DefaultCameraPreview;
     [ObservableProperty] private bool _isCamera1DefaultPreview;
@@ -88,6 +110,36 @@ public partial class CameraConfigViewModel : ObservableObject
         CameraC6_2RtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraC6_2RtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraC6_2RtspUrl;
         CameraC6_2PreviewRtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraC6_2PreviewRtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraC6_2PreviewRtspUrl;
 
+        // Load Crusher cameras
+        CameraCrusher_1Enabled = bool.TryParse(await repo.GetValueAsync(AppConfigKeys.CameraCrusher_1Enabled, CancellationToken.None), out var camCrusher1Enabled)
+            ? camCrusher1Enabled
+            : bool.Parse(AppConfigDefaults.DefaultCameraCrusher_1Enabled);
+        CameraCrusher_1Name = await repo.GetValueAsync(AppConfigKeys.CameraCrusher_1Name, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraCrusher_1Name;
+        CameraCrusher_1RtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraCrusher_1RtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraCrusher_1RtspUrl;
+        CameraCrusher_1PreviewRtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraCrusher_1PreviewRtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraCrusher_1PreviewRtspUrl;
+
+        CameraCrusher_2Enabled = bool.TryParse(await repo.GetValueAsync(AppConfigKeys.CameraCrusher_2Enabled, CancellationToken.None), out var camCrusher2Enabled)
+            ? camCrusher2Enabled
+            : bool.Parse(AppConfigDefaults.DefaultCameraCrusher_2Enabled);
+        CameraCrusher_2Name = await repo.GetValueAsync(AppConfigKeys.CameraCrusher_2Name, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraCrusher_2Name;
+        CameraCrusher_2RtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraCrusher_2RtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraCrusher_2RtspUrl;
+        CameraCrusher_2PreviewRtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraCrusher_2PreviewRtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraCrusher_2PreviewRtspUrl;
+
+        // Load Clay cameras
+        CameraClay_1Enabled = bool.TryParse(await repo.GetValueAsync(AppConfigKeys.CameraClay_1Enabled, CancellationToken.None), out var camClay1Enabled)
+            ? camClay1Enabled
+            : bool.Parse(AppConfigDefaults.DefaultCameraClay_1Enabled);
+        CameraClay_1Name = await repo.GetValueAsync(AppConfigKeys.CameraClay_1Name, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraClay_1Name;
+        CameraClay_1RtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraClay_1RtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraClay_1RtspUrl;
+        CameraClay_1PreviewRtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraClay_1PreviewRtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraClay_1PreviewRtspUrl;
+
+        CameraClay_2Enabled = bool.TryParse(await repo.GetValueAsync(AppConfigKeys.CameraClay_2Enabled, CancellationToken.None), out var camClay2Enabled)
+            ? camClay2Enabled
+            : bool.Parse(AppConfigDefaults.DefaultCameraClay_2Enabled);
+        CameraClay_2Name = await repo.GetValueAsync(AppConfigKeys.CameraClay_2Name, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraClay_2Name;
+        CameraClay_2RtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraClay_2RtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraClay_2RtspUrl;
+        CameraClay_2PreviewRtspUrl = await repo.GetValueAsync(AppConfigKeys.CameraClay_2PreviewRtspUrl, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraClay_2PreviewRtspUrl;
+
         // Load Common
         CameraPreviewDefault = await repo.GetValueAsync(AppConfigKeys.CameraPreviewDefault, CancellationToken.None) ?? AppConfigDefaults.DefaultCameraPreview;
         SyncDefaultPreviewSelection(CameraPreviewDefault);
@@ -126,7 +178,23 @@ public partial class CameraConfigViewModel : ObservableObject
                     CameraPreviewDefault,
                     CameraCaptureTimeoutMs,
                     CameraCaptureJpegQuality,
-                    CameraCaptureWarmupFrames),
+                    CameraCaptureWarmupFrames,
+                    CameraCrusher_1Enabled,
+                    CameraCrusher_1Name,
+                    CameraCrusher_1RtspUrl,
+                    CameraCrusher_1PreviewRtspUrl,
+                    CameraCrusher_2Enabled,
+                    CameraCrusher_2Name,
+                    CameraCrusher_2RtspUrl,
+                    CameraCrusher_2PreviewRtspUrl,
+                    CameraClay_1Enabled,
+                    CameraClay_1Name,
+                    CameraClay_1RtspUrl,
+                    CameraClay_1PreviewRtspUrl,
+                    CameraClay_2Enabled,
+                    CameraClay_2Name,
+                    CameraClay_2RtspUrl,
+                    CameraClay_2PreviewRtspUrl),
                 CancellationToken.None);
             await dialogService.ShowInfoAsync("Thông báo", "Lưu cấu hình camera thành công!");
         }

@@ -1,9 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using StationApp.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace StationApp.Infrastructure.Migrations
 {
+    [DbContext(typeof(StationDbContext))]
+    [Migration("20260428124500_AddUserAccountManagementFields")]
     public partial class AddUserAccountManagementFields : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

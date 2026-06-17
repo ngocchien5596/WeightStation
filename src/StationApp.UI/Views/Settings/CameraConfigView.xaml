@@ -37,6 +37,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1*"/>
@@ -230,8 +231,172 @@
                     </Grid>
                 </Border>
 
-                <!-- Row 1: Common Camera Parameters spanning both columns -->
-                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" Padding="24" CornerRadius="8" Margin="0,20,0,0">
+                <!-- Crusher cameras -->
+                <Border Grid.Column="0" Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" Padding="24" CornerRadius="8" VerticalAlignment="Top" Margin="0,20,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="SemiBold" Foreground="#123B6B" VerticalAlignment="Center"/>
+                            <TextBlock Text="CAMERA TRẠM ĐẬP" FontSize="14" FontWeight="SemiBold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,0,0,16"/>
+
+                        <StackPanel Grid.Row="2">
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
+                                        <CheckBox IsChecked="{Binding CameraCrusher_1Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Bật Camera 1" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                        <CheckBox IsChecked="{Binding IsCamera1DefaultPreview}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Mặc định" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tên Camera 1" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CameraCrusher_1Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="RTSP URL (main)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CameraCrusher_1RtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="RTSP URL (preview)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CameraCrusher_1PreviewRtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
+                                        <CheckBox IsChecked="{Binding CameraCrusher_2Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Bật Camera 2" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                        <CheckBox IsChecked="{Binding IsCamera2DefaultPreview}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Mặc định" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tên Camera 2" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CameraCrusher_2Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="RTSP URL (main)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CameraCrusher_2RtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="RTSP URL (preview)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CameraCrusher_2PreviewRtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Clay cameras -->
+                <Border Grid.Column="2" Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" Padding="24" CornerRadius="8" VerticalAlignment="Top" Margin="0,20,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="16" FontWeight="SemiBold" Foreground="#123B6B" VerticalAlignment="Center"/>
+                            <TextBlock Text="CAMERA MỎ SÉT" FontSize="14" FontWeight="SemiBold" Foreground="#123B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Separator Grid.Row="1" Background="#E2E8F0" Height="1" Margin="0,0,0,16"/>
+
+                        <StackPanel Grid.Row="2">
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
+                                        <CheckBox IsChecked="{Binding CameraClay_1Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Bật Camera 1" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                        <CheckBox IsChecked="{Binding IsCamera1DefaultPreview}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Mặc định" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tên Camera 1" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CameraClay_1Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="RTSP URL (main)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CameraClay_1RtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="RTSP URL (preview)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CameraClay_1PreviewRtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" MinWidth="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
+                                        <CheckBox IsChecked="{Binding CameraClay_2Enabled}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Bật Camera 2" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,16,0" VerticalAlignment="Center"/>
+                                        <CheckBox IsChecked="{Binding IsCamera2DefaultPreview}" Style="{StaticResource StandardCheckBoxStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Mặc định" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tên Camera 2" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CameraClay_2Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="RTSP URL (main)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CameraClay_2RtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="RTSP URL (preview)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CameraClay_2PreviewRtspUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Row 2: Common Camera Parameters spanning both columns -->
+                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" Padding="24" CornerRadius="8" Margin="0,20,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -287,7 +452,7 @@
                 </Border>
 
                 <!-- Row 2: Action buttons -->
-                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,20,0,0" HorizontalAlignment="Right">
+                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,20,0,0" HorizontalAlignment="Right">
                     <Button Command="{Binding LoadCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0" MinWidth="120" Height="36">
                         <TextBlock Text="LÀM MỚI" VerticalAlignment="Center" FontWeight="SemiBold"/>
                     </Button>

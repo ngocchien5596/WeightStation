@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using System.Data;
 
@@ -15,6 +17,15 @@ public static class StationDatabaseInitializer
         bool deploySqlObjects = false)
     {
         var logger = loggerFactory?.CreateLogger("SchemaCompatibilityBootstrapper");
+        
+        bool dbExists = await db.Database.CanConnectAsync(ct);
+        if (!dbExists)
+        {
+            logger?.LogInformation("Database does not exist. Creating empty database...");
+            var databaseCreator = db.Database.GetService<IRelationalDatabaseCreator>();
+            await databaseCreator.CreateAsync(ct);
+        }
+
         await ValidateSqlServerCompatibilityAsync(db, logger, ct);
         await SchemaCompatibilityBootstrapper.EnsureAsync(db, logger, ct);
         await db.Database.MigrateAsync(ct);

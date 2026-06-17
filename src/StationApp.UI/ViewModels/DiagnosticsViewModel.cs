@@ -244,7 +244,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
 
         var lastMasterSuccess = await context.SyncOutbox.AsNoTracking()
             .Where(o =>
-                (o.AggregateType == SyncAggregateTypes.Vehicle
+                (o.AggregateType == SyncAggregateTypes.Station
+                || o.AggregateType == SyncAggregateTypes.Vehicle
                 || o.AggregateType == SyncAggregateTypes.Customer
                 || o.AggregateType == SyncAggregateTypes.Product
                 || o.AggregateType == SyncAggregateTypes.WeighingSession
@@ -254,7 +255,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             .FirstOrDefaultAsync(CancellationToken.None);
         var lastMasterFailure = await context.SyncOutbox.AsNoTracking()
             .Where(o =>
-                (o.AggregateType == SyncAggregateTypes.Vehicle
+                (o.AggregateType == SyncAggregateTypes.Station
+                || o.AggregateType == SyncAggregateTypes.Vehicle
                 || o.AggregateType == SyncAggregateTypes.Customer
                 || o.AggregateType == SyncAggregateTypes.Product
                 || o.AggregateType == SyncAggregateTypes.WeighingSession
@@ -264,7 +266,8 @@ public partial class DiagnosticsViewModel : ObservableObject, IDisposable
             .FirstOrDefaultAsync(CancellationToken.None);
         var pendingMasterCount = await context.SyncOutbox.AsNoTracking()
             .Where(o =>
-                (o.AggregateType == SyncAggregateTypes.Vehicle
+                (o.AggregateType == SyncAggregateTypes.Station
+                || o.AggregateType == SyncAggregateTypes.Vehicle
                 || o.AggregateType == SyncAggregateTypes.Customer
                 || o.AggregateType == SyncAggregateTypes.Product
                 || o.AggregateType == SyncAggregateTypes.WeighingSession

@@ -83,6 +83,12 @@
                                 <TextBlock Text="C&#xE2;n tr&#x1EA1;m &#x111;&#x1EAD;p" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewClayWeighing, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding NavigateCommand}"
+                                    CommandParameter="ClayWeighing">
+                                <TextBlock Text="C&#xE2;n m&#x1ECF; s&#xE9;t" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewExportWeighing, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="ExportWeighing">
@@ -119,6 +125,16 @@
                                         Visibility="{Binding CanViewInboundSummaryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_InboundSummary">
                                     <TextBlock Text="Báo cáo nhập" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewCrusherInboundReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_CrusherInbound">
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o nh&#x1EAD;p (tr&#x1EA1;m &#x111;&#x1EAD;p)" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewClayInboundReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_ClayInbound">
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o nh&#x1EAD;p (m&#x1ECF; s&#xE9;t)" VerticalAlignment="Center"/>
                                 </Button>
                             </StackPanel>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"

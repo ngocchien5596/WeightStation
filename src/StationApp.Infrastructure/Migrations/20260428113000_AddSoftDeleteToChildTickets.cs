@@ -1,9 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using StationApp.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace StationApp.Infrastructure.Migrations
 {
+    [DbContext(typeof(StationDbContext))]
+    [Migration("20260428113000_AddSoftDeleteToChildTickets")]
     public partial class AddSoftDeleteToChildTickets : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

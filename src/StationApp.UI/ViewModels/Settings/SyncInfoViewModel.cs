@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
+using StationApp.Contracts.Sync;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -23,6 +24,7 @@ public partial class SyncInfoViewModel : ObservableObject
 
     private static readonly string[] MasterAggregateTypes =
     [
+        SyncAggregateTypes.Station,
         SyncAggregateTypes.Vehicle,
         SyncAggregateTypes.Customer,
         SyncAggregateTypes.Product
@@ -42,6 +44,7 @@ public partial class SyncInfoViewModel : ObservableObject
             "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e",
             "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
             "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
+            "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0074\u0072\u1ea1\u006d",
             "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065",
             "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067",
             "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d"
@@ -60,7 +63,7 @@ public partial class SyncInfoViewModel : ObservableObject
     [ObservableProperty] private string _lastSyncSuccessAt = "N/A";
     [ObservableProperty] private string _lastSyncFailureAt = "N/A";
     [ObservableProperty] private ObservableCollection<SyncOutboxListItem> _syncItems = new();
-    [ObservableProperty] private ObservableCollection<string> _aggregateTypeOptions = new(["\u0054\u1ea5\u0074\u0020\u0063\u1ea3", "\u0110\u004b\u0050\u0054", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e", "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e", "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d"]);
+    [ObservableProperty] private ObservableCollection<string> _aggregateTypeOptions = new(["\u0054\u1ea5\u0074\u0020\u0063\u1ea3", "\u0110\u004b\u0050\u0054", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0063\u00e2\u006e", "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e", "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e", "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0074\u0072\u1ea1\u006d", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067", "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d"]);
     [ObservableProperty] private ObservableCollection<string> _outboxStatusOptions = new(["\u0054\u1ea5\u0074\u0020\u0063\u1ea3", "PENDING", "PROCESSING", "SUCCESS", "FAILED_RETRYABLE", "FAILED_FINAL"]);
     [ObservableProperty] private string _selectedAggregateType = "\u0054\u1ea5\u0074\u0020\u0063\u1ea3";
     [ObservableProperty] private string _selectedOutboxStatus = "\u0054\u1ea5\u0074\u0020\u0063\u1ea3";
@@ -83,9 +86,9 @@ public partial class SyncInfoViewModel : ObservableObject
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<StationDbContext>();
-        var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
+        var stationScope = scope.ServiceProvider.GetRequiredService<IStationScope>();
         var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
-        var stationCode = await ResolveStationCodeAsync(appConfig);
+        var stationCode = await stationScope.GetCurrentStationCodeAsync(CancellationToken.None);
 
         try
         {
@@ -373,12 +376,6 @@ public partial class SyncInfoViewModel : ObservableObject
         return timestamp?.ToString("dd/MM/yyyy HH:mm:ss") ?? "N/A";
     }
 
-    private static async Task<string> ResolveStationCodeAsync(IAppConfigRepository appConfig)
-    {
-        var value = await appConfig.GetValueAsync(AppConfigKeys.StationCode, CancellationToken.None);
-        return string.IsNullOrWhiteSpace(value) ? "QN01" : value.Trim();
-    }
-
     private async Task<IReadOnlyList<SyncOutboxListItem>> LoadSyncItemsAsync(StationDbContext context, string stationCode)
     {
         var query = context.SyncOutbox.AsNoTracking()
@@ -393,6 +390,7 @@ public partial class SyncInfoViewModel : ObservableObject
                 "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e" => SyncAggregateTypes.DeliveryTicket,
                 "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e" => SyncAggregateTypes.WeighingSession,
                 "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e" => SyncAggregateTypes.WeighingSessionLine,
+                "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0074\u0072\u1ea1\u006d" => SyncAggregateTypes.Station,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065" => SyncAggregateTypes.Vehicle,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067" => SyncAggregateTypes.Customer,
                 "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d" => SyncAggregateTypes.Product,
@@ -439,6 +437,7 @@ public partial class SyncInfoViewModel : ObservableObject
         var deliveryTicketIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.DeliveryTicket).Select(x => x.AggregateId).Distinct().ToList();
         var directSessionIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighingSession).Select(x => x.AggregateId).Distinct().ToList();
         var lineIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.WeighingSessionLine).Select(x => x.AggregateId).Distinct().ToList();
+        var stationIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Station).Select(x => x.AggregateId).Distinct().ToList();
         var vehicleIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Vehicle).Select(x => x.AggregateId).Distinct().ToList();
         var customerIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Customer).Select(x => x.AggregateId).Distinct().ToList();
         var productIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Product).Select(x => x.AggregateId).Distinct().ToList();
@@ -451,6 +450,9 @@ public partial class SyncInfoViewModel : ObservableObject
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var deliveryTickets = await context.DeliveryTickets.AsNoTracking()
             .Where(x => x.StationCode == stationCode && deliveryTicketIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, CancellationToken.None);
+        var stations = await context.Stations.AsNoTracking()
+            .Where(x => stationIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var lines = await context.WeighingSessionLines.AsNoTracking()
             .Where(x => x.StationCode == stationCode && lineIds.Contains(x.Id))
@@ -534,6 +536,11 @@ public partial class SyncInfoViewModel : ObservableObject
                     sessionNo = lineSession.SessionNo;
                     vehiclePlate = lineSession.VehiclePlate;
                 }
+            }
+            else if (item.AggregateType == SyncAggregateTypes.Station && stations.TryGetValue(item.AggregateId, out var station))
+            {
+                businessNo = station.StationCode;
+                entitySyncStatus = station.IsActive ? "ACTIVE" : "INACTIVE";
             }
             else if (item.AggregateType == SyncAggregateTypes.Vehicle && vehicles.TryGetValue(item.AggregateId, out var vehicle))
             {
@@ -621,6 +628,9 @@ public partial class SyncInfoViewModel : ObservableObject
                     || context.WeighingSessions.Any(session =>
                         session.Id == line.WeighingSessionId
                         && (session.SessionNo.Contains(keyword) || session.VehiclePlate.Contains(keyword))))))
+            || (o.AggregateType == SyncAggregateTypes.Station && context.Stations.Any(x =>
+                x.Id == o.AggregateId
+                && (x.StationCode.Contains(keyword) || x.StationName.Contains(keyword))))
             || (o.AggregateType == SyncAggregateTypes.Vehicle && context.Vehicles.Any(x =>
                 x.Id == o.AggregateId
                 && (x.VehiclePlate.Contains(keyword)
@@ -694,6 +704,51 @@ public partial class SyncInfoViewModel : ObservableObject
                 line.UpdatedBy = actor;
                 return (payloadFactory.CreatePayload(line), line.Id);
             }
+            case SyncAggregateTypes.Station:
+            {
+                var station = await context.Stations.FindAsync([item.AggregateId], CancellationToken.None);
+                if (station == null) return null;
+
+                station.UpdatedAt = now;
+                station.UpdatedBy = actor;
+
+                var featureFlags = await context.StationFeatureFlags.AsNoTracking()
+                    .Where(x => x.StationCode == station.StationCode)
+                    .OrderBy(x => x.FeatureKey)
+                    .Select(x => new SyncStationFeatureFlagItem
+                    {
+                        FeatureKey = x.FeatureKey,
+                        FeatureValue = x.FeatureValue
+                    })
+                    .ToListAsync(CancellationToken.None);
+
+                var operationSettings = await context.StationOperationSettings.AsNoTracking()
+                    .Where(x => x.StationCode == station.StationCode)
+                    .OrderBy(x => x.SettingKey)
+                    .Select(x => new SyncStationOperationSettingItem
+                    {
+                        SettingKey = x.SettingKey,
+                        SettingValue = x.SettingValue
+                    })
+                    .ToListAsync(CancellationToken.None);
+
+                var payload = new SyncStationMasterDataRequest
+                {
+                    Id = station.Id,
+                    StationCode = station.StationCode,
+                    StationName = station.StationName,
+                    IsActive = station.IsActive,
+                    SortOrder = station.SortOrder,
+                    CreatedAt = station.CreatedAt,
+                    CreatedBy = station.CreatedBy,
+                    UpdatedAt = station.UpdatedAt,
+                    UpdatedBy = station.UpdatedBy,
+                    FeatureFlags = featureFlags,
+                    OperationSettings = operationSettings
+                };
+
+                return (payloadFactory.CreatePayload(payload), station.Id);
+            }
             case SyncAggregateTypes.Vehicle:
             {
                 var vehicle = await context.Vehicles.FindAsync([item.AggregateId], CancellationToken.None);
@@ -732,6 +787,7 @@ public partial class SyncInfoViewModel : ObservableObject
             SyncAggregateTypes.DeliveryTicket => "\u0050\u0068\u0069\u1ebf\u0075\u0020\u0067\u0069\u0061\u006f\u0020\u006e\u0068\u1ead\u006e",
             SyncAggregateTypes.WeighingSession => "\u0050\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
             SyncAggregateTypes.WeighingSessionLine => "\u0044\u00f2\u006e\u0067\u0020\u0070\u0068\u0069\u00ea\u006e\u0020\u0063\u00e2\u006e",
+            SyncAggregateTypes.Station => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0074\u0072\u1ea1\u006d",
             SyncAggregateTypes.Vehicle => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0078\u0065",
             SyncAggregateTypes.Customer => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u006b\u0068\u00e1\u0063\u0068\u0020\u0068\u00e0\u006e\u0067",
             SyncAggregateTypes.Product => "\u0044\u0061\u006e\u0068\u0020\u006d\u1ee5\u0063\u0020\u0073\u1ea3\u006e\u0020\u0070\u0068\u1ea9\u006d",

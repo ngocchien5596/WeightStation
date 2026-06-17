@@ -14,6 +14,33 @@ public sealed class SyncWeighTicketResponse
     public string? ErrorMessage { get; set; }
 }
 
+public sealed class SyncStationMasterDataRequest
+{
+    public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
+    public string StationName { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public int SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public string? UpdatedBy { get; set; }
+    public List<SyncStationFeatureFlagItem> FeatureFlags { get; set; } = [];
+    public List<SyncStationOperationSettingItem> OperationSettings { get; set; } = [];
+}
+
+public sealed class SyncStationFeatureFlagItem
+{
+    public string FeatureKey { get; set; } = string.Empty;
+    public string FeatureValue { get; set; } = string.Empty;
+}
+
+public sealed class SyncStationOperationSettingItem
+{
+    public string SettingKey { get; set; } = string.Empty;
+    public string SettingValue { get; set; } = string.Empty;
+}
+
 public sealed class SyncWeighingSessionImageRequest
 {
     public Guid Id { get; set; }

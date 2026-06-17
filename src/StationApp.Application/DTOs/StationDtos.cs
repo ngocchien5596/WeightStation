@@ -12,6 +12,7 @@ public sealed record StationManagementDto(
     bool IsActive,
     int SortOrder,
     StationFeatureSetDto Features,
+    StationOperationSettingsDto Settings,
     DateTime CreatedAt,
     string? CreatedBy,
     DateTime? UpdatedAt,
@@ -23,7 +24,8 @@ public sealed record SaveStationRequest(
     string StationName,
     bool IsActive,
     int SortOrder,
-    StationFeatureSetDto Features);
+    StationFeatureSetDto Features,
+    StationOperationSettingsDto Settings);
 
 public sealed record UserStationAssignmentDto(
     string StationCode,
@@ -41,10 +43,13 @@ public sealed record StationFeatureSetDto(
     bool ShowMenuIncomingVehicleList,
     bool ShowMenuWeighing,
     bool ShowMenuCrusherWeighing,
+    bool ShowMenuClayWeighing,
     bool ShowMenuExportWeighing,
     bool ShowMenuOutgoingVehicleList,
     bool ShowMenuExportReport,
     bool ShowMenuInboundReport,
+    bool ShowMenuCrusherInboundReport,
+    bool ShowMenuClayInboundReport,
     bool ShowDashboardInboundKpi,
     bool ShowDashboardOutboundKpi,
     string DefaultNavigationTarget)
@@ -54,11 +59,35 @@ public sealed record StationFeatureSetDto(
         ShowMenuIncomingVehicleList: true,
         ShowMenuWeighing: true,
         ShowMenuCrusherWeighing: false,
+        ShowMenuClayWeighing: false,
         ShowMenuExportWeighing: true,
         ShowMenuOutgoingVehicleList: true,
         ShowMenuExportReport: true,
         ShowMenuInboundReport: true,
+        ShowMenuCrusherInboundReport: false,
+        ShowMenuClayInboundReport: false,
         ShowDashboardInboundKpi: true,
         ShowDashboardOutboundKpi: true,
         DefaultNavigationTarget: "Dashboard");
+}
+
+public sealed record StationOperationSettingsDto(
+    bool CrusherSingleWeighEnabled,
+    string CrusherDefaultWeighMode,
+    string CrusherDefaultProductCode,
+    string CrusherDefaultCustomerCode,
+    bool ClaySingleWeighEnabled,
+    string ClayDefaultWeighMode,
+    string ClayDefaultProductCode,
+    string ClayDefaultCustomerCode)
+{
+    public static StationOperationSettingsDto Defaults { get; } = new(
+        CrusherSingleWeighEnabled: false,
+        CrusherDefaultWeighMode: "TWO_WEIGH",
+        CrusherDefaultProductCode: "",
+        CrusherDefaultCustomerCode: "",
+        ClaySingleWeighEnabled: false,
+        ClayDefaultWeighMode: "TWO_WEIGH",
+        ClayDefaultProductCode: "",
+        ClayDefaultCustomerCode: "");
 }

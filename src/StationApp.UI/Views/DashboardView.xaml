@@ -1,4 +1,4 @@
-<UserControl x:Class="StationApp.UI.Views.DashboardView"
+﻿<UserControl x:Class="StationApp.UI.Views.DashboardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
@@ -37,30 +37,15 @@
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Ngày thống kê" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
+                    <TextBlock Text="Ng&#x00E0;y th&#x1ED1;ng k&#x00EA;" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
                     <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 Width="168"
                                 SelectedDateFormat="Short"
                                 VerticalAlignment="Center"
                                 Style="{StaticResource StandardDatePickerStyle}"/>
 
-                    <TextBlock Text="Mã trạm" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
-                    <Border Width="140"
-                            Height="36"
-                            BorderBrush="#D5E3F2"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="10,7"
-                            Background="#F8FAFC"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="{Binding StationCode}"
-                                   FontWeight="SemiBold"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   VerticalAlignment="Center"/>
-                    </Border>
-
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
-                        <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
+                        <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </DockPanel>
@@ -68,7 +53,7 @@
 
         <TextBlock Grid.Row="1"
                    Margin="20,12,20,4"
-                   Text="KPI theo ngày"
+                   Text="{Binding DashboardKpiTitle}"
                    FontSize="15"
                    FontWeight="SemiBold"
                    Foreground="{DynamicResource ForegroundBrush}"/>
@@ -78,62 +63,85 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <UniformGrid Columns="4">
+                <UniformGrid Columns="4" Visibility="{Binding ShowInboundKpi, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Xe nhập chờ cân" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Xe nh&#x1EAD;p ch&#x1EDD; c&#x00E2;n" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding InboundWaitingCount}" FontSize="42" FontWeight="SemiBold" Foreground="#1D4ED8"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Xe nhập đang xử lý" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Xe nh&#x1EAD;p &#x111;ang x&#x1EED; l&#x00FD;" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding InboundProcessingCount}" FontSize="42" FontWeight="SemiBold" Foreground="#0EA5E9"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Xe nhập đã xong" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Xe nh&#x1EAD;p &#x111;&#x00E3; xong" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding InboundCompletedCount}" FontSize="42" FontWeight="SemiBold" Foreground="#16A34A"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Số tấn nhập hàng" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="S&#x1ED1; t&#x1EA5;n nh&#x1EAD;p h&#x00E0;ng" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding InboundCompletedTonnage, StringFormat={}{0:N3}}" FontSize="36" FontWeight="SemiBold" Foreground="#15803D"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
 
-                <UniformGrid Columns="4" Margin="0,8,0,0">
+                <UniformGrid Columns="4" Margin="0,8,0,0" Visibility="{Binding ShowOutboundKpi, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Xe xuất chờ cân" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Xe xu&#x1EA5;t ch&#x1EDD; c&#x00E2;n" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding OutboundWaitingCount}" FontSize="42" FontWeight="SemiBold" Foreground="#1E40AF"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Xe xuất đang lấy hàng" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Xe xu&#x1EA5;t &#x111;ang l&#x1EA5;y h&#x00E0;ng" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding OutboundProcessingCount}" FontSize="42" FontWeight="SemiBold" Foreground="#2563EB"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Xe xuất đã xong" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Xe xu&#x1EA5;t &#x111;&#x00E3; xong" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding OutboundCompletedCount}" FontSize="42" FontWeight="SemiBold" Foreground="#22C55E"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Số tấn xuất hàng" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="S&#x1ED1; t&#x1EA5;n xu&#x1EA5;t h&#x00E0;ng" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding OutboundCompletedTonnage, StringFormat={}{0:N3}}" FontSize="36" FontWeight="SemiBold" Foreground="#15803D"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <UniformGrid Columns="3" Margin="0,8,0,0" Visibility="{Binding ShowCrusherKpi, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource KpiCardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Đang cân" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="{Binding CrusherActiveCount}" FontSize="42" FontWeight="SemiBold" Foreground="#2563EB"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource KpiCardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Đã hoàn thành" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="{Binding CrusherCompletedCount}" FontSize="42" FontWeight="SemiBold" Foreground="#16A34A"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource KpiCardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SpecialStationCompletedTonnageLabel}" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="{Binding CrusherCompletedTonnage, StringFormat={}{0:N3}}" FontSize="36" FontWeight="SemiBold" Foreground="#15803D"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
@@ -148,14 +156,14 @@
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Thiết bị cân" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="Thi&#x1EBF;t b&#x1ECB; c&#x00E2;n" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding DeviceStatus}" FontSize="22" FontWeight="SemiBold" Foreground="{Binding DeviceStatusBrush}" Margin="0,8,0,0"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{StaticResource KpiCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Lần sync gần nhất" Foreground="#64748B" FontSize="12"/>
+                            <TextBlock Text="L&#x1EA7;n sync g&#x1EA7;n nh&#x1EA5;t" Foreground="#64748B" FontSize="12"/>
                             <TextBlock Text="{Binding LastSyncTime}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
@@ -164,3 +172,4 @@
         </ScrollViewer>
     </Grid>
 </UserControl>
+

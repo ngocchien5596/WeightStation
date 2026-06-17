@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <CodePage>65001</CodePage>
     <DefaultItemExcludes>$(DefaultItemExcludes);**\obj\**;**\bin\**;**\obj_verify\**;**\bin_verify\**;**\.codex_build\**;**\._repo_build\**;**\._wpf_build\**;**\._wpf_build_isolated\**;**\artifacts\**;**\_verify_build\**</DefaultItemExcludes>
     <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
     <StationAppVersion Condition="'$(StationAppVersion)' == ''">1.0.0</StationAppVersion>

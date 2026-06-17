@@ -1,4 +1,5 @@
-﻿using StationApp.Domain.Entities;
+using StationApp.Contracts.Sync;
+using StationApp.Domain.Entities;
 
 namespace StationApp.Application.Interfaces;
 
@@ -9,8 +10,8 @@ public interface ISyncPayloadFactory
     string CreatePayload(DeliveryTicket ticket);
     string CreatePayload(WeighingSession session);
     string CreatePayload(WeighingSessionLine line);
+    string CreatePayload(SyncStationMasterDataRequest station);
     string CreatePayload(Vehicle vehicle);
     string CreatePayload(Customer customer);
     string CreatePayload(Product product);
 }
-

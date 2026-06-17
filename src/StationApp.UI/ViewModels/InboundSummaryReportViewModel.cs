@@ -42,6 +42,8 @@ public partial class InboundSummaryReportViewModel : ObservableObject
     [ObservableProperty] private ReportLookupOptionDto? _selectedProduct;
     [ObservableProperty] private ReportLookupOptionDto? _selectedCustomer;
     [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private ObservableCollection<InboundSummaryReportRow> _previewRows = [];
+    [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
 
     public InboundSummaryReportViewModel(
         BuildInboundSummaryReportUseCase buildUseCase,
@@ -83,6 +85,37 @@ public partial class InboundSummaryReportViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task PreviewAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (!TryBuildDateRange(out _, out _, out var errorMessage))
+        {
+            _toastService.ShowWarning(errorMessage);
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            var document = await BuildDocumentFromCurrentFilterAsync();
+            ApplyPreview(document);
+            _toastService.ShowSuccess($"Đã tải xem trước {document.Rows.Count:N0} dòng.");
+        }
+        catch (Exception ex)
+        {
+            _toastService.ShowError($"Không thể xem trước báo cáo: {ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     private async Task ExportAsync()
     {
         if (IsBusy)
@@ -114,15 +147,8 @@ public partial class InboundSummaryReportViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            var selectedProduct = SelectedProduct ?? ResolveSelectedLookup(ProductOptions, ProductSearchText);
-            var selectedCustomer = SelectedCustomer ?? ResolveSelectedLookup(CustomerOptions, CustomerSearchText);
-            var filter = new InboundSummaryReportFilter(
-                fromTime,
-                toTime,
-                NormalizeCode(selectedProduct),
-                NormalizeCode(selectedCustomer));
-
-            var document = await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
+            var document = await BuildDocumentFromCurrentFilterAsync();
+            ApplyPreview(document);
             await _exportUseCase.ExecuteAsync(document, saveDialog.FileName, CancellationToken.None);
 
             _toastService.ShowSuccess($"Đã xuất báo cáo thành công:\n{saveDialog.FileName}");
@@ -135,6 +161,30 @@ public partial class InboundSummaryReportViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private async Task<InboundSummaryReportDocument> BuildDocumentFromCurrentFilterAsync()
+    {
+        if (!TryBuildDateRange(out var fromTime, out var toTime, out var errorMessage))
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+
+        var selectedProduct = SelectedProduct ?? ResolveSelectedLookup(ProductOptions, ProductSearchText);
+        var selectedCustomer = SelectedCustomer ?? ResolveSelectedLookup(CustomerOptions, CustomerSearchText);
+        var filter = new InboundSummaryReportFilter(
+            fromTime,
+            toTime,
+            NormalizeCode(selectedProduct),
+            NormalizeCode(selectedCustomer));
+
+        return await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
+    }
+
+    private void ApplyPreview(InboundSummaryReportDocument document)
+    {
+        PreviewRows = new ObservableCollection<InboundSummaryReportRow>(document.Rows);
+        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Tổng KL hàng: {document.TotalNetWeightKg:N0} kg";
     }
 
     private void ApplyCurrentShift()

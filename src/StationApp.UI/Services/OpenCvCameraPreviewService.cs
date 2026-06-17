@@ -181,12 +181,12 @@ public sealed class OpenCvCameraPreviewService : ICameraPreviewService
                     if (!opened || !capture.IsOpened())
                     {
                         reconnectCount++;
-                        PublishStatus(cameraCode, $"Khong ket noi duoc camera (Thu lai lan {reconnectCount})");
+                        PublishStatus(cameraCode, $"Không kết nối được camera (Thử lại lần {reconnectCount})");
                         await Task.Delay(OpenRetryDelay, token).ConfigureAwait(false);
                         continue;
                     }
 
-                    PublishStatus(cameraCode, "Dang preview");
+                    PublishStatus(cameraCode, "Đang preview");
                     _isPreviewRunning = true;
                     emptyFrameCount = 0;
                 }
@@ -208,7 +208,7 @@ public sealed class OpenCvCameraPreviewService : ICameraPreviewService
                     if (emptyFrameCount > 30)
                     {
                         reconnectCount++;
-                        PublishStatus(cameraCode, "Mat tin hieu camera (Dang ket noi lai...)");
+                        PublishStatus(cameraCode, "Mất tín hiệu camera (Đang kết nối lại...)");
                         capture.Release();
                         _isPreviewRunning = false;
                         emptyFrameCount = 0;
@@ -239,7 +239,7 @@ public sealed class OpenCvCameraPreviewService : ICameraPreviewService
             {
                 reconnectCount++;
                 _isPreviewRunning = false;
-                PublishStatus(cameraCode, "Loi camera (Dang ket noi lai...)");
+                PublishStatus(cameraCode, "Lỗi camera (Đang kết nối lại...)");
                 capture.Release();
                 await Task.Delay(OpenRetryDelay, token).ConfigureAwait(false);
             }

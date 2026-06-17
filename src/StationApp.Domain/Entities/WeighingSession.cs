@@ -13,6 +13,12 @@ public class WeighingSession
     public string? MoocNumber { get; set; }
     public string? DriverName { get; set; }
 
+    // Crusher Weighing: Product and Customer Information
+    public string? ProductCode { get; set; }
+    public string? ProductName { get; set; }
+    public string? CustomerCode { get; set; }
+    public string? CustomerName { get; set; }
+
     public WeighingSessionStatus SessionStatus { get; set; } = WeighingSessionStatus.PENDING_WEIGHT1;
 
     public decimal? Weight1 { get; set; }

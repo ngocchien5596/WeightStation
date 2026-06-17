@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Contracts.Sync;
 using StationApp.Application.Security;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 
 namespace StationApp.Infrastructure.Services;
@@ -170,10 +172,13 @@ public sealed class StationFeatureService : IStationFeatureService
             Bool(values, StationFeatureKeys.ShowMenuIncomingVehicleList, defaults.ShowMenuIncomingVehicleList),
             Bool(values, StationFeatureKeys.ShowMenuWeighing, defaults.ShowMenuWeighing),
             Bool(values, StationFeatureKeys.ShowMenuCrusherWeighing, defaults.ShowMenuCrusherWeighing),
+            Bool(values, StationFeatureKeys.ShowMenuClayWeighing, defaults.ShowMenuClayWeighing),
             Bool(values, StationFeatureKeys.ShowMenuExportWeighing, defaults.ShowMenuExportWeighing),
             Bool(values, StationFeatureKeys.ShowMenuOutgoingVehicleList, defaults.ShowMenuOutgoingVehicleList),
             Bool(values, StationFeatureKeys.ShowMenuExportReport, defaults.ShowMenuExportReport),
             Bool(values, StationFeatureKeys.ShowMenuInboundReport, defaults.ShowMenuInboundReport),
+            Bool(values, StationFeatureKeys.ShowMenuCrusherInboundReport, defaults.ShowMenuCrusherInboundReport),
+            Bool(values, StationFeatureKeys.ShowMenuClayInboundReport, defaults.ShowMenuClayInboundReport),
             Bool(values, StationFeatureKeys.ShowDashboardInboundKpi, defaults.ShowDashboardInboundKpi),
             Bool(values, StationFeatureKeys.ShowDashboardOutboundKpi, defaults.ShowDashboardOutboundKpi),
             Text(values, StationFeatureKeys.DefaultNavigationTarget, defaults.DefaultNavigationTarget));
@@ -188,10 +193,13 @@ public sealed class StationFeatureService : IStationFeatureService
             StationFeatureKeys.ShowMenuIncomingVehicleList => features.ShowMenuIncomingVehicleList,
             StationFeatureKeys.ShowMenuWeighing => features.ShowMenuWeighing,
             StationFeatureKeys.ShowMenuCrusherWeighing => features.ShowMenuCrusherWeighing,
+            StationFeatureKeys.ShowMenuClayWeighing => features.ShowMenuClayWeighing,
             StationFeatureKeys.ShowMenuExportWeighing => features.ShowMenuExportWeighing,
             StationFeatureKeys.ShowMenuOutgoingVehicleList => features.ShowMenuOutgoingVehicleList,
             StationFeatureKeys.ShowMenuExportReport => features.ShowMenuExportReport,
             StationFeatureKeys.ShowMenuInboundReport => features.ShowMenuInboundReport,
+            StationFeatureKeys.ShowMenuCrusherInboundReport => features.ShowMenuCrusherInboundReport,
+            StationFeatureKeys.ShowMenuClayInboundReport => features.ShowMenuClayInboundReport,
             StationFeatureKeys.ShowDashboardInboundKpi => features.ShowDashboardInboundKpi,
             StationFeatureKeys.ShowDashboardOutboundKpi => features.ShowDashboardOutboundKpi,
             _ => true
@@ -219,17 +227,29 @@ public sealed class StationAdministrationService : IStationAdministrationService
     private readonly ICurrentUserContext _currentUser;
     private readonly IClock _clock;
     private readonly IAuditService _auditService;
+    private readonly IStationOperationSettingsRepository _operationSettings;
+    private readonly ISyncOutboxRepository _syncOutbox;
+    private readonly ISyncPayloadFactory _syncPayloadFactory;
+    private readonly IStationScope _stationScope;
 
     public StationAdministrationService(
         StationDbContext db,
         ICurrentUserContext currentUser,
         IClock clock,
-        IAuditService auditService)
+        IAuditService auditService,
+        IStationOperationSettingsRepository operationSettings,
+        ISyncOutboxRepository syncOutbox,
+        ISyncPayloadFactory syncPayloadFactory,
+        IStationScope stationScope)
     {
         _db = db;
         _currentUser = currentUser;
         _clock = clock;
         _auditService = auditService;
+        _operationSettings = operationSettings;
+        _syncOutbox = syncOutbox;
+        _syncPayloadFactory = syncPayloadFactory;
+        _stationScope = stationScope;
     }
 
     public async Task<IReadOnlyList<StationManagementDto>> SearchStationsAsync(
@@ -266,6 +286,7 @@ public sealed class StationAdministrationService : IStationAdministrationService
 
         var stationCodes = stations.Select(x => x.StationCode).ToList();
         var featuresByStation = await LoadFeatureSetsAsync(stationCodes, ct);
+        var settingsByStation = await LoadOperationSettingsSetsAsync(stationCodes, ct);
 
         return stations
             .Select(x => new StationManagementDto(
@@ -275,6 +296,7 @@ public sealed class StationAdministrationService : IStationAdministrationService
                 x.IsActive,
                 x.SortOrder,
                 featuresByStation.TryGetValue(x.StationCode, out var features) ? features : StationFeatureSetDto.Defaults,
+                settingsByStation.TryGetValue(x.StationCode, out var settings) ? settings : StationOperationSettingsDto.Defaults,
                 x.CreatedAt,
                 x.CreatedBy,
                 x.UpdatedAt,
@@ -340,6 +362,36 @@ public sealed class StationAdministrationService : IStationAdministrationService
         }
 
         await UpsertFeatureFlagsAsync(station.StationCode, request.Features, now, actor, ct);
+
+        var settingsValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [StationOperationSettingKeys.CrusherSingleWeighEnabled] = request.Settings.CrusherSingleWeighEnabled.ToString().ToLowerInvariant(),
+            [StationOperationSettingKeys.CrusherDefaultWeighMode] = request.Settings.CrusherDefaultWeighMode,
+            [StationOperationSettingKeys.CrusherDefaultProductCode] = request.Settings.CrusherDefaultProductCode ?? "",
+            [StationOperationSettingKeys.CrusherDefaultCustomerCode] = request.Settings.CrusherDefaultCustomerCode ?? "",
+            [ClayStationOperationSettingKeys.ClaySingleWeighEnabled] = request.Settings.ClaySingleWeighEnabled.ToString().ToLowerInvariant(),
+            [ClayStationOperationSettingKeys.ClayDefaultWeighMode] = request.Settings.ClayDefaultWeighMode,
+            [ClayStationOperationSettingKeys.ClayDefaultProductCode] = request.Settings.ClayDefaultProductCode ?? "",
+            [ClayStationOperationSettingKeys.ClayDefaultCustomerCode] = request.Settings.ClayDefaultCustomerCode ?? ""
+        };
+        await _operationSettings.SaveSettingsAsync(station.StationCode, settingsValues, actor, ct);
+
+        var currentRuntimeStationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
+        var syncPayload = BuildStationSyncPayload(station, request.Features, settingsValues);
+        await _syncOutbox.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = station.Id,
+            AggregateType = SyncAggregateTypes.Station,
+            StationCode = currentRuntimeStationCode,
+            PayloadJson = _syncPayloadFactory.CreatePayload(syncPayload),
+            IdempotencyKey = station.Id,
+            Status = OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now
+        }, ct);
+
         await _db.SaveChangesAsync(ct);
         await _auditService.LogAsync(
             request.StationId.HasValue ? "UPDATE_STATION" : "CREATE_STATION",
@@ -355,10 +407,54 @@ public sealed class StationAdministrationService : IStationAdministrationService
             station.IsActive,
             station.SortOrder,
             request.Features,
+            request.Settings,
             station.CreatedAt,
             station.CreatedBy,
             station.UpdatedAt,
             station.UpdatedBy);
+    }
+
+    private static SyncStationMasterDataRequest BuildStationSyncPayload(
+        Station station,
+        StationFeatureSetDto features,
+        IReadOnlyDictionary<string, string> settingsValues)
+    {
+        return new SyncStationMasterDataRequest
+        {
+            Id = station.Id,
+            StationCode = station.StationCode,
+            StationName = station.StationName,
+            IsActive = station.IsActive,
+            SortOrder = station.SortOrder,
+            CreatedAt = station.CreatedAt,
+            CreatedBy = station.CreatedBy,
+            UpdatedAt = station.UpdatedAt,
+            UpdatedBy = station.UpdatedBy,
+            FeatureFlags =
+            [
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuDashboard, FeatureValue = features.ShowMenuDashboard.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuIncomingVehicleList, FeatureValue = features.ShowMenuIncomingVehicleList.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuWeighing, FeatureValue = features.ShowMenuWeighing.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuCrusherWeighing, FeatureValue = features.ShowMenuCrusherWeighing.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuClayWeighing, FeatureValue = features.ShowMenuClayWeighing.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuExportWeighing, FeatureValue = features.ShowMenuExportWeighing.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuOutgoingVehicleList, FeatureValue = features.ShowMenuOutgoingVehicleList.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuExportReport, FeatureValue = features.ShowMenuExportReport.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuInboundReport, FeatureValue = features.ShowMenuInboundReport.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuCrusherInboundReport, FeatureValue = features.ShowMenuCrusherInboundReport.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowMenuClayInboundReport, FeatureValue = features.ShowMenuClayInboundReport.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowDashboardInboundKpi, FeatureValue = features.ShowDashboardInboundKpi.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.ShowDashboardOutboundKpi, FeatureValue = features.ShowDashboardOutboundKpi.ToString().ToLowerInvariant() },
+                new SyncStationFeatureFlagItem { FeatureKey = StationFeatureKeys.DefaultNavigationTarget, FeatureValue = features.DefaultNavigationTarget ?? string.Empty }
+            ],
+            OperationSettings = settingsValues
+                .Select(x => new SyncStationOperationSettingItem
+                {
+                    SettingKey = x.Key,
+                    SettingValue = x.Value
+                })
+                .ToList()
+        };
     }
 
     private async Task<Dictionary<string, StationFeatureSetDto>> LoadFeatureSetsAsync(IReadOnlyCollection<string> stationCodes, CancellationToken ct)
@@ -385,13 +481,48 @@ public sealed class StationAdministrationService : IStationAdministrationService
                         Bool(values, StationFeatureKeys.ShowMenuIncomingVehicleList, defaults.ShowMenuIncomingVehicleList),
                         Bool(values, StationFeatureKeys.ShowMenuWeighing, defaults.ShowMenuWeighing),
                         Bool(values, StationFeatureKeys.ShowMenuCrusherWeighing, defaults.ShowMenuCrusherWeighing),
+                        Bool(values, StationFeatureKeys.ShowMenuClayWeighing, defaults.ShowMenuClayWeighing),
                         Bool(values, StationFeatureKeys.ShowMenuExportWeighing, defaults.ShowMenuExportWeighing),
                         Bool(values, StationFeatureKeys.ShowMenuOutgoingVehicleList, defaults.ShowMenuOutgoingVehicleList),
                         Bool(values, StationFeatureKeys.ShowMenuExportReport, defaults.ShowMenuExportReport),
                         Bool(values, StationFeatureKeys.ShowMenuInboundReport, defaults.ShowMenuInboundReport),
+                        Bool(values, StationFeatureKeys.ShowMenuCrusherInboundReport, defaults.ShowMenuCrusherInboundReport),
+                        Bool(values, StationFeatureKeys.ShowMenuClayInboundReport, defaults.ShowMenuClayInboundReport),
                         Bool(values, StationFeatureKeys.ShowDashboardInboundKpi, defaults.ShowDashboardInboundKpi),
                         Bool(values, StationFeatureKeys.ShowDashboardOutboundKpi, defaults.ShowDashboardOutboundKpi),
                         Text(values, StationFeatureKeys.DefaultNavigationTarget, defaults.DefaultNavigationTarget));
+                },
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<Dictionary<string, StationOperationSettingsDto>> LoadOperationSettingsSetsAsync(IReadOnlyCollection<string> stationCodes, CancellationToken ct)
+    {
+        if (stationCodes.Count == 0)
+        {
+            return new Dictionary<string, StationOperationSettingsDto>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var settings = await _db.StationOperationSettings.AsNoTracking()
+            .Where(x => stationCodes.Contains(x.StationCode))
+            .ToListAsync(ct);
+
+        return settings
+            .GroupBy(x => x.StationCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x =>
+                {
+                    var values = x.ToDictionary(s => s.SettingKey, s => s.SettingValue, StringComparer.OrdinalIgnoreCase);
+                    var defaults = StationOperationSettingsDto.Defaults;
+                    return new StationOperationSettingsDto(
+                        Bool(values, StationOperationSettingKeys.CrusherSingleWeighEnabled, defaults.CrusherSingleWeighEnabled),
+                        Text(values, StationOperationSettingKeys.CrusherDefaultWeighMode, defaults.CrusherDefaultWeighMode),
+                        Text(values, StationOperationSettingKeys.CrusherDefaultProductCode, defaults.CrusherDefaultProductCode),
+                        Text(values, StationOperationSettingKeys.CrusherDefaultCustomerCode, defaults.CrusherDefaultCustomerCode),
+                        Bool(values, ClayStationOperationSettingKeys.ClaySingleWeighEnabled, defaults.ClaySingleWeighEnabled),
+                        Text(values, ClayStationOperationSettingKeys.ClayDefaultWeighMode, defaults.ClayDefaultWeighMode),
+                        Text(values, ClayStationOperationSettingKeys.ClayDefaultProductCode, defaults.ClayDefaultProductCode),
+                        Text(values, ClayStationOperationSettingKeys.ClayDefaultCustomerCode, defaults.ClayDefaultCustomerCode));
                 },
                 StringComparer.OrdinalIgnoreCase);
     }
@@ -409,10 +540,13 @@ public sealed class StationAdministrationService : IStationAdministrationService
             [StationFeatureKeys.ShowMenuIncomingVehicleList] = features.ShowMenuIncomingVehicleList.ToString(),
             [StationFeatureKeys.ShowMenuWeighing] = features.ShowMenuWeighing.ToString(),
             [StationFeatureKeys.ShowMenuCrusherWeighing] = features.ShowMenuCrusherWeighing.ToString(),
+            [StationFeatureKeys.ShowMenuClayWeighing] = features.ShowMenuClayWeighing.ToString(),
             [StationFeatureKeys.ShowMenuExportWeighing] = features.ShowMenuExportWeighing.ToString(),
             [StationFeatureKeys.ShowMenuOutgoingVehicleList] = features.ShowMenuOutgoingVehicleList.ToString(),
             [StationFeatureKeys.ShowMenuExportReport] = features.ShowMenuExportReport.ToString(),
             [StationFeatureKeys.ShowMenuInboundReport] = features.ShowMenuInboundReport.ToString(),
+            [StationFeatureKeys.ShowMenuCrusherInboundReport] = features.ShowMenuCrusherInboundReport.ToString(),
+            [StationFeatureKeys.ShowMenuClayInboundReport] = features.ShowMenuClayInboundReport.ToString(),
             [StationFeatureKeys.ShowDashboardInboundKpi] = features.ShowDashboardInboundKpi.ToString(),
             [StationFeatureKeys.ShowDashboardOutboundKpi] = features.ShowDashboardOutboundKpi.ToString(),
             [StationFeatureKeys.DefaultNavigationTarget] = string.IsNullOrWhiteSpace(features.DefaultNavigationTarget)
@@ -590,5 +724,27 @@ public sealed class StationAdministrationService : IStationAdministrationService
             userId,
             new { UserId = userId, Stations = selectedSet.ToArray() },
             ct);
+    }
+
+    public async Task<IReadOnlyList<ProductAutocompleteSource>> GetProductsByStationAsync(string stationCode, CancellationToken ct)
+    {
+        StationAuthorization.EnsureAdmin(_currentUser, "manage stations");
+        var list = await _db.Products.AsNoTracking()
+            .Where(p => p.StationCode == stationCode && p.IsActive)
+            .OrderBy(p => p.ProductCode)
+            .Select(p => new ProductAutocompleteSource(p.ProductCode, p.ProductName, p.ProductType, "MASTER"))
+            .ToListAsync(ct);
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<CustomerAutocompleteSource>> GetCustomersByStationAsync(string stationCode, CancellationToken ct)
+    {
+        StationAuthorization.EnsureAdmin(_currentUser, "manage stations");
+        var list = await _db.Customers.AsNoTracking()
+            .Where(c => c.StationCode == stationCode && c.IsActive)
+            .OrderBy(c => c.CustomerName)
+            .Select(c => new CustomerAutocompleteSource(c.CustomerCode, c.CustomerName, "MASTER"))
+            .ToListAsync(ct);
+        return list.AsReadOnly();
     }
 }

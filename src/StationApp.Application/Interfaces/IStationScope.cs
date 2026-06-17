@@ -30,6 +30,8 @@ public interface IStationAdministrationService
     Task<IReadOnlyList<UserStationAssignmentDto>> GetAssignableStationsAsync(CancellationToken ct);
     Task<IReadOnlyList<UserStationAssignmentDto>> GetUserStationAssignmentsAsync(Guid userId, CancellationToken ct);
     Task SaveUserStationAssignmentsAsync(Guid userId, IReadOnlyList<SaveUserStationAssignmentDto> assignments, CancellationToken ct);
+    Task<IReadOnlyList<ProductAutocompleteSource>> GetProductsByStationAsync(string stationCode, CancellationToken ct);
+    Task<IReadOnlyList<CustomerAutocompleteSource>> GetCustomersByStationAsync(string stationCode, CancellationToken ct);
 }
 
 public interface IStationFeatureService

@@ -142,7 +142,23 @@ public sealed record UpdateCameraSettingsRequest(
     string CameraPreviewDefault,
     string CameraCaptureTimeoutMs,
     string CameraCaptureJpegQuality,
-    string CameraCaptureWarmupFrames
+    string CameraCaptureWarmupFrames,
+    bool CameraCrusher_1Enabled = false,
+    string CameraCrusher_1Name = "",
+    string CameraCrusher_1RtspUrl = "",
+    string CameraCrusher_1PreviewRtspUrl = "",
+    bool CameraCrusher_2Enabled = false,
+    string CameraCrusher_2Name = "",
+    string CameraCrusher_2RtspUrl = "",
+    string CameraCrusher_2PreviewRtspUrl = "",
+    bool CameraClay_1Enabled = false,
+    string CameraClay_1Name = "",
+    string CameraClay_1RtspUrl = "",
+    string CameraClay_1PreviewRtspUrl = "",
+    bool CameraClay_2Enabled = false,
+    string CameraClay_2Name = "",
+    string CameraClay_2RtspUrl = "",
+    string CameraClay_2PreviewRtspUrl = ""
 );
 
 public sealed record CameraEndpointSettings(
@@ -672,7 +688,12 @@ public sealed record CrusherWeighingSessionListItem(
     string? StandardTareSourceSnapshot,
     WeighingSessionStatus SessionStatus,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    // Crusher Weighing: Product and Customer Information
+    string? ProductCode,
+    string? ProductName,
+    string? CustomerCode,
+    string? CustomerName
 );
 
 public sealed record WeighingSessionLineItem(
@@ -828,6 +849,3 @@ public sealed record ProductAutocompleteSource(
     string? ProductType,
     string Source
 );
-
-
-

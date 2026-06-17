@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StationApp.Domain.Entities;
 
@@ -17,6 +17,13 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.Property(e => e.VehiclePlate).HasMaxLength(30).IsRequired();
         builder.Property(e => e.MoocNumber).HasMaxLength(30);
         builder.Property(e => e.DriverName).HasMaxLength(150);
+
+        // Crusher Weighing: Product and Customer Information
+        builder.Property(e => e.ProductCode).HasMaxLength(50);
+        builder.Property(e => e.ProductName).HasMaxLength(255);
+        builder.Property(e => e.CustomerCode).HasMaxLength(50);
+        builder.Property(e => e.CustomerName).HasMaxLength(255);
+
         builder.Property(e => e.SessionStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
 
         builder.Property(e => e.Weight1).HasColumnType("decimal(18,3)");

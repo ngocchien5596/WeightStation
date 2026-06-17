@@ -156,6 +156,7 @@ public sealed class CentralApiClient : ICentralApiClient
             SyncAggregateTypes.DeliveryTicket => "api/delivery-tickets",
             SyncAggregateTypes.WeighingSession => "api/weighing-sessions",
             SyncAggregateTypes.WeighingSessionLine => "api/weighing-session-lines",
+            SyncAggregateTypes.Station => "api/stations",
             SyncAggregateTypes.Vehicle => "api/vehicles",
             SyncAggregateTypes.Customer => "api/customers",
             SyncAggregateTypes.Product => "api/products",

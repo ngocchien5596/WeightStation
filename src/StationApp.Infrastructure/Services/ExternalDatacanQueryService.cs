@@ -16,6 +16,7 @@ public sealed class ExternalDatacanQueryService : IExternalDatacanQueryService
     }
 
     public async Task<ExternalDatacanQueryResult> GetLatestAsync(
+        string source,
         string? vehiclePlateKeyword,
         string? productKeyword,
         string? customerKeyword,
@@ -23,10 +24,11 @@ public sealed class ExternalDatacanQueryService : IExternalDatacanQueryService
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var connectionString = _configuration.GetConnectionString("ExternalDatacanConnection");
+        var connectionStringName = source == "Trạm đập" ? "ExternalCrusherConnection" : "ExternalDatacanConnection";
+        var connectionString = _configuration.GetConnectionString(connectionStringName);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:ExternalDatacanConnection để đọc dữ liệu Lịch sử cân (PM cũ).");
+            throw new InvalidOperationException($"Chưa cấu hình ConnectionStrings:{connectionStringName} để đọc dữ liệu Lịch sử cân (PM cũ).");
         }
 
         pageIndex = Math.Max(0, pageIndex);

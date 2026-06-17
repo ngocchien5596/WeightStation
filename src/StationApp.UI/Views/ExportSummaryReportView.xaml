@@ -1,4 +1,4 @@
-<UserControl x:Class="StationApp.UI.Views.ExportSummaryReportView"
+﻿<UserControl x:Class="StationApp.UI.Views.ExportSummaryReportView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
@@ -12,13 +12,72 @@
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="ReportDatePickerStyle" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}">
-                <Setter Property="Width" Value="150"/>
-                <Setter Property="Height" Value="36"/>
+                <Setter Property="Width" Value="124"/>
+                <Setter Property="Height" Value="34"/>
             </Style>
 
-            <Style x:Key="ReportTimeComboStyle" TargetType="ComboBox" BasedOn="{StaticResource StandardComboBoxStyle}">
-                <Setter Property="Width" Value="62"/>
-                <Setter Property="Height" Value="36"/>
+            <Style x:Key="ReportTimeComboStyle" TargetType="ComboBox">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Foreground" Value="#111827"/>
+                <Setter Property="Background" Value="#FFFFFF"/>
+                <Setter Property="BorderBrush" Value="#9AA4AA"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Height" Value="34"/>
+                <Setter Property="Width" Value="42"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Grid>
+                                <ToggleButton Focusable="False"
+                                              IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ClickMode="Press"
+                                              Background="Transparent"
+                                              BorderThickness="0">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <Border x:Name="OuterBorder"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="3">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="16"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ContentPresenter Grid.Column="0"
+                                                              Margin="4,0,1,0"
+                                                              VerticalAlignment="Center"
+                                                              HorizontalAlignment="Center"
+                                                              Content="{TemplateBinding SelectionBoxItem}"
+                                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
+                                            <Border Grid.Column="1" Background="#F8FAFC" BorderBrush="#D1D5DB" BorderThickness="1,0,0,0" CornerRadius="0,3,3,0">
+                                                <Path Width="7" Height="4" Stretch="Fill" Fill="#4B5563" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0 0 L 7 0 L 3.5 4 Z"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </ToggleButton>
+                                <Popup Placement="Bottom"
+                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                       AllowsTransparency="True"
+                                       Focusable="False"
+                                       PopupAnimation="Slide">
+                                    <Border Background="#FFFFFF" BorderBrush="#9AA4AA" BorderThickness="1" CornerRadius="3" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                        <ScrollViewer MaxHeight="220">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="ReportLookupComboStyle" TargetType="ComboBox">
@@ -39,159 +98,126 @@
     <Grid Background="{DynamicResource BackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
-            <DockPanel>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Báo cáo xuất tổng hợp" Style="{StaticResource HeaderLabel}" Margin="0,0,16,0"/>
-                </StackPanel>
-            </DockPanel>
+            <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t t&#x1ED5;ng h&#x1EE3;p" Style="{StaticResource HeaderLabel}"/>
         </Border>
 
         <Border Grid.Row="1"
-                Margin="12,24,12,12"
-                Padding="24"
+                Margin="12,12,12,8"
+                Padding="12"
                 Background="{DynamicResource CardBrush}"
                 BorderBrush="#E2E8F0"
                 BorderThickness="1"
-                CornerRadius="12"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="12" Color="#0C1A30" Opacity="0.06" ShadowDepth="3" Direction="270"/>
-            </Border.Effect>
-            <Grid Width="620">
+                CornerRadius="10">
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0"
-                           Text="Từ giờ"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,16"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ForegroundBrush}"/>
-                <StackPanel Grid.Row="0" Grid.Column="1"
-                            Orientation="Horizontal"
-                            Margin="0,0,0,16">
-                    <ComboBox ItemsSource="{Binding HourOptions}"
-                              SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource ReportTimeComboStyle}"/>
-                    <TextBlock Text=":" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding MinuteOptions}"
-                              SelectedItem="{Binding FromMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource ReportTimeComboStyle}"/>
-                    <TextBlock Text=":" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding SecondOptions}"
-                              SelectedItem="{Binding FromSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource ReportTimeComboStyle}"/>
-                    <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Style="{StaticResource ReportDatePickerStyle}"
-                                Margin="12,0,0,0"/>
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="T&#x1EEB; gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding FromMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding FromSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
 
-                <TextBlock Grid.Row="1" Grid.Column="0"
-                           Text="Đến giờ"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,16"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ForegroundBrush}"/>
-                <StackPanel Grid.Row="1" Grid.Column="1"
-                            Orientation="Horizontal"
-                            Margin="0,0,0,16">
-                    <ComboBox ItemsSource="{Binding HourOptions}"
-                              SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource ReportTimeComboStyle}"/>
-                    <TextBlock Text=":" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding MinuteOptions}"
-                              SelectedItem="{Binding ToMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource ReportTimeComboStyle}"/>
-                    <TextBlock Text=":" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding SecondOptions}"
-                              SelectedItem="{Binding ToSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource ReportTimeComboStyle}"/>
-                    <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Style="{StaticResource ReportDatePickerStyle}"
-                                Margin="12,0,0,0"/>
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Text="&#x110;&#x1EBF;n gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding ToMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding ToSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
 
-                <TextBlock Grid.Row="2" Grid.Column="0"
-                           Text="Sản phẩm"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,16"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ForegroundBrush}"/>
-                <ComboBox Grid.Row="2" Grid.Column="1"
-                          Width="440"
-                          HorizontalAlignment="Left"
-                          Margin="0,0,0,16"
-                          Height="36"
-                          Style="{StaticResource ReportLookupComboStyle}"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
-                          StaysOpenOnEdit="True"
-                          Loaded="LookupComboBox_Loaded"
-                          SelectionChanged="LookupComboBox_SelectionChanged"
-                          Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                          ItemsSource="{Binding ProductOptionsView}"
-                          SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
-                          SelectedValuePath="Code">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding DisplayName}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                    <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
+                              Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
+                              Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ItemsSource="{Binding ProductOptionsView}" SelectedItem="{Binding SelectedProduct, Mode=TwoWay}" SelectedValuePath="Code">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
 
-                <TextBlock Grid.Row="3" Grid.Column="0"
-                           Text="Khách hàng"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,16"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource ForegroundBrush}"/>
-                <ComboBox Grid.Row="3" Grid.Column="1"
-                          Width="440"
-                          HorizontalAlignment="Left"
-                          Margin="0,0,0,16"
-                          Height="36"
-                          Style="{StaticResource ReportLookupComboStyle}"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
-                          StaysOpenOnEdit="True"
-                          Loaded="LookupComboBox_Loaded"
-                          SelectionChanged="LookupComboBox_SelectionChanged"
-                          Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                          ItemsSource="{Binding CustomerOptionsView}"
-                          SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
-                          SelectedValuePath="Code">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding DisplayName}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                    <TextBlock Text="Kh&#xE1;ch h&#xE0;ng" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
+                              Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
+                              Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ItemsSource="{Binding CustomerOptionsView}" SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}" SelectedValuePath="Code">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
 
-                <StackPanel Grid.Row="4" Grid.Column="1"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Right"
-                            Margin="0,8,20,0">
-                    <Button Command="{Binding ExportCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            Height="38"
-                            Width="150">
-                        <TextBlock Text="XUẤT BÁO CÁO" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="126" Margin="0,0,8,0">
+                        <TextBlock Text="XEM TR&#x1AF;&#x1EDA;C" FontWeight="SemiBold"/>
+                    </Button>
+                    <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="126">
+                        <TextBlock Text="T&#x1EA2;I EXCEL" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2" Margin="12,0,12,12" Padding="10" Background="{DynamicResource CardBrush}" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="{Binding PreviewSummaryText}" FontWeight="SemiBold" Foreground="#0F3B66" Margin="0,0,0,8"/>
+                <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Ng&#xE0;y xu&#x1EA5;t" Binding="{Binding ExportedAt, StringFormat=dd/MM/yyyy}" Width="95"/>
+                        <DataGridTextColumn Header="Gi&#x1EDD; xu&#x1EA5;t" Binding="{Binding ExportedAt, StringFormat=HH:mm}" Width="80"/>
+                        <DataGridTextColumn Header="M&#xE3; c&#x1EAF;t l&#x1EC7;nh" Binding="{Binding CutOrderCode}" Width="130"/>
+                        <DataGridTextColumn Header="M&#xE3; KH" Binding="{Binding CustomerCode}" Width="90"/>
+                        <DataGridTextColumn Header="T&#xEA;n KH" Binding="{Binding CustomerName}" Width="220"/>
+                        <DataGridTextColumn Header="Lo&#x1EA1;i h&#xE0;ng" Binding="{Binding ProductDisplayName}" Width="220"/>
+                        <DataGridTextColumn Header="S&#x1ED1; PC" Binding="{Binding WeighTicketNo}" Width="110"/>
+                        <DataGridTextColumn Header="S&#x1ED1; PGN" Binding="{Binding DeliveryNo}" Width="110"/>
+                        <DataGridTextColumn Header="S&#x1ED1; PTVC" Binding="{Binding VehiclePlate}" Width="100"/>
+                        <DataGridTextColumn Header="T&#xE0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="150"/>
+                        <DataGridTextColumn Header="&#x110;&#x1EB7;t h&#xE0;ng (bao)" Binding="{Binding PlannedBagCount, StringFormat=N0}" Width="110"/>
+                        <DataGridTextColumn Header="&#x110;&#x1EB7;t h&#xE0;ng (t&#x1EA5;n)" Binding="{Binding PlannedTon, StringFormat=N3}" Width="120"/>
+                        <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (bao)" Binding="{Binding ActualBagCount, StringFormat=N0}" Width="120"/>
+                        <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (t&#x1EA5;n)" Binding="{Binding ActualTon, StringFormat=N3}" Width="130"/>
+                        <DataGridTextColumn Header="Ghi ch&#xFA;" Binding="{Binding Notes}" Width="160"/>
+                        <DataGridTextColumn Header="Ch&#xEA;nh l&#x1EC7;ch" Binding="{Binding DifferenceTon, StringFormat=N3}" Width="100"/>
+                        <DataGridTextColumn Header="Kg/Bao" Binding="{Binding ActualKgPerBag, StringFormat=N2}" Width="90"/>
+                        <DataGridTextColumn Header="T&#xEC;nh tr&#x1EA1;ng" Binding="{Binding Status}" Width="100"/>
+                    </DataGrid.Columns>
+                </DataGrid>
             </Grid>
         </Border>
     </Grid>

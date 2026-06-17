@@ -34,6 +34,16 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
             .Build();
 
         _services = _host.Services;
+
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+            StationDatabaseInitializer.InitializeAsync(
+                db,
+                null,
+                CancellationToken.None).GetAwaiter().GetResult();
+        }
+
         CleanupTestData();
     }
 

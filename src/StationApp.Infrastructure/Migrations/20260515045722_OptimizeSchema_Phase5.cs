@@ -11,9 +11,17 @@ namespace StationApp.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "LastInboundAttemptAt",
-                table: "vehicle_registrations");
+            migrationBuilder.Sql("""
+IF OBJECT_ID('vehicle_registrations', 'U') IS NOT NULL AND COL_LENGTH('vehicle_registrations', 'LastInboundAttemptAt') IS NOT NULL
+BEGIN
+    ALTER TABLE [vehicle_registrations] DROP COLUMN [LastInboundAttemptAt];
+END
+
+IF OBJECT_ID('cut_orders', 'U') IS NOT NULL AND COL_LENGTH('cut_orders', 'LastInboundAttemptAt') IS NOT NULL
+BEGIN
+    ALTER TABLE [cut_orders] DROP COLUMN [LastInboundAttemptAt];
+END
+""");
 
             migrationBuilder.AddColumn<string>(
                 name: "CreatedBy",
@@ -162,11 +170,17 @@ namespace StationApp.Infrastructure.Migrations
                 name: "UpdatedBy",
                 table: "app_config");
 
-            migrationBuilder.AddColumn<DateTime>(
-                name: "LastInboundAttemptAt",
-                table: "vehicle_registrations",
-                type: "datetime2",
-                nullable: true);
+            migrationBuilder.Sql("""
+IF OBJECT_ID('vehicle_registrations', 'U') IS NOT NULL AND COL_LENGTH('vehicle_registrations', 'LastInboundAttemptAt') IS NULL
+BEGIN
+    ALTER TABLE [vehicle_registrations] ADD [LastInboundAttemptAt] datetime2 NULL;
+END
+
+IF OBJECT_ID('cut_orders', 'U') IS NOT NULL AND COL_LENGTH('cut_orders', 'LastInboundAttemptAt') IS NULL
+BEGIN
+    ALTER TABLE [cut_orders] ADD [LastInboundAttemptAt] datetime2 NULL;
+END
+""");
         }
     }
 }

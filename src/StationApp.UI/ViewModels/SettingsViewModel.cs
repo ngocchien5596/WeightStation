@@ -57,12 +57,14 @@ public partial class SettingsViewModel : ObservableObject
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
+        using var scope = _scopeFactory.CreateScope();
+        var currentStationContext = scope.ServiceProvider.GetRequiredService<ICurrentStationContext>();
 
         SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext);
         CameraConfigVM = new Settings.CameraConfigViewModel(_scopeFactory, _currentUserContext);
         ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice);
         PrintConfigVM = new Settings.PrintConfigViewModel(_scopeFactory, _currentUserContext);
-        VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory);
+        VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory, currentStationContext);
         CustomerMasterVM = new Settings.CustomerMasterViewModel(_scopeFactory);
         ProductMasterVM = new Settings.ProductMasterViewModel(_scopeFactory);
         SyncInfoVM = new Settings.SyncInfoViewModel(_scopeFactory);

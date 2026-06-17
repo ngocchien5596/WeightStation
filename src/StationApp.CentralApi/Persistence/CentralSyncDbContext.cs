@@ -13,6 +13,9 @@ public sealed class CentralSyncDbContext : DbContext
     public DbSet<CutOrder> CutOrders => Set<CutOrder>();
     public DbSet<WeighTicket> WeighTickets => Set<WeighTicket>();
     public DbSet<DeliveryTicket> DeliveryTickets => Set<DeliveryTicket>();
+    public DbSet<Station> Stations => Set<Station>();
+    public DbSet<StationFeatureFlag> StationFeatureFlags => Set<StationFeatureFlag>();
+    public DbSet<StationOperationSetting> StationOperationSettings => Set<StationOperationSetting>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
@@ -26,6 +29,9 @@ public sealed class CentralSyncDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CutOrderEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighTicketEntityConfiguration());
         modelBuilder.ApplyConfiguration(new DeliveryTicketEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new StationEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new StationFeatureFlagEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new StationOperationSettingEntityConfiguration());
         modelBuilder.ApplyConfiguration(new VehicleEntityConfiguration());
         modelBuilder.ApplyConfiguration(new CustomerEntityConfiguration());
         modelBuilder.ApplyConfiguration(new ProductEntityConfiguration());

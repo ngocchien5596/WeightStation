@@ -169,7 +169,12 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IExportSummaryReportExporter, ExportSummaryReportExcelExporter>();
                     services.AddScoped<IInboundSummaryReportService, InboundSummaryReportService>();
                     services.AddScoped<IInboundSummaryReportExporter, InboundSummaryReportExcelExporter>();
+                    services.AddScoped<ICrusherInboundReportService, CrusherInboundReportService>();
+                    services.AddScoped<ICrusherInboundReportExporter, CrusherInboundReportExcelExporter>();
+                    services.AddScoped<IClayInboundReportService, ClayInboundReportService>();
+                    services.AddScoped<IClayInboundReportExporter, ClayInboundReportExcelExporter>();
                     services.AddScoped<IExternalDatacanQueryService, ExternalDatacanQueryService>();
+                    services.AddScoped<IDocumentCounterService, DocumentCounterService>();
 
                     services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                     services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
@@ -233,6 +238,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
                     services.AddScoped<CreateWeighingSessionUseCase>();
                     services.AddScoped<CrusherWeighingUseCases>();
+                    services.AddScoped<ClayWeighingUseCases>();
                     services.AddScoped<AppendCutOrdersToWeighingSessionUseCase>();
                     services.AddScoped<SetWeighingSessionBaggedActualWeightOverrideUseCase>();
                     services.AddScoped<CaptureSessionWeight1UseCase>();
@@ -258,6 +264,12 @@ public partial class App : System.Windows.Application
                     services.AddScoped<BuildInboundSummaryReportUseCase>();
                     services.AddScoped<ExportInboundSummaryReportUseCase>();
                     services.AddScoped<GetInboundSummaryReportLookupOptionsUseCase>();
+                    services.AddScoped<BuildCrusherInboundReportUseCase>();
+                    services.AddScoped<ExportCrusherInboundReportUseCase>();
+                    services.AddScoped<GetCrusherInboundReportLookupOptionsUseCase>();
+                    services.AddScoped<BuildClayInboundReportUseCase>();
+                    services.AddScoped<ExportClayInboundReportUseCase>();
+                    services.AddScoped<GetClayInboundReportLookupOptionsUseCase>();
  
                     services.AddTransient<IncomingVehicleListViewModel>();
                     services.AddTransient<OutgoingVehicleListViewModel>();
@@ -309,9 +321,12 @@ public partial class App : System.Windows.Application
                     services.AddTransient<AppUpdateViewModel>();
                     services.AddTransient<WeighingViewModel>();
                     services.AddTransient<CrusherWeighingViewModel>();
+                    services.AddTransient<ClayWeighingViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<ExportSummaryReportViewModel>();
                     services.AddTransient<InboundSummaryReportViewModel>();
+                    services.AddTransient<CrusherInboundReportViewModel>();
+                    services.AddTransient<ClayInboundReportViewModel>();
                     services.AddTransient<TicketListViewModel>();
                     services.AddTransient<DiagnosticsViewModel>();
                     services.AddTransient<SettingsViewModel>();
@@ -370,6 +385,22 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.CameraC6_2Name] = AppConfigDefaults.DefaultCameraC6_2Name,
             [AppConfigKeys.CameraC6_2RtspUrl] = AppConfigDefaults.DefaultCameraC6_2RtspUrl,
             [AppConfigKeys.CameraC6_2PreviewRtspUrl] = AppConfigDefaults.DefaultCameraC6_2PreviewRtspUrl,
+            [AppConfigKeys.CameraCrusher_1Enabled] = AppConfigDefaults.DefaultCameraCrusher_1Enabled,
+            [AppConfigKeys.CameraCrusher_1Name] = AppConfigDefaults.DefaultCameraCrusher_1Name,
+            [AppConfigKeys.CameraCrusher_1RtspUrl] = AppConfigDefaults.DefaultCameraCrusher_1RtspUrl,
+            [AppConfigKeys.CameraCrusher_1PreviewRtspUrl] = AppConfigDefaults.DefaultCameraCrusher_1PreviewRtspUrl,
+            [AppConfigKeys.CameraCrusher_2Enabled] = AppConfigDefaults.DefaultCameraCrusher_2Enabled,
+            [AppConfigKeys.CameraCrusher_2Name] = AppConfigDefaults.DefaultCameraCrusher_2Name,
+            [AppConfigKeys.CameraCrusher_2RtspUrl] = AppConfigDefaults.DefaultCameraCrusher_2RtspUrl,
+            [AppConfigKeys.CameraCrusher_2PreviewRtspUrl] = AppConfigDefaults.DefaultCameraCrusher_2PreviewRtspUrl,
+            [AppConfigKeys.CameraClay_1Enabled] = AppConfigDefaults.DefaultCameraClay_1Enabled,
+            [AppConfigKeys.CameraClay_1Name] = AppConfigDefaults.DefaultCameraClay_1Name,
+            [AppConfigKeys.CameraClay_1RtspUrl] = AppConfigDefaults.DefaultCameraClay_1RtspUrl,
+            [AppConfigKeys.CameraClay_1PreviewRtspUrl] = AppConfigDefaults.DefaultCameraClay_1PreviewRtspUrl,
+            [AppConfigKeys.CameraClay_2Enabled] = AppConfigDefaults.DefaultCameraClay_2Enabled,
+            [AppConfigKeys.CameraClay_2Name] = AppConfigDefaults.DefaultCameraClay_2Name,
+            [AppConfigKeys.CameraClay_2RtspUrl] = AppConfigDefaults.DefaultCameraClay_2RtspUrl,
+            [AppConfigKeys.CameraClay_2PreviewRtspUrl] = AppConfigDefaults.DefaultCameraClay_2PreviewRtspUrl,
             [AppConfigKeys.CameraPreviewDefault] = AppConfigDefaults.DefaultCameraPreview,
             [AppConfigKeys.CameraCaptureTimeoutMs] = AppConfigDefaults.DefaultCameraCaptureTimeoutMs,
             [AppConfigKeys.CameraCaptureJpegQuality] = AppConfigDefaults.DefaultCameraCaptureJpegQuality,

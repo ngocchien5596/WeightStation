@@ -3,6 +3,7 @@ namespace StationApp.Domain.Entities;
 public class Vehicle
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public string VehiclePlate { get; set; } = string.Empty;
     public string MoocNumber { get; set; } = string.Empty;
     public string? DriverName { get; set; }

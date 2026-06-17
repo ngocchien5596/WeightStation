@@ -28,6 +28,7 @@ public class StationDbContext : DbContext
     public DbSet<WeighingSessionLine> WeighingSessionLines => Set<WeighingSessionLine>();
     public DbSet<WeighingSessionImage> WeighingSessionImages => Set<WeighingSessionImage>();
     public DbSet<PrintTemplateProfile> PrintTemplateProfiles => Set<PrintTemplateProfile>();
+    public DbSet<DocumentCounter> DocumentCounters => Set<DocumentCounter>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -85,6 +86,15 @@ public class StationDbContext : DbContext
                     break;
                 case SyncOutbox outbox when string.IsNullOrWhiteSpace(outbox.StationCode):
                     outbox.StationCode = stationCode;
+                    break;
+                case Vehicle vehicle when string.IsNullOrWhiteSpace(vehicle.StationCode):
+                    vehicle.StationCode = stationCode;
+                    break;
+                case Customer customer when string.IsNullOrWhiteSpace(customer.StationCode):
+                    customer.StationCode = stationCode;
+                    break;
+                case Product product when string.IsNullOrWhiteSpace(product.StationCode):
+                    product.StationCode = stationCode;
                     break;
             }
         }
@@ -147,5 +157,6 @@ public class StationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new WeighingSessionLineEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionImageEntityConfiguration());
         modelBuilder.ApplyConfiguration(new PrintTemplateProfileEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new DocumentCounterConfiguration());
     }
 }

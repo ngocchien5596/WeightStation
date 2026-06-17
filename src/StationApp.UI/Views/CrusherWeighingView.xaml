@@ -12,11 +12,12 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <Style x:Key="FormLabel" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
+                <Setter Property="HorizontalAlignment" Value="Right"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Margin" Value="0,0,8,8"/>
+                <Setter Property="Margin" Value="0,0,20,0"/>
             </Style>
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
-                <Setter Property="Margin" Value="0,0,16,8"/>
+                <Setter Property="Margin" Value="0,2"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -31,22 +32,22 @@
         <Border Style="{StaticResource HeaderBorder}">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Số xe" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBlock Text="Ng&#x00E0;y th&#x1ED1;ng k&#x00EA;" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
+                    <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Width="168"
+                                SelectedDateFormat="Short"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource StandardDatePickerStyle}"/>
+
+                    <TextBlock Text="S&#x1ED1; xe" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
                     <TextBox x:Name="InternalVehicleSearchBox"
                              Width="180"
                              Style="{StaticResource StandardTextBoxStyle}"
                              Text="{Binding SearchVehicle, UpdateSourceTrigger=PropertyChanged}"
                              KeyDown="SessionSearchBox_KeyDown"/>
 
-                    <TextBlock Text="Số lượt cân" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
-                    <TextBox x:Name="SessionSearchBox"
-                             Width="180"
-                             Style="{StaticResource StandardTextBoxStyle}"
-                             Text="{Binding SearchSessionNo, UpdateSourceTrigger=PropertyChanged}"
-                             KeyDown="SessionSearchBox_KeyDown"/>
-
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
-                        <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
+                        <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </DockPanel>
@@ -55,87 +56,120 @@
         <Grid Grid.Row="1" Margin="12,10,12,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="320"/>
                 <ColumnDefinition Width="420"/>
             </Grid.ColumnDefinitions>
 
             <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="120"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="120"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="34"/>
-                        <RowDefinition Height="34"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Xe nội bộ" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
-                                                  State="{Binding InternalVehiclePlateInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"/>
-                    <Button Grid.Row="0" Grid.Column="3"
-                            Command="{Binding ConfirmInternalVehicleCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            MinWidth="130"
-                            Visibility="Collapsed"
-                            Margin="0,0,0,8">
-                        <TextBlock Text="CHỌN/TẠO XE" VerticalAlignment="Center"/>
-                    </Button>
-
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tài xế" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="1" Grid.Column="1"
-                             Text="{Binding SelectedDriverName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsReadOnly="{Binding IsVehicleFormReadOnly}"
-                             Style="{StaticResource FormBox}"/>
-
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Chế độ cân" Style="{StaticResource FormLabel}"/>
-                    <ComboBox Grid.Row="1" Grid.Column="3"
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Style="{StaticResource FormLabel}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
                               ItemsSource="{Binding WeighingModeOptions}"
                               SelectedValue="{Binding SelectedWeighingMode, Mode=TwoWay}"
                               SelectedValuePath="Value"
+                              IsEnabled="{Binding CanEditCrusherInfoForm}"
                               Style="{StaticResource StandardComboBoxStyle}"
-                              Margin="0,0,0,8"/>
+                              Margin="0,2"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="TL xe chuẩn (kg)" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="2" Grid.Column="1"
-                             Text="{Binding StandardTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsReadOnly="{Binding IsVehicleFormReadOnly}"
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Xe n&#x1ED9;i b&#x1ED9;" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
+                                                  State="{Binding InternalVehiclePlateInput}"
+                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                  TextBoxStyle="{StaticResource FormBox}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="T&#x00E0;i x&#x1EBF;" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="1" Grid.Column="1"
+                             Text="{Binding SelectedDriverName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
                              Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Ghi chú" Style="{StaticResource FormLabel}" Visibility="Collapsed"/>
-                    <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3"
-                               Text="Cân một lần: KL hàng = Cân lần 1 - Trọng lượng xe chuẩn. Cân hai lần: KL hàng = |Cân lần 2 - Cân lần 1|."
-                               Foreground="#607086"
-                               VerticalAlignment="Center"
-                               Visibility="Collapsed"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="TL xe chu&#x1EA9;n (kg)" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="1" Grid.Column="3"
+                             Text="{Binding StandardTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
+                             Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
-                               Text="{Binding VehicleSelectionStatusText}"
-                               Foreground="#0B5394"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               TextWrapping="Wrap"
-                               Margin="0,0,16,8"
-                               Visibility="Collapsed"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="M&#x00E3; SP" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="1"
+                                                  State="{Binding ProductCodeInput}"
+                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                  TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <Button Grid.Row="4" Grid.Column="3"
-                            Command="{Binding UpdateVehicleMasterDataCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,0,0"
-                            MinWidth="150"
-                            Visibility="Collapsed">
-                        <TextBlock Text="CẬP NHẬT MASTER DATA" VerticalAlignment="Center"/>
-                    </Button>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="S&#x1EA3;n ph&#x1EA9;m" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="3"
+                                                  State="{Binding ProductNameInput}"
+                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                  TextBoxStyle="{StaticResource FormBox}"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="M&#x00E3; KH" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="1"
+                                                  State="{Binding CustomerCodeInput}"
+                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                  TextBoxStyle="{StaticResource FormBox}"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="2" Text="Kh&#x00E1;ch h&#x00E0;ng" Style="{StaticResource FormLabel}"/>
+                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="3"
+                                                  State="{Binding CustomerNameInput}"
+                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                  TextBoxStyle="{StaticResource FormBox}"/>
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="12">
+            <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock Text="Camera" FontSize="13" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                        <ComboBox Style="{StaticResource StandardComboBoxStyle}"
+                                  SelectedValue="{Binding SelectedPreviewCameraCode, Mode=TwoWay}"
+                                  SelectedValuePath="Tag"
+                                  Width="200"
+                                  Height="28"
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Center"
+                                  DockPanel.Dock="Right">
+                            <ComboBoxItem Content="{Binding Camera1PreviewName}" Tag="CAM1" Visibility="{Binding ShowCamera1Selector, Converter={StaticResource BoolToVis}}"/>
+                            <ComboBoxItem Content="{Binding Camera2PreviewName}" Tag="CAM2" Visibility="{Binding ShowCamera2Selector, Converter={StaticResource BoolToVis}}"/>
+                        </ComboBox>
+                    </DockPanel>
+
+                    <Border Grid.Row="1"
+                            BorderBrush="#D0D3D4"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Background="#F8F9F9"
+                            MinHeight="180">
+                        <Grid>
+                            <Image Source="{Binding CameraPreviewSource}" Margin="8" Stretch="Uniform"/>
+                            <TextBlock Text="{Binding CameraPreviewStatusText}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#5D6D7E"
+                                       FontWeight="SemiBold"
+                                       Visibility="{Binding ShowCameraPreviewPlaceholder, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -145,12 +179,12 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                        <RadioButton Content="Cân tự động"
+                        <RadioButton Content="C&#x00E2;n t&#x1EF1; &#x0111;&#x1ED9;ng"
                                      IsChecked="{Binding CurrentCaptureMode, Converter={StaticResource StringEqToBool}, ConverterParameter='T&#x1EF0; &#x0110;&#x1ED8;NG'}"
                                      Margin="0,0,24,0"
                                      FontWeight="SemiBold"
                                      IsEnabled="True"/>
-                        <RadioButton Content="Cân tay"
+                        <RadioButton Content="C&#x00E2;n tay"
                                      FontWeight="SemiBold"
                                      IsChecked="{Binding CurrentCaptureMode, Converter={StaticResource StringEqToBool}, ConverterParameter='C&#x00C2;N TAY'}"
                                      IsEnabled="{Binding CanUseManualMode}"
@@ -191,13 +225,13 @@
                             <RowDefinition Height="32"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Text="Cân lần 1" Grid.Row="0" Style="{StaticResource FormLabel}" Margin="0,0,8,0"/>
+                        <TextBlock Text="C&#x00E2;n l&#x1EA7;n 1" Grid.Row="0" Style="{StaticResource FormLabel}" Margin="0,0,8,0"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DisplayWeight1, Mode=OneWay, StringFormat={}{0:N0}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,3,16,3" Background="#F8F9F9"/>
 
-                        <TextBlock Text="Cân lần 2" Grid.Row="1" Style="{StaticResource FormLabel}" Margin="0,0,8,0"/>
+                        <TextBlock Text="C&#x00E2;n l&#x1EA7;n 2" Grid.Row="1" Style="{StaticResource FormLabel}" Margin="0,0,8,0"/>
                         <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DisplayWeight2, Mode=OneWay, StringFormat={}{0:N0}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,3,16,3" Background="#F8F9F9"/>
 
-                        <TextBlock Text="TL hàng (kg)" Grid.Row="2" Style="{StaticResource FormLabel}" Margin="0,0,8,0"/>
+                        <TextBlock Text="TL h&#x00E0;ng (kg)" Grid.Row="2" Style="{StaticResource FormLabel}" Margin="0,0,8,0"/>
                         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DisplayNetWeight, Mode=OneWay, StringFormat={}{0:N0}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,3,16,3" Background="#F8F9F9"/>
                     </Grid>
 
@@ -211,14 +245,7 @@
                         </Grid.ColumnDefinitions>
 
                         <Button Grid.Column="0" Content="{Binding CaptureWeight1ButtonText}" Command="{Binding TakeCrusherWeight1Command}" Style="{StaticResource WorkflowButtonStyle}" MinHeight="34"/>
-                        <Button Grid.Column="2" Command="{Binding TakeCrusherWeight2Command}" Style="{StaticResource PrimaryButtonStyle}" MinHeight="34" Visibility="Collapsed">
-                            <TextBlock Text="CÂN LẦN 2" VerticalAlignment="Center"/>
-                        </Button>
                         <Button Grid.Column="2" Content="C&#x00C2;N L&#x1EA6;N 2" Command="{Binding TakeCrusherWeight2Command}" Style="{StaticResource PrimaryButtonStyle}" MinHeight="34" Visibility="{Binding ShowCaptureWeight2Button, Converter={StaticResource BoolToVis}}"/>
-                        <Button Grid.Column="4" Command="{Binding SaveCrusherWeighingCommand}" Style="{StaticResource PrimaryButtonStyle}" MinHeight="34" Visibility="Collapsed">
-                            <TextBlock Text="LƯU" VerticalAlignment="Center"/>
-                        </Button>
-                        <Button Grid.Column="4" Content="LƯU" Command="{Binding SaveCrusherWeighingCommand}" Style="{StaticResource PrimaryButtonStyle}" MinHeight="34"/>
                         <Button Grid.Column="4" Content="L&#x01AF;U" Command="{Binding SaveCrusherWeighingCommand}" Style="{StaticResource PrimaryButtonStyle}" MinHeight="34"/>
                     </Grid>
                 </Grid>
@@ -233,17 +260,19 @@
                       RowStyle="{StaticResource SystemDataGridRowStyle}"
                       CellStyle="{StaticResource SystemDataGridCellStyle}">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Số lượt cân" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Số xe" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Tài xế" Binding="{Binding DriverName}" Width="160" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Chế độ cân" Binding="{Binding WeighingMode, Converter={StaticResource CrusherWeighingModeDisplayConverter}}" Width="180" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Cân lần 1" Binding="{Binding Weight1, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="Giờ cân 1" Binding="{Binding Weight1Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Cân lần 2" Binding="{Binding Weight2, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="Giờ cân 2" Binding="{Binding Weight2Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="TL xe chuẩn" Binding="{Binding StandardTareWeightSnapshot, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="KL hàng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="Trạng thái" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="T&#x00E0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="160" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Binding="{Binding WeighingMode, Converter={StaticResource CrusherWeighingModeDisplayConverter}}" Width="180" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n 1" Binding="{Binding Weight1Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n 2" Binding="{Binding Weight2Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="TL xe chu&#x1EA9;n" Binding="{Binding StandardTareWeightSnapshot, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="KL h&#x00E0;ng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="S&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Tr&#x1EA1;ng th&#x00E1;i" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

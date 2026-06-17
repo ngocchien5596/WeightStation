@@ -75,7 +75,8 @@ public static class SchemaCompatibilityBootstrapper
 
     private static readonly IReadOnlyList<ColumnPatch> ProductColumnPatches =
     [
-        new("ProductType", "nvarchar(30) NULL")
+        new("ProductType", "nvarchar(30) NULL"),
+        new("StationCode", "nvarchar(50) NULL")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> VehicleColumnPatches =
@@ -83,7 +84,13 @@ public static class SchemaCompatibilityBootstrapper
         new("IsInternalVehicle", "bit NOT NULL CONSTRAINT [DF_vehicles_is_internal_vehicle_bootstrap] DEFAULT ((0))"),
         new("StandardTareSource", "nvarchar(50) NULL"),
         new("StandardTareUpdatedAt", "datetime2 NULL"),
-        new("StandardTareUpdatedBy", "nvarchar(100) NULL")
+        new("StandardTareUpdatedBy", "nvarchar(100) NULL"),
+        new("StationCode", "nvarchar(50) NULL")
+    ];
+
+    private static readonly IReadOnlyList<ColumnPatch> CustomerColumnPatches =
+    [
+        new("StationCode", "nvarchar(50) NULL")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> WeighTicketCrusherColumnPatches =
@@ -107,7 +114,12 @@ public static class SchemaCompatibilityBootstrapper
         new("StandardTareWeightSnapshot", "decimal(18,3) NULL"),
         new("StandardTareSourceSnapshot", "nvarchar(50) NULL"),
         new("StandardTareVehicleId", "uniqueidentifier NULL"),
-        new("NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weighing_sessions_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')")
+        new("NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weighing_sessions_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')"),
+        // Crusher Weighing: Product and Customer Information
+        new("ProductCode", "nvarchar(50) NULL"),
+        new("ProductName", "nvarchar(255) NULL"),
+        new("CustomerCode", "nvarchar(50) NULL"),
+        new("CustomerName", "nvarchar(255) NULL")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionLineColumnPatches =
@@ -159,6 +171,7 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureStationAccessTablesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "vehicles", VehicleColumnPatches, ct);
+        await EnsureTableColumnsAsync(db, logger, "customers", CustomerColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketCrusherColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weighing_sessions", WeighingSessionColumnPatches, ct);
@@ -167,6 +180,7 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureStationCodeBackfillAndIndexesAsync(db, logger, ct);
         await EnsureStationOperationSettingsTableAsync(db, logger, ct);
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
+        await EnsureDocumentCountersTableAsync(db, logger, ct);
         await DropLegacyDeviceConfigTableAsync(db, logger, ct);
     }
 
@@ -178,66 +192,66 @@ BEGIN
     EXEC sp_rename N'vehicle_registrations', N'cut_orders';
 END
 
-IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicle_registrations_erp_vehicle_registration_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL
 BEGIN
-    DROP INDEX [UX_vehicle_registrations_erp_vehicle_registration_id] ON [cut_orders];
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicle_registrations_erp_vehicle_registration_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        DROP INDEX [UX_vehicle_registrations_erp_vehicle_registration_id] ON [cut_orders];
+    END
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_cut_orders_erp_cut_order_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        DROP INDEX [UX_cut_orders_erp_cut_order_id] ON [cut_orders];
+    END
+
+    IF COL_LENGTH('cut_orders', 'ErpCutOrderId') IS NULL AND COL_LENGTH('cut_orders', 'ErpVehicleRegistrationId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'cut_orders.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+    END
+
+    IF COL_LENGTH('cut_orders', 'CutOrderSource') IS NULL AND COL_LENGTH('cut_orders', 'RegistrationSource') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'cut_orders.RegistrationSource', N'CutOrderSource', N'COLUMN';
+    END
+
+    IF COL_LENGTH('cut_orders', 'CutOrderStatus') IS NULL AND COL_LENGTH('cut_orders', 'RegistrationStatus') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'cut_orders.RegistrationStatus', N'CutOrderStatus', N'COLUMN';
+    END
 END
 
-IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_cut_orders_erp_cut_order_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+IF OBJECT_ID(N'[weigh_tickets]', N'U') IS NOT NULL
 BEGIN
-    DROP INDEX [UX_cut_orders_erp_cut_order_id] ON [cut_orders];
+    IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'weigh_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+    END
+
+    IF COL_LENGTH('weigh_tickets', 'ErpCutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'ErpVehicleRegistrationId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'weigh_tickets.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+    END
 END
 
-IF COL_LENGTH('cut_orders', 'ErpCutOrderId') IS NULL AND COL_LENGTH('cut_orders', 'ErpVehicleRegistrationId') IS NOT NULL
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
 BEGIN
-    EXEC sp_rename N'cut_orders.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+    IF COL_LENGTH('delivery_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('delivery_tickets', 'VehicleRegistrationId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'delivery_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+    END
+
+    IF COL_LENGTH('delivery_tickets', 'ErpCutOrderId') IS NULL AND COL_LENGTH('delivery_tickets', 'ErpVehicleRegistrationId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'delivery_tickets.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
+    END
 END
 
-IF COL_LENGTH('cut_orders', 'CutOrderSource') IS NULL AND COL_LENGTH('cut_orders', 'RegistrationSource') IS NOT NULL
+IF OBJECT_ID(N'[weighing_session_lines]', N'U') IS NOT NULL
 BEGIN
-    EXEC sp_rename N'cut_orders.RegistrationSource', N'CutOrderSource', N'COLUMN';
-END
-
-IF COL_LENGTH('cut_orders', 'CutOrderStatus') IS NULL AND COL_LENGTH('cut_orders', 'RegistrationStatus') IS NOT NULL
-BEGIN
-    EXEC sp_rename N'cut_orders.RegistrationStatus', N'CutOrderStatus', N'COLUMN';
-END
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_erp_cut_order_id_deleted' AND object_id = OBJECT_ID(N'[cut_orders]'))
-BEGIN
-    CREATE INDEX [IX_cut_orders_erp_cut_order_id_deleted]
-    ON [cut_orders]([ErpCutOrderId], [IsDeleted]);
-END
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_erp_registration_code_deleted' AND object_id = OBJECT_ID(N'[cut_orders]'))
-BEGIN
-    CREATE INDEX [IX_cut_orders_erp_registration_code_deleted]
-    ON [cut_orders]([ErpRegistrationCode], [IsDeleted]);
-END
-
-IF COL_LENGTH('weigh_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'VehicleRegistrationId') IS NOT NULL
-BEGIN
-    EXEC sp_rename N'weigh_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
-END
-
-IF COL_LENGTH('weigh_tickets', 'ErpCutOrderId') IS NULL AND COL_LENGTH('weigh_tickets', 'ErpVehicleRegistrationId') IS NOT NULL
-BEGIN
-    EXEC sp_rename N'weigh_tickets.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
-END
-
-IF COL_LENGTH('delivery_tickets', 'CutOrderId') IS NULL AND COL_LENGTH('delivery_tickets', 'VehicleRegistrationId') IS NOT NULL
-BEGIN
-    EXEC sp_rename N'delivery_tickets.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
-END
-
-IF COL_LENGTH('delivery_tickets', 'ErpCutOrderId') IS NULL AND COL_LENGTH('delivery_tickets', 'ErpVehicleRegistrationId') IS NOT NULL
-BEGIN
-    EXEC sp_rename N'delivery_tickets.ErpVehicleRegistrationId', N'ErpCutOrderId', N'COLUMN';
-END
-
-IF COL_LENGTH('weighing_session_lines', 'CutOrderId') IS NULL AND COL_LENGTH('weighing_session_lines', 'VehicleRegistrationId') IS NOT NULL
-BEGIN
-    EXEC sp_rename N'weighing_session_lines.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+    IF COL_LENGTH('weighing_session_lines', 'CutOrderId') IS NULL AND COL_LENGTH('weighing_session_lines', 'VehicleRegistrationId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'weighing_session_lines.VehicleRegistrationId', N'CutOrderId', N'COLUMN';
+    END
 END
 """;
 
@@ -247,7 +261,7 @@ END
         try
         {
             const string triggerSql = """
-IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL AND COL_LENGTH('cut_orders', 'IsDeleted') IS NOT NULL AND COL_LENGTH('cut_orders', 'ErpCutOrderId') IS NOT NULL
 BEGIN
     IF OBJECT_ID(N'TR_cut_orders_enforce_active_erp_cut_order_id', N'TR') IS NULL
     BEGIN
@@ -292,7 +306,7 @@ END
         foreach (var patch in patches)
         {
             var sql = $@"
-IF COL_LENGTH('{tableName}', '{patch.ColumnName}') IS NULL
+IF OBJECT_ID('{tableName}', 'U') IS NOT NULL AND COL_LENGTH('{tableName}', '{patch.ColumnName}') IS NULL
 BEGIN
     ALTER TABLE [{tableName}] ADD [{patch.ColumnName}] {patch.SqlDefinition};
 END";
@@ -311,30 +325,36 @@ END";
 DECLARE @Now datetime2(7) = SYSDATETIME();
 DECLARE @StationCode nvarchar(50);
 
-SELECT @StationCode = NULLIF(LTRIM(RTRIM(ConfigValue)), N'')
-FROM dbo.app_config
-WHERE ConfigKey = N'default_station_code';
-
-IF @StationCode IS NULL
+IF OBJECT_ID(N'dbo.app_config', N'U') IS NOT NULL
 BEGIN
     SELECT @StationCode = NULLIF(LTRIM(RTRIM(ConfigValue)), N'')
     FROM dbo.app_config
-    WHERE ConfigKey = N'station_code';
+    WHERE ConfigKey = N'default_station_code';
+
+    IF @StationCode IS NULL
+    BEGIN
+        SELECT @StationCode = NULLIF(LTRIM(RTRIM(ConfigValue)), N'')
+        FROM dbo.app_config
+        WHERE ConfigKey = N'station_code';
+    END;
 END;
 
 IF @StationCode IS NULL
     SET @StationCode = N'QN01';
 
-IF NOT EXISTS (SELECT 1 FROM dbo.app_config WHERE ConfigKey = N'default_station_code')
+IF OBJECT_ID(N'dbo.app_config', N'U') IS NOT NULL
 BEGIN
-    INSERT INTO dbo.app_config(ConfigKey, ConfigValue, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
-    VALUES (N'default_station_code', @StationCode, @Now, N'SYSTEM', @Now, N'SYSTEM');
-END;
+    IF NOT EXISTS (SELECT 1 FROM dbo.app_config WHERE ConfigKey = N'default_station_code')
+    BEGIN
+        INSERT INTO dbo.app_config(ConfigKey, ConfigValue, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
+        VALUES (N'default_station_code', @StationCode, @Now, N'SYSTEM', @Now, N'SYSTEM');
+    END;
 
-IF NOT EXISTS (SELECT 1 FROM dbo.app_config WHERE ConfigKey = N'enable_user_station_scope')
-BEGIN
-    INSERT INTO dbo.app_config(ConfigKey, ConfigValue, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
-    VALUES (N'enable_user_station_scope', N'true', @Now, N'SYSTEM', @Now, N'SYSTEM');
+    IF NOT EXISTS (SELECT 1 FROM dbo.app_config WHERE ConfigKey = N'enable_user_station_scope')
+    BEGIN
+        INSERT INTO dbo.app_config(ConfigKey, ConfigValue, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
+        VALUES (N'enable_user_station_scope', N'true', @Now, N'SYSTEM', @Now, N'SYSTEM');
+    END;
 END;
 
 IF OBJECT_ID(N'dbo.stations', N'U') IS NULL
@@ -380,11 +400,14 @@ BEGIN
     );
 END;
 
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_user_station_assignments_users')
+IF OBJECT_ID(N'dbo.users', N'U') IS NOT NULL
 BEGIN
-    ALTER TABLE dbo.user_station_assignments
-    ADD CONSTRAINT FK_user_station_assignments_users
-    FOREIGN KEY (UserId) REFERENCES dbo.users(Id);
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_user_station_assignments_users')
+    BEGIN
+        ALTER TABLE dbo.user_station_assignments
+        ADD CONSTRAINT FK_user_station_assignments_users
+        FOREIGN KEY (UserId) REFERENCES dbo.users(Id);
+    END;
 END;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_user_station_assignments_user_station' AND object_id = OBJECT_ID(N'dbo.user_station_assignments'))
@@ -399,14 +422,17 @@ BEGIN
     ON dbo.user_station_assignments(UserId, IsActive);
 END;
 
-INSERT INTO dbo.user_station_assignments(Id, UserId, StationCode, IsDefault, IsActive, CreatedAt, CreatedBy)
-SELECT NEWID(), u.Id, @StationCode, 1, 1, @Now, N'SYSTEM'
-FROM dbo.users u
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM dbo.user_station_assignments usa
-    WHERE usa.UserId = u.Id
-);
+IF OBJECT_ID(N'dbo.users', N'U') IS NOT NULL
+BEGIN
+    INSERT INTO dbo.user_station_assignments(Id, UserId, StationCode, IsDefault, IsActive, CreatedAt, CreatedBy)
+    SELECT NEWID(), u.Id, @StationCode, 1, 1, @Now, N'SYSTEM'
+    FROM dbo.users u
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM dbo.user_station_assignments usa
+        WHERE usa.UserId = u.Id
+    );
+END;
 
 IF OBJECT_ID(N'dbo.station_feature_flags', N'U') IS NULL
 BEGIN
@@ -436,10 +462,13 @@ VALUES
     (N'show_menu_incoming_vehicle_list', N'true'),
     (N'show_menu_weighing', N'true'),
     (N'show_menu_crusher_weighing', N'false'),
+    (N'show_menu_clay_weighing', N'false'),
     (N'show_menu_export_weighing', N'true'),
     (N'show_menu_outgoing_vehicle_list', N'true'),
     (N'show_menu_export_report', N'true'),
     (N'show_menu_inbound_report', N'true'),
+    (N'show_menu_crusher_inbound_report', N'false'),
+    (N'show_menu_clay_inbound_report', N'false'),
     (N'show_dashboard_inbound_kpi', N'true'),
     (N'show_dashboard_outbound_kpi', N'true'),
     (N'default_navigation_target', N'Dashboard');
@@ -522,32 +551,51 @@ END
     private static async Task EnsureCutOrderIndexesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
     {
         const string sql = """
-IF COL_LENGTH('cut_orders', 'IsExportScale') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_is_export_scale_status' AND object_id = OBJECT_ID(N'[cut_orders]'))
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL
 BEGIN
-    CREATE INDEX [IX_cut_orders_is_export_scale_status]
-    ON [cut_orders]([IsExportScale], [CutOrderStatus], [ProcessingStage], [IsDeleted]);
-END
+    IF COL_LENGTH('cut_orders', 'IsExportScale') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_is_export_scale_status' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_is_export_scale_status]
+        ON [cut_orders]([IsExportScale], [CutOrderStatus], [ProcessingStage], [IsDeleted]);
+    END
 
-IF COL_LENGTH('cut_orders', 'IsTemporaryExport') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_temp_export' AND object_id = OBJECT_ID(N'[cut_orders]'))
-BEGIN
-    CREATE INDEX [IX_cut_orders_temp_export]
-    ON [cut_orders]([IsTemporaryExport], [IsExportScale], [ProcessingStage], [IsDeleted]);
-END
+    IF COL_LENGTH('cut_orders', 'IsTemporaryExport') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_temp_export' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_temp_export]
+        ON [cut_orders]([IsTemporaryExport], [IsExportScale], [ProcessingStage], [IsDeleted]);
+    END
 
-IF COL_LENGTH('cut_orders', 'MappedRealCutOrderId') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_mapped_real' AND object_id = OBJECT_ID(N'[cut_orders]'))
-BEGIN
-    CREATE INDEX [IX_cut_orders_mapped_real]
-    ON [cut_orders]([MappedRealCutOrderId], [IsDeleted]);
-END
+    IF COL_LENGTH('cut_orders', 'MappedRealCutOrderId') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_mapped_real' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_mapped_real]
+        ON [cut_orders]([MappedRealCutOrderId], [IsDeleted]);
+    END
 
-IF COL_LENGTH('cut_orders', 'TemporaryExportSourceErpCutOrderId') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_temp_source_erp' AND object_id = OBJECT_ID(N'[cut_orders]'))
-BEGIN
-    CREATE INDEX [IX_cut_orders_temp_source_erp]
-    ON [cut_orders]([TemporaryExportSourceErpCutOrderId], [IsDeleted]);
+    IF COL_LENGTH('cut_orders', 'TemporaryExportSourceErpCutOrderId') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_temp_source_erp' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_temp_source_erp]
+        ON [cut_orders]([TemporaryExportSourceErpCutOrderId], [IsDeleted]);
+    END
+
+    IF COL_LENGTH('cut_orders', 'ErpCutOrderId') IS NOT NULL
+       AND COL_LENGTH('cut_orders', 'IsDeleted') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_erp_cut_order_id_deleted' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_erp_cut_order_id_deleted]
+        ON [cut_orders]([ErpCutOrderId], [IsDeleted]);
+    END
+
+    IF COL_LENGTH('cut_orders', 'ErpRegistrationCode') IS NOT NULL
+       AND COL_LENGTH('cut_orders', 'IsDeleted') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_erp_registration_code_deleted' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_erp_registration_code_deleted]
+        ON [cut_orders]([ErpRegistrationCode], [IsDeleted]);
+    END
 END
 """;
 
@@ -697,22 +745,25 @@ BEGIN
     CREATE INDEX [IX_weighing_session_lines_registration_id] ON [weighing_session_lines]([CutOrderId]);
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
+IF OBJECT_ID(N'[weigh_tickets]', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
 BEGIN
     CREATE INDEX [IX_weigh_tickets_weighing_session_id] ON [weigh_tickets]([WeighingSessionId]);
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
 BEGIN
-    CREATE INDEX [IX_delivery_tickets_weighing_session_id] ON [delivery_tickets]([WeighingSessionId]);
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_weighing_session_id' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        CREATE INDEX [IX_delivery_tickets_weighing_session_id] ON [delivery_tickets]([WeighingSessionId]);
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_weighing_session_line_id' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        CREATE INDEX [IX_delivery_tickets_weighing_session_line_id] ON [delivery_tickets]([WeighingSessionLineId]);
+    END
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_weighing_session_line_id' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
-BEGIN
-    CREATE INDEX [IX_delivery_tickets_weighing_session_line_id] ON [delivery_tickets]([WeighingSessionLineId]);
-END
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_weighing_session_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_weighing_session_id' AND object_id = OBJECT_ID(N'[cut_orders]'))
 BEGIN
     CREATE INDEX [IX_cut_orders_weighing_session_id] ON [cut_orders]([WeighingSessionId]);
 END
@@ -765,9 +816,12 @@ END
         const string sql = """
 DECLARE @StationCode nvarchar(50);
 
-SELECT @StationCode = NULLIF(LTRIM(RTRIM([ConfigValue])), N'')
-FROM [app_config]
-WHERE [ConfigKey] = N'station_code';
+IF OBJECT_ID(N'dbo.app_config', N'U') IS NOT NULL
+BEGIN
+    SELECT @StationCode = NULLIF(LTRIM(RTRIM([ConfigValue])), N'')
+    FROM [app_config]
+    WHERE [ConfigKey] = N'station_code';
+END;
 
 IF @StationCode IS NULL
     SET @StationCode = N'QN01';
@@ -887,6 +941,66 @@ BEGIN
         ON [sync_outbox]([StationCode], [Status], [NextRetryAt]);
     END
 END
+
+-- 8. Backfill and configure vehicles StationCode and UX Index
+IF OBJECT_ID(N'[vehicles]', N'U') IS NOT NULL AND COL_LENGTH('vehicles', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE [vehicles]
+    SET [StationCode] = @StationCode
+    WHERE [StationCode] IS NULL OR LTRIM(RTRIM([StationCode])) = N'';
+
+    ALTER TABLE [vehicles] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicles_plate_mooc' AND object_id = OBJECT_ID(N'[vehicles]'))
+    BEGIN
+        DROP INDEX [UX_vehicles_plate_mooc] ON [vehicles];
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicles_station_plate_mooc' AND object_id = OBJECT_ID(N'[vehicles]'))
+    BEGIN
+        CREATE UNIQUE INDEX [UX_vehicles_station_plate_mooc] ON [vehicles]([StationCode], [VehiclePlate], [MoocNumber]);
+    END
+END
+
+-- 9. Backfill and configure customers StationCode and UX Index
+IF OBJECT_ID(N'[customers]', N'U') IS NOT NULL AND COL_LENGTH('customers', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE [customers]
+    SET [StationCode] = @StationCode
+    WHERE [StationCode] IS NULL OR LTRIM(RTRIM([StationCode])) = N'';
+
+    ALTER TABLE [customers] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_customers_code' AND object_id = OBJECT_ID(N'[customers]'))
+    BEGIN
+        DROP INDEX [UX_customers_code] ON [customers];
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_customers_station_code' AND object_id = OBJECT_ID(N'[customers]'))
+    BEGIN
+        CREATE UNIQUE INDEX [UX_customers_station_code] ON [customers]([StationCode], [CustomerCode]);
+    END
+END
+
+-- 10. Backfill and configure products StationCode and UX Index
+IF OBJECT_ID(N'[products]', N'U') IS NOT NULL AND COL_LENGTH('products', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE [products]
+    SET [StationCode] = @StationCode
+    WHERE [StationCode] IS NULL OR LTRIM(RTRIM([StationCode])) = N'';
+
+    ALTER TABLE [products] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_products_code' AND object_id = OBJECT_ID(N'[products]'))
+    BEGIN
+        DROP INDEX [UX_products_code] ON [products];
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_products_station_code' AND object_id = OBJECT_ID(N'[products]'))
+    BEGIN
+        CREATE UNIQUE INDEX [UX_products_station_code] ON [products]([StationCode], [ProductCode]);
+    END
+END
 """;
 
         await db.Database.ExecuteSqlRawAsync(sql, ct);
@@ -925,7 +1039,12 @@ VALUES
     (N'crusher_default_weigh_mode', N'TWO_WEIGH'),
     (N'crusher_require_standard_tare_for_single_weigh', N'true'),
     (N'crusher_standard_tare_tolerance_kg', N'0'),
-    (N'crusher_default_product_code', N'');
+    (N'crusher_default_product_code', N''),
+    (N'clay_single_weigh_enabled', N'false'),
+    (N'clay_default_weigh_mode', N'TWO_WEIGH'),
+    (N'clay_require_standard_tare_for_single_weigh', N'true'),
+    (N'clay_standard_tare_tolerance_kg', N'0'),
+    (N'clay_default_product_code', N'');
 
 INSERT INTO dbo.station_operation_settings(Id, StationCode, SettingKey, SettingValue, CreatedAt, CreatedBy)
 SELECT NEWID(), s.StationCode, d.SettingKey, d.SettingValue, @Now, N'SYSTEM'
@@ -1045,7 +1164,112 @@ END
         logger?.LogDebug("Dropped legacy device_configs table if it existed.");
     }
 
+    private static async Task EnsureDocumentCountersTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string createTableSql = """
+IF OBJECT_ID(N'dbo.document_counters', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.document_counters
+    (
+        CounterKey nvarchar(100) NOT NULL,
+        LastValue int NOT NULL,
+        UpdatedAt datetime2(7) NOT NULL,
+        CONSTRAINT PK_document_counters PRIMARY KEY (CounterKey)
+    );
+END
+""";
+        await db.Database.ExecuteSqlRawAsync(createTableSql, ct);
+        logger?.LogDebug("Schema compatibility check completed for document_counters table.");
+
+        const string resyncSql = """
+-- 1. Sync WeighingSession counters
+IF OBJECT_ID(N'dbo.weighing_sessions', N'U') IS NOT NULL
+BEGIN
+    MERGE dbo.document_counters AS target
+    USING (
+        SELECT 'WeighingSession_' + LEFT(SessionNo, 6) AS CounterKey, 
+               MAX(TRY_CAST(RIGHT(SessionNo, 4) AS INT)) AS MaxVal
+        FROM dbo.weighing_sessions
+        WHERE SessionNo LIKE 'LC[0-9][0-9][0-9][0-9]%' AND LEN(SessionNo) = 10
+        GROUP BY LEFT(SessionNo, 6)
+        HAVING MAX(TRY_CAST(RIGHT(SessionNo, 4) AS INT)) IS NOT NULL
+    ) AS source
+    ON target.CounterKey = source.CounterKey
+    WHEN MATCHED AND target.LastValue < source.MaxVal THEN
+        UPDATE SET target.LastValue = source.MaxVal, target.UpdatedAt = SYSDATETIME()
+    WHEN NOT MATCHED THEN
+        INSERT (CounterKey, LastValue, UpdatedAt)
+        VALUES (source.CounterKey, source.MaxVal, SYSDATETIME());
+END
+
+-- 2. Sync WeighTicket counters
+IF OBJECT_ID(N'dbo.weigh_tickets', N'U') IS NOT NULL
+BEGIN
+    DECLARE @TicketPrefix NVARCHAR(50) = NULL;
+    IF OBJECT_ID(N'dbo.app_config', N'U') IS NOT NULL
+    BEGIN
+        SET @TicketPrefix = (SELECT TOP 1 ConfigValue FROM dbo.app_config WHERE ConfigKey = 'ticket_prefix');
+    END
+    IF @TicketPrefix IS NULL SET @TicketPrefix = N'QN';
+
+    DECLARE @TicketPrefixLike NVARCHAR(100) = @TicketPrefix + '[0-9][0-9][0-9][0-9]%';
+
+    MERGE dbo.document_counters AS target
+    USING (
+        SELECT 'WeighTicket_' + LEFT(TicketNo, LEN(TicketNo) - 4) AS CounterKey, 
+               MAX(TRY_CAST(RIGHT(TicketNo, 4) AS INT)) AS MaxVal
+        FROM dbo.weigh_tickets
+        WHERE TicketNo LIKE @TicketPrefixLike AND LEN(TicketNo) = LEN(@TicketPrefix) + 8
+        GROUP BY LEFT(TicketNo, LEN(TicketNo) - 4)
+        HAVING MAX(TRY_CAST(RIGHT(TicketNo, 4) AS INT)) IS NOT NULL
+    ) AS source
+    ON target.CounterKey = source.CounterKey
+    WHEN MATCHED AND target.LastValue < source.MaxVal THEN
+        UPDATE SET target.LastValue = source.MaxVal, target.UpdatedAt = SYSDATETIME()
+    WHEN NOT MATCHED THEN
+        INSERT (CounterKey, LastValue, UpdatedAt)
+        VALUES (source.CounterKey, source.MaxVal, SYSDATETIME());
+END
+
+-- 3. Sync DeliveryTicket counters
+IF OBJECT_ID(N'dbo.delivery_tickets', N'U') IS NOT NULL
+BEGIN
+    DECLARE @DeliveryPrefix NVARCHAR(50) = NULL;
+    IF OBJECT_ID(N'dbo.app_config', N'U') IS NOT NULL
+    BEGIN
+        SET @DeliveryPrefix = (SELECT TOP 1 ConfigValue FROM dbo.app_config WHERE ConfigKey = 'delivery_prefix');
+    END
+    IF @DeliveryPrefix IS NULL SET @DeliveryPrefix = N'DN';
+
+    DECLARE @DeliveryPrefixLike NVARCHAR(100) = @DeliveryPrefix + '[0-9][0-9][0-9][0-9]%';
+
+    MERGE dbo.document_counters AS target
+    USING (
+        SELECT 'DeliveryTicket_' + LEFT(DeliveryNo, LEN(DeliveryNo) - 4) AS CounterKey, 
+               MAX(TRY_CAST(RIGHT(DeliveryNo, 4) AS INT)) AS MaxVal
+        FROM dbo.delivery_tickets
+        WHERE DeliveryNo LIKE @DeliveryPrefixLike AND LEN(DeliveryNo) = LEN(@DeliveryPrefix) + 8
+        GROUP BY LEFT(DeliveryNo, LEN(DeliveryNo) - 4)
+        HAVING MAX(TRY_CAST(RIGHT(DeliveryNo, 4) AS INT)) IS NOT NULL
+    ) AS source
+    ON target.CounterKey = source.CounterKey
+    WHEN MATCHED AND target.LastValue < source.MaxVal THEN
+        UPDATE SET target.LastValue = source.MaxVal, target.UpdatedAt = SYSDATETIME()
+    WHEN NOT MATCHED THEN
+        INSERT (CounterKey, LastValue, UpdatedAt)
+        VALUES (source.CounterKey, source.MaxVal, SYSDATETIME());
+END
+""";
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(resyncSql, ct);
+            logger?.LogInformation("Successfully synchronized and self-healed document_counters table with existing records.");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to self-heal document_counters table.");
+        }
+    }
+
     private sealed record ColumnPatch(string ColumnName, string SqlDefinition);
 }
-
-

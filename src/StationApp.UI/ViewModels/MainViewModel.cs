@@ -53,11 +53,14 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewIncomingVehicles => StationFeatures.ShowMenuIncomingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewWeighing => StationFeatures.ShowMenuWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewCrusherWeighing => StationFeatures.ShowMenuCrusherWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewClayWeighing => StationFeatures.ShowMenuClayWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportWeighing => StationFeatures.ShowMenuExportWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationFeatures.ShowMenuOutgoingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewInboundSummaryReport;
+    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport;
     public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewTicketList => false;
     public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
@@ -266,6 +269,14 @@ public partial class MainViewModel : ObservableObject
                         destination,
                         navigationVersion);
                     break;
+                case "ClayWeighing":
+                    var clayVm = _serviceProvider.GetRequiredService<ClayWeighingViewModel>();
+                    CurrentView = new ClayWeighingView { DataContext = clayVm };
+                    _ = RunViewInitializationAsync(
+                        () => clayVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
                 case "OutgoingVehicles":
                     var outgoingVm = _serviceProvider.GetRequiredService<OutgoingVehicleListViewModel>();
                     CurrentView = new OutgoingVehicleListView { DataContext = outgoingVm };
@@ -295,6 +306,22 @@ public partial class MainViewModel : ObservableObject
                     CurrentView = new InboundSummaryReportView { DataContext = inboundSummaryVm };
                     _ = RunViewInitializationAsync(
                         () => inboundSummaryVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
+                case "Reports_CrusherInbound":
+                    var crusherInboundVm = _serviceProvider.GetRequiredService<CrusherInboundReportViewModel>();
+                    CurrentView = new CrusherInboundReportView { DataContext = crusherInboundVm };
+                    _ = RunViewInitializationAsync(
+                        () => crusherInboundVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
+                case "Reports_ClayInbound":
+                    var clayInboundVm = _serviceProvider.GetRequiredService<ClayInboundReportViewModel>();
+                    CurrentView = new ClayInboundReportView { DataContext = clayInboundVm };
+                    _ = RunViewInitializationAsync(
+                        () => clayInboundVm.InitializeAsync(),
                         destination,
                         navigationVersion);
                     break;
@@ -400,10 +427,13 @@ public partial class MainViewModel : ObservableObject
             "IncomingVehicles" => CanViewIncomingVehicles,
             "Weighing" => CanViewWeighing,
             "CrusherWeighing" => CanViewCrusherWeighing,
+            "ClayWeighing" => CanViewClayWeighing,
             "ExportWeighing" => CanViewExportWeighing,
             "OutgoingVehicles" => CanViewOutgoingVehicles,
             "Reports_ExportSummary" => CanViewExportSummaryReport,
             "Reports_InboundSummary" => CanViewInboundSummaryReport,
+            "Reports_CrusherInbound" => CanViewCrusherInboundReport,
+            "Reports_ClayInbound" => CanViewClayInboundReport,
             "TicketList" => CanViewTicketList,
             "Diagnostics" => CanViewDiagnostics,
             "Settings" => CanViewSettingsMenu,
@@ -529,8 +559,10 @@ public partial class MainViewModel : ObservableObject
         if (CanViewIncomingVehicles) return "IncomingVehicles";
         if (CanViewWeighing) return "Weighing";
         if (CanViewCrusherWeighing) return "CrusherWeighing";
+        if (CanViewClayWeighing) return "ClayWeighing";
         if (CanViewDashboard) return "Dashboard";
         if (CanViewOutgoingVehicles) return "OutgoingVehicles";
+        if (CanViewClayInboundReport) return "Reports_ClayInbound";
         return "Dashboard";
     }
 
@@ -546,11 +578,14 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewIncomingVehicles));
         OnPropertyChanged(nameof(CanViewWeighing));
         OnPropertyChanged(nameof(CanViewCrusherWeighing));
+        OnPropertyChanged(nameof(CanViewClayWeighing));
         OnPropertyChanged(nameof(CanViewExportWeighing));
         OnPropertyChanged(nameof(CanViewOutgoingVehicles));
         OnPropertyChanged(nameof(CanViewReportsMenu));
         OnPropertyChanged(nameof(CanViewExportSummaryReport));
         OnPropertyChanged(nameof(CanViewInboundSummaryReport));
+        OnPropertyChanged(nameof(CanViewCrusherInboundReport));
+        OnPropertyChanged(nameof(CanViewClayInboundReport));
         OnPropertyChanged(nameof(CanViewSettingsMenu));
         OnPropertyChanged(nameof(CanViewSettingsParams));
         OnPropertyChanged(nameof(CanViewSettingsDevice));

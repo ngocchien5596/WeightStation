@@ -82,45 +82,133 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="M&#x00E3; tr&#x1EA1;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Mã trạm *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                     <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EditStationCode, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsStationCodeReadOnly}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
 
-                    <TextBlock Grid.Row="0" Grid.Column="2" Text="T&#x00EA;n tr&#x1EA1;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Tên trạm *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                     <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding EditStationName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
 
-                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Th&#x1EE9; t&#x1EF1;" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Thứ tự" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                     <TextBox Grid.Row="0" Grid.Column="5" Text="{Binding EditSortOrder, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
 
-                    <CheckBox Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="2" Content="&#x0110;ang ho&#x1EA1;t &#x111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
+                    <CheckBox Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="2" Content="Đang hoạt động" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Menu hi&#x1EC3;n th&#x1ECB;" Style="{StaticResource FormLabel}" VerticalAlignment="Top" Margin="0,10,8,8"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Menu hiển thị" Style="{StaticResource FormLabel}" VerticalAlignment="Top" Margin="0,10,8,8"/>
                     <UniformGrid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="7" Columns="4" Margin="0,8,0,4">
-                        <CheckBox Content="Trang ch&#x1EE7;" IsChecked="{Binding ShowMenuDashboard}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="Danh s&#xE1;ch xe v&#xE0;o" IsChecked="{Binding ShowMenuIncomingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="C&#xE2;n n&#x1ED9;i &#x111;&#x1ECB;a" IsChecked="{Binding ShowMenuWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="C&#xE2;n tr&#x1EA1;m &#x111;&#x1EAD;p" IsChecked="{Binding ShowMenuCrusherWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="C&#xE2;n xu&#x1EA5;t kh&#x1EA9;u" IsChecked="{Binding ShowMenuExportWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="Danh s&#xE1;ch xe ra" IsChecked="{Binding ShowMenuOutgoingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="B&#xE1;o c&#xE1;o xu&#x1EA5;t" IsChecked="{Binding ShowMenuExportReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="B&#xE1;o c&#xE1;o nh&#x1EAD;p" IsChecked="{Binding ShowMenuInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Trang chủ" IsChecked="{Binding ShowMenuDashboard}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Danh sách xe vào" IsChecked="{Binding ShowMenuIncomingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Cân nội địa" IsChecked="{Binding ShowMenuWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Cân trạm đập" IsChecked="{Binding ShowMenuCrusherWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Cân mỏ sét" IsChecked="{Binding ShowMenuClayWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Cân xuất khẩu" IsChecked="{Binding ShowMenuExportWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Danh sách xe ra" IsChecked="{Binding ShowMenuOutgoingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Báo cáo xuất" IsChecked="{Binding ShowMenuExportReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Báo cáo nhập" IsChecked="{Binding ShowMenuInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Báo cáo nhập (trạm đập)" IsChecked="{Binding ShowMenuCrusherInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Báo cáo nhập (mỏ sét)" IsChecked="{Binding ShowMenuClayInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                     </UniformGrid>
 
-                    <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="7"
-                               Text="L&#x01B0;u &#xFD;: Ph&#xE2;n quy&#x1EC1;n ch&#x1EE9;c n&#x0103;ng theo tr&#x1EA1;m ch&#x1EC9; &#x0111;i&#x1EC1;u khi&#x1EC3;n menu v&#x1EAD;n h&#xE0;nh/b&#xE1;o c&#xE1;o. Quy&#x1EC1;n admin v&#x1EAB;n do vai tr&#xF2; t&#xE0;i kho&#x1EA3;n quy&#x1EBF;t &#x0111;&#x1ECB;nh."
+                    <!-- Cấu hình vận hành trạm (gộp chung) -->
+                    <GroupBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="8"
+                              Header="{Binding OperationSettingsHeader}"
+                              Visibility="{Binding IsOperationSettingsVisible, Converter={StaticResource BoolToVis}}"
+                              BorderBrush="#CCCCCC" BorderThickness="1" Padding="12" Margin="0,8,0,12">
+                        <GroupBox.HeaderTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontWeight="Bold" Foreground="#1E3A8A" FontSize="12"/>
+                            </DataTemplate>
+                        </GroupBox.HeaderTemplate>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Content="Cho phép cân 1 lần" IsChecked="{Binding SharedSingleWeighEnabled}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Chế độ cân mặc định" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding WeighModeOptions}" SelectedValue="{Binding SharedDefaultWeighMode}" SelectedValuePath="Code" IsEnabled="{Binding SharedSingleWeighEnabled}" Style="{StaticResource FormCombo}" Margin="0,0,0,8">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Sản phẩm mặc định" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding StationProducts}" SelectedValue="{Binding SharedDefaultProductCode}" SelectedValuePath="ProductCode" Style="{StaticResource FormCombo}" Margin="0,0,0,8">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <TextBlock x:Name="NormalText">
+                                                <Run Text="{Binding ProductCode}"/><Run Text=" - "/><Run Text="{Binding ProductName}"/>
+                                            </TextBlock>
+                                            <TextBlock x:Name="PlaceholderText" Text="{Binding ProductName}" Visibility="Collapsed"/>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding ProductCode}" Value="">
+                                                <Setter TargetName="NormalText" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ProductCode}" Value="{x:Null}">
+                                                <Setter TargetName="NormalText" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Khách hàng mặc định" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding StationCustomers}" SelectedValue="{Binding SharedDefaultCustomerCode}" SelectedValuePath="CustomerCode" Style="{StaticResource FormCombo}" Margin="0,0,0,0">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <TextBlock x:Name="NormalText">
+                                                <Run Text="{Binding CustomerCode}"/><Run Text=" - "/><Run Text="{Binding CustomerName}"/>
+                                            </TextBlock>
+                                            <TextBlock x:Name="PlaceholderText" Text="{Binding CustomerName}" Visibility="Collapsed"/>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding CustomerCode}" Value="">
+                                                <Setter TargetName="NormalText" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding CustomerCode}" Value="{x:Null}">
+                                                <Setter TargetName="NormalText" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </GroupBox>
+
+
+                    <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="7"
+                               Text="Lưu ý: Phân quyền chức năng theo trạm chỉ điều khiển menu vận hành/báo cáo. Quyền admin vẫn do vai trò tài khoản quyết định."
                                Foreground="#607086"
                                FontStyle="Italic"
                                Margin="0,0,0,8"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Ng&#x00E0;y t&#x1EA1;o" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Ngày tạo" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="2" Text="Ng&#x01B0;&#x1EDD;i t&#x1EA1;o" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding CreatedBy}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="2" Text="Người tạo" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding CreatedBy}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="4" Text="C&#x1EAD;p nh&#x1EAD;t" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="3" Grid.Column="5" Grid.ColumnSpan="3" Text="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="4" Text="Cập nhật" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="4" Grid.Column="5" Grid.ColumnSpan="3" Text="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
                 </Grid>
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">

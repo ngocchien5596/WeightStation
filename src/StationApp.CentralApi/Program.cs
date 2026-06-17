@@ -123,6 +123,8 @@ app.MapPost("/api/weigh-tickets", (WeighTicket payload, CentralSyncDbContext db,
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.WeighTicket, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/delivery-tickets", (DeliveryTicket payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.DeliveryTicket, payload.Id, payload, logger, httpContext, ct));
+app.MapPost("/api/stations", (SyncStationMasterDataRequest payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
+    SyncEndpointHandler.UpsertStationAsync(db, payload, logger, httpContext, ct));
 app.MapPost("/api/vehicles", (Vehicle payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.Vehicle, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/customers", (Customer payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
@@ -254,6 +256,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "cut_orders", "MappedBy", "nvarchar(100) NULL");
 
     await EnsureDeliveryTicketSyncStatusSchemaAsync(db);
+    await EnsureStationMasterSchemaAsync(db);
     await EnsureColumnAsync(db, "sync_ingestion_logs", "StationCode", "nvarchar(50) NULL");
     await EnsureColumnAsync(db, "vehicles", "IsInternalVehicle", "bit NOT NULL CONSTRAINT [DF_vehicles_is_internal_vehicle_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "vehicles", "StandardTareSource", "nvarchar(50) NULL");
@@ -279,6 +282,11 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "weighing_sessions", "StandardTareSourceSnapshot", "nvarchar(50) NULL");
     await EnsureColumnAsync(db, "weighing_sessions", "StandardTareVehicleId", "uniqueidentifier NULL");
     await EnsureColumnAsync(db, "weighing_sessions", "NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weighing_sessions_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')");
+    // Crusher Weighing: Product and Customer Information
+    await EnsureColumnAsync(db, "weighing_sessions", "ProductCode", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "ProductName", "nvarchar(255) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "CustomerCode", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "CustomerName", "nvarchar(255) NULL");
 
     await EnsureColumnAsync(db, "weighing_session_lines", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_weighing_session_lines_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "weighing_session_lines", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
@@ -309,6 +317,45 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "weighing_session_images", "CreatedBy", "nvarchar(100) NOT NULL CONSTRAINT [DF_weighing_session_images_created_by_bootstrap] DEFAULT (N'SYSTEM')");
     await EnsureColumnAsync(db, "weighing_session_images", "UpdatedAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "weighing_session_images", "UpdatedBy", "nvarchar(100) NULL");
+
+    // Master Data Partitioning Columns
+    await EnsureColumnAsync(db, "vehicles", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_vehicles_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "customers", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_customers_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "products", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_products_station_code_bootstrap] DEFAULT (N'QN01')");
+
+    // Master Data Index Migration
+    const string masterIndexesSql = """
+        -- 1. vehicles Index conversion
+        IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicles_plate_mooc' AND object_id = OBJECT_ID(N'[vehicles]'))
+        BEGIN
+            DROP INDEX [UX_vehicles_plate_mooc] ON [vehicles];
+        END
+        IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_vehicles_station_plate_mooc' AND object_id = OBJECT_ID(N'[vehicles]'))
+        BEGIN
+            CREATE UNIQUE INDEX [UX_vehicles_station_plate_mooc] ON [vehicles]([StationCode], [VehiclePlate], [MoocNumber]);
+        END
+
+        -- 2. customers Index conversion
+        IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_customers_code' AND object_id = OBJECT_ID(N'[customers]'))
+        BEGIN
+            DROP INDEX [UX_customers_code] ON [customers];
+        END
+        IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_customers_station_code' AND object_id = OBJECT_ID(N'[customers]'))
+        BEGIN
+            CREATE UNIQUE INDEX [UX_customers_station_code] ON [customers]([StationCode], [CustomerCode]);
+        END
+
+        -- 3. products Index conversion
+        IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_products_code' AND object_id = OBJECT_ID(N'[products]'))
+        BEGIN
+            DROP INDEX [UX_products_code] ON [products];
+        END
+        IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_products_station_code' AND object_id = OBJECT_ID(N'[products]'))
+        BEGIN
+            CREATE UNIQUE INDEX [UX_products_station_code] ON [products]([StationCode], [ProductCode]);
+        END
+        """;
+    await db.Database.ExecuteSqlRawAsync(masterIndexesSql);
 }
 
 static Task EnsureColumnAsync(CentralSyncDbContext db, string tableName, string columnName, string sqlDefinition)
@@ -376,6 +423,79 @@ IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL
    AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_delivery_tickets_sync_status' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
 BEGIN
     CREATE INDEX [IX_delivery_tickets_sync_status] ON [delivery_tickets]([SyncStatus]);
+END
+""";
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task EnsureStationMasterSchemaAsync(CentralSyncDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[stations]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [stations](
+        [Id] uniqueidentifier NOT NULL,
+        [StationCode] nvarchar(50) NOT NULL,
+        [StationName] nvarchar(255) NOT NULL,
+        [IsActive] bit NOT NULL CONSTRAINT [DF_stations_is_active_bootstrap] DEFAULT ((1)),
+        [SortOrder] int NOT NULL CONSTRAINT [DF_stations_sort_order_bootstrap] DEFAULT ((0)),
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL,
+        CONSTRAINT [PK_stations] PRIMARY KEY ([Id])
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_stations_station_code' AND object_id = OBJECT_ID(N'[stations]'))
+BEGIN
+    CREATE UNIQUE INDEX [IX_stations_station_code] ON [stations]([StationCode]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_stations_is_active_sort_order' AND object_id = OBJECT_ID(N'[stations]'))
+BEGIN
+    CREATE INDEX [IX_stations_is_active_sort_order] ON [stations]([IsActive], [SortOrder]);
+END
+
+IF OBJECT_ID(N'[station_feature_flags]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [station_feature_flags](
+        [Id] uniqueidentifier NOT NULL,
+        [StationCode] nvarchar(50) NOT NULL,
+        [FeatureKey] nvarchar(100) NOT NULL,
+        [FeatureValue] nvarchar(50) NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL,
+        CONSTRAINT [PK_station_feature_flags] PRIMARY KEY ([Id])
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_station_feature_flags_station_feature' AND object_id = OBJECT_ID(N'[station_feature_flags]'))
+BEGIN
+    CREATE UNIQUE INDEX [IX_station_feature_flags_station_feature] ON [station_feature_flags]([StationCode], [FeatureKey]);
+END
+
+IF OBJECT_ID(N'[station_operation_settings]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [station_operation_settings](
+        [Id] uniqueidentifier NOT NULL,
+        [StationCode] nvarchar(50) NOT NULL,
+        [SettingKey] nvarchar(100) NOT NULL,
+        [SettingValue] nvarchar(1000) NOT NULL CONSTRAINT [DF_station_operation_settings_value_bootstrap] DEFAULT (N''),
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL,
+        CONSTRAINT [PK_station_operation_settings] PRIMARY KEY ([Id])
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_station_operation_settings_station_key' AND object_id = OBJECT_ID(N'[station_operation_settings]'))
+BEGIN
+    CREATE UNIQUE INDEX [UX_station_operation_settings_station_key] ON [station_operation_settings]([StationCode], [SettingKey]);
 END
 """;
 

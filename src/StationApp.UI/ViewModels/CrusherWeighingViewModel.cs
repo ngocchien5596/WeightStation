@@ -27,14 +27,28 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
+    private readonly ICameraPreviewService _cameraPreviewService;
     private readonly IToastService _toastService;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly ICurrentStationContext _currentStationContext;
     private readonly ILogger<CrusherWeighingViewModel>? _logger;
+    private readonly Dispatcher _uiDispatcher;
     private readonly DispatcherTimer _scaleUiTimer;
     private readonly object _scaleReadingLock = new();
     private LatestScaleReadingSnapshot? _pendingScaleReading;
     private bool _pendingScaleDeviceConnected;
     private bool _hasStartedDeviceAttach;
+    private CameraSystemSettings? _cameraSettings;
+    private Guid? _currentPreviewSessionId;
+    private long _lastRenderedPreviewSequence;
+    private CameraPreviewFrameReceivedEventArgs? _latestPendingPreviewFrame;
+    private int _isPreviewUiUpdatePending;
+
+    // Crusher Weighing: Default Product and Customer
+    private string _defaultProductCode = DefaultProductCode;
+    private string _defaultProductName = DefaultProductName;
+    private string _defaultCustomerCode = DefaultCustomerCode;
+    private string _defaultCustomerName = DefaultCustomerName;
 
     public ObservableCollection<CrusherWeighingModeOption> WeighingModeOptions { get; } = new()
     {
@@ -43,6 +57,12 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     };
 
     public AutocompleteInputViewModel InternalVehiclePlateInput { get; }
+
+    // Crusher Weighing: Product and Customer Inputs
+    public AutocompleteInputViewModel ProductCodeInput { get; }
+    public AutocompleteInputViewModel ProductNameInput { get; }
+    public AutocompleteInputViewModel CustomerCodeInput { get; }
+    public AutocompleteInputViewModel CustomerNameInput { get; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
@@ -71,6 +91,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _deviceStatusText = "Chưa kết nối đầu cân";
     [ObservableProperty] private Brush _stabilityBrush = new SolidColorBrush(Colors.Orange);
     [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private DateTime? _selectedDate = DateTime.Today;
 
     [ObservableProperty] private string? _selectedDriverName;
     [ObservableProperty]
@@ -81,6 +102,14 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
     private bool _showUpdateButton;
     [ObservableProperty] private bool _isVehicleFormReadOnly = true;
+    [ObservableProperty] private string _cameraPreviewStatusText = "Chưa cấu hình camera";
+    [ObservableProperty] private ImageSource? _cameraPreviewSource;
+    [ObservableProperty] private string _selectedPreviewCameraCode = "CAM1";
+    [ObservableProperty] private bool _isCameraPreviewAvailable;
+    [ObservableProperty] private bool _isCamera1PreviewAvailable;
+    [ObservableProperty] private bool _isCamera2PreviewAvailable;
+    [ObservableProperty] private string _camera1PreviewName = "Camera 1";
+    [ObservableProperty] private string _camera2PreviewName = "Camera 2";
 
     private string? _originalDriverName;
     private decimal? _originalStandardTare;
@@ -95,6 +124,24 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     private const string AutoModeText = "TỰ ĐỘNG";
     private const string ManualModeText = "CÂN TAY";
 
+    // Crusher Weighing: Default Product and Customer
+    private const string DefaultProductCode = "ĐV";
+    private const string DefaultProductName = "Đá vôi";
+    private const string DefaultCustomerCode = "NCC1";
+    private const string DefaultCustomerName = "Công ty CPXD và SXVLXD";
+
+    public bool IsWeighingReadOnly
+    {
+        get
+        {
+            var status = SelectedSession?.SessionStatus;
+            return status == WeighingSessionStatus.COMPLETED || status == WeighingSessionStatus.CANCELLED;
+        }
+    }
+
+    public bool IsCrusherInfoFormReadOnly => HasCapturedWeight1OrLater();
+    public bool CanEditCrusherInfoForm => !IsCrusherInfoFormReadOnly;
+    public bool IsVehicleDetailsReadOnly => IsVehicleFormReadOnly || IsCrusherInfoFormReadOnly;
     public bool IsSingleWeighMode => SelectedWeighingMode == CrusherWeighingModes.SingleWithStandardTare;
     public bool IsTwoWeighMode => SelectedWeighingMode == CrusherWeighingModes.TwoWeigh;
     public bool ShowCaptureWeight2Button => IsTwoWeighMode;
@@ -102,6 +149,11 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     public bool IsAutoMode => CurrentCaptureMode == AutoModeText;
     public bool IsManualMode => CurrentCaptureMode == ManualModeText;
     public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
+    public bool ShowCamera1Selector => IsCameraPreviewAvailable && IsCamera1PreviewAvailable;
+    public bool ShowCamera2Selector => IsCameraPreviewAvailable && IsCamera2PreviewAvailable;
+    public bool ShowCameraPreviewPlaceholder =>
+        !IsCameraPreviewAvailable
+        || !_cameraPreviewService.IsPreviewRunning;
     public decimal? DisplayWeight1 => _pendingWeight1 ?? SelectedSession?.Weight1;
     public decimal? DisplayWeight2 => IsSingleWeighMode
         ? ParseStandardTare(StandardTareText)
@@ -111,18 +163,25 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     public CrusherWeighingViewModel(
         IServiceScopeFactory scopeFactory,
         IScaleDevice scaleDevice,
+        ICameraPreviewService cameraPreviewService,
         IToastService toastService,
         ICurrentUserContext currentUserContext,
+        ICurrentStationContext currentStationContext,
         ILogger<CrusherWeighingViewModel>? logger = null)
     {
         _scopeFactory = scopeFactory;
         _scaleDevice = scaleDevice;
+        _cameraPreviewService = cameraPreviewService;
         _toastService = toastService;
         _currentUserContext = currentUserContext;
+        _currentStationContext = currentStationContext;
         _logger = logger;
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
         _scaleDevice.WeightReceived += OnWeightReceived;
         _scaleUiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _scaleUiTimer.Tick += OnScaleUiTimerTick;
+        _cameraPreviewService.StatusChanged += OnCameraPreviewStatusChanged;
+        _cameraPreviewService.FrameReceived += OnCameraPreviewFrameReceived;
 
         InternalVehiclePlateInput = CreateAutocompleteField(AutocompleteFieldType.Vehicle, 1, ApplyVehicleSelection);
         WireTextState(InternalVehiclePlateInput, text =>
@@ -146,10 +205,21 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
             TakeCrusherWeight1Command.NotifyCanExecuteChanged();
         });
+
+        // Crusher Weighing: Product and Customer input fields
+        ProductCodeInput = CreateAutocompleteField(AutocompleteFieldType.ProductCode, 1, OnProductCodeSelected);
+        ProductNameInput = CreateAutocompleteField(AutocompleteFieldType.ProductName, 1, OnProductNameSelected);
+        CustomerCodeInput = CreateAutocompleteField(AutocompleteFieldType.CustomerCode, 1, OnCustomerCodeSelected);
+        CustomerNameInput = CreateAutocompleteField(AutocompleteFieldType.Customer, 1, OnCustomerNameSelected);
+
+        // Set default values for Product and Customer
+        SetDefaultProductAndCustomer();
     }
 
     public async Task InitializeAsync()
     {
+        await LoadDefaultSettingsAsync();
+
         using (var scope = _scopeFactory.CreateScope())
         {
             var useCases = scope.ServiceProvider.GetRequiredService<CrusherWeighingUseCases>();
@@ -166,6 +236,63 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
         await LoadSessionsAsync();
         StartDeviceAttachIfNeeded();
+        await LoadCameraPreviewAsync();
+    }
+
+    private async Task LoadDefaultSettingsAsync()
+    {
+        var stationCode = _currentStationContext.StationCode;
+        if (string.IsNullOrWhiteSpace(stationCode))
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var settingsRepo = scope.ServiceProvider.GetRequiredService<IStationOperationSettingsRepository>();
+            var productRepo = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+            var customerRepo = scope.ServiceProvider.GetRequiredService<ICustomerRepository>();
+
+            var dbProductCode = await settingsRepo.GetValueAsync(stationCode, StationOperationSettingKeys.CrusherDefaultProductCode, CancellationToken.None);
+            var dbCustomerCode = await settingsRepo.GetValueAsync(stationCode, StationOperationSettingKeys.CrusherDefaultCustomerCode, CancellationToken.None);
+
+            if (!string.IsNullOrWhiteSpace(dbProductCode))
+            {
+                var p = await productRepo.GetByCodeAsync(dbProductCode, CancellationToken.None);
+                if (p != null)
+                {
+                    _defaultProductCode = p.ProductCode;
+                    _defaultProductName = p.ProductName;
+                }
+                else
+                {
+                    _defaultProductCode = dbProductCode;
+                    _defaultProductName = string.Empty;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dbCustomerCode))
+            {
+                var c = await customerRepo.GetByCodeAsync(dbCustomerCode, CancellationToken.None);
+                if (c != null)
+                {
+                    _defaultCustomerCode = c.CustomerCode;
+                    _defaultCustomerName = c.CustomerName;
+                }
+                else
+                {
+                    _defaultCustomerCode = dbCustomerCode;
+                    _defaultCustomerName = string.Empty;
+                }
+            }
+
+            SetDefaultProductAndCustomer();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load default settings for station {StationCode}", stationCode);
+        }
     }
 
     [RelayCommand]
@@ -180,7 +307,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
                 ? SearchSessionNo
                 : SearchVehicle;
             Sessions = new ObservableCollection<CrusherWeighingSessionListItem>(
-                await useCases.SearchSessionsAsync(keyword, CancellationToken.None));
+                await useCases.SearchSessionsAsync(keyword, SelectedDate, CancellationToken.None));
         }
         catch (Exception ex)
         {
@@ -196,18 +323,26 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        // Reset statistics date to today
+        SelectedDate = DateTime.Today;
+
         // Clear search fields
         SearchSessionNo = null;
         SearchVehicle = null;
 
-        // Clear selected session (triggers OnSelectedSessionChanged which clears weighing state)
+        // Clear selected session and vehicle explicitly
         SelectedSession = null;
-
-        // Clear selected vehicle (triggers OnSelectedVehicleChanged which calls ApplyVehicleInfo)
         SelectedVehicle = null;
+
+        // Force clear all weighing state and vehicle details
+        ClearAllWeighingState();
+        ApplyVehicleInfo(null);
 
         // Clear autocomplete input text
         InternalVehiclePlateInput.Clear();
+
+        // Crusher Weighing: Reset product and customer to defaults
+        SetDefaultProductAndCustomer();
 
         // Ensure ShowUpdateButton is cleared
         ShowUpdateButton = false;
@@ -229,6 +364,208 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
         // Reload sessions list
         await LoadSessionsAsync();
+        await LoadCameraPreviewAsync();
+    }
+
+    partial void OnSelectedPreviewCameraCodeChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        _ = StartCameraPreviewAsync(value);
+    }
+
+    private async Task LoadCameraPreviewAsync()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var provider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
+            var settings = await provider.GetForStationAsync("CRUSHER", CancellationToken.None);
+            ApplyCameraPreviewSettings(settings);
+            _ = StartCameraPreviewAsync(SelectedPreviewCameraCode);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Load camera preview settings failed for crusher weighing");
+            IsCameraPreviewAvailable = false;
+            IsCamera1PreviewAvailable = false;
+            IsCamera2PreviewAvailable = false;
+            CameraPreviewStatusText = "Không tải được cấu hình camera";
+            OnPropertyChanged(nameof(ShowCamera1Selector));
+            OnPropertyChanged(nameof(ShowCamera2Selector));
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+    }
+
+    private void ApplyCameraPreviewSettings(CameraSystemSettings settings)
+    {
+        _cameraSettings = settings;
+        Camera1PreviewName = settings.Camera1.DisplayName;
+        Camera2PreviewName = settings.Camera2.DisplayName;
+        IsCamera1PreviewAvailable = settings.Camera1.IsEnabled && !string.IsNullOrWhiteSpace(settings.Camera1.EffectivePreviewRtspUrl);
+        IsCamera2PreviewAvailable = settings.Camera2.IsEnabled && !string.IsNullOrWhiteSpace(settings.Camera2.EffectivePreviewRtspUrl);
+        IsCameraPreviewAvailable = IsCamera1PreviewAvailable || IsCamera2PreviewAvailable;
+
+        var preferred = string.IsNullOrWhiteSpace(settings.PreviewDefaultCameraCode)
+            ? AppConfigDefaults.DefaultCameraPreview
+            : settings.PreviewDefaultCameraCode.Trim().ToUpperInvariant();
+
+        var targetCameraCode =
+            preferred == "CAM2" && IsCamera2PreviewAvailable ? "CAM2" :
+            IsCamera1PreviewAvailable ? "CAM1" :
+            IsCamera2PreviewAvailable ? "CAM2" :
+            preferred;
+
+        OnPropertyChanged(nameof(ShowCamera1Selector));
+        OnPropertyChanged(nameof(ShowCamera2Selector));
+
+        if (!string.Equals(SelectedPreviewCameraCode, targetCameraCode, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedPreviewCameraCode = targetCameraCode;
+        }
+        else if (!IsCameraPreviewAvailable)
+        {
+            CameraPreviewStatusText = "Chưa cấu hình camera";
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+    }
+
+    private async Task StartCameraPreviewAsync(string cameraCode)
+    {
+        if (_cameraSettings == null)
+        {
+            return;
+        }
+
+        var camera = ResolvePreviewCamera(cameraCode);
+        if (camera == null)
+        {
+            CameraPreviewStatusText = IsCameraPreviewAvailable ? "Camera chưa sẵn sàng" : "Chưa cấu hình camera";
+            ResetPreviewRenderState();
+            _ = _cameraPreviewService.StopPreviewAsync();
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+            return;
+        }
+
+        ResetPreviewRenderState();
+        CameraPreviewStatusText = "Đang kết nối";
+        try
+        {
+            await _cameraPreviewService.StartPreviewAsync(camera, CancellationToken.None);
+            _currentPreviewSessionId = _cameraPreviewService.ActivePreviewSessionId;
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Start preview for crusher camera {CameraCode} failed", camera.CameraCode);
+            ResetPreviewRenderState();
+            CameraPreviewStatusText = "Không kết nối được camera";
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        }
+    }
+
+    private CameraEndpointSettings? ResolvePreviewCamera(string? cameraCode)
+    {
+        if (_cameraSettings == null || string.IsNullOrWhiteSpace(cameraCode))
+        {
+            return null;
+        }
+
+        return cameraCode.Trim().ToUpperInvariant() switch
+        {
+            "CAM1" when IsCamera1PreviewAvailable => _cameraSettings.Camera1,
+            "CAM2" when IsCamera2PreviewAvailable => _cameraSettings.Camera2,
+            _ => null
+        };
+    }
+
+    private void OnCameraPreviewStatusChanged(object? sender, CameraPreviewStatusChangedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.CameraCode)
+            && !string.Equals(e.CameraCode, SelectedPreviewCameraCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _uiDispatcher.BeginInvoke(() =>
+        {
+            if (string.Equals(CameraPreviewStatusText, e.StatusText, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            CameraPreviewStatusText = e.StatusText;
+            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
+        });
+    }
+
+    private void OnCameraPreviewFrameReceived(object? sender, CameraPreviewFrameReceivedEventArgs e)
+    {
+        if (!_currentPreviewSessionId.HasValue || e.PreviewSessionId != _currentPreviewSessionId.Value)
+        {
+            return;
+        }
+
+        if (e.Sequence <= Interlocked.Read(ref _lastRenderedPreviewSequence))
+        {
+            return;
+        }
+
+        _latestPendingPreviewFrame = e;
+        if (Interlocked.Exchange(ref _isPreviewUiUpdatePending, 1) == 1)
+        {
+            return;
+        }
+
+        _uiDispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                var latest = _latestPendingPreviewFrame;
+                if (latest == null)
+                {
+                    return;
+                }
+
+                if (!_currentPreviewSessionId.HasValue || latest.PreviewSessionId != _currentPreviewSessionId.Value)
+                {
+                    return;
+                }
+
+                if (latest.Sequence <= Interlocked.Read(ref _lastRenderedPreviewSequence))
+                {
+                    return;
+                }
+
+                CameraPreviewSource = latest.Frame;
+                Interlocked.Exchange(ref _lastRenderedPreviewSequence, latest.Sequence);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isPreviewUiUpdatePending, 0);
+                if (_latestPendingPreviewFrame != null && _latestPendingPreviewFrame.Sequence > Interlocked.Read(ref _lastRenderedPreviewSequence))
+                {
+                    OnCameraPreviewFrameReceived(this, _latestPendingPreviewFrame);
+                }
+            }
+        }, DispatcherPriority.Render);
+    }
+
+    private void ResetPreviewRenderState()
+    {
+        _currentPreviewSessionId = null;
+        _latestPendingPreviewFrame = null;
+        Interlocked.Exchange(ref _lastRenderedPreviewSequence, 0);
+        Interlocked.Exchange(ref _isPreviewUiUpdatePending, 0);
+        CameraPreviewSource = null;
+    }
+
+    partial void OnSelectedDateChanged(DateTime? value)
+    {
+        _ = LoadSessionsAsync();
     }
 
     partial void OnSelectedWeighingModeChanged(string value)
@@ -258,9 +595,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
         if (IsManualMode)
         {
-            IsStable = true;
-            StabilityText = ManualModeText;
-            StabilityBrush = new SolidColorBrush(Color.FromRgb(46, 213, 115));
+            ApplyStabilityDisplay(IsStable);
         }
     }
 
@@ -316,21 +651,17 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     }
 
     private bool CanTakeCrusherWeight2()
-{
-    if (IsLoading || !IsTwoWeighMode)
+    {
+        if (IsLoading || !IsTwoWeighMode)
+            return false;
+
+        // Chỉ cho phép cân lần 2 khi đã lưu lần 1 vào DB (có active session và trạng thái là PENDING_WEIGHT2)
+        if (_activeCrusherSessionId.HasValue
+            && SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
+            return true;
+
         return false;
-
-    // Option 1: Đang cân mới (có pending weight 1, chưa có active session)
-    if (_pendingWeight1.HasValue && !_activeCrusherSessionId.HasValue)
-        return true;
-
-    // Option 2: Đã có session đang chờ cân lần 2 (active session và session status là PENDING_WEIGHT2)
-    if (_activeCrusherSessionId.HasValue
-        && SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
-        return true;
-
-    return false;
-}
+    }
 
     [RelayCommand(CanExecute = nameof(CanTakeCrusherWeight2))]
     private void TakeCrusherWeight2()
@@ -414,7 +745,12 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
                         SelectedWeighingMode,
                         _pendingWeight1!.Value,
                         _pendingWeight1IsStable,
-                        _pendingWeight1Mode),
+                        _pendingWeight1Mode,
+                        // Crusher Weighing: Product and Customer Information
+                        ProductCodeInput.Text?.Trim(),
+                        ProductNameInput.Text?.Trim(),
+                        CustomerCodeInput.Text?.Trim(),
+                        CustomerNameInput.Text?.Trim()),
                     CancellationToken.None);
             }
 
@@ -490,6 +826,10 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
             _pendingWeight1Mode = WeightMode.AUTO;
             _pendingWeight2Mode = WeightMode.AUTO;
 
+            // Crusher Weighing: Notify read-only state change
+            OnPropertyChanged(nameof(IsWeighingReadOnly));
+            NotifyCrusherInfoFormStateChanged();
+
             var isTwoWeighPending = value.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
                 && string.Equals(value.WeighingMode, CrusherWeighingModes.TwoWeigh, StringComparison.OrdinalIgnoreCase);
 
@@ -499,6 +839,11 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
                 InternalVehiclePlateInput.SetText(value.VehiclePlate);
                 SelectedDriverName = value.DriverName;
                 StandardTareText = value.StandardTareWeightSnapshot?.ToString("N0", CultureInfo.InvariantCulture);
+                // Crusher Weighing: Set Product and Customer from session
+                ProductCodeInput.SetText(value.ProductCode);
+                ProductNameInput.SetText(value.ProductName);
+                CustomerCodeInput.SetText(value.CustomerCode);
+                CustomerNameInput.SetText(value.CustomerName);
             }
             else if (value.SessionStatus == WeighingSessionStatus.COMPLETED
                 || value.SessionStatus == WeighingSessionStatus.CANCELLED)
@@ -508,6 +853,11 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
                 InternalVehiclePlateInput.SetText(value.VehiclePlate);
                 SelectedDriverName = value.DriverName;
                 StandardTareText = value.StandardTareWeightSnapshot?.ToString("N0", CultureInfo.InvariantCulture);
+                // Crusher Weighing: Set Product and Customer from session (read-only mode)
+                ProductCodeInput.SetText(value.ProductCode);
+                ProductNameInput.SetText(value.ProductName);
+                CustomerCodeInput.SetText(value.CustomerCode);
+                CustomerNameInput.SetText(value.CustomerName);
             }
             else if (value.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1)
             {
@@ -516,6 +866,11 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
                 InternalVehiclePlateInput.SetText(value.VehiclePlate);
                 SelectedDriverName = value.DriverName;
                 StandardTareText = value.StandardTareWeightSnapshot?.ToString("N0", CultureInfo.InvariantCulture);
+                // Crusher Weighing: Set Product and Customer from session
+                ProductCodeInput.SetText(value.ProductCode);
+                ProductNameInput.SetText(value.ProductName);
+                CustomerCodeInput.SetText(value.CustomerCode);
+                CustomerNameInput.SetText(value.CustomerName);
             }
             else
             {
@@ -524,6 +879,11 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
                 InternalVehiclePlateInput.SetText(value.VehiclePlate);
                 SelectedDriverName = value.DriverName;
                 StandardTareText = value.StandardTareWeightSnapshot?.ToString("N0", CultureInfo.InvariantCulture);
+                // Crusher Weighing: Set Product and Customer from session
+                ProductCodeInput.SetText(value.ProductCode);
+                ProductNameInput.SetText(value.ProductName);
+                CustomerCodeInput.SetText(value.CustomerCode);
+                CustomerNameInput.SetText(value.CustomerName);
             }
         }
         else
@@ -540,6 +900,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
         }
 
         RefreshCapturedWeightState();
+        NotifyCrusherInfoFormStateChanged();
         OnPropertyChanged(nameof(DisplayWeight1));
         OnPropertyChanged(nameof(DisplayWeight2));
         OnPropertyChanged(nameof(DisplayNetWeight));
@@ -556,6 +917,11 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     partial void OnStandardTareTextChanged(string? value)
     {
         CheckForChanges();
+    }
+
+    partial void OnIsVehicleFormReadOnlyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsVehicleDetailsReadOnly));
     }
 
     private decimal? CalculateDisplayNetWeight()
@@ -596,35 +962,65 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
             var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var now = DateTime.Now;
-            var vehicle = (await vehicleRepo.GetByPlateAsync(vehiclePlate, CancellationToken.None))
-                .FirstOrDefault(v => v.IsInternalVehicle);
+            var vehicles = await vehicleRepo.GetByPlateAsync(vehiclePlate, CancellationToken.None);
+            var vehicle = vehicles.FirstOrDefault(v => v.IsInternalVehicle);
 
             if (vehicle == null)
             {
-                if (standardTare is null or <= 0)
+                var existingExternal = vehicles.FirstOrDefault(v => string.IsNullOrEmpty(v.MoocNumber));
+                if (existingExternal != null)
                 {
-                    _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập TL xe chuẩn lớn hơn 0.");
-                    return null;
+                    if (standardTare is null or <= 0)
+                    {
+                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập TL xe chuẩn lớn hơn 0.");
+                        return null;
+                    }
+
+                    existingExternal.IsInternalVehicle = true;
+                    existingExternal.TtcpWeight = standardTare;
+                    existingExternal.StandardTareSource = null;
+                    existingExternal.StandardTareUpdatedAt = now;
+                    existingExternal.StandardTareUpdatedBy = "Operator";
+                    existingExternal.IsActive = true;
+                    existingExternal.UpdatedAt = now;
+                    existingExternal.UpdatedBy = "Operator";
+                    if (!string.IsNullOrWhiteSpace(SelectedDriverName))
+                    {
+                        existingExternal.DriverName = SelectedDriverName.Trim();
+                    }
+
+                    await vehicleRepo.UpdateAsync(existingExternal, CancellationToken.None);
+                    await unitOfWork.SaveChangesAsync(CancellationToken.None);
+                    await EnqueueVehicleSyncAsync(scope.ServiceProvider, existingExternal, now);
+                    vehicle = existingExternal;
                 }
-
-                vehicle = new Vehicle
+                else
                 {
-                    Id = Guid.NewGuid(),
-                    VehiclePlate = vehiclePlate,
-                    DriverName = string.IsNullOrWhiteSpace(SelectedDriverName) ? null : SelectedDriverName.Trim(),
-                    TtcpWeight = standardTare,
-                    IsInternalVehicle = true,
-                    StandardTareSource = null,
-                    StandardTareUpdatedAt = now,
-                    StandardTareUpdatedBy = "Operator",
-                    IsActive = true,
-                    CreatedAt = now,
-                    CreatedBy = "Operator"
-                };
+                    if (standardTare is null or <= 0)
+                    {
+                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập TL xe chuẩn lớn hơn 0.");
+                        return null;
+                    }
 
-                await vehicleRepo.AddAsync(vehicle, CancellationToken.None);
-                await unitOfWork.SaveChangesAsync(CancellationToken.None);
-                await EnqueueVehicleSyncAsync(scope.ServiceProvider, vehicle, now);
+                    vehicle = new Vehicle
+                    {
+                        Id = Guid.NewGuid(),
+                        VehiclePlate = vehiclePlate,
+                        DriverName = string.IsNullOrWhiteSpace(SelectedDriverName) ? null : SelectedDriverName.Trim(),
+                        TtcpWeight = standardTare,
+                        IsInternalVehicle = true,
+                        StandardTareSource = null,
+                        StandardTareUpdatedAt = now,
+                        StandardTareUpdatedBy = "Operator",
+                        IsActive = true,
+                        CreatedAt = now,
+                        CreatedBy = "Operator"
+                    };
+
+                    await vehicleRepo.AddAsync(vehicle, CancellationToken.None);
+                    await unitOfWork.SaveChangesAsync(CancellationToken.None);
+                    await EnqueueVehicleSyncAsync(scope.ServiceProvider, vehicle, now);
+                }
             }
             else
             {
@@ -685,6 +1081,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(DisplayWeight1));
         OnPropertyChanged(nameof(DisplayWeight2));
         OnPropertyChanged(nameof(DisplayNetWeight));
+        NotifyCrusherInfoFormStateChanged();
         TakeCrusherWeight1Command.NotifyCanExecuteChanged();
         TakeCrusherWeight2Command.NotifyCanExecuteChanged();
         SaveCrusherWeighingCommand.NotifyCanExecuteChanged();
@@ -712,6 +1109,8 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
         _pendingWeight2Mode = WeightMode.AUTO;
         _activeCrusherSessionId = null;
         RefreshCapturedWeightState();
+        // Crusher Weighing: Reset Product and Customer to defaults
+        SetDefaultProductAndCustomer();
     }
 
     private void ApplyVehicleInfo(Vehicle? vehicle)
@@ -736,6 +1135,27 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
         }
 
         ShowUpdateButton = false;
+    }
+
+    private bool HasCapturedWeight1OrLater()
+    {
+        if (_pendingWeight1.HasValue || SelectedSession?.Weight1.HasValue == true)
+        {
+            return true;
+        }
+
+        return SelectedSession?.SessionStatus is WeighingSessionStatus.PENDING_WEIGHT2
+            or WeighingSessionStatus.ALLOCATION_PENDING
+            or WeighingSessionStatus.READY_TO_COMPLETE
+            or WeighingSessionStatus.COMPLETED
+            or WeighingSessionStatus.CANCELLED;
+    }
+
+    private void NotifyCrusherInfoFormStateChanged()
+    {
+        OnPropertyChanged(nameof(IsCrusherInfoFormReadOnly));
+        OnPropertyChanged(nameof(CanEditCrusherInfoForm));
+        OnPropertyChanged(nameof(IsVehicleDetailsReadOnly));
     }
 
     private void CheckForChanges()
@@ -786,30 +1206,69 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
             if (vehicle == null)
             {
-                if (standardTare is null or <= 0)
+                var existingExternal = vehicles.FirstOrDefault(v => string.IsNullOrEmpty(v.MoocNumber));
+                if (existingExternal != null)
                 {
-                    _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập trọng lượng xe chuẩn lớn hơn 0.");
-                    return;
+                    if (standardTare is null or <= 0)
+                    {
+                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập trọng lượng xe chuẩn lớn hơn 0.");
+                        return;
+                    }
+
+                    existingExternal.IsInternalVehicle = true;
+                    existingExternal.TtcpWeight = standardTare;
+                    existingExternal.StandardTareSource = null;
+                    existingExternal.StandardTareUpdatedAt = now;
+                    existingExternal.StandardTareUpdatedBy = "Operator";
+                    existingExternal.IsActive = true;
+                    existingExternal.UpdatedAt = now;
+                    existingExternal.UpdatedBy = "Operator";
+                    if (SelectedDriverName != null)
+                    {
+                        existingExternal.DriverName = SelectedDriverName.Trim();
+                    }
+
+                    await vehicleRepo.UpdateAsync(existingExternal, CancellationToken.None);
+                    using (var innerUowScope = scope.ServiceProvider.CreateScope())
+                    {
+                        var uow = innerUowScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        await uow.SaveChangesAsync(CancellationToken.None);
+                    }
+                    await EnqueueVehicleSyncAsync(scope.ServiceProvider, existingExternal, now);
+                    vehicle = existingExternal;
                 }
-
-                vehicle = new Vehicle
+                else
                 {
-                    Id = Guid.NewGuid(),
-                    VehiclePlate = vehiclePlate,
-                    DriverName = SelectedDriverName?.Trim(),
-                    TtcpWeight = standardTare,
-                    IsInternalVehicle = true,
-                    StandardTareSource = null,
-                    StandardTareUpdatedAt = now,
-                    StandardTareUpdatedBy = "Operator",
-                    IsActive = true,
-                    CreatedAt = now,
-                    CreatedBy = "Operator"
-                };
+                    if (standardTare is null or <= 0)
+                    {
+                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập trọng lượng xe chuẩn lớn hơn 0.");
+                        return;
+                    }
 
-                await vehicleRepo.AddAsync(vehicle, CancellationToken.None);
-                await EnqueueVehicleSyncAsync(scope.ServiceProvider, vehicle, now);
-                created = true;
+                    vehicle = new Vehicle
+                    {
+                        Id = Guid.NewGuid(),
+                        VehiclePlate = vehiclePlate,
+                        DriverName = SelectedDriverName?.Trim(),
+                        TtcpWeight = standardTare,
+                        IsInternalVehicle = true,
+                        StandardTareSource = null,
+                        StandardTareUpdatedAt = now,
+                        StandardTareUpdatedBy = "Operator",
+                        IsActive = true,
+                        CreatedAt = now,
+                        CreatedBy = "Operator"
+                    };
+
+                    await vehicleRepo.AddAsync(vehicle, CancellationToken.None);
+                    using (var innerUowScope = scope.ServiceProvider.CreateScope())
+                    {
+                        var uow = innerUowScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        await uow.SaveChangesAsync(CancellationToken.None);
+                    }
+                    await EnqueueVehicleSyncAsync(scope.ServiceProvider, vehicle, now);
+                    created = true;
+                }
             }
 
             if (!vehicle.IsActive)
@@ -930,16 +1389,19 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
             using var scope = _scopeFactory.CreateScope();
             var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
 
-            var vehicle = (await vehicleRepo.GetByPlateAsync(vehiclePlate, CancellationToken.None))
-                .FirstOrDefault(v => v.IsInternalVehicle);
+            var vehicles = await vehicleRepo.GetByPlateAsync(vehiclePlate, CancellationToken.None);
+            var vehicle = vehicles.FirstOrDefault(v => v.IsInternalVehicle);
 
             if (lookupVersion == Volatile.Read(ref _vehicleMasterLookupVersion))
             {
                 SelectedVehicle = vehicle;
                 if (vehicle == null)
                 {
+                    var hasExternal = vehicles.Any(v => string.IsNullOrEmpty(v.MoocNumber));
                     IsVehicleFormReadOnly = false;
-                    VehicleSelectionStatusText = $"Xe {vehiclePlate} chưa có trong danh mục. Nhập trọng lượng xe chuẩn rồi bấm Chọn/Tạo xe.";
+                    VehicleSelectionStatusText = hasExternal
+                        ? $"Xe {vehiclePlate} đã tồn tại dạng xe ngoài. Nhập TL xe chuẩn rồi bấm Chọn/Tạo xe để chuyển thành xe nội bộ."
+                        : $"Xe {vehiclePlate} chưa có trong danh mục. Nhập trọng lượng xe chuẩn rồi bấm Chọn/Tạo xe.";
                 }
             }
         }
@@ -957,6 +1419,66 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
     {
         InternalVehiclePlateInput.SetText(item.Value);
         _ = RefreshVehicleMasterInfoAsync();
+    }
+
+    private void SetDefaultProductAndCustomer()
+    {
+        ProductCodeInput.SetText(_defaultProductCode);
+        ProductNameInput.SetText(_defaultProductName);
+        CustomerCodeInput.SetText(_defaultCustomerCode);
+        CustomerNameInput.SetText(_defaultCustomerName);
+    }
+
+    private void OnProductCodeSelected(AutocompleteItem item)
+    {
+        ProductCodeInput.SetText(item.Value);
+        if (!string.IsNullOrWhiteSpace(item.Payload?.ProductCode))
+        {
+            ProductCodeInput.SetText(item.Payload.ProductCode);
+        }
+        if (!string.IsNullOrWhiteSpace(item.Payload?.ProductName))
+        {
+            ProductNameInput.SetText(item.Payload.ProductName);
+        }
+    }
+
+    private void OnProductNameSelected(AutocompleteItem item)
+    {
+        ProductNameInput.SetText(item.Value);
+        if (!string.IsNullOrWhiteSpace(item.Payload?.ProductName))
+        {
+            ProductNameInput.SetText(item.Payload.ProductName);
+        }
+        if (!string.IsNullOrWhiteSpace(item.Payload?.ProductCode))
+        {
+            ProductCodeInput.SetText(item.Payload.ProductCode);
+        }
+    }
+
+    private void OnCustomerCodeSelected(AutocompleteItem item)
+    {
+        CustomerCodeInput.SetText(item.Value);
+        if (!string.IsNullOrWhiteSpace(item.Payload?.CustomerCode))
+        {
+            CustomerCodeInput.SetText(item.Payload.CustomerCode);
+        }
+        if (!string.IsNullOrWhiteSpace(item.Payload?.CustomerName))
+        {
+            CustomerNameInput.SetText(item.Payload.CustomerName);
+        }
+    }
+
+    private void OnCustomerNameSelected(AutocompleteItem item)
+    {
+        CustomerNameInput.SetText(item.Value);
+        if (!string.IsNullOrWhiteSpace(item.Payload?.CustomerName))
+        {
+            CustomerNameInput.SetText(item.Payload.CustomerName);
+        }
+        if (!string.IsNullOrWhiteSpace(item.Payload?.CustomerCode))
+        {
+            CustomerCodeInput.SetText(item.Payload.CustomerCode);
+        }
     }
 
     private AutocompleteInputViewModel CreateAutocompleteField(
@@ -1087,10 +1609,9 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
         if (IsManualMode)
         {
-            IsStable = true;
             IsDeviceConnected = connected;
-            StabilityText = ManualModeText;
-            StabilityBrush = new SolidColorBrush(Color.FromRgb(46, 213, 115));
+            IsStable = latest.IsStable;
+            ApplyStabilityDisplay(latest.IsStable);
             DeviceStatusText = connected ? "Đang kết nối đầu cân" : "Mất kết nối đầu cân";
             return;
         }
@@ -1099,10 +1620,16 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
         IsStable = latest.IsStable;
         IsDeviceConnected = connected;
         StabilityText = latest.IsStable ? "ỔN ĐỊNH" : "CHƯA ỔN ĐỊNH";
-        StabilityBrush = latest.IsStable
+        ApplyStabilityDisplay(latest.IsStable);
+        DeviceStatusText = connected ? "Đang kết nối đầu cân" : "Mất kết nối đầu cân";
+    }
+
+    private void ApplyStabilityDisplay(bool isStable)
+    {
+        StabilityText = isStable ? "\u1ed4N \u0110\u1ecaNH" : "CH\u01afA \u1ed4N \u0110\u1ecaNH";
+        StabilityBrush = isStable
             ? new SolidColorBrush(Color.FromRgb(46, 213, 115))
             : new SolidColorBrush(Colors.Orange);
-        DeviceStatusText = connected ? "Đang kết nối đầu cân" : "Mất kết nối đầu cân";
     }
 
     public void Dispose()
@@ -1110,6 +1637,10 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
         _scaleUiTimer.Stop();
         _scaleUiTimer.Tick -= OnScaleUiTimerTick;
         _scaleDevice.WeightReceived -= OnWeightReceived;
+        _cameraPreviewService.StatusChanged -= OnCameraPreviewStatusChanged;
+        _cameraPreviewService.FrameReceived -= OnCameraPreviewFrameReceived;
+        ResetPreviewRenderState();
+        _ = _cameraPreviewService.StopPreviewAsync();
     }
 }
 
