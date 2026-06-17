@@ -10,6 +10,7 @@ IF OBJECT_ID(N'dbo.sp_UpdateCutOrderErpExtras', N'P') IS NULL
 GO
 
 ALTER PROCEDURE [dbo].[sp_UpdateCutOrderErpExtras]
+    @StationCode NVARCHAR(50),
     @ErpCutOrderId NVARCHAR(100),
     @LotNo NVARCHAR(100) = NULL,
     @SealNo NVARCHAR(100) = NULL,
@@ -24,10 +25,14 @@ BEGIN
     DECLARE @SystemUser NVARCHAR(200) = COALESCE(NULLIF(LTRIM(RTRIM(@UpdatedBy)), N''), N'ERP_PATCH_EXTRAS');
     DECLARE @ActiveCount INT;
 
+    SET @StationCode = NULLIF(LTRIM(RTRIM(@StationCode)), N'');
     SET @ErpCutOrderId = NULLIF(LTRIM(RTRIM(@ErpCutOrderId)), N'');
     SET @LotNo = NULLIF(LTRIM(RTRIM(@LotNo)), N'');
     SET @SealNo = NULLIF(LTRIM(RTRIM(@SealNo)), N'');
     SET @LoadingPlace = NULLIF(LTRIM(RTRIM(@LoadingPlace)), N'');
+
+    IF @StationCode IS NULL
+        THROW 51090, N'StationCode la bat buoc.', 1;
 
     IF @ErpCutOrderId IS NULL
         THROW 51021, N'ErpCutOrderId la bat buoc.', 1;
@@ -35,6 +40,7 @@ BEGIN
     SELECT @ActiveCount = COUNT(1)
     FROM dbo.cut_orders
     WHERE ErpCutOrderId = @ErpCutOrderId
+      AND StationCode = @StationCode
       AND ISNULL(IsDeleted, 0) = 0;
 
     IF @ActiveCount = 0
@@ -51,6 +57,7 @@ BEGIN
         UpdatedAt = @NowLocal,
         UpdatedBy = @SystemUser
     WHERE ErpCutOrderId = @ErpCutOrderId
+      AND StationCode = @StationCode
       AND ISNULL(IsDeleted, 0) = 0;
 END
 GO

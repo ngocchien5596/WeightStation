@@ -32,6 +32,7 @@ namespace StationApp.UI.ViewModels.Settings
         [ObservableProperty] private string _editDriverName = string.Empty;
         [ObservableProperty] private TransportMethod? _editTransportMethod = TransportMethod.ROAD;
         [ObservableProperty] private decimal? _editTtcpWeight;
+        [ObservableProperty] private bool _editIsInternalVehicle;
         [ObservableProperty] private string _editVehicleRegistrationNo = string.Empty;
         [ObservableProperty] private DateTime? _editVehicleRegistrationExpiryDate;
         [ObservableProperty] private string _editMoocRegistrationNo = string.Empty;
@@ -50,6 +51,7 @@ namespace StationApp.UI.ViewModels.Settings
                 EditDriverName = value.DriverName ?? string.Empty;
                 EditTransportMethod = Enum.TryParse<TransportMethod>(value.TransportMethod, out var tm) ? tm : null;
                 EditTtcpWeight = value.TtcpWeight;
+                EditIsInternalVehicle = value.IsInternalVehicle;
                 EditVehicleRegistrationNo = value.VehicleRegistrationNo ?? string.Empty;
                 EditVehicleRegistrationExpiryDate = value.VehicleRegistrationExpiryDate;
                 EditMoocRegistrationNo = value.MoocRegistrationNo ?? string.Empty;
@@ -100,6 +102,7 @@ namespace StationApp.UI.ViewModels.Settings
             EditDriverName = string.Empty;
             EditTransportMethod = TransportMethod.ROAD;
             EditTtcpWeight = null;
+            EditIsInternalVehicle = false;
             EditVehicleRegistrationNo = string.Empty;
             EditVehicleRegistrationExpiryDate = null;
             EditMoocRegistrationNo = string.Empty;
@@ -126,6 +129,12 @@ namespace StationApp.UI.ViewModels.Settings
             }
 
 
+            if (EditIsInternalVehicle && (!EditTtcpWeight.HasValue || EditTtcpWeight.Value <= 0))
+            {
+                await dialogService.ShowWarningAsync("Lỗi", "Xe nội bộ bắt buộc nhập trọng lượng xe chuẩn tại trường TTCP (kg).");
+                return;
+            }
+
             try
             {
                 var existing = await repo.GetByPlateAndMoocAsync(EditVehiclePlate, EditMoocNumber, CancellationToken.None);
@@ -145,6 +154,10 @@ namespace StationApp.UI.ViewModels.Settings
                         DriverName = EditDriverName.Trim(),
                         TransportMethod = EditTransportMethod?.ToString(),
                         TtcpWeight = EditTtcpWeight,
+                        IsInternalVehicle = EditIsInternalVehicle,
+                        StandardTareSource = null,
+                        StandardTareUpdatedAt = EditIsInternalVehicle ? clock.NowLocal : null,
+                        StandardTareUpdatedBy = EditIsInternalVehicle ? "Operator" : null,
                         VehicleRegistrationNo = EditVehicleRegistrationNo.Trim(),
                         VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate,
                         MoocRegistrationNo = EditMoocRegistrationNo.Trim(),
@@ -163,6 +176,10 @@ namespace StationApp.UI.ViewModels.Settings
                     SelectedVehicle.DriverName = EditDriverName.Trim();
                     SelectedVehicle.TransportMethod = EditTransportMethod?.ToString();
                     SelectedVehicle.TtcpWeight = EditTtcpWeight;
+                    SelectedVehicle.IsInternalVehicle = EditIsInternalVehicle;
+                    SelectedVehicle.StandardTareSource = null;
+                    SelectedVehicle.StandardTareUpdatedAt = EditIsInternalVehicle ? clock.NowLocal : null;
+                    SelectedVehicle.StandardTareUpdatedBy = EditIsInternalVehicle ? "Operator" : null;
                     SelectedVehicle.VehicleRegistrationNo = EditVehicleRegistrationNo.Trim();
                     SelectedVehicle.VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate;
                     SelectedVehicle.MoocRegistrationNo = EditMoocRegistrationNo.Trim();
@@ -178,6 +195,10 @@ namespace StationApp.UI.ViewModels.Settings
                         existing.DriverName = EditDriverName.Trim();
                         existing.TransportMethod = EditTransportMethod?.ToString();
                         existing.TtcpWeight = EditTtcpWeight;
+                        existing.IsInternalVehicle = EditIsInternalVehicle;
+                        existing.StandardTareSource = null;
+                        existing.StandardTareUpdatedAt = EditIsInternalVehicle ? clock.NowLocal : null;
+                        existing.StandardTareUpdatedBy = EditIsInternalVehicle ? "Operator" : null;
                         existing.VehicleRegistrationNo = EditVehicleRegistrationNo.Trim();
                         existing.VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate;
                         existing.MoocRegistrationNo = EditMoocRegistrationNo.Trim();

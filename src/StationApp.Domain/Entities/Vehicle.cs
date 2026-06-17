@@ -14,6 +14,11 @@ public class Vehicle
     public string? MoocRegistrationNo { get; set; }
     public DateTime? MoocRegistrationExpiryDate { get; set; }
 
+    public bool IsInternalVehicle { get; set; }
+    public string? StandardTareSource { get; set; }
+    public DateTime? StandardTareUpdatedAt { get; set; }
+    public string? StandardTareUpdatedBy { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;

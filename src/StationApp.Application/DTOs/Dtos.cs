@@ -649,6 +649,32 @@ public sealed record WeighingSessionListItem(
     string? ProductSummary = null
 );
 
+public sealed record InternalVehicleOptionDto(
+    Guid VehicleId,
+    string VehiclePlate,
+    string? DriverName,
+    decimal? StandardTareWeight,
+    string? StandardTareSource
+);
+
+public sealed record CrusherWeighingSessionListItem(
+    Guid SessionId,
+    string SessionNo,
+    string VehiclePlate,
+    string? DriverName,
+    decimal? Weight1,
+    DateTime? Weight1Time,
+    decimal? Weight2,
+    DateTime? Weight2Time,
+    decimal? NetWeight,
+    string WeighingMode,
+    decimal? StandardTareWeightSnapshot,
+    string? StandardTareSourceSnapshot,
+    WeighingSessionStatus SessionStatus,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt
+);
+
 public sealed record WeighingSessionLineItem(
     Guid SessionLineId,
     Guid CutOrderId,

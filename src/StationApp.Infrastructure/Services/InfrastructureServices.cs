@@ -26,12 +26,13 @@ public class TicketNumberGenerator : ITicketNumberGenerator
     public async Task<string> GenerateAsync(CancellationToken ct)
     {
         var prefix = await _configRepo.GetValueAsync("ticket_prefix", ct) ?? "QN";
+        var stationCode = await StationCodeResolver.ResolveAsync(_configRepo, ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         var ticketPrefix = $"{prefix}{yearMonth}";
 
         var lastTicket = await _db.WeighTickets
-            .Where(t => t.TicketNo.StartsWith(ticketPrefix))
+            .Where(t => t.StationCode == stationCode && t.TicketNo.StartsWith(ticketPrefix))
             .OrderByDescending(t => t.TicketNo)
             .Select(t => t.TicketNo)
             .FirstOrDefaultAsync(ct);
@@ -61,12 +62,13 @@ public class DeliveryNumberGenerator : IDeliveryNumberGenerator
     public async Task<string> GenerateAsync(CancellationToken ct)
     {
         var prefix = await _configRepo.GetValueAsync("delivery_prefix", ct) ?? "DN";
+        var stationCode = await StationCodeResolver.ResolveAsync(_configRepo, ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         var deliveryPrefix = $"{prefix}{yearMonth}";
 
         var lastTicket = await _db.DeliveryTickets
-            .Where(t => t.DeliveryNo.StartsWith(deliveryPrefix))
+            .Where(t => t.StationCode == stationCode && t.DeliveryNo.StartsWith(deliveryPrefix))
             .OrderByDescending(t => t.DeliveryNo)
             .Select(t => t.DeliveryNo)
             .FirstOrDefaultAsync(ct);
@@ -117,7 +119,26 @@ public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
             }
         }
 
-        return $"{sessionPrefix}{nextSeq:D4}";
+        while (true)
+        {
+            var candidate = $"{sessionPrefix}{nextSeq:D4}";
+            var exists = await _db.WeighingSessions.AnyAsync(s => s.SessionNo == candidate, ct);
+            if (!exists)
+            {
+                return candidate;
+            }
+
+            nextSeq++;
+        }
+    }
+}
+
+internal static class StationCodeResolver
+{
+    public static async Task<string> ResolveAsync(IAppConfigRepository configRepo, CancellationToken ct)
+    {
+        var value = await configRepo.GetValueAsync(AppConfigKeys.StationCode, ct);
+        return string.IsNullOrWhiteSpace(value) ? "QN01" : value.Trim();
     }
 }
 

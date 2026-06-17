@@ -5,6 +5,7 @@ namespace StationApp.Domain.Entities;
 public class DeliveryTicket
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public Guid CutOrderId { get; set; }
     public Guid? WeighingSessionId { get; set; }
     public Guid? WeighingSessionLineId { get; set; }

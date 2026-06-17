@@ -130,7 +130,9 @@
                     <TextBlock Grid.Column="0" Grid.Row="2" Text="H&#x1EA1;n &#x0110;K Mooc" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                     <DatePicker Grid.Column="1" Grid.Row="2" SelectedDate="{Binding EditMoocRegistrationExpiryDate}" Style="{StaticResource StandardDatePickerStyle}" Margin="0,0,16,8"/>
 
-                    <CheckBox Grid.Column="2" Grid.Row="2" Grid.ColumnSpan="2" Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                    <CheckBox Grid.Column="2" Grid.Row="2" Content="Xe n&#x1ED9;i b&#x1ED9;" IsChecked="{Binding EditIsInternalVehicle}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+
+                    <CheckBox Grid.Column="3" Grid.Row="2" Grid.ColumnSpan="2" Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                 </Grid>
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
@@ -157,6 +159,7 @@
                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Bi&#x1EC3;n s&#x1ED1;" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridCheckBoxColumn Header="Xe n&#x1ED9;i b&#x1ED9;" Binding="{Binding IsInternalVehicle}" Width="105" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
                     <DataGridTextColumn Header="S&#x1ED1; Mooc" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="T&#x00E0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="200" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="TTCP (kg)" Binding="{Binding TtcpWeight, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>

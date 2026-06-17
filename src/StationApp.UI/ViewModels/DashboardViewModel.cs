@@ -102,9 +102,10 @@ public partial class DashboardViewModel : ObservableObject
 
         var selectedDate = (SelectedDate ?? DateTime.Today).Date;
         var nextDate = selectedDate.AddDays(1);
+        var currentStationCode = await appConfig.GetValueAsync(AppConfigKeys.StationCode, CancellationToken.None) ?? "QN01";
 
         var sessionCandidates = await dbContext.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsDeleted && !x.IsCancelled)
+            .Where(x => x.StationCode == currentStationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x =>
                 (x.CreatedAt >= selectedDate && x.CreatedAt < nextDate)
                 || ((x.Weight2Time ?? x.UpdatedAt ?? x.CreatedAt) >= selectedDate
@@ -119,7 +120,9 @@ public partial class DashboardViewModel : ObservableObject
                 join cutOrder in dbContext.CutOrders.AsNoTracking()
                     on line.CutOrderId equals cutOrder.Id
                 where sessionIds.Contains(line.WeighingSessionId)
+                    && line.StationCode == currentStationCode
                     && !line.IsDeleted
+                    && cutOrder.StationCode == currentStationCode
                     && !cutOrder.IsDeleted
                     && cutOrder.IsExportScale
                 select line.WeighingSessionId)
@@ -132,7 +135,8 @@ public partial class DashboardViewModel : ObservableObject
             .ToList();
 
         var waitingCutOrders = await dbContext.CutOrders.AsNoTracking()
-            .Where(x => !x.IsDeleted
+            .Where(x => x.StationCode == currentStationCode
+                && !x.IsDeleted
                 && !x.IsCancelled
                 && x.CutOrderStatus == CutOrderStatus.REGISTERED
                 && x.ProcessingStage == ProcessingStage.IN_YARD
@@ -177,7 +181,8 @@ public partial class DashboardViewModel : ObservableObject
             CancellationToken.None);
 
         var lastMasterSuccess = await dbContext.SyncOutbox.AsNoTracking()
-            .Where(x =>
+            .Where(x => x.StationCode == currentStationCode
+                && (
                 (x.AggregateType == SyncAggregateTypes.Vehicle
                  || x.AggregateType == SyncAggregateTypes.Customer
                  || x.AggregateType == SyncAggregateTypes.Product
@@ -185,12 +190,12 @@ public partial class DashboardViewModel : ObservableObject
                  || x.AggregateType == SyncAggregateTypes.WeighingSessionLine
                  || x.AggregateType == SyncAggregateTypes.WeighTicket
                  || x.AggregateType == SyncAggregateTypes.DeliveryTicket
-                 || x.AggregateType == SyncAggregateTypes.CutOrder)
+                 || x.AggregateType == SyncAggregateTypes.CutOrder))
                 && x.Status == OutboxStatus.SUCCESS)
             .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .FirstOrDefaultAsync(CancellationToken.None);
 
-        StationCode = await appConfig.GetValueAsync("station_code", CancellationToken.None) ?? "N/A";
+        StationCode = currentStationCode;
         LastSyncTime = lastMasterSuccess == null
             ? "Chưa đồng bộ"
             : (lastMasterSuccess.UpdatedAt ?? lastMasterSuccess.CreatedAt).ToString("dd/MM/yyyy HH:mm:ss");

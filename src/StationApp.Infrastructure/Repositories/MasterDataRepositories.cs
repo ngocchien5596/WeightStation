@@ -31,6 +31,11 @@ public class VehicleRepository : IVehicleRepository
         await Task.CompletedTask;
     }
 
+    public async Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        return await _context.Vehicles.FirstOrDefaultAsync(v => v.Id == id, ct);
+    }
+
     public async Task<Vehicle?> GetByPlateAndMoocAsync(string vehiclePlate, string moocNumber, CancellationToken ct)
     {
         return await _context.Vehicles
@@ -61,6 +66,27 @@ public class VehicleRepository : IVehicleRepository
             query = query.Where(v => v.VehiclePlate.Contains(keyword) || v.MoocNumber.Contains(keyword));
         }
         var list = await query.ToListAsync(ct);
+        return list.AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<Vehicle>> SearchInternalVehiclesAsync(string? keyword, int limit, CancellationToken ct)
+    {
+        var query = _context.Vehicles.AsNoTracking()
+            .Where(v => v.IsActive && v.IsInternalVehicle);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var normalized = keyword.Trim();
+            query = query.Where(v =>
+                v.VehiclePlate.Contains(normalized) ||
+                (v.DriverName != null && v.DriverName.Contains(normalized)));
+        }
+
+        var list = await query
+            .OrderBy(v => v.VehiclePlate)
+            .Take(Math.Max(1, limit))
+            .ToListAsync(ct);
+
         return list.AsReadOnly();
     }
 
@@ -129,6 +155,24 @@ public class VehicleRepository : IVehicleRepository
             .ToListAsync(ct);
 
         return list.AsReadOnly();
+    }
+}
+
+public sealed class StationOperationSettingsRepository : IStationOperationSettingsRepository
+{
+    private readonly StationDbContext _context;
+
+    public StationOperationSettingsRepository(StationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<string?> GetValueAsync(string stationCode, string settingKey, CancellationToken ct)
+    {
+        return await _context.StationOperationSettings.AsNoTracking()
+            .Where(x => x.StationCode == stationCode && x.SettingKey == settingKey)
+            .Select(x => x.SettingValue)
+            .FirstOrDefaultAsync(ct);
     }
 }
 
@@ -262,6 +306,12 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
 
     public async Task AddAsync(DeliveryTicket ticket, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(ticket.StationCode))
+        {
+            ticket.StationCode = await ResolveDeliveryTicketStationCodeAsync(ticket, ct)
+                ?? await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
+        }
+
         SyncTrackedEntityUpdateHelper.PrepareForAdd(ticket);
         await _context.DeliveryTickets.AddAsync(ticket, ct);
     }
@@ -331,8 +381,9 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
 
     public async Task<IReadOnlyList<DeliveryTicket>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
         var list = await _context.DeliveryTickets
-            .Where(d => d.SyncStatus == syncStatus && !d.IsDeleted)
+            .Where(d => d.StationCode == stationCode && d.SyncStatus == syncStatus && !d.IsDeleted)
             .OrderBy(d => d.UpdatedAt ?? d.CreatedAt)
             .Take(take)
             .ToListAsync(ct);
@@ -345,6 +396,26 @@ public class DeliveryTicketRepository : IDeliveryTicketRepository
             .Where(d => d.CutOrderId == cutOrderId && d.RecordRole == DeliveryTicketRecordRoles.Normal && !d.IsDeleted)
             .OrderBy(d => d.SplitSequence ?? 0)
             .ThenByDescending(d => d.UpdatedAt ?? d.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    private async Task<string?> ResolveDeliveryTicketStationCodeAsync(DeliveryTicket ticket, CancellationToken ct)
+    {
+        if (ticket.WeighingSessionId.HasValue)
+        {
+            var sessionStationCode = await _context.WeighingSessions.AsNoTracking()
+                .Where(x => x.Id == ticket.WeighingSessionId.Value)
+                .Select(x => x.StationCode)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(sessionStationCode))
+            {
+                return sessionStationCode;
+            }
+        }
+
+        return await _context.CutOrders.AsNoTracking()
+            .Where(x => x.Id == ticket.CutOrderId)
+            .Select(x => x.StationCode)
             .FirstOrDefaultAsync(ct);
     }
 }

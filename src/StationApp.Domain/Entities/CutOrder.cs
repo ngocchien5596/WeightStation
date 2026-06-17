@@ -6,6 +6,7 @@ namespace StationApp.Domain.Entities;
 public class CutOrder
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public string? ErpCutOrderId { get; set; }
     public string? ErpRegistrationCode { get; set; }
     public CutOrderSource CutOrderSource { get; set; }

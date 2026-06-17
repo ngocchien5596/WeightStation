@@ -83,55 +83,58 @@ public partial class SyncInfoViewModel : ObservableObject
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+        var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
         var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
+        var stationCode = await ResolveStationCodeAsync(appConfig);
 
         try
         {
-            PendingRegistrationsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.CutOrder);
-            PendingTicketsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.WeighTicket);
-            PendingDeliveryTicketsCount = await CountPendingOutboxAsync(context, SyncAggregateTypes.DeliveryTicket);
+            PendingRegistrationsCount = await CountPendingOutboxAsync(context, stationCode, SyncAggregateTypes.CutOrder);
+            PendingTicketsCount = await CountPendingOutboxAsync(context, stationCode, SyncAggregateTypes.WeighTicket);
+            PendingDeliveryTicketsCount = await CountPendingOutboxAsync(context, stationCode, SyncAggregateTypes.DeliveryTicket);
             FailedSyncCount = await context.SyncOutbox
-                .Where(o => o.Status == OutboxStatus.FAILED_RETRYABLE || o.Status == OutboxStatus.FAILED_FINAL)
+                .Where(o => o.StationCode == stationCode && (o.Status == OutboxStatus.FAILED_RETRYABLE || o.Status == OutboxStatus.FAILED_FINAL))
                 .CountAsync(CancellationToken.None);
             SuccessSyncCount = await context.SyncOutbox
-                .Where(o => o.Status == OutboxStatus.SUCCESS)
+                .Where(o => o.StationCode == stationCode && o.Status == OutboxStatus.SUCCESS)
                 .CountAsync(CancellationToken.None);
 
             UnprocessedInboundCount = await context.CutOrders
-                .Where(r => !r.IsInboundProcessed)
+                .Where(r => r.StationCode == stationCode && !r.IsInboundProcessed)
                 .CountAsync(CancellationToken.None);
 
             var lastFailItem = await context.SyncOutbox
-                .Where(o => !string.IsNullOrWhiteSpace(o.LastError))
+                .Where(o => o.StationCode == stationCode && !string.IsNullOrWhiteSpace(o.LastError))
                 .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
                 .FirstOrDefaultAsync(CancellationToken.None);
 
             var lastSuccessItem = await context.SyncOutbox
-                .Where(o => o.Status == OutboxStatus.SUCCESS)
+                .Where(o => o.StationCode == stationCode && o.Status == OutboxStatus.SUCCESS)
                 .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
                 .FirstOrDefaultAsync(CancellationToken.None);
 
             LastSyncError = lastFailItem?.LastError ?? "\u004b\u0068\u00f4\u006e\u0067\u0020\u0063\u00f3\u0020\u006c\u1ed7\u0069\u0020\u0067\u0068\u0069\u0020\u006e\u0068\u1ead\u006e\u002e";
             LastSyncFailureAt = FormatTimestamp(lastFailItem?.UpdatedAt ?? lastFailItem?.CreatedAt);
             LastSyncSuccessAt = FormatTimestamp(lastSuccessItem?.UpdatedAt ?? lastSuccessItem?.CreatedAt);
-            SyncItems = new ObservableCollection<SyncOutboxListItem>(await LoadSyncItemsAsync(context));
+            SyncItems = new ObservableCollection<SyncOutboxListItem>(await LoadSyncItemsAsync(context, stationCode));
 
             VehicleMasterCount = await context.Vehicles.AsNoTracking().CountAsync(CancellationToken.None);
             CustomerMasterCount = await context.Customers.AsNoTracking().CountAsync(CancellationToken.None);
             ProductMasterCount = await context.Products.AsNoTracking().CountAsync(CancellationToken.None);
 
             var pendingMasterCount = await context.SyncOutbox.AsNoTracking()
-                .Where(o => MasterAggregateTypes.Contains(o.AggregateType)
+                .Where(o => o.StationCode == stationCode
+                    && MasterAggregateTypes.Contains(o.AggregateType)
                     && (o.Status == OutboxStatus.PENDING || o.Status == OutboxStatus.FAILED_RETRYABLE || o.Status == OutboxStatus.PROCESSING))
                 .CountAsync(CancellationToken.None);
 
             var lastMasterSuccess = await context.SyncOutbox.AsNoTracking()
-                .Where(o => MasterAggregateTypes.Contains(o.AggregateType) && o.Status == OutboxStatus.SUCCESS)
+                .Where(o => o.StationCode == stationCode && MasterAggregateTypes.Contains(o.AggregateType) && o.Status == OutboxStatus.SUCCESS)
                 .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
                 .FirstOrDefaultAsync(CancellationToken.None);
 
             var lastMasterFailure = await context.SyncOutbox.AsNoTracking()
-                .Where(o => MasterAggregateTypes.Contains(o.AggregateType) && !string.IsNullOrWhiteSpace(o.LastError))
+                .Where(o => o.StationCode == stationCode && MasterAggregateTypes.Contains(o.AggregateType) && !string.IsNullOrWhiteSpace(o.LastError))
                 .OrderByDescending(o => o.UpdatedAt ?? o.CreatedAt)
                 .FirstOrDefaultAsync(CancellationToken.None);
 
@@ -318,10 +321,11 @@ public partial class SyncInfoViewModel : ObservableObject
         await LoadAsync();
     }
 
-    private static Task<int> CountPendingOutboxAsync(StationDbContext context, string aggregateType)
+    private static Task<int> CountPendingOutboxAsync(StationDbContext context, string stationCode, string aggregateType)
     {
         return context.SyncOutbox
-            .Where(o => o.AggregateType == aggregateType &&
+            .Where(o => o.StationCode == stationCode &&
+                        o.AggregateType == aggregateType &&
                         (o.Status == OutboxStatus.PENDING || o.Status == OutboxStatus.FAILED_RETRYABLE))
             .CountAsync(CancellationToken.None);
     }
@@ -369,9 +373,16 @@ public partial class SyncInfoViewModel : ObservableObject
         return timestamp?.ToString("dd/MM/yyyy HH:mm:ss") ?? "N/A";
     }
 
-    private async Task<IReadOnlyList<SyncOutboxListItem>> LoadSyncItemsAsync(StationDbContext context)
+    private static async Task<string> ResolveStationCodeAsync(IAppConfigRepository appConfig)
     {
-        var query = context.SyncOutbox.AsNoTracking();
+        var value = await appConfig.GetValueAsync(AppConfigKeys.StationCode, CancellationToken.None);
+        return string.IsNullOrWhiteSpace(value) ? "QN01" : value.Trim();
+    }
+
+    private async Task<IReadOnlyList<SyncOutboxListItem>> LoadSyncItemsAsync(StationDbContext context, string stationCode)
+    {
+        var query = context.SyncOutbox.AsNoTracking()
+            .Where(x => x.StationCode == stationCode);
 
         if (SelectedAggregateType != "\u0054\u1ea5\u0074\u0020\u0063\u1ea3")
         {
@@ -433,16 +444,16 @@ public partial class SyncInfoViewModel : ObservableObject
         var productIds = outboxItems.Where(x => x.AggregateType == SyncAggregateTypes.Product).Select(x => x.AggregateId).Distinct().ToList();
 
         var registrations = await context.CutOrders.AsNoTracking()
-            .Where(x => registrationIds.Contains(x.Id))
+            .Where(x => x.StationCode == stationCode && registrationIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var weighTickets = await context.WeighTickets.AsNoTracking()
-            .Where(x => weighTicketIds.Contains(x.Id))
+            .Where(x => x.StationCode == stationCode && weighTicketIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var deliveryTickets = await context.DeliveryTickets.AsNoTracking()
-            .Where(x => deliveryTicketIds.Contains(x.Id))
+            .Where(x => x.StationCode == stationCode && deliveryTicketIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var lines = await context.WeighingSessionLines.AsNoTracking()
-            .Where(x => lineIds.Contains(x.Id))
+            .Where(x => x.StationCode == stationCode && lineIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
         var vehicles = await context.Vehicles.AsNoTracking()
             .Where(x => vehicleIds.Contains(x.Id))
@@ -463,7 +474,7 @@ public partial class SyncInfoViewModel : ObservableObject
             .ToList();
 
         var sessions = await context.WeighingSessions.AsNoTracking()
-            .Where(x => sessionIds.Contains(x.Id))
+            .Where(x => x.StationCode == stationCode && sessionIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, CancellationToken.None);
 
         var items = outboxItems.Select(item =>

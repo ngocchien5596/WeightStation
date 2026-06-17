@@ -1,0 +1,155 @@
+<UserControl x:Class="StationApp.UI.Views.Settings.StationMasterView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:StationApp.UI.Helpers"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1000"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StationApp.UI;component/Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="FormLabel" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
+                <Setter Property="Margin" Value="0,4,0,2"/>
+            </Style>
+            <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}"/>
+            <Style x:Key="FormCombo" TargetType="ComboBox" BasedOn="{StaticResource StandardComboBoxStyle}"/>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="#FFFFFF">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#E8EFF7" Margin="12" Padding="16" CornerRadius="4">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="M&#x00E3; tr&#x1EA1;m" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding SearchStationCode, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}" helpers:EnterKeySearch.Command="{Binding SearchCommand}" Margin="0,0,16,0"/>
+
+                    <TextBlock Grid.Column="2" Text="T&#x00EA;n tr&#x1EA1;m" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Column="3" Text="{Binding SearchStationName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}" helpers:EnterKeySearch.Command="{Binding SearchCommand}" Margin="0,0,16,0"/>
+
+                    <TextBlock Grid.Column="4" Text="Tr&#x1EA1;ng th&#x00E1;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox Grid.Column="5" ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormCombo}" Margin="0,0,16,0"/>
+
+                    <Button Grid.Column="6" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Height="32" VerticalAlignment="Center">
+                        <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
+                    </Button>
+                </Grid>
+
+                <Separator Grid.Row="1" Background="#CCCCCC" Margin="0,0,0,16"/>
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="M&#x00E3; tr&#x1EA1;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EditStationCode, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsStationCodeReadOnly}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
+
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="T&#x00EA;n tr&#x1EA1;m *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding EditStationName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
+
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Th&#x1EE9; t&#x1EF1;" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <TextBox Grid.Row="0" Grid.Column="5" Text="{Binding EditSortOrder, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
+
+                    <CheckBox Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="2" Content="&#x0110;ang ho&#x1EA1;t &#x111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Menu hi&#x1EC3;n th&#x1ECB;" Style="{StaticResource FormLabel}" VerticalAlignment="Top" Margin="0,10,8,8"/>
+                    <UniformGrid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="7" Columns="4" Margin="0,8,0,4">
+                        <CheckBox Content="Trang ch&#x1EE7;" IsChecked="{Binding ShowMenuDashboard}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Danh s&#xE1;ch xe v&#xE0;o" IsChecked="{Binding ShowMenuIncomingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="C&#xE2;n n&#x1ED9;i &#x111;&#x1ECB;a" IsChecked="{Binding ShowMenuWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="C&#xE2;n tr&#x1EA1;m &#x111;&#x1EAD;p" IsChecked="{Binding ShowMenuCrusherWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="C&#xE2;n xu&#x1EA5;t kh&#x1EA9;u" IsChecked="{Binding ShowMenuExportWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Danh s&#xE1;ch xe ra" IsChecked="{Binding ShowMenuOutgoingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="B&#xE1;o c&#xE1;o xu&#x1EA5;t" IsChecked="{Binding ShowMenuExportReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="B&#xE1;o c&#xE1;o nh&#x1EAD;p" IsChecked="{Binding ShowMenuInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                    </UniformGrid>
+
+                    <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="7"
+                               Text="L&#x01B0;u &#xFD;: Ph&#xE2;n quy&#x1EC1;n ch&#x1EE9;c n&#x0103;ng theo tr&#x1EA1;m ch&#x1EC9; &#x0111;i&#x1EC1;u khi&#x1EC3;n menu v&#x1EAD;n h&#xE0;nh/b&#xE1;o c&#xE1;o. Quy&#x1EC1;n admin v&#x1EAB;n do vai tr&#xF2; t&#xE0;i kho&#x1EA3;n quy&#x1EBF;t &#x0111;&#x1ECB;nh."
+                               Foreground="#607086"
+                               FontStyle="Italic"
+                               Margin="0,0,0,8"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Ng&#x00E0;y t&#x1EA1;o" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="2" Text="Ng&#x01B0;&#x1EDD;i t&#x1EA1;o" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding CreatedBy}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="4" Text="C&#x1EAD;p nh&#x1EAD;t" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="3" Grid.Column="5" Grid.ColumnSpan="3" Text="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
+                </Grid>
+
+                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                    <Button Command="{Binding ResetFormCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
+                        <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}">
+                        <TextBlock Text="L&#x01AF;U" VerticalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Margin="12,0,12,12">
+            <DataGrid ItemsSource="{Binding Stations}"
+                      SelectedItem="{Binding SelectedStation}"
+                      Style="{StaticResource SystemDataGridStyle}"
+                      ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                      RowStyle="{StaticResource SystemDataGridRowStyle}"
+                      CellStyle="{StaticResource SystemDataGridCellStyle}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="M&#x00E3; tr&#x1EA1;m" Binding="{Binding StationCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="T&#x00EA;n tr&#x1EA1;m" Binding="{Binding StationName}" Width="*" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Th&#x1EE9; t&#x1EF1;" Binding="{Binding SortOrder}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridCheckBoxColumn Header="Ho&#x1EA1;t &#x111;&#x1ED9;ng" Binding="{Binding IsActive}" Width="110" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
+                    <DataGridTextColumn Header="Ng&#x00E0;y t&#x1EA1;o" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Ng&#x00E0;y c&#x1EAD;p nh&#x1EAD;t" Binding="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</UserControl>

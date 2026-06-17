@@ -7,8 +7,10 @@ public interface IVehicleRepository : IVehicleAutocompleteSource
 {
     Task AddAsync(Vehicle vehicle, CancellationToken ct);
     Task UpdateAsync(Vehicle vehicle, CancellationToken ct);
+    Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken ct);
     Task<Vehicle?> GetByPlateAndMoocAsync(string vehiclePlate, string moocNumber, CancellationToken ct);
     Task<IReadOnlyList<Vehicle>> GetByPlateAsync(string vehiclePlate, CancellationToken ct);
     Task<IReadOnlyList<Vehicle>> GetByMoocAsync(string moocNumber, CancellationToken ct);
     Task<IReadOnlyList<Vehicle>> SearchAsync(string? keyword, CancellationToken ct);
+    Task<IReadOnlyList<Vehicle>> SearchInternalVehiclesAsync(string? keyword, int limit, CancellationToken ct);
 }

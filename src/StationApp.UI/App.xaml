@@ -32,6 +32,7 @@
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
             <converters:TransactionTypeDisplayConverter x:Key="TransactionTypeDisplayConverter"/>
             <converters:TransportMethodDisplayConverter x:Key="TransportMethodDisplayConverter"/>
+            <converters:CrusherWeighingModeDisplayConverter x:Key="CrusherWeighingModeDisplayConverter"/>
             <converters:SplitModeDisplayConverter x:Key="SplitModeDisplayConverter"/>
             <Style TargetType="{x:Type Window}">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>

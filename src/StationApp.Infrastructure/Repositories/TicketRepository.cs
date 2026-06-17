@@ -14,6 +14,11 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
 
     public async Task AddAsync(WeighTicket ticket, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(ticket.StationCode))
+        {
+            ticket.StationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        }
+
         SyncTrackedEntityUpdateHelper.PrepareForAdd(ticket);
         await _db.WeighTickets.AddAsync(ticket, ct);
     }
@@ -35,14 +40,19 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
         => await _db.WeighTickets.FirstOrDefaultAsync(t => t.TicketNo == ticketNo && !t.IsDeleted, ct);
 
     public async Task<IReadOnlyList<WeighTicket>> GetByStatusAsync(TicketStatus status, CancellationToken ct)
-        => await _db.WeighTickets
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        return await _db.WeighTickets
+            .Where(t => t.StationCode == stationCode)
             .Where(t => t.Status == status && !t.IsDeleted)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync(ct);
+    }
 
     public async Task<IReadOnlyList<WeighTicket>> SearchAsync(string? keyword, TicketStatus? status, CancellationToken ct)
     {
-        var query = _db.WeighTickets.Where(t => !t.IsDeleted);
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var query = _db.WeighTickets.Where(t => t.StationCode == stationCode && !t.IsDeleted);
         if (status.HasValue) query = query.Where(t => t.Status == status.Value);
         if (!string.IsNullOrWhiteSpace(keyword))
             query = query.Where(t => t.TicketNo.Contains(keyword) || t.VehiclePlate.Contains(keyword));
@@ -54,7 +64,8 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
 
     public async Task<IReadOnlyList<WeighTicket>> GetPrimaryDisplayTicketsAsync(string? keyword, CancellationToken ct)
     {
-        var query = _db.WeighTickets.Where(t => t.RecordRole == WeighTicketRecordRoles.MasterSession && t.IsPrimaryDisplay && !t.IsDeleted);
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var query = _db.WeighTickets.Where(t => t.StationCode == stationCode && t.RecordRole == WeighTicketRecordRoles.MasterSession && t.IsPrimaryDisplay && !t.IsDeleted);
         if (!string.IsNullOrWhiteSpace(keyword))
             query = query.Where(t => t.TicketNo.Contains(keyword) || t.VehiclePlate.Contains(keyword));
         
@@ -111,8 +122,9 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
 
     public async Task<IReadOnlyList<WeighTicket>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.WeighTickets
-            .Where(t => t.SyncStatus == syncStatus && !t.IsDeleted)
+            .Where(t => t.StationCode == stationCode && t.SyncStatus == syncStatus && !t.IsDeleted)
             .OrderBy(t => t.UpdatedAt ?? t.CreatedAt)
             .Take(take)
             .ToListAsync(ct);

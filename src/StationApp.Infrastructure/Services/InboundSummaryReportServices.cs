@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 
@@ -10,10 +11,12 @@ namespace StationApp.Infrastructure.Services;
 public sealed class InboundSummaryReportService : IInboundSummaryReportService
 {
     private readonly StationDbContext _dbContext;
+    private readonly IAppConfigRepository _appConfigRepository;
 
-    public InboundSummaryReportService(StationDbContext dbContext)
+    public InboundSummaryReportService(StationDbContext dbContext, IAppConfigRepository appConfigRepository)
     {
         _dbContext = dbContext;
+        _appConfigRepository = appConfigRepository;
     }
 
     public async Task<InboundSummaryReportDocument> BuildAsync(
@@ -26,9 +29,10 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
             .ToListAsync(ct);
 
         var productDisplayName = ResolveProductDisplayName(filter.ProductCode, [], products);
+        var stationCode = await ResolveStationCodeAsync(ct);
 
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsDeleted && !x.IsCancelled)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x => x.TransactionType == TransactionType.INBOUND)
             .Where(x => x.Weight2Time.HasValue && x.Weight2Time.Value >= filter.FromTime && x.Weight2Time.Value <= filter.ToTime)
             .OrderBy(x => x.Weight2Time)
@@ -38,7 +42,7 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
         var rows = new List<InboundSummaryReportRow>();
         if (sessions.Count > 0)
         {
-            rows = await BuildRowsAsync(sessions, filter, ct);
+            rows = await BuildRowsAsync(sessions, filter, stationCode, ct);
             productDisplayName = ResolveProductDisplayName(filter.ProductCode, rows, products);
         }
 
@@ -53,12 +57,14 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
                 filter.CustomerCode,
                 new DateTime(filter.ToTime.Year, filter.ToTime.Month, 1, 0, 0, 0),
                 filter.ToTime,
+                stationCode,
                 ct);
             yearlyCumulative = await CalculateCumulativeNetWeightAsync(
                 filter.ProductCode,
                 filter.CustomerCode,
                 new DateTime(filter.ToTime.Year, 1, 1, 0, 0, 0),
                 filter.ToTime,
+                stationCode,
                 ct);
         }
 
@@ -96,20 +102,21 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
     private async Task<List<InboundSummaryReportRow>> BuildRowsAsync(
         IReadOnlyList<Domain.Entities.WeighingSession> sessions,
         InboundSummaryReportFilter filter,
+        string stationCode,
         CancellationToken ct)
     {
         var sessionIds = sessions.Select(x => x.Id).ToList();
         var lines = await _dbContext.WeighingSessionLines.AsNoTracking()
-            .Where(x => sessionIds.Contains(x.WeighingSessionId) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && sessionIds.Contains(x.WeighingSessionId) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var cutOrderIds = lines.Select(x => x.CutOrderId).Distinct().ToList();
         var cutOrders = await _dbContext.CutOrders.AsNoTracking()
-            .Where(x => cutOrderIds.Contains(x.Id) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && cutOrderIds.Contains(x.Id) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var weighTickets = await _dbContext.WeighTickets.AsNoTracking()
-            .Where(x => x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var cutOrdersById = cutOrders.ToDictionary(x => x.Id);
@@ -161,10 +168,11 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
         string? customerCode,
         DateTime fromTime,
         DateTime toTime,
+        string stationCode,
         CancellationToken ct)
     {
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsDeleted && !x.IsCancelled)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x => x.TransactionType == TransactionType.INBOUND)
             .Where(x => x.Weight2Time.HasValue && x.Weight2Time.Value >= fromTime && x.Weight2Time.Value <= toTime)
             .Select(x => new { x.Id, x.NetWeight })
@@ -177,12 +185,12 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
         var lines = await _dbContext.WeighingSessionLines.AsNoTracking()
-            .Where(x => sessionIds.Contains(x.WeighingSessionId) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && sessionIds.Contains(x.WeighingSessionId) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var cutOrderIds = lines.Select(x => x.CutOrderId).Distinct().ToList();
         var cutOrders = await _dbContext.CutOrders.AsNoTracking()
-            .Where(x => cutOrderIds.Contains(x.Id) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && cutOrderIds.Contains(x.Id) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var cutOrdersById = cutOrders.ToDictionary(x => x.Id);
@@ -234,6 +242,12 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
         }
 
         return true;
+    }
+
+    private async Task<string> ResolveStationCodeAsync(CancellationToken ct)
+    {
+        var configured = await _appConfigRepository.GetValueAsync(AppConfigKeys.StationCode, ct);
+        return string.IsNullOrWhiteSpace(configured) ? "QN01" : configured.Trim();
     }
 
     private static string? ResolveNotes(Domain.Entities.CutOrder cutOrder, Domain.Entities.WeighTicket? weighTicket)

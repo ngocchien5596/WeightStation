@@ -5,6 +5,7 @@ namespace StationApp.Domain.Entities;
 public class WeighingSession
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public string SessionNo { get; set; } = string.Empty;
     public TransactionType TransactionType { get; set; }
 
@@ -20,6 +21,12 @@ public class WeighingSession
     public DateTime? Weight2Time { get; set; }
     public decimal? NetWeight { get; set; }
     public decimal? Ttcp10WeightSnapshot { get; set; }
+    public string WeighingMode { get; set; } = "TWO_WEIGH";
+    public string? InternalVehicleNo { get; set; }
+    public decimal? StandardTareWeightSnapshot { get; set; }
+    public string? StandardTareSourceSnapshot { get; set; }
+    public Guid? StandardTareVehicleId { get; set; }
+    public string? NetWeightCalculationMode { get; set; } = "WEIGHT2_DIFF";
     public bool IsOverweight { get; set; }
     public decimal OverweightAmount { get; set; }
     public OverweightResolutionStatus OverweightResolutionStatus { get; set; } = OverweightResolutionStatus.NOT_APPLICABLE;

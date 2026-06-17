@@ -2,6 +2,9 @@ namespace StationApp.Domain.Constants;
 
 public static class AppConfigKeys
 {
+    public const string StationCode = "station_code";
+    public const string EnableUserStationScope = "enable_user_station_scope";
+    public const string DefaultStationCode = "default_station_code";
     public const string CentralApiUrl = "central_api_url";
     public const string CentralApiKey = "central_api_key";
     public const string LocalDatabaseBackupDirectory = "local_database_backup_directory";

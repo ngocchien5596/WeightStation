@@ -25,6 +25,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task AddAsync(CutOrder registration, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(registration.StationCode))
+        {
+            registration.StationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        }
+
         SyncTrackedEntityUpdateHelper.PrepareForAdd(registration);
         await _db.CutOrders.AddAsync(registration, ct);
     }
@@ -58,8 +63,9 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<CutOrder?> GetByErpIdAsync(string erpCutOrderId, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.CutOrders
-            .FirstOrDefaultAsync(v => !v.IsDeleted && v.ErpCutOrderId == erpCutOrderId, ct);
+            .FirstOrDefaultAsync(v => v.StationCode == stationCode && !v.IsDeleted && v.ErpCutOrderId == erpCutOrderId, ct);
     }
 
     public async Task<IReadOnlyList<CutOrder>> GetLatestDeletedByErpIdsAsync(IReadOnlyCollection<string> erpCutOrderIds, CancellationToken ct)
@@ -80,8 +86,10 @@ public class CutOrderRepository : ICutOrderRepository
             return Array.Empty<CutOrder>();
         }
 
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var deletedRows = await _db.CutOrders
             .Where(x => x.IsDeleted
+                && x.StationCode == stationCode
                 && x.ErpCutOrderId != null
                 && normalized.Contains(x.ErpCutOrderId)
                 && x.CarryForwardWeight1.HasValue)
@@ -113,8 +121,10 @@ public class CutOrderRepository : ICutOrderRepository
             return Array.Empty<CutOrder>();
         }
 
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var deletedRows = await _db.CutOrders
             .Where(x => x.IsDeleted
+                && x.StationCode == stationCode
                 && x.ErpRegistrationCode != null
                 && normalized.Contains(x.ErpRegistrationCode))
             .OrderByDescending(x => x.DeletedAt ?? x.UpdatedAt ?? x.CreatedAt)
@@ -129,8 +139,9 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<CutOrder>> GetByWeighingSessionIdAsync(Guid weighingSessionId, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var lineCutOrderIds = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(x => !x.IsDeleted && x.WeighingSessionId == weighingSessionId)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && x.WeighingSessionId == weighingSessionId)
             .OrderBy(x => x.SequenceNo)
             .Select(x => new { x.CutOrderId, x.SequenceNo })
             .ToListAsync(ct);
@@ -141,7 +152,8 @@ public class CutOrderRepository : ICutOrderRepository
         var ids = lineOrder.Keys.ToList();
 
         var registrations = await _db.CutOrders
-            .Where(x => !x.IsDeleted
+            .Where(x => x.StationCode == stationCode
+                && !x.IsDeleted
                 && (x.WeighingSessionId == weighingSessionId || ids.Contains(x.Id)))
             .ToListAsync(ct);
 
@@ -154,8 +166,9 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<CutOrder>> GetBySyncStatusAsync(SyncStatus syncStatus, int take, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.CutOrders
-            .Where(x => !x.IsDeleted && x.SyncStatus == syncStatus)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && x.SyncStatus == syncStatus)
             .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(take)
             .ToListAsync(ct);
@@ -163,7 +176,8 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<CutOrder>> SearchAsync(string? keyword, CancellationToken ct)
     {
-        var query = _db.CutOrders.AsQueryable();
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var query = _db.CutOrders.Where(v => v.StationCode == stationCode);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(v => !v.IsDeleted && (v.VehiclePlate.Contains(keyword) || 
@@ -178,16 +192,18 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<CutOrder>> GetUnprocessedInboundAsync(CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.CutOrders
-            .Where(v => !v.IsDeleted && !v.IsInboundProcessed && v.CutOrderSource == CutOrderSource.ERP)
+            .Where(v => v.StationCode == stationCode && !v.IsDeleted && !v.IsInboundProcessed && v.CutOrderSource == CutOrderSource.ERP)
             .OrderBy(v => v.CreatedAt)
             .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<WeightViewListItem>> GetWeightViewListAsync(string? keyword, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var regQuery = _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.WEIGHING && !vr.IsCancelled);
+            .Where(vr => vr.StationCode == stationCode && !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.WEIGHING && !vr.IsCancelled);
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -201,7 +217,7 @@ public class CutOrderRepository : ICutOrderRepository
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var matchedByTicketNo = await _db.WeighTickets.AsNoTracking()
-                .Where(wt => !wt.IsDeleted && wt.TicketNo != null && wt.TicketNo.Contains(keyword))
+                .Where(wt => wt.StationCode == stationCode && !wt.IsDeleted && wt.TicketNo != null && wt.TicketNo.Contains(keyword))
                 .Select(wt => wt.CutOrderId)
                 .ToListAsync(ct);
 
@@ -209,7 +225,7 @@ public class CutOrderRepository : ICutOrderRepository
             if (extraRegIds.Any())
             {
                 var extraRegs = await _db.CutOrders.AsNoTracking()
-                    .Where(vr => extraRegIds.Contains(vr.Id))
+                    .Where(vr => vr.StationCode == stationCode && extraRegIds.Contains(vr.Id))
                     .ToListAsync(ct);
 
                 registrations.AddRange(extraRegs);
@@ -218,11 +234,11 @@ public class CutOrderRepository : ICutOrderRepository
         }
 
         var weighTickets = await _db.WeighTickets.AsNoTracking()
-            .Where(wt => regIds.Contains(wt.CutOrderId) && !wt.IsDeleted)
+            .Where(wt => wt.StationCode == stationCode && regIds.Contains(wt.CutOrderId) && !wt.IsDeleted)
             .ToListAsync(ct);
 
         var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
-            .Where(dt => regIds.Contains(dt.CutOrderId) && !dt.IsDeleted)
+            .Where(dt => dt.StationCode == stationCode && regIds.Contains(dt.CutOrderId) && !dt.IsDeleted)
             .ToListAsync(ct);
 
         var sessionIds = registrations
@@ -233,7 +249,7 @@ public class CutOrderRepository : ICutOrderRepository
         var sessionById = sessionIds.Count == 0
             ? new Dictionary<Guid, WeighingSession>()
             : await _db.WeighingSessions.AsNoTracking()
-                .Where(session => !session.IsDeleted && sessionIds.Contains(session.Id))
+                .Where(session => session.StationCode == stationCode && !session.IsDeleted && sessionIds.Contains(session.Id))
                 .ToDictionaryAsync(session => session.Id, ct);
 
         var result = new List<WeightViewListItem>();
@@ -344,9 +360,10 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<IncomingVehicleListItem>> GetIncomingListAsync(IncomingVehicleListFilter filter, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var reuseCutoff = DateTime.Now.Subtract(ReuseWeight1Window);
         var query = _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.IN_YARD && !vr.IsCancelled);
+            .Where(vr => vr.StationCode == stationCode && !vr.IsDeleted && vr.ProcessingStage == ProcessingStage.IN_YARD && !vr.IsCancelled);
 
         if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
             query = query.Where(vr => vr.ErpCutOrderId != null && vr.ErpCutOrderId.Contains(filter.ErpCutOrderId));
@@ -380,6 +397,7 @@ public class CutOrderRepository : ICutOrderRepository
             ? new Dictionary<string, CutOrder>(StringComparer.OrdinalIgnoreCase)
             : (await _db.CutOrders.AsNoTracking()
                     .Where(x => x.IsDeleted
+                        && x.StationCode == stationCode
                         && x.ErpRegistrationCode != null
                         && carryForwardHistoryByRegistrationCode.Contains(x.ErpRegistrationCode)
                         && x.CarryForwardWeight1.HasValue
@@ -399,6 +417,7 @@ public class CutOrderRepository : ICutOrderRepository
             ? new Dictionary<string, CutOrder>(StringComparer.OrdinalIgnoreCase)
             : (await _db.CutOrders.AsNoTracking()
                     .Where(x => x.IsDeleted
+                        && x.StationCode == stationCode
                         && x.ErpCutOrderId != null
                         && carryForwardHistoryByErpId.Contains(x.ErpCutOrderId)
                         && x.CarryForwardWeight1.HasValue
@@ -418,6 +437,7 @@ public class CutOrderRepository : ICutOrderRepository
             ? new Dictionary<Guid, WeighingSession>()
             : await _db.WeighingSessions.AsNoTracking()
                 .Where(x => !x.IsDeleted
+                    && x.StationCode == stationCode
                     && !x.IsCancelled
                     && x.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
                     && x.Weight1.HasValue
@@ -504,12 +524,14 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<OutgoingVehicleListItem>> GetOutgoingListAsync(OutgoingVehicleListFilter filter, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var query =
             from vr in _db.CutOrders.AsNoTracking()
             join ws in _db.WeighingSessions.AsNoTracking()
                 on vr.WeighingSessionId equals ws.Id into sessionGroup
             from session in sessionGroup.Where(x => !x.IsDeleted).DefaultIfEmpty()
-            where vr.ProcessingStage == ProcessingStage.OUT_YARD
+            where vr.StationCode == stationCode
+                && vr.ProcessingStage == ProcessingStage.OUT_YARD
                 && vr.CutOrderStatus == CutOrderStatus.COMPLETED
                 && !vr.IsExportScale
                 && !vr.IsCancelled
@@ -577,11 +599,12 @@ public class CutOrderRepository : ICutOrderRepository
                 .ToDictionaryAsync(x => x.ProductCode.Trim(), x => x.ProductType, ct);
 
         var sessionLines = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(line => !line.IsDeleted && sessionIds.Contains(line.WeighingSessionId))
+            .Where(line => line.StationCode == stationCode && !line.IsDeleted && sessionIds.Contains(line.WeighingSessionId))
             .ToListAsync(ct);
 
         var sessionMasterWeighTickets = await _db.WeighTickets.AsNoTracking()
             .Where(wt => wt.WeighingSessionId.HasValue
+                && wt.StationCode == stationCode
                 && sessionIds.Contains(wt.WeighingSessionId.Value)
                 && !wt.IsDeleted
                 && wt.RecordRole == WeighTicketRecordRoles.MasterSession)
@@ -589,19 +612,22 @@ public class CutOrderRepository : ICutOrderRepository
 
         var splitWeighTickets = await _db.WeighTickets.AsNoTracking()
             .Where(wt => wt.WeighingSessionId.HasValue
+                && wt.StationCode == stationCode
                 && sessionIds.Contains(wt.WeighingSessionId.Value)
                 && !wt.IsDeleted
                 && wt.RecordRole == WeighTicketRecordRoles.SplitDerived)
             .ToListAsync(ct);
 
         var normalDeliveryTickets = await _db.DeliveryTickets.AsNoTracking()
-            .Where(dt => regIds.Contains(dt.CutOrderId)
+            .Where(dt => dt.StationCode == stationCode
+                && regIds.Contains(dt.CutOrderId)
                 && !dt.IsDeleted
                 && dt.RecordRole == DeliveryTicketRecordRoles.Normal)
             .ToListAsync(ct);
 
         var splitDeliveryTickets = await _db.DeliveryTickets.AsNoTracking()
-            .Where(dt => regIds.Contains(dt.CutOrderId)
+            .Where(dt => dt.StationCode == stationCode
+                && regIds.Contains(dt.CutOrderId)
                 && !dt.IsDeleted
                 && dt.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
             .ToListAsync(ct);
@@ -722,13 +748,17 @@ public class CutOrderRepository : ICutOrderRepository
 
     private async Task<IReadOnlyList<OutgoingVehicleListItem>> GetExportScaleOutgoingItemsAsync(OutgoingVehicleListFilter filter, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var query =
             from line in _db.WeighingSessionLines.AsNoTracking()
             join vr in _db.CutOrders.AsNoTracking()
                 on line.CutOrderId equals vr.Id
             join session in _db.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
-            where vr.IsExportScale
+            where vr.StationCode == stationCode
+                && line.StationCode == stationCode
+                && session.StationCode == stationCode
+                && vr.IsExportScale
                 && !vr.IsDeleted
                 && !vr.IsCancelled
                 && !line.IsDeleted
@@ -808,11 +838,13 @@ public class CutOrderRepository : ICutOrderRepository
                 .ToDictionaryAsync(x => x.ProductCode.Trim(), x => x.ProductType, ct);
         var weighTickets = await _db.WeighTickets.AsNoTracking()
             .Where(wt => wt.WeighingSessionId.HasValue
+                && wt.StationCode == stationCode
                 && sessionIds.Contains(wt.WeighingSessionId.Value)
                 && !wt.IsDeleted)
             .ToListAsync(ct);
         var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
             .Where(dt => dt.WeighingSessionId.HasValue
+                && dt.StationCode == stationCode
                 && sessionIds.Contains(dt.WeighingSessionId.Value)
                 && !dt.IsDeleted)
             .ToListAsync(ct);
@@ -895,8 +927,10 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<ExportScaleCutOrderListItem>> GetActiveExportScaleCutOrdersAsync(ExportScaleCutOrderFilter filter, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var query = _db.CutOrders.AsNoTracking()
-            .Where(co => !co.IsDeleted
+            .Where(co => co.StationCode == stationCode
+                && !co.IsDeleted
                 && !co.IsCancelled
                 && co.IsExportScale
                 && co.TransactionType == TransactionType.OUTBOUND
@@ -945,6 +979,8 @@ public class CutOrderRepository : ICutOrderRepository
             join session in _db.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
             where cutOrderIds.Contains(line.CutOrderId)
+                && line.StationCode == stationCode
+                && session.StationCode == stationCode
                 && !line.IsDeleted
                 && !session.IsDeleted
                 && !session.IsCancelled
@@ -1004,15 +1040,17 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<TemporaryExportCutOrderOption>> GetActiveTemporaryExportCutOrderOptionsAsync(Guid? realCutOrderId, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         CutOrder? realCutOrder = null;
         if (realCutOrderId.HasValue)
         {
             realCutOrder = await _db.CutOrders.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == realCutOrderId.Value, ct);
+                .FirstOrDefaultAsync(x => x.StationCode == stationCode && x.Id == realCutOrderId.Value, ct);
         }
 
         var query = _db.CutOrders.AsNoTracking()
-            .Where(co => co.IsTemporaryExport
+            .Where(co => co.StationCode == stationCode
+                && co.IsTemporaryExport
                 && co.IsExportScale
                 && co.TransactionType == TransactionType.OUTBOUND
                 && !co.IsDeleted
@@ -1022,13 +1060,16 @@ public class CutOrderRepository : ICutOrderRepository
                     (co.ProcessingStage == ProcessingStage.WEIGHING && co.CutOrderStatus == CutOrderStatus.IN_SESSION)
                     || _db.WeighingSessionLines.Any(line =>
                         line.CutOrderId == co.Id
+                        && line.StationCode == stationCode
                         && !line.IsDeleted
                         && _db.WeighingSessions.Any(session =>
                             session.Id == line.WeighingSessionId
+                            && session.StationCode == stationCode
                             && !session.IsDeleted
                             && !session.IsCancelled)))
                 && !_db.CutOrders.Any(activeReal =>
                     activeReal.Id == co.MappedRealCutOrderId
+                    && activeReal.StationCode == stationCode
                     && !activeReal.IsDeleted
                     && !activeReal.IsCancelled
                     && !activeReal.IsTemporaryExport));
@@ -1044,6 +1085,8 @@ public class CutOrderRepository : ICutOrderRepository
             join session in _db.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
             where cutOrderIds.Contains(line.CutOrderId)
+                && line.StationCode == stationCode
+                && session.StationCode == stationCode
                 && !line.IsDeleted
                 && !session.IsDeleted
                 && !session.IsCancelled
@@ -1143,9 +1186,10 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<string> GenerateTemporaryExportDisplayCodeAsync(CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         const string prefix = "CL-TAM-";
         var codes = await _db.CutOrders.AsNoTracking()
-            .Where(x => x.TemporaryExportDisplayCode != null && x.TemporaryExportDisplayCode.StartsWith(prefix))
+            .Where(x => x.StationCode == stationCode && x.TemporaryExportDisplayCode != null && x.TemporaryExportDisplayCode.StartsWith(prefix))
             .Select(x => x.TemporaryExportDisplayCode!)
             .ToListAsync(ct);
 
@@ -1159,6 +1203,7 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<ExportVehicleTripListItem>> GetExportVehicleTripsAsync(Guid cutOrderId, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var tripRows = await (
             from line in _db.WeighingSessionLines.AsNoTracking()
             join cutOrder in _db.CutOrders.AsNoTracking()
@@ -1166,6 +1211,9 @@ public class CutOrderRepository : ICutOrderRepository
             join session in _db.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
             where line.CutOrderId == cutOrderId
+                && line.StationCode == stationCode
+                && cutOrder.StationCode == stationCode
+                && session.StationCode == stationCode
                 && cutOrder.IsExportScale
                 && cutOrder.TransactionType == TransactionType.OUTBOUND
                 && !cutOrder.IsDeleted
@@ -1182,11 +1230,13 @@ public class CutOrderRepository : ICutOrderRepository
         var sessionIds = tripRows.Select(x => x.Session.Id).Distinct().ToList();
         var weighTickets = await _db.WeighTickets.AsNoTracking()
             .Where(wt => wt.WeighingSessionId.HasValue
+                && wt.StationCode == stationCode
                 && sessionIds.Contains(wt.WeighingSessionId.Value)
                 && !wt.IsDeleted)
             .ToListAsync(ct);
         var deliveryTickets = await _db.DeliveryTickets.AsNoTracking()
             .Where(dt => dt.WeighingSessionId.HasValue
+                && dt.StationCode == stationCode
                 && sessionIds.Contains(dt.WeighingSessionId.Value)
                 && !dt.IsDeleted)
             .ToListAsync(ct);
@@ -1228,10 +1278,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsDeleted && !vr.IsCancelled && vr.VehiclePlate.Contains(normalized))
+            .Where(vr => vr.StationCode == stationCode && !vr.IsDeleted && !vr.IsCancelled && vr.VehiclePlate.Contains(normalized))
             .OrderByDescending(vr => vr.VehiclePlate.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new VehicleAutocompleteSource(
@@ -1253,10 +1304,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchMoocHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsDeleted && !vr.IsCancelled && vr.MoocNumber != null && vr.MoocNumber.Contains(normalized))
+            .Where(vr => vr.StationCode == stationCode && !vr.IsDeleted && !vr.IsCancelled && vr.MoocNumber != null && vr.MoocNumber.Contains(normalized))
             .OrderByDescending(vr => vr.MoocNumber != null && vr.MoocNumber.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new VehicleAutocompleteSource(
@@ -1278,10 +1330,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<DriverAutocompleteSource>> SearchDriverHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsDeleted && !vr.IsCancelled && vr.ReceiverName != null && vr.ReceiverName.Contains(normalized))
+            .Where(vr => vr.StationCode == stationCode && !vr.IsDeleted && !vr.IsCancelled && vr.ReceiverName != null && vr.ReceiverName.Contains(normalized))
             .OrderByDescending(vr => vr.ReceiverName != null && vr.ReceiverName.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new DriverAutocompleteSource(
@@ -1298,10 +1351,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<CustomerAutocompleteSource>> SearchCustomerHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsCancelled && vr.CustomerName != null
+            .Where(vr => vr.StationCode == stationCode && !vr.IsCancelled && vr.CustomerName != null
                 && ((vr.CustomerCode != null && vr.CustomerCode.Contains(normalized)) || vr.CustomerName.Contains(normalized)))
             .OrderByDescending(vr => vr.CustomerName != null && vr.CustomerName.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
@@ -1318,10 +1372,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchProductCodeHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsCancelled && vr.ProductCode != null && vr.ProductCode.Contains(normalized))
+            .Where(vr => vr.StationCode == stationCode && !vr.IsCancelled && vr.ProductCode != null && vr.ProductCode.Contains(normalized))
             .OrderByDescending(vr => vr.ProductCode != null && vr.ProductCode.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)
             .Select(vr => new ProductAutocompleteSource(
@@ -1338,10 +1393,11 @@ public class CutOrderRepository : ICutOrderRepository
 
     public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchProductNameHistorySourcesAsync(string keyword, int limit, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var normalized = keyword.Trim();
 
         var list = await _db.CutOrders.AsNoTracking()
-            .Where(vr => !vr.IsCancelled && vr.ProductName != null
+            .Where(vr => vr.StationCode == stationCode && !vr.IsCancelled && vr.ProductName != null
                 && ((vr.ProductCode != null && vr.ProductCode.Contains(normalized)) || vr.ProductName.Contains(normalized)))
             .OrderByDescending(vr => vr.ProductName != null && vr.ProductName.StartsWith(normalized))
             .ThenByDescending(vr => vr.UpdatedAt ?? vr.CreatedAt)

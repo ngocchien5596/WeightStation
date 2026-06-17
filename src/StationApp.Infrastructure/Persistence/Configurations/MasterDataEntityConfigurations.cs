@@ -18,6 +18,9 @@ public class VehicleEntityConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.Property(e => e.TtcpWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.VehicleRegistrationNo).HasMaxLength(50);
         builder.Property(e => e.MoocRegistrationNo).HasMaxLength(50);
+        builder.Property(e => e.IsInternalVehicle).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.StandardTareSource).HasMaxLength(50);
+        builder.Property(e => e.StandardTareUpdatedBy).HasMaxLength(100);
 
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
@@ -25,6 +28,7 @@ public class VehicleEntityConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.HasIndex(e => new { e.VehiclePlate, e.MoocNumber }).IsUnique().HasDatabaseName("UX_vehicles_plate_mooc");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_vehicles_plate");
         builder.HasIndex(e => e.IsActive).HasDatabaseName("IX_vehicles_is_active");
+        builder.HasIndex(e => new { e.IsInternalVehicle, e.VehiclePlate }).HasDatabaseName("IX_vehicles_internal_plate");
     }
 }
 
@@ -69,6 +73,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
     {
         builder.ToTable("delivery_tickets");
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.WeighingSessionId);
         builder.Property(e => e.WeighingSessionLineId);
 
@@ -94,7 +99,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.HasIndex(e => e.IsPrinted).HasDatabaseName("IX_delivery_tickets_is_printed");
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_delivery_tickets_weighing_session_id");
         builder.HasIndex(e => e.WeighingSessionLineId).HasDatabaseName("IX_delivery_tickets_weighing_session_line_id");
-        builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_delivery_tickets_sync_status");
+        builder.HasIndex(e => new { e.StationCode, e.SyncStatus }).HasDatabaseName("IX_delivery_tickets_station_sync_status");
         builder.HasIndex(e => e.CutOrderId).HasDatabaseName("IX_delivery_tickets_vehicle_registration_id");
     }
 }

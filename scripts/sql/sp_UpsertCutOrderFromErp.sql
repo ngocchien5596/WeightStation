@@ -10,6 +10,7 @@ IF OBJECT_ID(N'dbo.sp_UpsertCutOrderFromErp', N'P') IS NULL
 GO
 
 ALTER PROCEDURE [dbo].[sp_UpsertCutOrderFromErp]
+    @StationCode NVARCHAR(50),
     @ErpCutOrderId NVARCHAR(100),
     @ErpRegistrationCode NVARCHAR(100) = NULL,
     @CutOrderSource NVARCHAR(40) = NULL,
@@ -68,6 +69,7 @@ BEGIN
     DECLARE @NormalizedProductType NVARCHAR(30);
     DECLARE @CarryForwardNotes NVARCHAR(500);
 
+    SET @StationCode = NULLIF(LTRIM(RTRIM(@StationCode)), N'');
     SET @ErpCutOrderId = NULLIF(LTRIM(RTRIM(@ErpCutOrderId)), N'');
     SET @ErpRegistrationCode = NULLIF(LTRIM(RTRIM(@ErpRegistrationCode)), N'');
     SET @CutOrderSource = UPPER(NULLIF(LTRIM(RTRIM(@CutOrderSource)), N''));
@@ -108,6 +110,9 @@ BEGIN
         SET @ProductType = N'Roi/Xa';
     ELSE IF @NormalizedProductType = N'Xa dong bao' OR @NormalizedProductType LIKE N'X_ ____ bao'
         SET @ProductType = N'Bao';
+
+    IF @StationCode IS NULL
+        THROW 51090, N'StationCode la bat buoc.', 1;
 
     IF @ErpCutOrderId IS NULL
         THROW 51001, N'ErpCutOrderId la bat buoc.', 1;
@@ -163,6 +168,7 @@ BEGIN
             @CarryForwardNotes = NULLIF(LTRIM(RTRIM(co.Notes)), N'')
         FROM dbo.cut_orders co
         WHERE co.ErpCutOrderId = @ErpCutOrderId
+          AND co.StationCode = @StationCode
           AND ISNULL(co.IsDeleted, 0) = 1
           AND co.Notes IS NOT NULL
         ORDER BY COALESCE(co.UpdatedAt, co.CreatedAt) DESC, co.CreatedAt DESC;
@@ -178,6 +184,7 @@ BEGIN
         @ExistingIsCancelled = IsCancelled
     FROM dbo.cut_orders
     WHERE ErpCutOrderId = @ErpCutOrderId
+      AND StationCode = @StationCode
       AND ISNULL(IsDeleted, 0) = 0
     ORDER BY CreatedAt DESC;
 
@@ -241,6 +248,7 @@ BEGIN
     INSERT INTO dbo.cut_orders
     (
         Id,
+        StationCode,
         ErpCutOrderId,
         ErpRegistrationCode,
         CutOrderSource,
@@ -287,6 +295,7 @@ BEGIN
     VALUES
     (
         NEWID(),
+        @StationCode,
         @ErpCutOrderId,
         @ErpRegistrationCode,
         @CutOrderSource,

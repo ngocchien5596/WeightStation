@@ -5,6 +5,7 @@ namespace StationApp.Domain.Entities;
 public class WeighingSessionLine
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public Guid WeighingSessionId { get; set; }
     public Guid CutOrderId { get; set; }
     public int SequenceNo { get; set; }

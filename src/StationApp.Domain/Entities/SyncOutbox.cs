@@ -5,6 +5,7 @@ namespace StationApp.Domain.Entities;
 public class SyncOutbox
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public Guid AggregateId { get; set; }
     public string AggregateType { get; set; } = string.Empty;
     public string PayloadJson { get; set; } = string.Empty;

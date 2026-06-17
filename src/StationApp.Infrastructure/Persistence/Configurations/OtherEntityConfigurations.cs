@@ -113,6 +113,65 @@ public class UserEntityConfiguration : IEntityTypeConfiguration<User>
     }
 }
 
+public class StationEntityConfiguration : IEntityTypeConfiguration<Station>
+{
+    public void Configure(EntityTypeBuilder<Station> builder)
+    {
+        builder.ToTable("stations");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.StationName).HasMaxLength(255).IsRequired();
+        builder.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+        builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100);
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
+
+        builder.HasIndex(e => e.StationCode).IsUnique();
+        builder.HasIndex(e => new { e.IsActive, e.SortOrder });
+    }
+}
+
+public class UserStationAssignmentEntityConfiguration : IEntityTypeConfiguration<UserStationAssignment>
+{
+    public void Configure(EntityTypeBuilder<UserStationAssignment> builder)
+    {
+        builder.ToTable("user_station_assignments");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.IsDefault).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100);
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
+
+        builder.HasOne(e => e.User)
+            .WithMany()
+            .HasForeignKey(e => e.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(e => new { e.UserId, e.IsActive });
+        builder.HasIndex(e => new { e.UserId, e.StationCode }).IsUnique();
+    }
+}
+
+public class StationFeatureFlagEntityConfiguration : IEntityTypeConfiguration<StationFeatureFlag>
+{
+    public void Configure(EntityTypeBuilder<StationFeatureFlag> builder)
+    {
+        builder.ToTable("station_feature_flags");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.FeatureKey).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.FeatureValue).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.CreatedBy).HasMaxLength(100);
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
+
+        builder.HasIndex(e => new { e.StationCode, e.FeatureKey }).IsUnique();
+    }
+}
+
 public class PrintTemplateProfileEntityConfiguration : IEntityTypeConfiguration<PrintTemplateProfile>
 {
     public void Configure(EntityTypeBuilder<PrintTemplateProfile> builder)

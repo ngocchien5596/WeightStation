@@ -77,6 +77,12 @@
                                 <TextBlock Text="{StaticResource MainWindow.Nav.Weighing}" VerticalAlignment="Center"/>
                             </Button>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
+                                    Visibility="{Binding CanViewCrusherWeighing, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding NavigateCommand}"
+                                    CommandParameter="CrusherWeighing">
+                                <TextBlock Text="C&#xE2;n tr&#x1EA1;m &#x111;&#x1EAD;p" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarMenuItemStyle}"
                                     Visibility="{Binding CanViewExportWeighing, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="ExportWeighing">
@@ -195,6 +201,11 @@
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsExternalDatacan}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewSettingsStations, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Settings_Stations">
+                                    <TextBlock Text="{StaticResource MainWindow.Nav.SettingsStations}" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsAccounts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Accounts">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsAccounts}" VerticalAlignment="Center"/>
@@ -224,6 +235,34 @@
 
         <Grid Grid.Column="1" Background="{StaticResource MainContentBackground}">
             <ContentControl Content="{Binding CurrentView}" Margin="0"/>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,13,260,0"
+                        Panel.ZIndex="99">
+                <TextBlock Text="Tr&#x1EA1;m:"
+                           Style="{StaticResource HeaderLabel}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+                <ComboBox Width="150"
+                          Height="38"
+                          Style="{StaticResource HeaderComboBoxStyle}"
+                          FontSize="13.5"
+                          FontWeight="Normal"
+                          ItemsSource="{Binding AllowedStations}"
+                          SelectedItem="{Binding SelectedStation, Mode=TwoWay}"
+                          ToolTip="{Binding CurrentStationDisplay}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding StationName}"
+                                       FontSize="13.5"
+                                       FontWeight="Normal"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
             
             <!-- Global Clock Capsule Badge -->
             <Border Style="{StaticResource ClockBadgeStyle}" 

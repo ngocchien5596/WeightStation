@@ -17,6 +17,9 @@ public class SqlObjectDeploymentTests
         Assert.Contains(
             "StationApp.Infrastructure.SqlScripts.sp_UpdateCutOrderErpExtras.sql",
             SqlObjectScriptCatalog.ResourceNames);
+        Assert.Contains(
+            "StationApp.Infrastructure.SqlScripts.sp_UpsertCutOrderFromErp.sql",
+            SqlObjectScriptCatalog.ResourceNames);
     }
 
     [Theory]

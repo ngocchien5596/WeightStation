@@ -109,6 +109,7 @@ public partial class App : System.Windows.Application
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         _host.Services.GetRequiredService<ICurrentUserContext>().SignOut();
+        _host.Services.GetRequiredService<ICurrentStationContext>().Clear();
 
         var currentMainWindow = MainWindow;
         MainWindow = null;
@@ -158,6 +159,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IAppConfigRepository, AppConfigRepository>();
                     services.AddScoped<IUserRepository, UserRepository>();
                     services.AddScoped<IVehicleRepository, VehicleRepository>();
+                    services.AddScoped<IStationOperationSettingsRepository, StationOperationSettingsRepository>();
                     services.AddScoped<ICustomerRepository, CustomerRepository>();
                     services.AddScoped<IProductRepository, ProductRepository>();
                     services.AddScoped<IDeliveryTicketRepository, DeliveryTicketRepository>();
@@ -176,6 +178,11 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<IAppVersionProvider, AppVersionProvider>();
                     services.AddSingleton<IClock, SystemClock>();
                     services.AddSingleton<ICurrentUserContext, CurrentUserContext>();
+                    services.AddSingleton<ICurrentStationContext, CurrentStationContext>();
+                    services.AddScoped<IStationScope, StationScope>();
+                    services.AddScoped<IStationAuthorizationService, StationAuthorizationService>();
+                    services.AddScoped<IStationAdministrationService, StationAdministrationService>();
+                    services.AddScoped<IStationFeatureService, StationFeatureService>();
                     services.AddScoped<IToleranceProvider, ToleranceProvider>();
                     services.AddScoped<ICameraSettingsProvider, CameraSettingsProvider>();
                     services.AddScoped<IAuditService, AuditService>();
@@ -225,6 +232,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<CreateInboundRegistrationUseCase>();
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
                     services.AddScoped<CreateWeighingSessionUseCase>();
+                    services.AddScoped<CrusherWeighingUseCases>();
                     services.AddScoped<AppendCutOrdersToWeighingSessionUseCase>();
                     services.AddScoped<SetWeighingSessionBaggedActualWeightOverrideUseCase>();
                     services.AddScoped<CaptureSessionWeight1UseCase>();
@@ -300,6 +308,7 @@ public partial class App : System.Windows.Application
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<AppUpdateViewModel>();
                     services.AddTransient<WeighingViewModel>();
+                    services.AddTransient<CrusherWeighingViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<ExportSummaryReportViewModel>();
                     services.AddTransient<InboundSummaryReportViewModel>();
@@ -423,6 +432,7 @@ public partial class App : System.Windows.Application
         }
 
         _host.Services.GetRequiredService<ICurrentUserContext>().SignOut();
+        _host.Services.GetRequiredService<ICurrentStationContext>().Clear();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         var loginWindow = new LoginWindow

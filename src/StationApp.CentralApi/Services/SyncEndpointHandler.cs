@@ -23,6 +23,7 @@ public static class SyncEndpointHandler
         var log = new SyncIngestionLog
         {
             Id = Guid.NewGuid(),
+            StationCode = TryGetStationCode(payload),
             AggregateType = aggregateType,
             SourceRecordId = sourceRecordId,
             ReceivedAt = now,
@@ -33,13 +34,19 @@ public static class SyncEndpointHandler
         try
         {
             logger.LogInformation(
-                "Sync request started. AggregateType={AggregateType} SourceRecordId={SourceRecordId} Method={Method} Path={Path} RemoteIp={RemoteIp} TraceId={TraceId}",
+                "Sync request started. AggregateType={AggregateType} StationCode={StationCode} SourceRecordId={SourceRecordId} Method={Method} Path={Path} RemoteIp={RemoteIp} TraceId={TraceId}",
                 aggregateType,
+                log.StationCode ?? "-",
                 sourceRecordId,
                 httpContext.Request.Method,
                 httpContext.Request.Path,
                 httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 httpContext.TraceIdentifier);
+
+            if (RequiresStationCode(payload) && string.IsNullOrWhiteSpace(log.StationCode))
+            {
+                throw new InvalidOperationException("StationCode is required for business sync payload.");
+            }
 
             var existing = await db.Set<TEntity>().FindAsync([sourceRecordId], ct);
             if (existing == null)
@@ -135,5 +142,14 @@ public static class SyncEndpointHandler
         }
 
         return string.Join(" | ", parts.Distinct());
+    }
+
+    private static bool RequiresStationCode<TEntity>(TEntity payload)
+        => payload?.GetType().GetProperty("StationCode") != null;
+
+    private static string? TryGetStationCode<TEntity>(TEntity payload)
+    {
+        var property = payload?.GetType().GetProperty("StationCode");
+        return property?.GetValue(payload) as string;
     }
 }

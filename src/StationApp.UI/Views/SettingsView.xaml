@@ -107,6 +107,10 @@
                 <settings:ExternalDatacanView DataContext="{Binding ExternalDatacanVM}"/>
             </TabItem>
 
+            <TabItem Header="DANH M&#x1EE4;C TR&#x1EA0;M" Visibility="{Binding CanAccessStationMaster, Converter={StaticResource BoolToVis}}">
+                <settings:StationMasterView DataContext="{Binding StationMasterVM}"/>
+            </TabItem>
+
             <TabItem Header="QU&#x1EA2;N L&#xDD; T&#xC0;I KHO&#x1EA2;N" Visibility="{Binding CanAccessAccountManagement, Converter={StaticResource BoolToVis}}">
                 <settings:AccountManagementView DataContext="{Binding AccountManagementVM}"/>
             </TabItem>

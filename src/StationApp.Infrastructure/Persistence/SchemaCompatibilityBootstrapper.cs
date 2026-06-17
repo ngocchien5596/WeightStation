@@ -7,6 +7,7 @@ public static class SchemaCompatibilityBootstrapper
 {
     private static readonly IReadOnlyList<ColumnPatch> CutOrderColumnPatches =
     [
+        new("StationCode", "nvarchar(50) NULL"),
         new("WeighingSessionId", "uniqueidentifier NULL"),
         new("ProductType", "nvarchar(30) NULL"),
         new("OrderCode", "nvarchar(100) NULL"),
@@ -41,6 +42,7 @@ public static class SchemaCompatibilityBootstrapper
 
     private static readonly IReadOnlyList<ColumnPatch> WeighTicketColumnPatches =
     [
+        new("StationCode", "nvarchar(50) NULL"),
         new("WeighingSessionId", "uniqueidentifier NULL"),
         new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_weigh_tickets_is_deleted_bootstrap] DEFAULT ((0))"),
         new("DeletedAt", "datetime2 NULL"),
@@ -49,12 +51,18 @@ public static class SchemaCompatibilityBootstrapper
 
     private static readonly IReadOnlyList<ColumnPatch> DeliveryTicketColumnPatches =
     [
+        new("StationCode", "nvarchar(50) NULL"),
         new("SyncStatus", "nvarchar(40) NOT NULL CONSTRAINT [DF_delivery_tickets_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
         new("WeighingSessionId", "uniqueidentifier NULL"),
         new("WeighingSessionLineId", "uniqueidentifier NULL"),
         new("IsDeleted", "bit NOT NULL CONSTRAINT [DF_delivery_tickets_is_deleted_bootstrap] DEFAULT ((0))"),
         new("DeletedAt", "datetime2 NULL"),
         new("DeletedBy", "nvarchar(100) NULL")
+    ];
+
+    private static readonly IReadOnlyList<ColumnPatch> SyncOutboxColumnPatches =
+    [
+        new("StationCode", "nvarchar(50) NULL")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> UserColumnPatches =
@@ -70,15 +78,41 @@ public static class SchemaCompatibilityBootstrapper
         new("ProductType", "nvarchar(30) NULL")
     ];
 
+    private static readonly IReadOnlyList<ColumnPatch> VehicleColumnPatches =
+    [
+        new("IsInternalVehicle", "bit NOT NULL CONSTRAINT [DF_vehicles_is_internal_vehicle_bootstrap] DEFAULT ((0))"),
+        new("StandardTareSource", "nvarchar(50) NULL"),
+        new("StandardTareUpdatedAt", "datetime2 NULL"),
+        new("StandardTareUpdatedBy", "nvarchar(100) NULL")
+    ];
+
+    private static readonly IReadOnlyList<ColumnPatch> WeighTicketCrusherColumnPatches =
+    [
+        new("WeighingMode", "nvarchar(40) NOT NULL CONSTRAINT [DF_weigh_tickets_weighing_mode_bootstrap] DEFAULT (N'TWO_WEIGH')"),
+        new("InternalVehicleNo", "nvarchar(30) NULL"),
+        new("StandardTareWeightSnapshot", "decimal(18,3) NULL"),
+        new("StandardTareSourceSnapshot", "nvarchar(50) NULL"),
+        new("StandardTareVehicleId", "uniqueidentifier NULL"),
+        new("NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weigh_tickets_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')")
+    ];
+
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionColumnPatches =
     [
+        new("StationCode", "nvarchar(50) NULL"),
         new("SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_sessions_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
         new("LastSyncAttemptAt", "datetime2 NULL"),
-        new("LastSyncError", "nvarchar(1000) NULL")
+        new("LastSyncError", "nvarchar(1000) NULL"),
+        new("WeighingMode", "nvarchar(40) NOT NULL CONSTRAINT [DF_weighing_sessions_weighing_mode_bootstrap] DEFAULT (N'TWO_WEIGH')"),
+        new("InternalVehicleNo", "nvarchar(30) NULL"),
+        new("StandardTareWeightSnapshot", "decimal(18,3) NULL"),
+        new("StandardTareSourceSnapshot", "nvarchar(50) NULL"),
+        new("StandardTareVehicleId", "uniqueidentifier NULL"),
+        new("NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weighing_sessions_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionLineColumnPatches =
     [
+        new("StationCode", "nvarchar(50) NULL"),
         new("SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
         new("LastSyncAttemptAt", "datetime2 NULL"),
         new("LastSyncError", "nvarchar(1000) NULL")
@@ -86,6 +120,7 @@ public static class SchemaCompatibilityBootstrapper
 
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionImageColumnPatches =
     [
+        new("StationCode", "nvarchar(50) NULL"),
         new("Id", "uniqueidentifier NOT NULL CONSTRAINT [DF_weighing_session_images_id_bootstrap] DEFAULT (newid())"),
         new("WeighingSessionId", "uniqueidentifier NOT NULL"),
         new("CaptureStage", "nvarchar(20) NOT NULL CONSTRAINT [DF_weighing_session_images_stage_bootstrap] DEFAULT (N'WEIGHT1')"),
@@ -118,13 +153,19 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureCutOrderIndexesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "delivery_tickets", DeliveryTicketColumnPatches, ct);
+        await EnsureTableColumnsAsync(db, logger, "sync_outbox", SyncOutboxColumnPatches, ct);
         await EnsureDeliveryTicketSyncStatusSchemaAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
+        await EnsureStationAccessTablesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
+        await EnsureTableColumnsAsync(db, logger, "vehicles", VehicleColumnPatches, ct);
+        await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketCrusherColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weighing_sessions", WeighingSessionColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "weighing_session_lines", WeighingSessionLineColumnPatches, ct);
         await EnsureWeighingSessionImagesTableAsync(db, logger, ct);
+        await EnsureStationCodeBackfillAndIndexesAsync(db, logger, ct);
+        await EnsureStationOperationSettingsTableAsync(db, logger, ct);
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
         await DropLegacyDeviceConfigTableAsync(db, logger, ct);
     }
@@ -262,6 +303,160 @@ END";
                 tableName,
                 patch.ColumnName);
         }
+    }
+
+    private static async Task EnsureStationAccessTablesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+DECLARE @Now datetime2(7) = SYSDATETIME();
+DECLARE @StationCode nvarchar(50);
+
+SELECT @StationCode = NULLIF(LTRIM(RTRIM(ConfigValue)), N'')
+FROM dbo.app_config
+WHERE ConfigKey = N'default_station_code';
+
+IF @StationCode IS NULL
+BEGIN
+    SELECT @StationCode = NULLIF(LTRIM(RTRIM(ConfigValue)), N'')
+    FROM dbo.app_config
+    WHERE ConfigKey = N'station_code';
+END;
+
+IF @StationCode IS NULL
+    SET @StationCode = N'QN01';
+
+IF NOT EXISTS (SELECT 1 FROM dbo.app_config WHERE ConfigKey = N'default_station_code')
+BEGIN
+    INSERT INTO dbo.app_config(ConfigKey, ConfigValue, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
+    VALUES (N'default_station_code', @StationCode, @Now, N'SYSTEM', @Now, N'SYSTEM');
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.app_config WHERE ConfigKey = N'enable_user_station_scope')
+BEGIN
+    INSERT INTO dbo.app_config(ConfigKey, ConfigValue, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy)
+    VALUES (N'enable_user_station_scope', N'true', @Now, N'SYSTEM', @Now, N'SYSTEM');
+END;
+
+IF OBJECT_ID(N'dbo.stations', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.stations
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_stations PRIMARY KEY,
+        StationCode nvarchar(50) NOT NULL,
+        StationName nvarchar(255) NOT NULL,
+        IsActive bit NOT NULL CONSTRAINT DF_stations_is_active DEFAULT (1),
+        SortOrder int NOT NULL CONSTRAINT DF_stations_sort_order DEFAULT (0),
+        CreatedAt datetime2(7) NOT NULL,
+        CreatedBy nvarchar(100) NULL,
+        UpdatedAt datetime2(7) NULL,
+        UpdatedBy nvarchar(100) NULL
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_stations_station_code' AND object_id = OBJECT_ID(N'dbo.stations'))
+BEGIN
+    CREATE UNIQUE INDEX UX_stations_station_code ON dbo.stations(StationCode);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.stations WHERE StationCode = @StationCode)
+BEGIN
+    INSERT INTO dbo.stations(Id, StationCode, StationName, IsActive, SortOrder, CreatedAt, CreatedBy)
+    VALUES (NEWID(), @StationCode, CONCAT(N'Trạm ', @StationCode), 1, 0, @Now, N'SYSTEM');
+END;
+
+IF OBJECT_ID(N'dbo.user_station_assignments', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.user_station_assignments
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_user_station_assignments PRIMARY KEY,
+        UserId uniqueidentifier NOT NULL,
+        StationCode nvarchar(50) NOT NULL,
+        IsDefault bit NOT NULL CONSTRAINT DF_user_station_default DEFAULT (0),
+        IsActive bit NOT NULL CONSTRAINT DF_user_station_active DEFAULT (1),
+        CreatedAt datetime2(7) NOT NULL,
+        CreatedBy nvarchar(100) NULL,
+        UpdatedAt datetime2(7) NULL,
+        UpdatedBy nvarchar(100) NULL
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_user_station_assignments_users')
+BEGIN
+    ALTER TABLE dbo.user_station_assignments
+    ADD CONSTRAINT FK_user_station_assignments_users
+    FOREIGN KEY (UserId) REFERENCES dbo.users(Id);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_user_station_assignments_user_station' AND object_id = OBJECT_ID(N'dbo.user_station_assignments'))
+BEGIN
+    CREATE UNIQUE INDEX UX_user_station_assignments_user_station
+    ON dbo.user_station_assignments(UserId, StationCode);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_user_station_assignments_user_active' AND object_id = OBJECT_ID(N'dbo.user_station_assignments'))
+BEGIN
+    CREATE INDEX IX_user_station_assignments_user_active
+    ON dbo.user_station_assignments(UserId, IsActive);
+END;
+
+INSERT INTO dbo.user_station_assignments(Id, UserId, StationCode, IsDefault, IsActive, CreatedAt, CreatedBy)
+SELECT NEWID(), u.Id, @StationCode, 1, 1, @Now, N'SYSTEM'
+FROM dbo.users u
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.user_station_assignments usa
+    WHERE usa.UserId = u.Id
+);
+
+IF OBJECT_ID(N'dbo.station_feature_flags', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.station_feature_flags
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_station_feature_flags PRIMARY KEY,
+        StationCode nvarchar(50) NOT NULL,
+        FeatureKey nvarchar(100) NOT NULL,
+        FeatureValue nvarchar(50) NOT NULL,
+        CreatedAt datetime2(7) NOT NULL,
+        CreatedBy nvarchar(100) NULL,
+        UpdatedAt datetime2(7) NULL,
+        UpdatedBy nvarchar(100) NULL
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_station_feature_flags_station_key' AND object_id = OBJECT_ID(N'dbo.station_feature_flags'))
+BEGIN
+    CREATE UNIQUE INDEX UX_station_feature_flags_station_key
+    ON dbo.station_feature_flags(StationCode, FeatureKey);
+END;
+
+DECLARE @DefaultFeatures TABLE(FeatureKey nvarchar(100) NOT NULL, FeatureValue nvarchar(50) NOT NULL);
+INSERT INTO @DefaultFeatures(FeatureKey, FeatureValue)
+VALUES
+    (N'show_menu_dashboard', N'true'),
+    (N'show_menu_incoming_vehicle_list', N'true'),
+    (N'show_menu_weighing', N'true'),
+    (N'show_menu_crusher_weighing', N'false'),
+    (N'show_menu_export_weighing', N'true'),
+    (N'show_menu_outgoing_vehicle_list', N'true'),
+    (N'show_menu_export_report', N'true'),
+    (N'show_menu_inbound_report', N'true'),
+    (N'show_dashboard_inbound_kpi', N'true'),
+    (N'show_dashboard_outbound_kpi', N'true'),
+    (N'default_navigation_target', N'Dashboard');
+
+INSERT INTO dbo.station_feature_flags(Id, StationCode, FeatureKey, FeatureValue, CreatedAt, CreatedBy)
+SELECT NEWID(), @StationCode, f.FeatureKey, f.FeatureValue, @Now, N'SYSTEM'
+FROM @DefaultFeatures f
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.station_feature_flags existing
+    WHERE existing.StationCode = @StationCode
+      AND existing.FeatureKey = f.FeatureKey
+);
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogInformation("Ensured station access and feature flag tables.");
     }
 
     private static async Task EnsureDeliveryTicketSyncStatusSchemaAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
@@ -563,6 +758,189 @@ END
         }
 
         logger?.LogDebug("Schema compatibility check completed for weighing session tables and indexes.");
+    }
+
+    private static async Task EnsureStationCodeBackfillAndIndexesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+DECLARE @StationCode nvarchar(50);
+
+SELECT @StationCode = NULLIF(LTRIM(RTRIM([ConfigValue])), N'')
+FROM [app_config]
+WHERE [ConfigKey] = N'station_code';
+
+IF @StationCode IS NULL
+    SET @StationCode = N'QN01';
+
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL AND COL_LENGTH('cut_orders', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE [cut_orders]
+    SET [StationCode] = @StationCode
+    WHERE [StationCode] IS NULL OR LTRIM(RTRIM([StationCode])) = N'';
+
+    ALTER TABLE [cut_orders] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_station_stage_status' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_station_stage_status]
+        ON [cut_orders]([StationCode], [ProcessingStage], [CutOrderStatus], [IsDeleted]);
+    END
+END
+
+IF OBJECT_ID(N'[weighing_sessions]', N'U') IS NOT NULL AND COL_LENGTH('weighing_sessions', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE [weighing_sessions]
+    SET [StationCode] = @StationCode
+    WHERE [StationCode] IS NULL OR LTRIM(RTRIM([StationCode])) = N'';
+
+    ALTER TABLE [weighing_sessions] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_sessions_station_status_time' AND object_id = OBJECT_ID(N'[weighing_sessions]'))
+    BEGIN
+        CREATE INDEX [IX_weighing_sessions_station_status_time]
+        ON [weighing_sessions]([StationCode], [SessionStatus], [Weight2Time], [CreatedAt]);
+    END
+END
+
+IF OBJECT_ID(N'[weighing_session_lines]', N'U') IS NOT NULL AND COL_LENGTH('weighing_session_lines', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE wl
+    SET wl.[StationCode] = COALESCE(NULLIF(LTRIM(RTRIM(ws.[StationCode])), N''), @StationCode)
+    FROM [weighing_session_lines] wl
+    LEFT JOIN [weighing_sessions] ws ON ws.[Id] = wl.[WeighingSessionId]
+    WHERE wl.[StationCode] IS NULL OR LTRIM(RTRIM(wl.[StationCode])) = N'';
+
+    ALTER TABLE [weighing_session_lines] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+END
+
+IF OBJECT_ID(N'[weigh_tickets]', N'U') IS NOT NULL AND COL_LENGTH('weigh_tickets', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE wt
+    SET wt.[StationCode] = COALESCE(NULLIF(LTRIM(RTRIM(co.[StationCode])), N''), NULLIF(LTRIM(RTRIM(ws.[StationCode])), N''), @StationCode)
+    FROM [weigh_tickets] wt
+    LEFT JOIN [cut_orders] co ON co.[Id] = wt.[CutOrderId]
+    LEFT JOIN [weighing_sessions] ws ON ws.[Id] = wt.[WeighingSessionId]
+    WHERE wt.[StationCode] IS NULL OR LTRIM(RTRIM(wt.[StationCode])) = N'';
+
+    ALTER TABLE [weigh_tickets] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_station_ticket_no' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
+    BEGIN
+        CREATE INDEX [IX_weigh_tickets_station_ticket_no]
+        ON [weigh_tickets]([StationCode], [TicketNo]);
+    END
+END
+
+IF OBJECT_ID(N'[delivery_tickets]', N'U') IS NOT NULL AND COL_LENGTH('delivery_tickets', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE dt
+    SET dt.[StationCode] = COALESCE(NULLIF(LTRIM(RTRIM(co.[StationCode])), N''), NULLIF(LTRIM(RTRIM(ws.[StationCode])), N''), @StationCode)
+    FROM [delivery_tickets] dt
+    LEFT JOIN [cut_orders] co ON co.[Id] = dt.[CutOrderId]
+    LEFT JOIN [weighing_sessions] ws ON ws.[Id] = dt.[WeighingSessionId]
+    WHERE dt.[StationCode] IS NULL OR LTRIM(RTRIM(dt.[StationCode])) = N'';
+
+    ALTER TABLE [delivery_tickets] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_station_delivery_no' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        CREATE INDEX [IX_delivery_tickets_station_delivery_no]
+        ON [delivery_tickets]([StationCode], [DeliveryNo]);
+    END
+END
+
+IF OBJECT_ID(N'[weighing_session_images]', N'U') IS NOT NULL AND COL_LENGTH('weighing_session_images', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE wi
+    SET wi.[StationCode] = COALESCE(NULLIF(LTRIM(RTRIM(ws.[StationCode])), N''), @StationCode)
+    FROM [weighing_session_images] wi
+    LEFT JOIN [weighing_sessions] ws ON ws.[Id] = wi.[WeighingSessionId]
+    WHERE wi.[StationCode] IS NULL OR LTRIM(RTRIM(wi.[StationCode])) = N'';
+
+    ALTER TABLE [weighing_session_images] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+END
+
+IF OBJECT_ID(N'[sync_outbox]', N'U') IS NOT NULL AND COL_LENGTH('sync_outbox', 'StationCode') IS NOT NULL
+BEGIN
+    UPDATE so
+    SET so.[StationCode] =
+        COALESCE(
+            NULLIF(LTRIM(RTRIM(co.[StationCode])), N''),
+            NULLIF(LTRIM(RTRIM(wt.[StationCode])), N''),
+            NULLIF(LTRIM(RTRIM(dt.[StationCode])), N''),
+            NULLIF(LTRIM(RTRIM(ws.[StationCode])), N''),
+            NULLIF(LTRIM(RTRIM(wl.[StationCode])), N''),
+            @StationCode)
+    FROM [sync_outbox] so
+    LEFT JOIN [cut_orders] co ON co.[Id] = so.[AggregateId]
+    LEFT JOIN [weigh_tickets] wt ON wt.[Id] = so.[AggregateId]
+    LEFT JOIN [delivery_tickets] dt ON dt.[Id] = so.[AggregateId]
+    LEFT JOIN [weighing_sessions] ws ON ws.[Id] = so.[AggregateId]
+    LEFT JOIN [weighing_session_lines] wl ON wl.[Id] = so.[AggregateId]
+    WHERE so.[StationCode] IS NULL OR LTRIM(RTRIM(so.[StationCode])) = N'';
+
+    ALTER TABLE [sync_outbox] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_sync_outbox_station_status_next_retry' AND object_id = OBJECT_ID(N'[sync_outbox]'))
+    BEGIN
+        CREATE INDEX [IX_sync_outbox_station_status_next_retry]
+        ON [sync_outbox]([StationCode], [Status], [NextRetryAt]);
+    END
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for StationCode backfill and indexes.");
+    }
+
+    private static async Task EnsureStationOperationSettingsTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'dbo.station_operation_settings', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.station_operation_settings
+    (
+        Id uniqueidentifier NOT NULL CONSTRAINT PK_station_operation_settings PRIMARY KEY,
+        StationCode nvarchar(50) NOT NULL,
+        SettingKey nvarchar(100) NOT NULL,
+        SettingValue nvarchar(1000) NOT NULL CONSTRAINT DF_station_operation_settings_value DEFAULT (N''),
+        CreatedAt datetime2(7) NOT NULL,
+        CreatedBy nvarchar(100) NOT NULL,
+        UpdatedAt datetime2(7) NULL,
+        UpdatedBy nvarchar(100) NULL
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_station_operation_settings_station_key' AND object_id = OBJECT_ID(N'dbo.station_operation_settings'))
+BEGIN
+    CREATE UNIQUE INDEX UX_station_operation_settings_station_key
+    ON dbo.station_operation_settings(StationCode, SettingKey);
+END;
+
+DECLARE @Now datetime2(7) = SYSDATETIME();
+DECLARE @Defaults TABLE(SettingKey nvarchar(100) NOT NULL, SettingValue nvarchar(1000) NOT NULL);
+INSERT INTO @Defaults(SettingKey, SettingValue)
+VALUES
+    (N'crusher_single_weigh_enabled', N'false'),
+    (N'crusher_default_weigh_mode', N'TWO_WEIGH'),
+    (N'crusher_require_standard_tare_for_single_weigh', N'true'),
+    (N'crusher_standard_tare_tolerance_kg', N'0'),
+    (N'crusher_default_product_code', N'');
+
+INSERT INTO dbo.station_operation_settings(Id, StationCode, SettingKey, SettingValue, CreatedAt, CreatedBy)
+SELECT NEWID(), s.StationCode, d.SettingKey, d.SettingValue, @Now, N'SYSTEM'
+FROM dbo.stations s
+CROSS JOIN @Defaults d
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.station_operation_settings existing
+    WHERE existing.StationCode = s.StationCode
+      AND existing.SettingKey = d.SettingKey
+);
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for station_operation_settings.");
     }
 
     private static async Task EnsurePrintTemplateProfileTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)

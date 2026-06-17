@@ -37,6 +37,7 @@ public sealed class CentralSyncDbContext : DbContext
         {
             builder.ToTable("sync_ingestion_logs");
             builder.HasKey(x => x.Id);
+            builder.Property(x => x.StationCode).HasMaxLength(50);
             builder.Property(x => x.AggregateType).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Status).HasMaxLength(30).IsRequired();
             builder.Property(x => x.ErrorMessage).HasMaxLength(4000);

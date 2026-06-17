@@ -436,3 +436,34 @@ public class TransportMethodDisplayConverter : IValueConverter
     }
 }
 
+public static class CrusherWeighingModeMapper
+{
+    public static string ToDisplayString(string? mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            return string.Empty;
+        }
+
+        return mode switch
+        {
+            "TWO_WEIGH" => "Cân 2 lần",
+            "SINGLE_WITH_STANDARD_TARE" => "Cân 1 lần",
+            _ => mode
+        };
+    }
+}
+
+public class CrusherWeighingModeDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return CrusherWeighingModeMapper.ToDisplayString(value?.ToString());
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+

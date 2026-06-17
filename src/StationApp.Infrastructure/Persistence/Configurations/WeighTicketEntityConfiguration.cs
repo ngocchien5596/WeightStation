@@ -11,6 +11,7 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
     {
         builder.ToTable("weigh_tickets");
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.CutOrderId).IsRequired();
         builder.Property(e => e.WeighingSessionId);
 
@@ -42,6 +43,11 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
 
         builder.Property(e => e.NetWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.AppVersion).HasMaxLength(50);
+        builder.Property(e => e.WeighingMode).HasMaxLength(40).IsRequired().HasDefaultValue("TWO_WEIGH");
+        builder.Property(e => e.InternalVehicleNo).HasMaxLength(30);
+        builder.Property(e => e.StandardTareWeightSnapshot).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.StandardTareSourceSnapshot).HasMaxLength(50);
+        builder.Property(e => e.NetWeightCalculationMode).HasMaxLength(50).HasDefaultValue("WEIGHT2_DIFF");
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
@@ -72,7 +78,7 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_weigh_tickets_vehicle_plate");
         builder.HasIndex(e => e.Status).HasDatabaseName("IX_weigh_tickets_status");
         builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_weigh_tickets_sync_status");
-        builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_weigh_tickets_created_at");
+        builder.HasIndex(e => new { e.StationCode, e.CreatedAt }).HasDatabaseName("IX_weigh_tickets_station_created_at");
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_weigh_tickets_weighing_session_id");
     }
 }

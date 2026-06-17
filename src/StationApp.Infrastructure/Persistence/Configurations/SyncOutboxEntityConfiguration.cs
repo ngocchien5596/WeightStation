@@ -11,6 +11,7 @@ public class SyncOutboxEntityConfiguration : IEntityTypeConfiguration<SyncOutbox
     {
         builder.ToTable("sync_outbox");
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.AggregateId).IsRequired();
         builder.Property(e => e.AggregateType).HasMaxLength(50).IsRequired();
         builder.Property(e => e.PayloadJson).IsRequired();
@@ -20,7 +21,7 @@ public class SyncOutboxEntityConfiguration : IEntityTypeConfiguration<SyncOutbox
         builder.Property(e => e.LastError).HasMaxLength(1000);
         builder.Property(e => e.CreatedAt).IsRequired();
 
-        builder.HasIndex(e => new { e.Status, e.NextRetryAt }).HasDatabaseName("IX_sync_outbox_status_next_retry");
+        builder.HasIndex(e => new { e.StationCode, e.Status, e.NextRetryAt }).HasDatabaseName("IX_sync_outbox_station_status_next_retry");
         builder.HasIndex(e => e.AggregateId).HasDatabaseName("IX_sync_outbox_aggregate_id");
         builder.HasIndex(e => e.IdempotencyKey).HasDatabaseName("IX_sync_outbox_idempotency_key");
     }

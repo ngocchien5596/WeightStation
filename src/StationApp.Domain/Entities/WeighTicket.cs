@@ -5,6 +5,7 @@ namespace StationApp.Domain.Entities;
 public class WeighTicket
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public Guid CutOrderId { get; set; }
     public Guid? WeighingSessionId { get; set; }
     public string TicketNo { get; set; } = string.Empty;
@@ -45,6 +46,12 @@ public class WeighTicket
     // Calculated
     public decimal? NetWeight { get; set; }
     public string? AppVersion { get; set; }
+    public string WeighingMode { get; set; } = "TWO_WEIGH";
+    public string? InternalVehicleNo { get; set; }
+    public decimal? StandardTareWeightSnapshot { get; set; }
+    public string? StandardTareSourceSnapshot { get; set; }
+    public Guid? StandardTareVehicleId { get; set; }
+    public string? NetWeightCalculationMode { get; set; } = "WEIGHT2_DIFF";
 
     // Phase 2 Delta - Snapshots
     public decimal? Ttcp10WeightSnapshot { get; set; }

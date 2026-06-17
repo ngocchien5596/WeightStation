@@ -17,6 +17,17 @@ public sealed class WeighingSessionImageRepository : IWeighingSessionImageReposi
 
     public async Task AddAsync(WeighingSessionImage image, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(image.StationCode))
+        {
+            var stationCode = await _db.WeighingSessions.AsNoTracking()
+                .Where(x => x.Id == image.WeighingSessionId)
+                .Select(x => x.StationCode)
+                .FirstOrDefaultAsync(ct);
+            image.StationCode = string.IsNullOrWhiteSpace(stationCode)
+                ? await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct)
+                : stationCode;
+        }
+
         image.SyncStatus = ImageSyncStatus.PENDING;
         image.LastSyncError = null;
         await _db.WeighingSessionImages.AddAsync(image, ct);
@@ -48,8 +59,9 @@ public sealed class WeighingSessionImageRepository : IWeighingSessionImageReposi
 
     public async Task<IReadOnlyList<WeighingSessionImage>> GetPendingSyncAsync(int batchSize, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.WeighingSessionImages
-            .Where(x => !x.IsDeleted && (x.SyncStatus == ImageSyncStatus.PENDING || x.SyncStatus == ImageSyncStatus.FAILED))
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && (x.SyncStatus == ImageSyncStatus.PENDING || x.SyncStatus == ImageSyncStatus.FAILED))
             .OrderBy(x => x.LastSyncAttemptAt ?? x.CreatedAt)
             .Take(batchSize)
             .ToListAsync(ct);

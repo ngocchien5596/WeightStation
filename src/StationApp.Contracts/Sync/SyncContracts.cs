@@ -17,6 +17,7 @@ public sealed class SyncWeighTicketResponse
 public sealed class SyncWeighingSessionImageRequest
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public Guid WeighingSessionId { get; set; }
     public string CaptureStage { get; set; } = string.Empty;
     public string CameraCode { get; set; } = string.Empty;

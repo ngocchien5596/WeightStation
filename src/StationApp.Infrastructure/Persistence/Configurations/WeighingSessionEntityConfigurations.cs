@@ -11,6 +11,7 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.ToTable("weighing_sessions");
         builder.HasKey(e => e.Id);
 
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.SessionNo).HasMaxLength(50).IsRequired();
         builder.Property(e => e.TransactionType).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(e => e.VehiclePlate).HasMaxLength(30).IsRequired();
@@ -22,6 +23,11 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.Property(e => e.Weight2).HasColumnType("decimal(18,3)");
         builder.Property(e => e.NetWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.Ttcp10WeightSnapshot).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.WeighingMode).HasMaxLength(40).IsRequired().HasDefaultValue("TWO_WEIGH");
+        builder.Property(e => e.InternalVehicleNo).HasMaxLength(30);
+        builder.Property(e => e.StandardTareWeightSnapshot).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.StandardTareSourceSnapshot).HasMaxLength(50);
+        builder.Property(e => e.NetWeightCalculationMode).HasMaxLength(50).HasDefaultValue("WEIGHT2_DIFF");
         builder.Property(e => e.IsOverweight).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.OverweightAmount).HasColumnType("decimal(18,3)").IsRequired().HasDefaultValue(0m);
         builder.Property(e => e.OverweightResolutionStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
@@ -40,10 +46,10 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
-        builder.HasIndex(e => e.SessionNo).IsUnique().HasDatabaseName("UX_weighing_sessions_session_no");
+        builder.HasIndex(e => new { e.StationCode, e.SessionNo }).IsUnique().HasDatabaseName("UX_weighing_sessions_station_session_no");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_weighing_sessions_vehicle_plate");
-        builder.HasIndex(e => new { e.SessionStatus, e.IsDeleted }).HasDatabaseName("IX_weighing_sessions_status");
-        builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_weighing_sessions_created_at");
+        builder.HasIndex(e => new { e.StationCode, e.SessionStatus, e.IsDeleted }).HasDatabaseName("IX_weighing_sessions_station_status");
+        builder.HasIndex(e => new { e.StationCode, e.CreatedAt }).HasDatabaseName("IX_weighing_sessions_station_created_at");
     }
 }
 
@@ -54,6 +60,7 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
         builder.ToTable("weighing_session_lines");
         builder.HasKey(e => e.Id);
 
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.CustomerCode).HasMaxLength(50);
         builder.Property(e => e.CustomerName).HasMaxLength(255);
         builder.Property(e => e.DistributorCode).HasMaxLength(50);
@@ -73,7 +80,7 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
-        builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_weighing_session_lines_session_id");
+        builder.HasIndex(e => new { e.StationCode, e.WeighingSessionId }).HasDatabaseName("IX_weighing_session_lines_station_session_id");
         builder.HasIndex(e => e.CutOrderId).HasDatabaseName("IX_weighing_session_lines_registration_id");
 
         builder.HasIndex(e => new { e.WeighingSessionId, e.CutOrderId })
@@ -90,6 +97,7 @@ public class WeighingSessionImageEntityConfiguration : IEntityTypeConfiguration<
         builder.ToTable("weighing_session_images");
         builder.HasKey(e => e.Id);
 
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.CaptureStage).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.CameraCode).HasMaxLength(20).IsRequired();
         builder.Property(e => e.CameraName).HasMaxLength(100).IsRequired();

@@ -30,9 +30,10 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         CancellationToken ct)
     {
         var toleranceKgPerBag = await ResolveToleranceAsync(ct);
+        var stationCode = await ResolveStationCodeAsync(ct);
 
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsDeleted && !x.IsCancelled)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x => !x.IsNoLoad)
             .Where(x => x.TransactionType == TransactionType.OUTBOUND)
             .OrderBy(x => x.CreatedAt)
@@ -54,7 +55,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         var sessionIds = sessions.Select(x => x.Id).ToList();
 
         var lines = await _dbContext.WeighingSessionLines.AsNoTracking()
-            .Where(x => sessionIds.Contains(x.WeighingSessionId) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && sessionIds.Contains(x.WeighingSessionId) && !x.IsDeleted)
             .OrderBy(x => x.SequenceNo)
             .ToListAsync(ct);
 
@@ -62,16 +63,17 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         var lineIds = lines.Select(x => x.Id).Distinct().ToList();
 
         var cutOrders = await _dbContext.CutOrders.AsNoTracking()
-            .Where(x => cutOrderIds.Contains(x.Id) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && cutOrderIds.Contains(x.Id) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var weighTickets = await _dbContext.WeighTickets.AsNoTracking()
-            .Where(x => x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value) && !x.IsDeleted)
+            .Where(x => x.StationCode == stationCode && x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value) && !x.IsDeleted)
             .ToListAsync(ct);
 
         var deliveryTickets = await _dbContext.DeliveryTickets.AsNoTracking()
             .Where(x =>
-                !x.IsDeleted
+                x.StationCode == stationCode
+                && !x.IsDeleted
                 && ((x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value))
                     || (x.WeighingSessionLineId.HasValue && lineIds.Contains(x.WeighingSessionLineId.Value))))
             .ToListAsync(ct);
@@ -227,6 +229,12 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         return decimal.TryParse(configured, out var tolerance)
             ? tolerance
             : AppConfigDefaults.DefaultToleranceKgPerBag;
+    }
+
+    private async Task<string> ResolveStationCodeAsync(CancellationToken ct)
+    {
+        var configured = await _appConfigRepository.GetValueAsync(AppConfigKeys.StationCode, ct);
+        return string.IsNullOrWhiteSpace(configured) ? "QN01" : configured.Trim();
     }
 
     private static bool MatchesFilter(IReadOnlyList<CutOrder> cutOrders, ExportSummaryReportFilter filter)

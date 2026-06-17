@@ -15,6 +15,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         });
         builder.HasKey(e => e.Id);
 
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.Property(e => e.ErpCutOrderId).HasColumnName("ErpCutOrderId").HasMaxLength(50);
         builder.Property(e => e.ErpRegistrationCode).HasColumnName("ErpRegistrationCode").HasMaxLength(100);
         builder.Property(e => e.CutOrderSource).HasColumnName("CutOrderSource").HasConversion<string>().HasMaxLength(20).IsRequired();
@@ -94,10 +95,10 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.HasIndex(e => e.SyncStatus).HasDatabaseName("IX_cut_orders_sync_status");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_cut_orders_vehicle_plate");
         builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_cut_orders_created_at");
-        builder.HasIndex(e => new { e.ProcessingStage, e.IsCancelled, e.IsDeleted }).HasDatabaseName("IX_cut_orders_processing_stage");
+        builder.HasIndex(e => new { e.StationCode, e.ProcessingStage, e.IsCancelled, e.IsDeleted }).HasDatabaseName("IX_cut_orders_station_processing_stage");
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_cut_orders_weighing_session_id");
-        builder.HasIndex(e => new { e.IsExportScale, e.CutOrderStatus, e.ProcessingStage, e.IsDeleted })
-               .HasDatabaseName("IX_cut_orders_is_export_scale_status");
+        builder.HasIndex(e => new { e.StationCode, e.IsExportScale, e.CutOrderStatus, e.ProcessingStage, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_station_export_status");
         builder.HasIndex(e => new { e.IsTemporaryExport, e.IsExportScale, e.ProcessingStage, e.IsDeleted })
                .HasDatabaseName("IX_cut_orders_temp_export");
         builder.HasIndex(e => new { e.MappedRealCutOrderId, e.IsDeleted })
@@ -105,10 +106,10 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.HasIndex(e => new { e.TemporaryExportSourceErpCutOrderId, e.IsDeleted })
                .HasDatabaseName("IX_cut_orders_temp_source_erp");
         
-        builder.HasIndex(e => new { e.ErpCutOrderId, e.IsDeleted })
-               .HasDatabaseName("IX_cut_orders_erp_cut_order_id_deleted");
-        builder.HasIndex(e => new { e.ErpRegistrationCode, e.IsDeleted })
-               .HasDatabaseName("IX_cut_orders_erp_registration_code_deleted");
+        builder.HasIndex(e => new { e.StationCode, e.ErpCutOrderId, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_station_erp_cut_order_id_deleted");
+        builder.HasIndex(e => new { e.StationCode, e.ErpRegistrationCode, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_station_erp_registration_code_deleted");
     }
 }
 

@@ -2,11 +2,13 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using CommunityToolkit.Mvvm.Messaging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.UI.Services;
 using StationApp.UI.ViewModels.Dialogs;
+using StationApp.UI.ViewModels.Messages;
 
 namespace StationApp.UI.ViewModels.Settings;
 
@@ -43,6 +45,27 @@ public partial class AccountManagementViewModel : ObservableObject
     [ObservableProperty] private DateTime? _updatedAt;
     [ObservableProperty] private string? _updatedBy;
     [ObservableProperty] private DateTime? _lastLoginAt;
+    [ObservableProperty] private ObservableCollection<StationAssignmentOptionViewModel> _stationAssignments = new();
+
+    public StationAssignmentOptionViewModel? DefaultStationAssignment
+    {
+        get => StationAssignments.FirstOrDefault(x => x.IsDefault);
+        set
+        {
+            if (value != null)
+            {
+                NormalizeDefaultStation(value);
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveStation(StationAssignmentOptionViewModel station)
+    {
+        station.IsAssigned = false;
+    }
+
 
     public bool IsEditMode => !IsCreateMode && SelectedUser != null;
     public bool IsUsernameReadOnly => !IsCreateMode;
@@ -78,6 +101,7 @@ public partial class AccountManagementViewModel : ObservableObject
         CreatePassword = string.Empty;
         CreateConfirmPassword = string.Empty;
         RaiseModeStateChanged();
+        _ = LoadStationAssignmentsForUserAsync(value.Id);
     }
 
     partial void OnIsCreateModeChanged(bool value)
@@ -95,6 +119,7 @@ public partial class AccountManagementViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        await LoadStationAssignmentsForUserAsync(null);
         await SearchAsync();
     }
 
@@ -162,6 +187,7 @@ public partial class AccountManagementViewModel : ObservableObject
                     return;
                 }
 
+                await SaveStationAssignmentsAsync(scope.ServiceProvider, persistedUser.Id);
                 toast.ShowSuccess("Đã tạo tài khoản thành công.");
                 await LoadUsersAsync(persistedUser.Id);
                 return;
@@ -187,8 +213,13 @@ public partial class AccountManagementViewModel : ObservableObject
                 return;
             }
 
+            await SaveStationAssignmentsAsync(scope.ServiceProvider, updateResult.Data.Id);
             toast.ShowSuccess("Đã cập nhật tài khoản thành công.");
             await LoadUsersAsync(updateResult.Data.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            toast.ShowWarning(ex.Message);
         }
         catch
         {
@@ -305,6 +336,110 @@ public partial class AccountManagementViewModel : ObservableObject
         }
     }
 
+    private async Task LoadStationAssignmentsForUserAsync(Guid? userId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var stationAdministration = scope.ServiceProvider.GetRequiredService<IStationAdministrationService>();
+        var assignments = userId.HasValue
+            ? await stationAdministration.GetUserStationAssignmentsAsync(userId.Value, CancellationToken.None)
+            : await stationAdministration.GetAssignableStationsAsync(CancellationToken.None);
+
+        if (StationAssignments != null)
+        {
+            foreach (var oldItem in StationAssignments)
+            {
+                oldItem.PropertyChanged -= OnStationAssignmentPropertyChanged;
+            }
+        }
+
+        var list = assignments.Select(x => new StationAssignmentOptionViewModel(
+            x.StationCode,
+            x.StationName,
+            x.IsAssigned,
+            x.IsDefault,
+            NormalizeDefaultStation)).ToList();
+
+        foreach (var item in list)
+        {
+            item.PropertyChanged += OnStationAssignmentPropertyChanged;
+        }
+
+        StationAssignments?.Clear();
+        if (StationAssignments != null)
+        {
+            foreach (var item in list)
+            {
+                StationAssignments.Add(item);
+            }
+        }
+        OnPropertyChanged(nameof(DefaultStationAssignment));
+    }
+
+    private void OnStationAssignmentPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(StationAssignmentOptionViewModel.IsAssigned))
+        {
+            var senderItem = sender as StationAssignmentOptionViewModel;
+            if (senderItem != null)
+            {
+                if (!senderItem.IsAssigned && senderItem.IsDefault)
+                {
+                    senderItem.IsDefault = false;
+                    var nextDefault = StationAssignments.FirstOrDefault(x => x.IsAssigned);
+                    if (nextDefault != null)
+                    {
+                        nextDefault.IsDefault = true;
+                    }
+                }
+            }
+            OnPropertyChanged(nameof(DefaultStationAssignment));
+        }
+    }
+
+    private async Task SaveStationAssignmentsAsync(IServiceProvider serviceProvider, Guid userId)
+    {
+        var selected = StationAssignments.Where(x => x.IsAssigned).ToList();
+        if (selected.Count == 0)
+        {
+            throw new InvalidOperationException("Vui lòng gán ít nhất một trạm cho tài khoản.");
+        }
+
+        if (selected.All(x => !x.IsDefault))
+        {
+            selected[0].IsDefault = true;
+        }
+
+        var defaultStation = selected.First(x => x.IsDefault);
+        foreach (var assignment in StationAssignments)
+        {
+            assignment.IsDefault = assignment.IsAssigned
+                && string.Equals(assignment.StationCode, defaultStation.StationCode, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var stationAdministration = serviceProvider.GetRequiredService<IStationAdministrationService>();
+        await stationAdministration.SaveUserStationAssignmentsAsync(
+            userId,
+            StationAssignments
+                .Select(x => new SaveUserStationAssignmentDto(x.StationCode, x.IsAssigned, x.IsDefault))
+                .ToList(),
+            CancellationToken.None);
+
+        WeakReferenceMessenger.Default.Send(new UserStationAssignmentsChangedMessage(userId));
+    }
+
+    private void NormalizeDefaultStation(StationAssignmentOptionViewModel selected)
+    {
+        foreach (var assignment in StationAssignments)
+        {
+            assignment.IsDefault = ReferenceEquals(assignment, selected);
+            if (ReferenceEquals(assignment, selected))
+            {
+                assignment.IsAssigned = true;
+            }
+        }
+        OnPropertyChanged(nameof(DefaultStationAssignment));
+    }
+
     private bool? ResolveActiveFilter()
     {
         return SelectedStatusFilter switch
@@ -349,6 +484,7 @@ public partial class AccountManagementViewModel : ObservableObject
         UpdatedAt = null;
         UpdatedBy = null;
         LastLoginAt = null;
+        _ = LoadStationAssignmentsForUserAsync(null);
         RaiseModeStateChanged();
     }
 
@@ -382,6 +518,51 @@ public partial class AccountManagementViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(roleCode) || RoleOptions.Contains(roleCode))
         {
             return;
+        }
+    }
+}
+
+public partial class StationAssignmentOptionViewModel : ObservableObject
+{
+    private readonly Action<StationAssignmentOptionViewModel>? _defaultSelected;
+
+    public string StationCode { get; }
+    public string StationName { get; }
+    public string DisplayText => $"{StationCode} - {StationName}";
+
+    public override string ToString() => DisplayText;
+
+    [ObservableProperty] private bool _isAssigned;
+    [ObservableProperty] private bool _isDefault;
+
+    public StationAssignmentOptionViewModel(
+        string stationCode,
+        string stationName,
+        bool isAssigned,
+        bool isDefault,
+        Action<StationAssignmentOptionViewModel>? defaultSelected = null)
+    {
+        _defaultSelected = defaultSelected;
+        StationCode = stationCode;
+        StationName = stationName;
+        _isAssigned = isAssigned;
+        _isDefault = isDefault;
+    }
+
+    partial void OnIsAssignedChanged(bool value)
+    {
+        if (!value)
+        {
+            IsDefault = false;
+        }
+    }
+
+    partial void OnIsDefaultChanged(bool value)
+    {
+        if (value)
+        {
+            IsAssigned = true;
+            _defaultSelected?.Invoke(this);
         }
     }
 }

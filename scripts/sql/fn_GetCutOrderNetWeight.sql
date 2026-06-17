@@ -4,7 +4,8 @@ GO
 
 CREATE FUNCTION dbo.fn_GetCutOrderNetWeight
 (
-    @ErpCutOrderId NVARCHAR(100)
+    @ErpCutOrderId NVARCHAR(100),
+    @StationCode NVARCHAR(50)
 )
 RETURNS TABLE
 AS
@@ -40,6 +41,8 @@ RETURN
         INNER JOIN weighing_sessions ws
             ON ws.Id = wsl.WeighingSessionId
         WHERE wsl.CutOrderId = co.Id
+          AND wsl.StationCode = @StationCode
+          AND ws.StationCode = @StationCode
           AND ISNULL(wsl.IsDeleted, 0) = 0
           AND ISNULL(ws.IsDeleted, 0) = 0
           AND ISNULL(ws.SessionStatus, N'') <> N'CANCELLED'
@@ -54,10 +57,13 @@ RETURN
         INNER JOIN weighing_sessions ws
             ON ws.Id = wsl.WeighingSessionId
         WHERE wsl.CutOrderId = co.Id
+          AND wsl.StationCode = @StationCode
+          AND ws.StationCode = @StationCode
           AND ISNULL(wsl.IsDeleted, 0) = 0
           AND ISNULL(ws.IsDeleted, 0) = 0
           AND ISNULL(ws.SessionStatus, N'') <> N'CANCELLED'
     ) sessionAgg
     WHERE co.ErpCutOrderId = @ErpCutOrderId
+      AND co.StationCode = @StationCode
       AND ISNULL(co.IsDeleted, 0) = 0
 );

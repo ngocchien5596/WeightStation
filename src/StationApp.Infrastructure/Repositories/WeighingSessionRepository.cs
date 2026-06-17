@@ -18,6 +18,11 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task AddAsync(WeighingSession session, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(session.StationCode))
+        {
+            session.StationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        }
+
         session.SyncStatus = SyncStatus.SYNC_QUEUED;
         session.LastSyncError = null;
         await _db.WeighingSessions.AddAsync(session, ct);
@@ -66,8 +71,9 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task<IReadOnlyList<WeighingSession>> GetBySyncStatusAsync(SyncStatus syncStatus, int batchSize, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.WeighingSessions
-            .Where(x => !x.IsDeleted && x.SyncStatus == syncStatus)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && x.SyncStatus == syncStatus)
             .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(batchSize)
             .ToListAsync(ct);
@@ -89,8 +95,9 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task<IReadOnlyList<WeighingSessionListItem>> SearchActiveSessionsAsync(string? keyword, TransactionType? transactionType, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var sessionsQuery = _db.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsDeleted && !x.IsCancelled && x.SessionStatus != WeighingSessionStatus.COMPLETED && x.SessionStatus != WeighingSessionStatus.CANCELLED);
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled && x.SessionStatus != WeighingSessionStatus.COMPLETED && x.SessionStatus != WeighingSessionStatus.CANCELLED);
 
         if (transactionType is null)
         {
@@ -99,7 +106,9 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 join cutOrder in _db.CutOrders.AsNoTracking()
                     on line.CutOrderId equals cutOrder.Id
                 where !line.IsDeleted
+                    && line.StationCode == stationCode
                     && !cutOrder.IsDeleted
+                    && cutOrder.StationCode == stationCode
                     && cutOrder.IsExportScale
                 select line.WeighingSessionId)
                 .Distinct()
@@ -107,6 +116,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
             var exportSessionIdsByCutOrder = await _db.CutOrders.AsNoTracking()
                 .Where(x => !x.IsDeleted
+                    && x.StationCode == stationCode
                     && x.IsExportScale
                     && x.WeighingSessionId.HasValue)
                 .Select(x => x.WeighingSessionId!.Value)
@@ -144,7 +154,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
         var lines = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(x => !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
             .ToListAsync(ct);
 
         return sessions.Select(session =>
@@ -203,10 +213,52 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         }).ToList();
     }
 
+    public async Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchCrusherSessionsAsync(string? keyword, CancellationToken ct)
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var query = _db.WeighingSessions.AsNoTracking()
+            .Where(x => x.StationCode == stationCode
+                && !x.IsDeleted
+                && !x.IsCancelled
+                && x.TransactionType == TransactionType.INBOUND
+                && x.InternalVehicleNo != null);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var normalized = keyword.Trim();
+            query = query.Where(x =>
+                x.SessionNo.Contains(normalized) ||
+                x.VehiclePlate.Contains(normalized) ||
+                (x.DriverName != null && x.DriverName.Contains(normalized)));
+        }
+
+        return await query
+            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .Take(200)
+            .Select(x => new CrusherWeighingSessionListItem(
+                x.Id,
+                x.SessionNo,
+                x.VehiclePlate,
+                x.DriverName,
+                x.Weight1,
+                x.Weight1Time,
+                x.Weight2,
+                x.Weight2Time,
+                x.NetWeight,
+                x.WeighingMode,
+                x.StandardTareWeightSnapshot,
+                x.StandardTareSourceSnapshot,
+                x.SessionStatus,
+                x.CreatedAt,
+                x.UpdatedAt))
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         var query = _db.WeighingSessions.AsNoTracking()
-            .Where(x => !x.IsDeleted && !x.IsCancelled && x.SessionStatus == WeighingSessionStatus.COMPLETED);
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled && x.SessionStatus == WeighingSessionStatus.COMPLETED);
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
@@ -232,10 +284,10 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
         var lines = await _db.WeighingSessionLines.AsNoTracking()
-            .Where(x => !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
             .ToListAsync(ct);
         var registrations = await _db.CutOrders.AsNoTracking()
-            .Where(x => x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value))
+            .Where(x => x.StationCode == stationCode && x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value))
             .Select(x => new
             {
                 SessionId = x.WeighingSessionId!.Value,
@@ -276,6 +328,17 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task AddLineAsync(WeighingSessionLine line, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(line.StationCode))
+        {
+            var session = await _db.WeighingSessions.AsNoTracking()
+                .Where(x => x.Id == line.WeighingSessionId)
+                .Select(x => x.StationCode)
+                .FirstOrDefaultAsync(ct);
+            line.StationCode = string.IsNullOrWhiteSpace(session)
+                ? await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct)
+                : session;
+        }
+
         line.SyncStatus = SyncStatus.SYNC_QUEUED;
         line.LastSyncError = null;
         await _db.WeighingSessionLines.AddAsync(line, ct);
@@ -300,8 +363,9 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
     public async Task<IReadOnlyList<WeighingSessionLine>> GetLinesBySyncStatusAsync(SyncStatus syncStatus, int batchSize, CancellationToken ct)
     {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
         return await _db.WeighingSessionLines
-            .Where(x => !x.IsDeleted && x.SyncStatus == syncStatus)
+            .Where(x => x.StationCode == stationCode && !x.IsDeleted && x.SyncStatus == syncStatus)
             .OrderBy(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(batchSize)
             .ToListAsync(ct);

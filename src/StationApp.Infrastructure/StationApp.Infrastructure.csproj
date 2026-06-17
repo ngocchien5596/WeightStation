@@ -26,6 +26,7 @@
     <EmbeddedResource Include="..\..\scripts\sql\fn_GetCutOrderNetWeight.sql" Link="SqlScripts\fn_GetCutOrderNetWeight.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_GetCutOrderNetWeight.sql" Link="SqlScripts\sp_GetCutOrderNetWeight.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_AdjustWeighingResult.sql" Link="SqlScripts\sp_AdjustWeighingResult.sql" />
+    <EmbeddedResource Include="..\..\scripts\sql\sp_UpsertCutOrderFromErp.sql" Link="SqlScripts\sp_UpsertCutOrderFromErp.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_MarkCutOrderErpExportCompleted.sql" Link="SqlScripts\sp_MarkCutOrderErpExportCompleted.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_UpdateCutOrderErpExtras.sql" Link="SqlScripts\sp_UpdateCutOrderErpExtras.sql" />
     <EmbeddedResource Include="..\..\scripts\sql\sp_SoftDeleteCutOrderDocumentsForReissue.sql" Link="SqlScripts\sp_SoftDeleteCutOrderDocumentsForReissue.sql" />

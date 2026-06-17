@@ -44,6 +44,7 @@ public sealed class CentralApiImageSyncClient : IWeighingSessionImageSyncClient
             request.Content = JsonContent.Create(new SyncWeighingSessionImageRequest
             {
                 Id = image.Id,
+                StationCode = image.StationCode,
                 WeighingSessionId = image.WeighingSessionId,
                 CaptureStage = image.CaptureStage.ToString(),
                 CameraCode = image.CameraCode,

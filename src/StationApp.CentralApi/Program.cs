@@ -138,6 +138,7 @@ app.MapPost("/api/weighing-session-images", async (SyncWeighingSessionImageReque
     var entity = new WeighingSessionImage
     {
         Id = payload.Id,
+        StationCode = payload.StationCode,
         WeighingSessionId = payload.WeighingSessionId,
         CaptureStage = Enum.Parse<StationApp.Domain.Enums.CameraCaptureStage>(payload.CaptureStage, true),
         CameraCode = payload.CameraCode,
@@ -168,6 +169,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
         BEGIN
             CREATE TABLE [sync_ingestion_logs](
                 [Id] uniqueidentifier NOT NULL,
+                [StationCode] nvarchar(50) NULL,
                 [AggregateType] nvarchar(100) NOT NULL,
                 [SourceRecordId] uniqueidentifier NOT NULL,
                 [ReceivedAt] datetime2 NOT NULL,
@@ -202,6 +204,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
         BEGIN
             CREATE TABLE [weighing_session_images](
                 [Id] uniqueidentifier NOT NULL,
+                [StationCode] nvarchar(50) NOT NULL CONSTRAINT [DF_weighing_session_images_station_code_create] DEFAULT (N'QN01'),
                 [WeighingSessionId] uniqueidentifier NOT NULL,
                 [CaptureStage] nvarchar(20) NOT NULL,
                 [CameraCode] nvarchar(20) NOT NULL,
@@ -239,6 +242,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
         END
         """);
 
+    await EnsureColumnAsync(db, "cut_orders", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_cut_orders_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "cut_orders", "ErpExportCompleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_erp_export_completed_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "cut_orders", "IsTemporaryExport", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_temporary_export_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "cut_orders", "MappedRealCutOrderId", "uniqueidentifier NULL");
@@ -250,15 +254,38 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "cut_orders", "MappedBy", "nvarchar(100) NULL");
 
     await EnsureDeliveryTicketSyncStatusSchemaAsync(db);
+    await EnsureColumnAsync(db, "sync_ingestion_logs", "StationCode", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "vehicles", "IsInternalVehicle", "bit NOT NULL CONSTRAINT [DF_vehicles_is_internal_vehicle_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "vehicles", "StandardTareSource", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "vehicles", "StandardTareUpdatedAt", "datetime2 NULL");
+    await EnsureColumnAsync(db, "vehicles", "StandardTareUpdatedBy", "nvarchar(100) NULL");
 
+    await EnsureColumnAsync(db, "weigh_tickets", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_weigh_tickets_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "weigh_tickets", "WeighingMode", "nvarchar(40) NOT NULL CONSTRAINT [DF_weigh_tickets_weighing_mode_bootstrap] DEFAULT (N'TWO_WEIGH')");
+    await EnsureColumnAsync(db, "weigh_tickets", "InternalVehicleNo", "nvarchar(30) NULL");
+    await EnsureColumnAsync(db, "weigh_tickets", "StandardTareWeightSnapshot", "decimal(18,3) NULL");
+    await EnsureColumnAsync(db, "weigh_tickets", "StandardTareSourceSnapshot", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "weigh_tickets", "StandardTareVehicleId", "uniqueidentifier NULL");
+    await EnsureColumnAsync(db, "weigh_tickets", "NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weigh_tickets_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')");
+    await EnsureColumnAsync(db, "delivery_tickets", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_delivery_tickets_station_code_bootstrap] DEFAULT (N'QN01')");
+
+    await EnsureColumnAsync(db, "weighing_sessions", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_weighing_sessions_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "weighing_sessions", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_sessions_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
     await EnsureColumnAsync(db, "weighing_sessions", "LastSyncAttemptAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "weighing_sessions", "LastSyncError", "nvarchar(1000) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "WeighingMode", "nvarchar(40) NOT NULL CONSTRAINT [DF_weighing_sessions_weighing_mode_bootstrap] DEFAULT (N'TWO_WEIGH')");
+    await EnsureColumnAsync(db, "weighing_sessions", "InternalVehicleNo", "nvarchar(30) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "StandardTareWeightSnapshot", "decimal(18,3) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "StandardTareSourceSnapshot", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "StandardTareVehicleId", "uniqueidentifier NULL");
+    await EnsureColumnAsync(db, "weighing_sessions", "NetWeightCalculationMode", "nvarchar(50) NULL CONSTRAINT [DF_weighing_sessions_net_calc_mode_bootstrap] DEFAULT (N'WEIGHT2_DIFF')");
 
+    await EnsureColumnAsync(db, "weighing_session_lines", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_weighing_session_lines_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "weighing_session_lines", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
     await EnsureColumnAsync(db, "weighing_session_lines", "LastSyncAttemptAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "weighing_session_lines", "LastSyncError", "nvarchar(1000) NULL");
 
+    await EnsureColumnAsync(db, "weighing_session_images", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_weighing_session_images_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "weighing_session_images", "Id", "uniqueidentifier NOT NULL CONSTRAINT [DF_weighing_session_images_id_bootstrap] DEFAULT (newid())");
     await EnsureColumnAsync(db, "weighing_session_images", "WeighingSessionId", "uniqueidentifier NOT NULL CONSTRAINT [DF_weighing_session_images_session_id_bootstrap] DEFAULT ('00000000-0000-0000-0000-000000000000')");
     await EnsureColumnAsync(db, "weighing_session_images", "CaptureStage", "nvarchar(20) NOT NULL CONSTRAINT [DF_weighing_session_images_stage_bootstrap] DEFAULT (N'WEIGHT1')");

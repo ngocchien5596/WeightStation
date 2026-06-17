@@ -10,6 +10,7 @@ IF OBJECT_ID(N'dbo.sp_MarkCutOrderErpExportCompleted', N'P') IS NULL
 GO
 
 ALTER PROCEDURE [dbo].[sp_MarkCutOrderErpExportCompleted]
+    @StationCode NVARCHAR(50),
     @ErpCutOrderId NVARCHAR(100),
     @ErpRegistrationCode NVARCHAR(100) = NULL,
     @OrderCode NVARCHAR(100) = NULL,
@@ -24,6 +25,7 @@ BEGIN
     DECLARE @SystemUser NVARCHAR(200) = COALESCE(NULLIF(LTRIM(RTRIM(@UpdatedBy)), N''), N'ERP_EXPORT_COMPLETE');
     DECLARE @MatchedCount INT;
 
+    SET @StationCode = NULLIF(LTRIM(RTRIM(@StationCode)), N'');
     SET @ErpCutOrderId = NULLIF(LTRIM(RTRIM(@ErpCutOrderId)), N'');
     SET @ErpRegistrationCode = NULLIF(LTRIM(RTRIM(@ErpRegistrationCode)), N'');
     SET @OrderCode = NULLIF(LTRIM(RTRIM(@OrderCode)), N'');
@@ -34,14 +36,18 @@ BEGIN
     IF @OrderCode IS NULL
         SET @OrderCode = @ErpCutOrderId;
 
+    IF @StationCode IS NULL
+        THROW 51090, N'StationCode la bat buoc.', 1;
+
     IF @ErpCutOrderId IS NULL
         THROW 51031, N'ErpCutOrderId la bat buoc.', 1;
 
     SELECT @MatchedCount = COUNT(1)
     FROM dbo.cut_orders
-    WHERE ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+    WHERE StationCode = @StationCode
+      AND (ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
        OR ErpRegistrationCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
-       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode);
+       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode));
 
     IF @MatchedCount = 0
         THROW 51032, N'Khong tim thay cut order tuong ung de cap nhat trang thai hoan thanh ERP.', 1;
@@ -54,9 +60,10 @@ BEGIN
         LastSyncError = NULL,
         UpdatedAt = @NowLocal,
         UpdatedBy = @SystemUser
-    WHERE ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+    WHERE StationCode = @StationCode
+      AND (ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
        OR ErpRegistrationCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
-       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode);
+       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode));
 
     SELECT
         Id,
@@ -67,9 +74,10 @@ BEGIN
         UpdatedAt,
         UpdatedBy
     FROM dbo.cut_orders
-    WHERE ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+    WHERE StationCode = @StationCode
+      AND (ErpCutOrderId IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
        OR ErpRegistrationCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
-       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode)
+       OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode))
     ORDER BY UpdatedAt DESC, CreatedAt DESC;
 END
 GO

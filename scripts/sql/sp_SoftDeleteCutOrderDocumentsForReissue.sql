@@ -12,14 +12,22 @@ END;
 GO
 
 ALTER PROCEDURE [dbo].[sp_SoftDeleteCutOrderDocumentsForReissue]
-    @ErpCutOrderId NVARCHAR(100)
+    @ErpCutOrderId NVARCHAR(100),
+    @StationCode NVARCHAR(50)
 AS
 BEGIN
     SET NOCOUNT ON;
 
+    SET @StationCode = NULLIF(LTRIM(RTRIM(@StationCode)), N'');
+
     IF (@ErpCutOrderId IS NULL OR LTRIM(RTRIM(@ErpCutOrderId)) = '')
     BEGIN
         THROW 50011, N'Phai truyen @ErpCutOrderId.', 1;
+    END;
+
+    IF (@StationCode IS NULL)
+    BEGIN
+        THROW 51090, N'StationCode la bat buoc.', 1;
     END;
 
     DECLARE @Now DATETIME2(7) = SYSDATETIME();
@@ -40,9 +48,10 @@ BEGIN
         @SessionId = co.WeighingSessionId,
         @IsExportScale = ISNULL(co.IsExportScale, 0),
         @TransactionType = co.TransactionType
-    FROM dbo.cut_orders co
-    WHERE co.ErpCutOrderId = @ErpCutOrderId
-      AND ISNULL(co.IsDeleted, 0) = 0;
+      FROM dbo.cut_orders co
+      WHERE co.ErpCutOrderId = @ErpCutOrderId
+        AND co.StationCode = @StationCode
+        AND ISNULL(co.IsDeleted, 0) = 0;
 
     IF (@CutOrderId IS NULL)
     BEGIN
@@ -77,10 +86,11 @@ BEGIN
         WHERE wsl.CutOrderId = @CutOrderId
           AND ISNULL(wsl.IsDeleted, 0) = 0;
 
-        INSERT INTO dbo.cut_orders
-        (
-            Id,
-            ErpCutOrderId,
+          INSERT INTO dbo.cut_orders
+          (
+              Id,
+              StationCode,
+              ErpCutOrderId,
             ErpRegistrationCode,
             CutOrderSource,
             CutOrderStatus,
@@ -134,9 +144,10 @@ BEGIN
             UpdatedAt,
             UpdatedBy
         )
-        SELECT
-            @TempCutOrderId,
-            NULL,
+          SELECT
+              @TempCutOrderId,
+              co.StationCode,
+              NULL,
             NULL,
             co.CutOrderSource,
             N'IN_SESSION',
@@ -189,8 +200,8 @@ BEGIN
             N'ERP_REISSUE',
             @Now,
             N'ERP_REISSUE'
-        FROM dbo.cut_orders co
-        WHERE co.Id = @CutOrderId;
+          FROM dbo.cut_orders co
+          WHERE co.Id = @CutOrderId;
 
         UPDATE dbo.weighing_session_lines
         SET

@@ -5,6 +5,7 @@ namespace StationApp.Domain.Entities;
 public class WeighingSessionImage
 {
     public Guid Id { get; set; }
+    public string StationCode { get; set; } = string.Empty;
     public Guid WeighingSessionId { get; set; }
     public CameraCaptureStage CaptureStage { get; set; }
     public string CameraCode { get; set; } = string.Empty;

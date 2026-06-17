@@ -1,9 +1,13 @@
 using System.Windows;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.UI.ViewModels.Messages;
 using StationApp.UI.Views;
 
 namespace StationApp.UI.ViewModels;
@@ -12,11 +16,15 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly ICurrentStationContext _currentStationContext;
+    private readonly IStationAuthorizationService _stationAuthorizationService;
+    private readonly IStationFeatureService _stationFeatureService;
     private readonly IAppVersionProvider _appVersionProvider;
     private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
     private Guid? _pendingWeighingSessionId;
     private Guid? _pendingExportCutOrderId;
     private bool _isInitialized;
+    private bool _suppressStationChanged;
     private int _navigationVersion;
 
     [ObservableProperty] private object? _currentView;
@@ -25,6 +33,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isReportsSubmenuVisible;
     [ObservableProperty] private bool _isSidebarCollapsed;
     [ObservableProperty] private string _currentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
+    [ObservableProperty] private StationOptionDto? _selectedStation;
+    [ObservableProperty] private StationFeatureSetDto _stationFeatures = StationFeatureSetDto.Defaults;
+
+    public ObservableCollection<StationOptionDto> AllowedStations { get; } = new();
 
     public GridLength SidebarWidth => IsSidebarCollapsed ? new GridLength(56) : new GridLength(176);
 
@@ -32,16 +44,20 @@ public partial class MainViewModel : ObservableObject
         string.IsNullOrWhiteSpace(_currentUserContext.DisplayName) ? "\u0043\u0068\u01B0\u0061\u0020\u0111\u0103\u006E\u0067\u0020\u006E\u0068\u1EAD\u0070" : _currentUserContext.DisplayName;
 
     public string CurrentUserRoleCode => _currentUserContext.RoleCode;
+    public string CurrentStationDisplay => _currentStationContext.HasStation
+        ? $"{_currentStationContext.StationCode} - {_currentStationContext.StationName}"
+        : "Chưa chọn trạm";
     public string AppVersionText => $"v{_appVersionProvider.GetVersion()}";
 
-    public bool CanViewDashboard => true;
-    public bool CanViewIncomingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewExportWeighing => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewOutgoingVehicles => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewReportsMenu => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewExportSummaryReport => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewInboundSummaryReport => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewDashboard => StationFeatures.ShowMenuDashboard;
+    public bool CanViewIncomingVehicles => StationFeatures.ShowMenuIncomingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewWeighing => StationFeatures.ShowMenuWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewCrusherWeighing => StationFeatures.ShowMenuCrusherWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewExportWeighing => StationFeatures.ShowMenuExportWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewOutgoingVehicles => StationFeatures.ShowMenuOutgoingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewInboundSummaryReport;
+    public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewTicketList => false;
     public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
@@ -56,16 +72,23 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
     public bool CanViewSettingsSync => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
     public bool CanViewSettingsExternalDatacan => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
+    public bool CanViewSettingsStations => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
     public bool CanViewSettingsAccounts => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
     public bool CanViewAppUpdate => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
     public MainViewModel(
         IServiceProvider serviceProvider,
         ICurrentUserContext currentUserContext,
+        ICurrentStationContext currentStationContext,
+        IStationAuthorizationService stationAuthorizationService,
+        IStationFeatureService stationFeatureService,
         IAppVersionProvider appVersionProvider)
     {
         _serviceProvider = serviceProvider;
         _currentUserContext = currentUserContext;
+        _currentStationContext = currentStationContext;
+        _stationAuthorizationService = stationAuthorizationService;
+        _stationFeatureService = stationFeatureService;
         _appVersionProvider = appVersionProvider;
 
         _clockTimer = new System.Windows.Threading.DispatcherTimer
@@ -74,6 +97,13 @@ public partial class MainViewModel : ObservableObject
         };
         _clockTimer.Tick += (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
         _clockTimer.Start();
+
+        WeakReferenceMessenger.Default.Register<StationFeaturesChangedMessage>(
+            this,
+            (_, message) => _ = ReloadStationFeaturesIfCurrentAsync(message.StationCode));
+        WeakReferenceMessenger.Default.Register<UserStationAssignmentsChangedMessage>(
+            this,
+            (_, message) => _ = ReloadAllowedStationsIfCurrentUserAsync(message.UserId));
     }
 
     public async Task InitializeAsync()
@@ -84,8 +114,47 @@ public partial class MainViewModel : ObservableObject
         }
 
         _isInitialized = true;
+        await LoadStationContextAsync();
         await Task.Yield();
-        await NavigateAsync("IncomingVehicles");
+        await NavigateAsync(ResolveDefaultNavigationTarget());
+    }
+
+    private async Task LoadStationContextAsync()
+    {
+        AllowedStations.Clear();
+
+        if (!_currentUserContext.UserId.HasValue)
+        {
+            return;
+        }
+
+        var stations = await _stationAuthorizationService.GetAllowedStationsAsync(_currentUserContext.UserId.Value, CancellationToken.None);
+        foreach (var station in stations)
+        {
+            AllowedStations.Add(station);
+        }
+
+        var currentStation = stations.FirstOrDefault(x => string.Equals(x.StationCode, _currentStationContext.StationCode, StringComparison.OrdinalIgnoreCase))
+            ?? stations.FirstOrDefault(x => x.IsDefault)
+            ?? stations.FirstOrDefault();
+
+        if (currentStation is not null)
+        {
+            _suppressStationChanged = true;
+            try
+            {
+                SelectedStation = currentStation;
+                _currentStationContext.SetStation(currentStation.StationCode, currentStation.StationName);
+                StationFeatures = await _stationFeatureService.GetFeaturesAsync(currentStation.StationCode, CancellationToken.None);
+                NotifyAuthorizationPropertiesChanged();
+            }
+            finally
+            {
+                _suppressStationChanged = false;
+            }
+        }
+
+        OnPropertyChanged(nameof(CurrentStationDisplay));
     }
 
     [RelayCommand]
@@ -189,6 +258,14 @@ public partial class MainViewModel : ObservableObject
                         }
                     }, destination, navigationVersion);
                     break;
+                case "CrusherWeighing":
+                    var crusherVm = _serviceProvider.GetRequiredService<CrusherWeighingViewModel>();
+                    CurrentView = new CrusherWeighingView { DataContext = crusherVm };
+                    _ = RunViewInitializationAsync(
+                        () => crusherVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
                 case "OutgoingVehicles":
                     var outgoingVm = _serviceProvider.GetRequiredService<OutgoingVehicleListViewModel>();
                     CurrentView = new OutgoingVehicleListView { DataContext = outgoingVm };
@@ -247,6 +324,7 @@ public partial class MainViewModel : ObservableObject
                 case "Settings_Products":
                 case "Settings_Sync":
                 case "Settings_ExternalDatacan":
+                case "Settings_Stations":
                 case "Settings_Accounts":
                 case "AppUpdate":
                     var settingsVm = _serviceProvider.GetRequiredService<SettingsViewModel>();
@@ -264,7 +342,6 @@ public partial class MainViewModel : ObservableObject
                         var initialSettingsTab = destination switch
                         {
                             "Settings_Params" => 0,
-                            "Settings_Camera" => 9,
                             "Settings_Device" => 1,
                             "Settings_Print" => 2,
                             "Settings_Vehicles" => 3,
@@ -272,7 +349,9 @@ public partial class MainViewModel : ObservableObject
                             "Settings_Products" => 5,
                             "Settings_Sync" => 6,
                             "Settings_ExternalDatacan" => 7,
-                            "Settings_Accounts" => 8,
+                            "Settings_Stations" => 8,
+                            "Settings_Accounts" => 9,
+                            "Settings_Camera" => 10,
                             _ => (int?)null
                         };
                         _ = RunViewInitializationAsync(
@@ -320,6 +399,7 @@ public partial class MainViewModel : ObservableObject
             "Dashboard" => CanViewDashboard,
             "IncomingVehicles" => CanViewIncomingVehicles,
             "Weighing" => CanViewWeighing,
+            "CrusherWeighing" => CanViewCrusherWeighing,
             "ExportWeighing" => CanViewExportWeighing,
             "OutgoingVehicles" => CanViewOutgoingVehicles,
             "Reports_ExportSummary" => CanViewExportSummaryReport,
@@ -336,10 +416,152 @@ public partial class MainViewModel : ObservableObject
             "Settings_Products" => CanViewSettingsProducts,
             "Settings_Sync" => CanViewSettingsSync,
             "Settings_ExternalDatacan" => CanViewSettingsExternalDatacan,
+            "Settings_Stations" => CanViewSettingsStations,
             "Settings_Accounts" => CanViewSettingsAccounts,
             "AppUpdate" => CanViewAppUpdate,
             _ => false
         };
+    }
+
+    partial void OnSelectedStationChanged(StationOptionDto? value)
+    {
+        if (!_isInitialized || _suppressStationChanged || value is null)
+        {
+            return;
+        }
+
+        _ = SwitchStationAsync(value);
+    }
+
+    private async Task SwitchStationAsync(StationOptionDto station)
+    {
+        if (_currentUserContext.UserId.HasValue)
+        {
+            await _stationAuthorizationService.EnsureCanAccessStationAsync(_currentUserContext.UserId.Value, station.StationCode, CancellationToken.None);
+        }
+
+        _currentStationContext.SetStation(station.StationCode, station.StationName);
+        StationFeatures = await _stationFeatureService.GetFeaturesAsync(station.StationCode, CancellationToken.None);
+        OnPropertyChanged(nameof(CurrentStationDisplay));
+        NotifyAuthorizationPropertiesChanged();
+
+        _pendingWeighingSessionId = null;
+        _pendingExportCutOrderId = null;
+        IsReportsSubmenuVisible = false;
+        IsSettingsSubmenuVisible = false;
+        await NavigateAsync(ResolveDefaultNavigationTarget());
+    }
+
+    private async Task ReloadStationFeaturesIfCurrentAsync(string stationCode)
+    {
+        if (string.IsNullOrWhiteSpace(_currentStationContext.StationCode)
+            || !string.Equals(_currentStationContext.StationCode, stationCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        StationFeatures = await _stationFeatureService.GetFeaturesAsync(stationCode, CancellationToken.None);
+        NotifyAuthorizationPropertiesChanged();
+
+        if (CurrentDestination != null && !CanNavigateTo(CurrentDestination))
+        {
+            await NavigateAsync(ResolveDefaultNavigationTarget());
+        }
+    }
+
+    private async Task ReloadAllowedStationsIfCurrentUserAsync(Guid userId)
+    {
+        if (!_currentUserContext.UserId.HasValue || _currentUserContext.UserId.Value != userId)
+        {
+            return;
+        }
+
+        var previousStationCode = _currentStationContext.StationCode;
+        var stations = await _stationAuthorizationService.GetAllowedStationsAsync(userId, CancellationToken.None);
+
+        AllowedStations.Clear();
+        foreach (var station in stations)
+        {
+            AllowedStations.Add(station);
+        }
+
+        var nextStation = stations.FirstOrDefault(x => string.Equals(x.StationCode, previousStationCode, StringComparison.OrdinalIgnoreCase))
+            ?? stations.FirstOrDefault(x => x.IsDefault)
+            ?? stations.FirstOrDefault();
+
+        _suppressStationChanged = true;
+        try
+        {
+            SelectedStation = nextStation;
+            if (nextStation is null)
+            {
+                _currentStationContext.Clear();
+                StationFeatures = StationFeatureSetDto.Defaults;
+                CurrentView = null;
+                CurrentDestination = null;
+                return;
+            }
+
+            _currentStationContext.SetStation(nextStation.StationCode, nextStation.StationName);
+            StationFeatures = await _stationFeatureService.GetFeaturesAsync(nextStation.StationCode, CancellationToken.None);
+            NotifyAuthorizationPropertiesChanged();
+        }
+        finally
+        {
+            _suppressStationChanged = false;
+        }
+
+        OnPropertyChanged(nameof(CurrentStationDisplay));
+        if (CurrentDestination != null && !CanNavigateTo(CurrentDestination))
+        {
+            await NavigateAsync(ResolveDefaultNavigationTarget());
+        }
+    }
+
+    private string ResolveDefaultNavigationTarget()
+    {
+        var target = StationFeatures.DefaultNavigationTarget;
+        if (!string.IsNullOrWhiteSpace(target) && CanNavigateTo(target))
+        {
+            return target;
+        }
+
+        if (CanViewIncomingVehicles) return "IncomingVehicles";
+        if (CanViewWeighing) return "Weighing";
+        if (CanViewCrusherWeighing) return "CrusherWeighing";
+        if (CanViewDashboard) return "Dashboard";
+        if (CanViewOutgoingVehicles) return "OutgoingVehicles";
+        return "Dashboard";
+    }
+
+    partial void OnStationFeaturesChanged(StationFeatureSetDto value)
+    {
+        NotifyAuthorizationPropertiesChanged();
+    }
+
+    private void NotifyAuthorizationPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(CurrentStationDisplay));
+        OnPropertyChanged(nameof(CanViewDashboard));
+        OnPropertyChanged(nameof(CanViewIncomingVehicles));
+        OnPropertyChanged(nameof(CanViewWeighing));
+        OnPropertyChanged(nameof(CanViewCrusherWeighing));
+        OnPropertyChanged(nameof(CanViewExportWeighing));
+        OnPropertyChanged(nameof(CanViewOutgoingVehicles));
+        OnPropertyChanged(nameof(CanViewReportsMenu));
+        OnPropertyChanged(nameof(CanViewExportSummaryReport));
+        OnPropertyChanged(nameof(CanViewInboundSummaryReport));
+        OnPropertyChanged(nameof(CanViewSettingsMenu));
+        OnPropertyChanged(nameof(CanViewSettingsParams));
+        OnPropertyChanged(nameof(CanViewSettingsDevice));
+        OnPropertyChanged(nameof(CanViewSettingsPrint));
+        OnPropertyChanged(nameof(CanViewSettingsVehicles));
+        OnPropertyChanged(nameof(CanViewSettingsCustomers));
+        OnPropertyChanged(nameof(CanViewSettingsProducts));
+        OnPropertyChanged(nameof(CanViewSettingsSync));
+        OnPropertyChanged(nameof(CanViewSettingsExternalDatacan));
+        OnPropertyChanged(nameof(CanViewSettingsStations));
+        OnPropertyChanged(nameof(CanViewSettingsAccounts));
     }
 
     private void DisposeCurrentViewModel()
