@@ -21,24 +21,45 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource SidebarTopBackground}" Padding="12,0">
+                <Border Grid.Row="0" Background="{StaticResource SidebarTopBackground}" Padding="8,0">
                     <Grid>
-                        <TextBlock Text="{Binding AppVersionText}"
-                                   HorizontalAlignment="Left"
-                                   VerticalAlignment="Center"
-                                   Foreground="#D7E0F0"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Margin="12,0,0,0"/>
-                        <Button Command="{Binding ToggleSidebarCommand}"
-                                Width="28"
-                                Height="28"
-                                HorizontalAlignment="Right"
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ComboBox Grid.Column="0"
+                                  Height="38"
+                                  VerticalAlignment="Center"
+                                  Margin="4,0,4,0"
+                                  Style="{StaticResource HeaderComboBoxStyle}"
+                                  FontSize="13"
+                                  FontWeight="Normal"
+                                  ItemsSource="{Binding AllowedStations}"
+                                  SelectedItem="{Binding SelectedStation, Mode=TwoWay}"
+                                  ToolTip="{Binding CurrentStationDisplay}"
+                                  Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding StationName}"
+                                               FontSize="13"
+                                               FontWeight="Normal"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <Button Grid.Column="1"
+                                Command="{Binding ToggleSidebarCommand}"
+                                Width="32"
+                                Height="32"
+                                HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Background="Transparent"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                ToolTip="Thu gọn / Mở rộng menu">
+                                ToolTip="Thu gọn / Mở rộng menu"
+                                Margin="4,0,4,0">
                             <TextBlock Text="&#xE700;"
                                        FontFamily="Segoe MDL2 Assets"
                                        FontSize="18"
@@ -233,16 +254,21 @@
 
                 <Border Grid.Row="2"
                         Background="{StaticResource SidebarBackground}"
-                        Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}">
+                        Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}"
+                        BorderThickness="0,1,0,0"
+                        BorderBrush="{StaticResource SidebarItemHoverBackground}">
                     <StackPanel Background="{StaticResource SidebarFooterBackground}">
-                        <Border Background="{StaticResource SidebarItemBackground}" Padding="20,12,12,12">
+                        <Border Background="{StaticResource SidebarItemBackground}" Padding="20,4,12,4">
                             <StackPanel>
-                                <TextBlock Text="{Binding CurrentUserDisplayName}" FontWeight="SemiBold" Foreground="{StaticResource SidebarItemForeground}"/>
-                                <TextBlock Text="{Binding CurrentUserRoleCode}" FontSize="11" Foreground="#9FB0C3" Margin="0,4,0,0"/>
+                                <TextBlock Text="{Binding CurrentUserDisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource SidebarItemForeground}"/>
+                                <DockPanel Margin="0,2,0,0" LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding CurrentUserRoleCode}" FontSize="11" Foreground="#9FB0C3"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersionText}" FontSize="11" Foreground="#9FB0C3"/>
+                                </DockPanel>
                             </StackPanel>
                         </Border>
-                        <Button Style="{StaticResource SidebarMenuItemStyle}" Command="{Binding LogoutCommand}">
-                            <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource SidebarMenuItemStyle}" Height="32" Command="{Binding LogoutCommand}">
+                            <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center" FontSize="12.5"/>
                         </Button>
                     </StackPanel>
                 </Border>
@@ -251,34 +277,6 @@
 
         <Grid Grid.Column="1" Background="{StaticResource MainContentBackground}">
             <ContentControl Content="{Binding CurrentView}" Margin="0"/>
-
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
-                        Margin="0,13,260,0"
-                        Panel.ZIndex="99">
-                <TextBlock Text="Tr&#x1EA1;m:"
-                           Style="{StaticResource HeaderLabel}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0"/>
-                <ComboBox Width="150"
-                          Height="38"
-                          Style="{StaticResource HeaderComboBoxStyle}"
-                          FontSize="13.5"
-                          FontWeight="Normal"
-                          ItemsSource="{Binding AllowedStations}"
-                          SelectedItem="{Binding SelectedStation, Mode=TwoWay}"
-                          ToolTip="{Binding CurrentStationDisplay}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding StationName}"
-                                       FontSize="13.5"
-                                       FontWeight="Normal"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </StackPanel>
             
             <!-- Global Clock Capsule Badge -->
             <Border Style="{StaticResource ClockBadgeStyle}" 

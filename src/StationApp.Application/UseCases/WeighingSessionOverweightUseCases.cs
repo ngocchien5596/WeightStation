@@ -283,30 +283,19 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         }
 
         ct.ThrowIfCancellationRequested();
-        var firstNumber = await firstNumberFactory();
         if (count == 1)
         {
-            return [firstNumber];
+            return [await firstNumberFactory()];
         }
 
-        var splitIndex = firstNumber.Length;
-        while (splitIndex > 0 && char.IsDigit(firstNumber[splitIndex - 1]))
+        var numbers = new List<string>(count);
+        for (var index = 0; index < count; index++)
         {
-            splitIndex--;
+            ct.ThrowIfCancellationRequested();
+            numbers.Add(await firstNumberFactory());
         }
 
-        var prefix = firstNumber[..splitIndex];
-        var numericPart = firstNumber[splitIndex..];
-        if (numericPart.Length == 0 || !int.TryParse(numericPart, NumberStyles.None, CultureInfo.InvariantCulture, out var startSequence))
-        {
-            return Enumerable.Range(0, count)
-                .Select(offset => offset == 0 ? firstNumber : $"{firstNumber}-{offset + 1}")
-                .ToList();
-        }
-
-        return Enumerable.Range(0, count)
-            .Select(offset => $"{prefix}{(startSequence + offset).ToString($"D{numericPart.Length}", CultureInfo.InvariantCulture)}")
-            .ToList();
+        return numbers;
     }
 
     private WeighTicket BuildSplitWeighTicket(

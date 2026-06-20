@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using StationApp.Application.DTOs;
+using StationApp.Domain.Constants;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.Domain.Entities;
@@ -39,8 +40,11 @@ public class SmokeTests : IDisposable
                 services.AddScoped<IVehicleRepository, VehicleRepository>();
                 services.AddScoped<ICustomerRepository, CustomerRepository>();
                 services.AddScoped<IProductRepository, ProductRepository>();
+                services.AddScoped<IWeighingSessionRepository, WeighingSessionRepository>();
                 services.AddScoped<IStationOperationSettingsRepository, StationOperationSettingsRepository>();
                 services.AddScoped<IStationAdministrationService, StationAdministrationService>();
+                services.AddScoped<IStationScope, StationScope>();
+                services.AddScoped<IIncomingVehicleComplianceSettingsProvider, IncomingVehicleComplianceSettingsProvider>();
                 services.AddScoped<IUnitOfWork, EfUnitOfWork>();
                 services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                 services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
@@ -61,6 +65,7 @@ public class SmokeTests : IDisposable
             .Build();
 
         _services = _host.Services;
+        StationRuntimeScope.Clear();
         
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
@@ -102,7 +107,7 @@ public class SmokeTests : IDisposable
         
         var ticket = await db.WeighTickets.FindAsync(ticketId);
         Assert.NotNull(ticket);
-        Assert.StartsWith("QN", ticket.TicketNo);
+        Assert.StartsWith("QN01-", ticket.TicketNo);
         Assert.Equal(10000, ticket.Weight1);
         Assert.Equal(TicketStatus.LOADING_STARTED, ticket.Status);
 
@@ -150,14 +155,156 @@ public class SmokeTests : IDisposable
         // Verify that all generated ticket numbers are unique
         var uniqueResults = new HashSet<string>(results);
         Assert.Equal(concurrentTasksCount, uniqueResults.Count);
+        Assert.All(results, ticketNo => Assert.StartsWith("QN01-", ticketNo));
 
-        // Verify that they are sequential (e.g. QN26060001, QN26060002... up to QN26060020)
+        // Verify that they are sequential within the current station's prefix.
         var sortedResults = results.OrderBy(x => x).ToList();
         for (int i = 0; i < concurrentTasksCount; i++)
         {
             var expectedSuffix = $"{i + 1:D4}";
             Assert.EndsWith(expectedSuffix, sortedResults[i]);
         }
+    }
+
+    [Fact]
+    public async Task Generators_Maintain_Separate_Sequences_Per_Station()
+    {
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+        var ticketGenerator = scope.ServiceProvider.GetRequiredService<ITicketNumberGenerator>();
+        var deliveryGenerator = scope.ServiceProvider.GetRequiredService<IDeliveryNumberGenerator>();
+        var sessionGenerator = scope.ServiceProvider.GetRequiredService<IWeighingSessionNumberGenerator>();
+
+        await SetConfigValueAsync(db, "ticket_prefix", "PC");
+        await SetConfigValueAsync(db, "delivery_prefix", "PGN");
+
+        var yearMonth = DateTime.Now.ToString("yyMM");
+
+        StationRuntimeScope.Set("QN01", "Tram QN01");
+        var qn01Ticket1 = await ticketGenerator.GenerateAsync(default);
+        var qn01Ticket2 = await ticketGenerator.GenerateAsync(default);
+        var qn01Delivery1 = await deliveryGenerator.GenerateAsync(default);
+        var qn01Session1 = await sessionGenerator.GenerateAsync(TransactionType.OUTBOUND, default);
+
+        StationRuntimeScope.Set("QN02", "Tram QN02");
+        var qn02Ticket1 = await ticketGenerator.GenerateAsync(default);
+        var qn02Delivery1 = await deliveryGenerator.GenerateAsync(default);
+        var qn02Session1 = await sessionGenerator.GenerateAsync(TransactionType.OUTBOUND, default);
+
+        StationRuntimeScope.Set("QN01", "Tram QN01");
+        var qn01Ticket3 = await ticketGenerator.GenerateAsync(default);
+
+        Assert.Equal($"QN01-PC{yearMonth}0001", qn01Ticket1);
+        Assert.Equal($"QN01-PC{yearMonth}0002", qn01Ticket2);
+        Assert.Equal($"QN01-PGN{yearMonth}0001", qn01Delivery1);
+        Assert.Equal($"QN01-LC{yearMonth}0001", qn01Session1);
+
+        Assert.Equal($"QN02-PC{yearMonth}0001", qn02Ticket1);
+        Assert.Equal($"QN02-PGN{yearMonth}0001", qn02Delivery1);
+        Assert.Equal($"QN02-LC{yearMonth}0001", qn02Session1);
+        Assert.Equal($"QN01-PC{yearMonth}0003", qn01Ticket3);
+
+        var counterKeys = await db.DocumentCounters
+            .AsNoTracking()
+            .OrderBy(x => x.CounterKey)
+            .Select(x => x.CounterKey)
+            .ToListAsync();
+
+        Assert.Contains($"WeighTicket_QN01_PC{yearMonth}", counterKeys);
+        Assert.Contains($"WeighTicket_QN02_PC{yearMonth}", counterKeys);
+        Assert.Contains($"DeliveryTicket_QN01_PGN{yearMonth}", counterKeys);
+        Assert.Contains($"DeliveryTicket_QN02_PGN{yearMonth}", counterKeys);
+        Assert.Contains($"WeighingSession_QN01_LC{yearMonth}", counterKeys);
+        Assert.Contains($"WeighingSession_QN02_LC{yearMonth}", counterKeys);
+    }
+
+    [Fact]
+    public async Task Repositories_Resolve_Short_Business_Numbers_Per_Current_Station()
+    {
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+        var ticketRepo = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+
+        var qn01Session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            StationCode = "QN01",
+            SessionNo = "QN01-LC26060066",
+            TransactionType = TransactionType.OUTBOUND,
+            VehiclePlate = "30A-00001",
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "TEST"
+        };
+        var qn02Session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            StationCode = "QN02",
+            SessionNo = "QN02-LC26060066",
+            TransactionType = TransactionType.OUTBOUND,
+            VehiclePlate = "30A-00002",
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "TEST"
+        };
+
+        var qn01Ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            StationCode = "QN01",
+            CutOrderId = Guid.NewGuid(),
+            WeighingSessionId = qn01Session.Id,
+            TicketNo = "QN01-PC26060066",
+            VehiclePlate = "30A-00001",
+            TransactionType = TransactionType.OUTBOUND,
+            Status = TicketStatus.LOADING_STARTED,
+            IdempotencyKey = Guid.NewGuid(),
+            SyncStatus = SyncStatus.SYNC_QUEUED,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "TEST"
+        };
+        var qn02Ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            StationCode = "QN02",
+            CutOrderId = Guid.NewGuid(),
+            WeighingSessionId = qn02Session.Id,
+            TicketNo = "QN02-PC26060066",
+            VehiclePlate = "30A-00002",
+            TransactionType = TransactionType.OUTBOUND,
+            Status = TicketStatus.LOADING_STARTED,
+            IdempotencyKey = Guid.NewGuid(),
+            SyncStatus = SyncStatus.SYNC_QUEUED,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "TEST"
+        };
+
+        db.WeighingSessions.AddRange(qn01Session, qn02Session);
+        db.WeighTickets.AddRange(qn01Ticket, qn02Ticket);
+        await db.SaveChangesAsync();
+
+        StationRuntimeScope.Set("QN01", "Tram QN01");
+        var qn01ShortSession = await sessionRepo.GetBySessionNoAsync("LC26060066", default);
+        var qn01FullSession = await sessionRepo.GetBySessionNoAsync("QN01-LC26060066", default);
+        var qn01ShortTicket = await ticketRepo.GetByTicketNoAsync("PC26060066", default);
+        var qn01FullTicket = await ticketRepo.GetByTicketNoAsync("QN01-PC26060066", default);
+
+        Assert.Equal(qn01Session.Id, qn01ShortSession?.Id);
+        Assert.Equal(qn01Session.Id, qn01FullSession?.Id);
+        Assert.Equal(qn01Ticket.Id, qn01ShortTicket?.Id);
+        Assert.Equal(qn01Ticket.Id, qn01FullTicket?.Id);
+
+        StationRuntimeScope.Set("QN02", "Tram QN02");
+        var qn02ShortSession = await sessionRepo.GetBySessionNoAsync("LC26060066", default);
+        var qn02FullSession = await sessionRepo.GetBySessionNoAsync("QN02-LC26060066", default);
+        var qn02ShortTicket = await ticketRepo.GetByTicketNoAsync("PC26060066", default);
+        var qn02FullTicket = await ticketRepo.GetByTicketNoAsync("QN02-PC26060066", default);
+
+        Assert.Equal(qn02Session.Id, qn02ShortSession?.Id);
+        Assert.Equal(qn02Session.Id, qn02FullSession?.Id);
+        Assert.Equal(qn02Ticket.Id, qn02ShortTicket?.Id);
+        Assert.Equal(qn02Ticket.Id, qn02FullTicket?.Id);
     }
 
     [Fact]
@@ -285,7 +432,11 @@ public class SmokeTests : IDisposable
             ClaySingleWeighEnabled: false,
             ClayDefaultWeighMode: "TWO_WEIGH",
             ClayDefaultProductCode: "SET_TEST",
-            ClayDefaultCustomerCode: "KH_CLAY_TEST"
+            ClayDefaultCustomerCode: "KH_CLAY_TEST",
+            IncomingRequireTtcpForBaggedOutbound: true,
+            IncomingRequireRegistrationForBaggedOutbound: true,
+            IncomingRequireTtcpForBulkOutbound: false,
+            IncomingRequireRegistrationForBulkOutbound: true
         );
         
         var featuresDto = new StationFeatureSetDto(
@@ -337,7 +488,40 @@ public class SmokeTests : IDisposable
 
     public void Dispose()
     {
+        StationRuntimeScope.Clear();
         _host.Dispose();
+    }
+
+    private static async Task SetConfigValueAsync(StationDbContext db, string key, string value)
+    {
+        var now = DateTime.UtcNow;
+        var config = await db.AppConfigs.FirstOrDefaultAsync(x => x.ConfigKey == key);
+        if (config is null)
+        {
+            db.AppConfigs.Add(new AppConfig
+            {
+                ConfigKey = key,
+                ConfigValue = value,
+                CreatedAt = now,
+                CreatedBy = "TEST",
+                UpdatedAt = now,
+                UpdatedBy = "TEST"
+            });
+        }
+        else
+        {
+            config.ConfigValue = value;
+            config.UpdatedAt = now;
+            config.UpdatedBy = "TEST";
+        }
+
+        if (string.Equals(key, AppConfigKeys.DefaultStationCode, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, AppConfigKeys.StationCode, StringComparison.OrdinalIgnoreCase))
+        {
+            StationRuntimeScope.Clear();
+        }
+
+        await db.SaveChangesAsync();
     }
 }
 

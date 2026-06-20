@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.Application.UseCases.MasterData;
@@ -53,6 +54,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [ObservableProperty] private decimal? _formPlannedWeight;
     [ObservableProperty] private int? _formBagCount;
     [ObservableProperty] private bool _isFormProductBagged = true;
+    [ObservableProperty] private string? _formProductType;
     [ObservableProperty] private string? _formNotes;
     [ObservableProperty] private bool _formIsCancelled;
     [ObservableProperty] private TransportMethod? _formTransportMethod = TransportMethod.ROAD;
@@ -181,6 +183,11 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadVehiclesAsync()
     {
+        await ReloadVehiclesAsync(SelectedVehicle?.CutOrderId);
+    }
+
+    private async Task ReloadVehiclesAsync(Guid? preferredSelectedCutOrderId = null)
+    {
         using var perfScope = Helpers.PerformanceLogger.Track("IncomingVehicles.LoadVehicles");
         IsLoading = true;
         try
@@ -214,14 +221,16 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     return item;
                 }));
 
+            var selectionIdToRestore = preferredSelectedCutOrderId ?? SelectedVehicle?.CutOrderId;
+
             if (list.Count == 0 && HasSearchFilters())
             {
                 _toastService.ShowInfo(UiText.Common.NoMatchingData);
             }
 
-            if (SelectedVehicle != null)
+            if (selectionIdToRestore.HasValue)
             {
-                SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == SelectedVehicle.CutOrderId);
+                SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == selectionIdToRestore.Value);
             }
         }
         catch (Exception ex)
@@ -266,7 +275,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 }
 
                 _toastService.ShowSuccess(UiText.Incoming.CreateInboundSuccess);
-                await LoadVehiclesAsync();
+                await ReloadVehiclesAsync(result.Data?.Id);
 
                 if (result.Data != null)
                 {
@@ -283,10 +292,11 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 return;
             }
 
+            var selectedCutOrderId = EditingCutOrderId.Value;
             var notes = string.IsNullOrWhiteSpace(FormNotes) ? null : FormNotes.Trim();
             var updateUseCase = scope.ServiceProvider.GetRequiredService<UpdateIncomingRegistrationUseCase>();
             var updateResult = await updateUseCase.ExecuteAsync(new UpdateIncomingRegistrationRequest(
-                CutOrderId: EditingCutOrderId.Value,
+                CutOrderId: selectedCutOrderId,
                 VehiclePlate: FormVehiclePlate!,
                 TransactionType: FormTransactionType,
                 TransportMethod: FormTransportMethod,
@@ -315,7 +325,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             }
 
             _toastService.ShowSuccess(UiText.Incoming.UpdateInboundSuccess);
-            await LoadVehiclesAsync();
+            await ReloadVehiclesAsync(selectedCutOrderId);
 
             if (SelectedVehicle != null)
             {
@@ -361,6 +371,16 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     return;
                 }
 
+                var createSessionComplianceMessage = await ValidateIncomingComplianceForCreateSessionAsync(
+                    scope.ServiceProvider,
+                    selectedVehicles: null,
+                    CancellationToken.None);
+                if (createSessionComplianceMessage != null)
+                {
+                    _toastService.ShowError(createSessionComplianceMessage);
+                    return;
+                }
+
                 var currentFormValidationMessage = ValidateCurrentFormRegistrationExpiryForCreateSession();
                 if (currentFormValidationMessage != null)
                 {
@@ -390,6 +410,16 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             if (selectedIds.Count == 0)
             {
                 _toastService.ShowWarning(UiText.Incoming.CreateSessionSelectionRequired);
+                return;
+            }
+
+            var selectedFormComplianceMessage = await ValidateIncomingComplianceForCreateSessionAsync(
+                scope.ServiceProvider,
+                selectedVehicles,
+                CancellationToken.None);
+            if (selectedFormComplianceMessage != null)
+            {
+                _toastService.ShowError(selectedFormComplianceMessage);
                 return;
             }
 
@@ -465,11 +495,13 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     return;
                 }
 
+                var sessionDisplayNo = BusinessNumberFormatter.ToDisplay(session.SessionNo);
+
                 var reuseCutoff = DateTime.Now.Subtract(ReuseWeight1Window);
                 if (session.Weight1.HasValue
                     && (!session.Weight1Time.HasValue || session.Weight1Time.Value < reuseCutoff))
                 {
-                    _toastService.ShowError($"L\u01b0\u1ee3t c\u00e2n {session.SessionNo} \u0111\u00e3 qu\u00e1 24 gi\u1edd k\u1ec3 t\u1eeb th\u1eddi \u0111i\u1ec3m c\u00e2n l\u1ea7n 1, kh\u00f4ng \u0111\u01b0\u1ee3c ph\u00e9p d\u00f9ng l\u1ea1i.");
+                    _toastService.ShowError($"L\u01b0\u1ee3t c\u00e2n {sessionDisplayNo} \u0111\u00e3 qu\u00e1 24 gi\u1edd k\u1ec3 t\u1eeb th\u1eddi \u0111i\u1ec3m c\u00e2n l\u1ea7n 1, kh\u00f4ng \u0111\u01b0\u1ee3c ph\u00e9p d\u00f9ng l\u1ea1i.");
                     return;
                 }
 
@@ -484,7 +516,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                         : primaryVehicle.VehiclePlate.Trim();
                     var carryForwardConfirmResult = await _dialogService.ShowConfirmOrCloseAsync(
                         "X\u00e1c nh\u1eadn d\u00f9ng l\u1ea1i c\u00e2n l\u1ea7n 1",
-                        $"Xe bi\u1ec3n s\u1ed1 {carryForwardVehiclePlate} v\u1eeba th\u1ef1c hi\u1ec7n c\u00e2n l\u1ea7n 1 v\u1edbi s\u1ed1 l\u01b0\u1ee3t c\u00e2n {session.SessionNo}, s\u1ed1 c\u00e2n {session.Weight1.Value:N0} kg v\u00e0o l\u00fac {carryForwardTimeText}. B\u1ea1n c\u00f3 \u0111\u1ed3ng \u00fd d\u00f9ng l\u1ea1i s\u1ed1 c\u00e2n l\u1ea7n 1 n\u00e0y kh\u00f4ng?",
+                        $"Xe bi\u1ec3n s\u1ed1 {carryForwardVehiclePlate} v\u1eeba th\u1ef1c hi\u1ec7n c\u00e2n l\u1ea7n 1 v\u1edbi s\u1ed1 l\u01b0\u1ee3t c\u00e2n {sessionDisplayNo}, s\u1ed1 c\u00e2n {session.Weight1.Value:N0} kg v\u00e0o l\u00fac {carryForwardTimeText}. B\u1ea1n c\u00f3 \u0111\u1ed3ng \u00fd d\u00f9ng l\u1ea1i s\u1ed1 c\u00e2n l\u1ea7n 1 n\u00e0y kh\u00f4ng?",
                         "\u0110\u1ed3ng \u00fd",
                         "Kh\u00f4ng");
                     if (!carryForwardConfirmResult.HasValue)
@@ -511,7 +543,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                             var actualBagCount =
                                 string.Equals(ProductTypes.Normalize(singleLine.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase)
                                 && singleLine.PlannedBagCount.HasValue
-                                    ? (int?)decimal.Floor(session.NetWeight.Value / 50m)
+                                    ? singleLine.PlannedBagCount
                                     : null;
 
                             var allocateUc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
@@ -529,7 +561,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                         }
                     }
 
-                    _toastService.ShowSuccess($"\u0110\u00e3 g\u1eafn c\u1eaft l\u1ec7nh v\u00e0o l\u01b0\u1ee3t c\u00e2n {session.SessionNo}.");
+                    _toastService.ShowSuccess($"\u0110\u00e3 g\u1eafn c\u1eaft l\u1ec7nh v\u00e0o l\u01b0\u1ee3t c\u00e2n {sessionDisplayNo}.");
                     await LoadVehiclesAsync();
                     NavigateToWeighingRequested?.Invoke(session.Id);
                     return;
@@ -729,8 +761,9 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             SetFormCustomerName(registration.CustomerName);
             SetFormProductCode(registration.ProductCode);
             SetFormProductName(registration.ProductName);
+            FormProductType = StationApp.Domain.Constants.ProductTypes.Normalize(registration.ProductType ?? selected.ProductType);
             FormPlannedWeight = registration.PlannedWeight;
-            var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(selected.ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+            var isBagged = string.Equals(FormProductType, StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
             IsFormProductBagged = isBagged;
             FormBagCount = isBagged ? registration.BagCount : null;
             FormNotes = registration.Notes;
@@ -817,6 +850,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         FormPlannedWeight = null;
         FormBagCount = null;
         IsFormProductBagged = true;
+        FormProductType = null;
         FormNotes = null;
         FormIsCancelled = false;
         FormAttachSessionNo = null;
@@ -1148,6 +1182,97 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             MoocRegistrationExpiry);
     }
 
+    private async Task<string?> ValidateIncomingComplianceForCreateSessionAsync(
+        IServiceProvider serviceProvider,
+        IReadOnlyCollection<IncomingVehicleSelectionItem>? selectedVehicles,
+        CancellationToken ct)
+    {
+        var provider = serviceProvider.GetRequiredService<IIncomingVehicleComplianceSettingsProvider>();
+        var rules = await provider.GetCurrentRulesAsync(ct);
+        var stationScope = serviceProvider.GetRequiredService<IStationScope>();
+        var stationCode = await stationScope.GetCurrentStationCodeAsync(ct);
+        if (IsCreateMode || selectedVehicles == null || selectedVehicles.Count == 0)
+        {
+            var currentProductType = await ResolveCurrentFormProductTypeAsync(serviceProvider, ct);
+            return IncomingVehicleComplianceValidator.ValidateForCreateSession(
+                rules,
+                new IncomingVehicleComplianceValidationInput(
+                    stationCode,
+                    FormTransactionType,
+                    currentProductType,
+                    TtcpWeight,
+                    VehicleRegistrationNo,
+                    VehicleRegistrationExpiry,
+                    FormMoocNumber,
+                    MoocRegistrationNo,
+                    MoocRegistrationExpiry));
+        }
+
+        var vehicleRepo = serviceProvider.GetRequiredService<IVehicleRepository>();
+        foreach (var selectedVehicle in selectedVehicles)
+        {
+            IncomingVehicleComplianceValidationInput input;
+            if (ShouldUseCurrentFormRegistrationDataForCreateSession(selectedVehicle.CutOrderId))
+            {
+                var currentProductType = await ResolveCurrentFormProductTypeAsync(serviceProvider, ct);
+                input = new IncomingVehicleComplianceValidationInput(
+                    stationCode,
+                    FormTransactionType,
+                    currentProductType,
+                    TtcpWeight,
+                    VehicleRegistrationNo,
+                    VehicleRegistrationExpiry,
+                    FormMoocNumber,
+                    MoocRegistrationNo,
+                    MoocRegistrationExpiry);
+            }
+            else
+            {
+                var vehicle = await ResolveVehicleForExpiryValidationAsync(
+                    vehicleRepo,
+                    selectedVehicle.VehiclePlate,
+                    selectedVehicle.MoocNumber,
+                    ct);
+
+                input = new IncomingVehicleComplianceValidationInput(
+                    stationCode,
+                    selectedVehicle.TransactionType,
+                    selectedVehicle.ProductType,
+                    vehicle?.TtcpWeight,
+                    vehicle?.VehicleRegistrationNo,
+                    vehicle?.VehicleRegistrationExpiryDate,
+                    selectedVehicle.MoocNumber,
+                    vehicle?.MoocRegistrationNo,
+                    vehicle?.MoocRegistrationExpiryDate);
+            }
+
+            var message = IncomingVehicleComplianceValidator.ValidateForCreateSession(rules, input);
+            if (message != null)
+            {
+                return message;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ResolveCurrentFormProductTypeAsync(IServiceProvider serviceProvider, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(FormProductType))
+        {
+            return FormProductType;
+        }
+
+        if (string.IsNullOrWhiteSpace(FormProductCode))
+        {
+            return null;
+        }
+
+        var productRepo = serviceProvider.GetRequiredService<IProductRepository>();
+        var product = await productRepo.GetByCodeAsync(FormProductCode.Trim(), ct);
+        return StationApp.Domain.Constants.ProductTypes.Normalize(product?.ProductType);
+    }
+
 
     private bool ValidateIncomingDetailForm()
     {
@@ -1322,6 +1447,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(productCode))
         {
             IsFormProductBagged = true;
+            FormProductType = null;
             return;
         }
 
@@ -1332,7 +1458,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             var product = await productRepo.GetByCodeAsync(productCode.Trim(), CancellationToken.None);
             if (product != null)
             {
-                var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(product.ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+                FormProductType = StationApp.Domain.Constants.ProductTypes.Normalize(product.ProductType);
+                var isBagged = string.Equals(FormProductType, StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
                 IsFormProductBagged = isBagged;
                 if (!isBagged)
                 {
@@ -1342,12 +1469,14 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             else
             {
                 IsFormProductBagged = true;
+                FormProductType = null;
             }
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Product type sync failed for {ProductCode}", productCode);
             IsFormProductBagged = true;
+            FormProductType = null;
         }
     }
 }

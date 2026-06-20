@@ -129,7 +129,7 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
 
             var item = Assert.Single(list);
             Assert.Equal(12_345m, item.CarryForwardWeight1);
-            Assert.Equal($"{SessionNoPrefix}001", item.SuggestedSessionNo);
+            Assert.Equal("001", item.SuggestedSessionNo);
         }
     }
 

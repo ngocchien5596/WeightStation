@@ -8,6 +8,7 @@ using Microsoft.Win32;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
+using StationApp.Domain.Enums;
 using StationApp.UI.Services;
 
 namespace StationApp.UI.ViewModels;
@@ -33,6 +34,7 @@ public partial class ExportSummaryReportViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
     [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _productOptions = [];
     [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _customerOptions = [];
+    [ObservableProperty] private ObservableCollection<OutgoingFlowFilterOption> _flowTypeOptions = [];
     [ObservableProperty] private ICollectionView? _productOptionsView;
     [ObservableProperty] private ICollectionView? _customerOptionsView;
     [ObservableProperty] private string? _productSearchText;
@@ -41,6 +43,7 @@ public partial class ExportSummaryReportViewModel : ObservableObject
     [ObservableProperty] private bool _isCustomerDropDownOpen;
     [ObservableProperty] private ReportLookupOptionDto? _selectedProduct;
     [ObservableProperty] private ReportLookupOptionDto? _selectedCustomer;
+    [ObservableProperty] private OutgoingFlowFilterOption? _selectedFlowType;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<ExportSummaryReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
@@ -64,6 +67,13 @@ public partial class ExportSummaryReportViewModel : ObservableObject
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        FlowTypeOptions =
+        [
+            new OutgoingFlowFilterOption("Tất cả", OutgoingFlowType.All),
+            new OutgoingFlowFilterOption("Nội địa", OutgoingFlowType.Domestic),
+            new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export)
+        ];
+        SelectedFlowType = FlowTypeOptions.FirstOrDefault();
 
         ApplyCurrentShift();
 
@@ -176,7 +186,8 @@ public partial class ExportSummaryReportViewModel : ObservableObject
             fromTime,
             toTime,
             NormalizeCode(selectedProduct),
-            NormalizeCode(selectedCustomer));
+            NormalizeCode(selectedCustomer),
+            SelectedFlowType?.Value ?? OutgoingFlowType.All);
 
         return await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
     }

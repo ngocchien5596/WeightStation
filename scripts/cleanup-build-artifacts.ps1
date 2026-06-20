@@ -83,6 +83,7 @@ $fileTargets = New-Object System.Collections.Generic.List[string]
 
 Get-ChildItem -LiteralPath $repoRoot -Directory -Force -ErrorAction SilentlyContinue |
     Where-Object {
+        $_.Name -like '._temp_*' -or
         $_.Name -like '._tmp_*' -or
         $_.Name -like '._append_*' -or
         $_.Name -eq '._tmp_ui_msbuildext'
@@ -93,6 +94,7 @@ if ($IncludeProjectBuildDirs) {
     Get-ChildItem -Path (Join-Path $repoRoot 'src'), (Join-Path $repoRoot 'tests') -Directory -Recurse -Force -ErrorAction SilentlyContinue |
         Where-Object {
             $_.Name -in @('bin', 'obj', '.codex_build', 'artifacts', 'obj_verify', 'bin_verify', 'logs') -or
+            $_.Name -like '._temp_*' -or
             $_.Name -like '._tmp_*' -or
             $_.Name -eq '._repo_build' -or
             $_.Name -eq '._verify_build'
@@ -146,6 +148,7 @@ if ($IncludeLogs) {
 if ($IncludeRootArtifacts) {
     @(
         'artifacts',
+        '.tmp',
         'publish',
         'scratch',
         '.tmp_versioncheck.cs'

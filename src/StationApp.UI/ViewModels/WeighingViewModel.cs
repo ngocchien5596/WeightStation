@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
 using StationApp.Application.Security;
@@ -872,6 +873,17 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         try
         {
             using var scope = _scopeFactory.CreateScope();
+            _logger?.LogInformation(
+                "SaveCapturedWeight started for session {SessionId}/{SessionNo}. Status={SessionStatus}, PendingWeight1={PendingWeight1}, PendingWeight2={PendingWeight2}, ModeWeight1={ModeWeight1}, ModeWeight2={ModeWeight2}, StableWeight1={StableWeight1}, StableWeight2={StableWeight2}",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                SelectedSession.SessionStatus,
+                _pendingCapturedWeight1,
+                _pendingCapturedWeight2,
+                _pendingWeight1Mode,
+                _pendingWeight2Mode,
+                _pendingWeight1IsStable,
+                _pendingWeight2IsStable);
 
             if (SelectedSession.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1)
             {
@@ -883,6 +895,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                         _pendingWeight1IsStable,
                         _pendingWeight1Mode),
                     CancellationToken.None);
+
+                _logger?.LogInformation(
+                    "SaveCapturedWeight completed weight 1 for session {SessionId}/{SessionNo}. Weight1={Weight1}",
+                    SelectedSession.SessionId,
+                    SelectedSession.SessionNo,
+                    _pendingCapturedWeight1);
 
                 _toastService.ShowSuccess(UiText.Weighing.Weight1Saved);
             }
@@ -899,9 +917,22 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                             _pendingWeight2Mode,
                             BypassTolerance: false),
                         CancellationToken.None);
+
+                    _logger?.LogInformation(
+                        "SaveCapturedWeight completed weight 2 for session {SessionId}/{SessionNo}. Weight2={Weight2}, BypassTolerance={BypassTolerance}",
+                        SelectedSession.SessionId,
+                        SelectedSession.SessionNo,
+                        _pendingCapturedWeight2,
+                        false);
                 }
                 catch (BaggedWeightToleranceExceededException ex)
                 {
+                    _logger?.LogWarning(
+                        ex,
+                        "SaveCapturedWeight hit bagged tolerance for session {SessionId}/{SessionNo}. Weight2={Weight2}",
+                        SelectedSession.SessionId,
+                        SelectedSession.SessionNo,
+                        _pendingCapturedWeight2);
                     var confirmed = await _dialogService.ShowConfirmAsync(
                         "Cảnh báo vượt dung sai",
                         $"{ex.Message}\n\nBạn vẫn muốn tiếp tục lưu cân lần 2?",
@@ -909,6 +940,10 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                         "Hủy");
                     if (!confirmed)
                     {
+                        _logger?.LogInformation(
+                            "SaveCapturedWeight cancelled by user after tolerance warning for session {SessionId}/{SessionNo}.",
+                            SelectedSession.SessionId,
+                            SelectedSession.SessionNo);
                         return;
                     }
 
@@ -920,6 +955,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                             _pendingWeight2Mode,
                             BypassTolerance: true),
                         CancellationToken.None);
+
+                    _logger?.LogInformation(
+                        "SaveCapturedWeight completed weight 2 for session {SessionId}/{SessionNo}. Weight2={Weight2}, BypassTolerance={BypassTolerance}",
+                        SelectedSession.SessionId,
+                        SelectedSession.SessionNo,
+                        _pendingCapturedWeight2,
+                        true);
                 }
 
                 _toastService.ShowSuccess(UiText.Weighing.Weight2Saved);
@@ -930,7 +972,14 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
         catch (InvalidOperationException ex)
         {
-            _logger?.LogWarning(ex, "Save captured weight rejected by business validation");
+            _logger?.LogWarning(
+                ex,
+                "Save captured weight rejected by business validation for session {SessionId}/{SessionNo}. Status={SessionStatus}, PendingWeight1={PendingWeight1}, PendingWeight2={PendingWeight2}",
+                SelectedSession?.SessionId,
+                SelectedSession?.SessionNo,
+                SelectedSession?.SessionStatus,
+                _pendingCapturedWeight1,
+                _pendingCapturedWeight2);
             _toastService.ShowWarning(ex.Message);
             _isApplyingNoLoadState = true;
             try
@@ -944,7 +993,14 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Save captured weight failed");
+            _logger?.LogError(
+                ex,
+                "Save captured weight failed for session {SessionId}/{SessionNo}. Status={SessionStatus}, PendingWeight1={PendingWeight1}, PendingWeight2={PendingWeight2}",
+                SelectedSession?.SessionId,
+                SelectedSession?.SessionNo,
+                SelectedSession?.SessionStatus,
+                _pendingCapturedWeight1,
+                _pendingCapturedWeight2);
             _toastService.ShowError("Không thể lưu số cân. Vui lòng thử lại.");
         }
     }
@@ -1045,6 +1101,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
         catch (InvalidOperationException ex)
         {
+            _logger?.LogWarning(
+                ex,
+                "ConfirmAllocation rejected by business validation for session {SessionId}/{SessionNo}.",
+                SelectedSession?.SessionId,
+                SelectedSession?.SessionNo);
             _toastService.ShowWarning(ex.Message);
             _isApplyingNoLoadState = true;
             try
@@ -1091,6 +1152,24 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         try
         {
             using var scope = _scopeFactory.CreateScope();
+            _logger?.LogInformation(
+                "ConfirmAllocation started for session {SessionId}/{SessionNo}. LineCount={LineCount}, NetWeight={NetWeight}, Lines={Lines}",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                AllocationLines.Count,
+                NetWeight,
+                AllocationLines
+                    .OrderByDescending(x => x.IsPriority)
+                    .ThenBy(x => x.SequenceNo)
+                    .Select(x => new
+                    {
+                        x.SessionLineId,
+                        x.SequenceNo,
+                        x.ActualAllocatedWeight,
+                        x.ActualAllocatedBagCount,
+                        x.IsPriority
+                    })
+                    .ToList());
             var uc = scope.ServiceProvider.GetRequiredService<AllocateWeighingSessionUseCase>();
             await uc.ExecuteAsync(
                 new AllocateWeighingSessionRequest(
@@ -1106,12 +1185,22 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                         .ToList()),
                 CancellationToken.None);
 
+            _logger?.LogInformation(
+                "ConfirmAllocation completed for session {SessionId}/{SessionNo}.",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo);
+
             _toastService.ShowSuccess(UiText.Weighing.AllocationSaved);
             IsAllocationVisible = false;
             await FocusSessionAsync(SelectedSession.SessionId);
         }
         catch (InvalidOperationException ex)
         {
+            _logger?.LogWarning(
+                ex,
+                "ConfirmAllocation validation failed for session {SessionId}/{SessionNo}.",
+                SelectedSession?.SessionId,
+                SelectedSession?.SessionNo);
             _toastService.ShowWarning(ex.Message);
             _isApplyingNoLoadState = true;
             try
@@ -1125,7 +1214,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Confirm allocation failed");
+            _logger?.LogError(
+                ex,
+                "ConfirmAllocation failed for session {SessionId}/{SessionNo}.",
+                SelectedSession?.SessionId,
+                SelectedSession?.SessionNo);
             _toastService.ShowError("Không thể lưu phân bổ thực giao. Vui lòng thử lại.");
         }
     }
@@ -1503,18 +1596,58 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        using var scope = _scopeFactory.CreateScope();
-        var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightSplitUseCase>();
-        await useCase.ExecuteAsync(
-            new ResolveWeighingSessionOverweightSplitRequest(
+        try
+        {
+            _logger?.LogInformation(
+                "ConfirmOverweightSplit started for session {SessionId}/{SessionNo}. FirstSplitWeight={FirstSplitWeight}, ManualOverride={ManualOverride}, PreviewGroups={PreviewGroups}, PreviewLines={PreviewLines}",
                 SelectedSession.SessionId,
+                SelectedSession.SessionNo,
                 firstSplitWeight,
-                IsManualSplitOverride),
-            CancellationToken.None);
+                IsManualSplitOverride,
+                OverweightPreviewGroups.Count,
+                OverweightPreviewLines.Count);
+
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightSplitUseCase>();
+            await useCase.ExecuteAsync(
+                new ResolveWeighingSessionOverweightSplitRequest(
+                    SelectedSession.SessionId,
+                    firstSplitWeight,
+                    IsManualSplitOverride),
+                CancellationToken.None);
+            _logger?.LogInformation(
+                "ConfirmOverweightSplit completed for session {SessionId}/{SessionNo}. FirstSplitWeight={FirstSplitWeight}, ManualOverride={ManualOverride}",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                firstSplitWeight,
+                IsManualSplitOverride);
             _toastService.ShowSuccess("Đã cập nhật tách tải.");
-        IsOverweightHandlingVisible = false;
-        ResetOverweightHandlingState();
-        await FocusSessionAsync(SelectedSession.SessionId);
+            IsOverweightHandlingVisible = false;
+            ResetOverweightHandlingState();
+            await FocusSessionAsync(SelectedSession.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "ConfirmOverweightSplit validation failed for session {SessionId}/{SessionNo}. FirstSplitWeight={FirstSplitWeight}, ManualOverride={ManualOverride}",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                firstSplitWeight,
+                IsManualSplitOverride);
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(
+                ex,
+                "ConfirmOverweightSplit failed for session {SessionId}/{SessionNo}. FirstSplitWeight={FirstSplitWeight}, ManualOverride={ManualOverride}",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                firstSplitWeight,
+                IsManualSplitOverride);
+            _toastService.ShowError("Không thể xác nhận tách tải. Vui lòng thử lại.");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanSuggestOverweightSplitAgain))]
@@ -1536,13 +1669,43 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        using var scope = _scopeFactory.CreateScope();
-        var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightNoSplitUseCase>();
-        await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
-        _toastService.ShowSuccess("Đã cập nhật tách tải.");
-        IsOverweightHandlingVisible = false;
-        ResetOverweightHandlingState();
-        await FocusSessionAsync(SelectedSession.SessionId);
+        try
+        {
+            _logger?.LogInformation(
+                "ConfirmOverweightNoSplit started for session {SessionId}/{SessionNo}. OverweightAmount={OverweightAmount}",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                SelectedSession.OverweightAmount);
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<ResolveWeighingSessionOverweightNoSplitUseCase>();
+            await useCase.ExecuteAsync(SelectedSession.SessionId, CancellationToken.None);
+            _logger?.LogInformation(
+                "ConfirmOverweightNoSplit completed for session {SessionId}/{SessionNo}.",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo);
+            _toastService.ShowSuccess("Đã cập nhật tách tải.");
+            IsOverweightHandlingVisible = false;
+            ResetOverweightHandlingState();
+            await FocusSessionAsync(SelectedSession.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(
+                ex,
+                "ConfirmOverweightNoSplit validation failed for session {SessionId}/{SessionNo}.",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo);
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(
+                ex,
+                "ConfirmOverweightNoSplit failed for session {SessionId}/{SessionNo}.",
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo);
+            _toastService.ShowError("Không thể xác nhận không tách tải. Vui lòng thử lại.");
+        }
     }
 
     private void HandleOverweightSplitWeightEdited(string value, bool isFirstTicket)
@@ -1842,6 +2005,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
         catch (InvalidOperationException ex)
         {
+            _logger?.LogWarning(
+                ex,
+                "ConfirmAllocation validation failed for session {SessionId}/{SessionNo}.",
+                SelectedSession?.SessionId,
+                SelectedSession?.SessionNo);
             _toastService.ShowWarning(ex.Message);
             _isApplyingNoLoadState = true;
             try
@@ -1945,7 +2113,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         RelatedTickets = new ObservableCollection<RelatedDocumentListItem>(
             weighTickets.Select(ticket => new RelatedDocumentListItem(
                     UiText.Weighing.RelatedWeighTicket,
-                    ticket.TicketNo,
+                    BusinessNumberFormatter.ToDisplay(ticket.TicketNo),
                     null,
                     ticket.RecordRole,
                     ticket.SplitSequence,
@@ -1956,7 +2124,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 .Concat(deliveryTickets.Select(ticket => new RelatedDocumentListItem(
                     UiText.Weighing.RelatedDeliveryTicket,
                     null,
-                    ticket.DeliveryNo,
+                    BusinessNumberFormatter.ToDisplay(ticket.DeliveryNo),
                     ticket.RecordRole,
                     ticket.SplitSequence,
                     null,
@@ -2049,7 +2217,10 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 false,
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
-                    : 1);
+                    : 1,
+                kind == PrintDocumentKind.DeliveryTicket
+                    ? CreateEditableDeliverySealContext(sessionId, context)
+                    : null);
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -2057,7 +2228,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var result = await printService.PrintAsync(template, preview, printOptions, CancellationToken.None);
+            var batchToPrint = dialogVm.CurrentBatch;
+            var result = await printService.PrintAsync(template, batchToPrint, printOptions, CancellationToken.None);
             await PersistPrintResultAsync(scope, context, kind, result);
 
             if (result.HasFailures)
@@ -2110,6 +2282,39 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             ?? (await vehicleRepo.GetByPlateAsync(session.VehiclePlate, CancellationToken.None)).FirstOrDefault();
 
         return new SessionPrintContext(session, lines, registrationsById, weighTickets, deliveryTickets, vehicle);
+    }
+
+    private EditableDeliverySealContext? CreateEditableDeliverySealContext(Guid sessionId, SessionPrintContext context)
+    {
+        var currentSealNo = context.RegistrationsById.Values
+            .Select(x => x.SealNo?.Trim())
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        return new EditableDeliverySealContext(
+            currentSealNo,
+            async (sealNo, ct) =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionSealNoUseCase>();
+                var result = await useCase.ExecuteAsync(sessionId, sealNo, ct);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(result.ErrorMessage ?? "Không thể lưu niêm chì số.");
+                }
+
+                return result.Data;
+            },
+            async ct =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var refreshedContext = await LoadPrintContextAsync(scope, sessionId);
+                if (refreshedContext == null)
+                {
+                    throw new InvalidOperationException("Không thể tải lại preview phiếu giao nhận sau khi lưu niêm chì số.");
+                }
+
+                return BuildPrintBatchPreview(scope, refreshedContext, PrintDocumentKind.DeliveryTicket);
+            });
     }
 
     private PrintBatchPreviewModel BuildPrintBatchPreview(IServiceScope scope, SessionPrintContext context, PrintDocumentKind kind)
@@ -2568,8 +2773,6 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
 public partial class WeighingSessionLineRow : ObservableObject
 {
-    private const decimal DefaultBagWeightKg = 50m;
-
     public WeighingSessionLineRow(WeighingSessionLineItem item)
     {
         SessionLineId = item.SessionLineId;
@@ -2627,7 +2830,7 @@ public partial class WeighingSessionLineRow : ObservableObject
             return;
         }
 
-        ActualAllocatedBagCount = (int)decimal.Floor(value.Value / DefaultBagWeightKg);
+        ActualAllocatedBagCount = PlannedBagCount;
     }
 
     public WeighingSessionLineRow Clone()

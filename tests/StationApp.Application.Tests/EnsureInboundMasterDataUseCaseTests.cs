@@ -10,6 +10,72 @@ namespace StationApp.Application.Tests;
 public class EnsureInboundMasterDataUseCaseTests
 {
     [Fact]
+    public async Task ExecuteAsync_UpdatesExistingVehicleTtcpWeightWhenIncomingFormChangesValue()
+    {
+        var vehicleRepo = Substitute.For<IVehicleRepository>();
+        var customerRepo = Substitute.For<ICustomerRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
+        var outboxRepo = Substitute.For<ISyncOutboxRepository>();
+        var payloadFactory = Substitute.For<ISyncPayloadFactory>();
+        var clock = Substitute.For<IClock>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var now = new DateTime(2026, 6, 18, 22, 0, 0);
+
+        clock.NowLocal.Returns(now);
+        currentUser.Username.Returns("tester");
+        payloadFactory.CreatePayload(Arg.Any<Vehicle>()).Returns("{}");
+
+        var existingVehicle = new Vehicle
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "14H-04022",
+            MoocNumber = string.Empty,
+            TtcpWeight = 5000m,
+            IsActive = true,
+            CreatedAt = now.AddDays(-5),
+            CreatedBy = "seed"
+        };
+
+        vehicleRepo.GetByPlateAsync("14H-04022", Arg.Any<CancellationToken>())
+            .Returns(new[] { existingVehicle });
+
+        var sut = new EnsureInboundMasterDataUseCase(
+            vehicleRepo,
+            customerRepo,
+            productRepo,
+            outboxRepo,
+            payloadFactory,
+            clock,
+            currentUser);
+
+        await sut.ExecuteAsync(
+            vehiclePlate: "14H-04022",
+            moocNumber: null,
+            driverName: null,
+            transportMethod: TransportMethod.ROAD,
+            customerCode: null,
+            customerName: null,
+            productCode: null,
+            productName: null,
+            productType: null,
+            transactionType: TransactionType.INBOUND,
+            ct: CancellationToken.None,
+            ttcpWeight: 6000m,
+            vehicleRegistrationNo: null,
+            vehicleRegistrationExpiryDate: null,
+            moocRegistrationNo: null,
+            moocRegistrationExpiryDate: null);
+
+        await vehicleRepo.Received(1).UpdateAsync(
+            Arg.Is<Vehicle>(x =>
+                x.Id == existingVehicle.Id &&
+                x.TtcpWeight == 6000m &&
+                x.UpdatedAt == now &&
+                x.UpdatedBy == "tester"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ExecuteAsync_UpdatesVehicleRegistrationFieldsWhenIncomingFormProvidesNewValues()
     {
         var vehicleRepo = Substitute.For<IVehicleRepository>();
@@ -273,4 +339,3 @@ public class EnsureInboundMasterDataUseCaseTests
             Arg.Any<CancellationToken>());
     }
 }
-

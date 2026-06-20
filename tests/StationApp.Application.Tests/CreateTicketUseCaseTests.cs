@@ -22,7 +22,7 @@ public class CreateTicketUseCaseTests
 
     private CreateTicketUseCase CreateSut()
     {
-        _ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN26040001");
+        _ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN01-PC26040001");
         _versionProvider.GetVersion().Returns("1.0.0");
         _userContext.Username.Returns("admin");
         _clock.NowLocal.Returns(new DateTime(2026, 4, 24, 0, 0, 0, DateTimeKind.Unspecified));
@@ -38,7 +38,7 @@ public class CreateTicketUseCaseTests
         var sut = CreateSut();
         var result = await sut.ExecuteAsync(new CreateTicketRequest("ABC-1234", TransactionType.OUTBOUND), CancellationToken.None);
         Assert.True(result.Success);
-        Assert.Equal("QN26040001", result.Data!.TicketNo);
+        Assert.Equal("QN01-PC26040001", result.Data!.TicketNo);
     }
 
     [Fact]

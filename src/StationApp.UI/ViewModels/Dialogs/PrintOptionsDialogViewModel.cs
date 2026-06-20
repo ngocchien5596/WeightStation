@@ -14,7 +14,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     private readonly PrintOverlayRenderer _renderer;
     private readonly IPrintTemplateProvider _templateProvider;
     private PrintTemplateDefinition _template;
-    private readonly PrintBatchPreviewModel _batch;
+    private PrintBatchPreviewModel _batch;
+    private readonly EditableDeliverySealContext? _editableDeliverySealContext;
     private Dictionary<string, PrintFieldDefinition> _fieldDefaults;
     private bool _normalizingLayoutMessage;
 
@@ -40,13 +41,17 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     [ObservableProperty] private double _nudgeStepMm = 0.5d;
     [ObservableProperty] private string _nudgeStepMmText = "0.5";
     [ObservableProperty] private bool _canManageLayout;
+    [ObservableProperty] private string? _editableSealNo;
+    [ObservableProperty] private bool _isSavingEditableSealNo;
 
     public PrintOptionsModel? DialogResultValue { get; private set; }
+    public PrintBatchPreviewModel CurrentBatch => _batch;
     public event EventHandler<bool>? CloseRequested;
 
     public bool CanPrint => SelectedPrinter != null && CopyCount > 0;
     public bool HasSelectedField => SelectedField != null;
     public bool CanManageProfiles => CanManageLayout && SelectedProfile != null;
+    public bool CanEditDeliverySealNo => _editableDeliverySealContext != null;
     public string PreviewHeader => CanManageLayout
         ? "Preview canh chỉnh vị trí in"
         : "Preview trước khi in";
@@ -98,15 +103,18 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         PrintOverlayRenderer renderer,
         IPrintTemplateProvider templateProvider,
         bool canManageLayout,
-        int defaultCopyCount = 1)
+        int defaultCopyCount = 1,
+        EditableDeliverySealContext? editableDeliverySealContext = null)
     {
         Title = title;
         _template = template;
         _batch = batch;
         _renderer = renderer;
         _templateProvider = templateProvider;
+        _editableDeliverySealContext = editableDeliverySealContext;
         _fieldDefaults = template.Fields.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
         CanManageLayout = canManageLayout;
+        EditableSealNo = editableDeliverySealContext?.CurrentSealNo;
 
         OnPropertyChanged(nameof(PreviewHeader));
         OnPropertyChanged(nameof(PreviewDescription));
@@ -233,6 +241,36 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         };
 
         CloseRequested?.Invoke(this, true);
+    }
+
+    [RelayCommand]
+    private async Task SaveEditableSealNoAsync()
+    {
+        if (_editableDeliverySealContext == null || IsSavingEditableSealNo)
+        {
+            return;
+        }
+
+        IsSavingEditableSealNo = true;
+        try
+        {
+            var savedValue = await _editableDeliverySealContext.SaveAsync(EditableSealNo, CancellationToken.None);
+            EditableSealNo = savedValue;
+            _batch = await _editableDeliverySealContext.ReloadPreviewAsync(CancellationToken.None);
+            PreviewItems = new ObservableCollection<PrintPreviewSelectionItem>(BuildPreviewItems(_batch));
+            SelectedPreviewItem = GetMatchingPreviewItem(PreviewItems, SelectedPreviewItem) ?? GetDefaultPreviewItem(PreviewItems);
+            RefreshPreview();
+            LayoutMessage = "Đã lưu niêm chì số và cập nhật preview.";
+            ValidationMessage = null;
+        }
+        catch (Exception ex)
+        {
+            ValidationMessage = ex.Message;
+        }
+        finally
+        {
+            IsSavingEditableSealNo = false;
+        }
     }
 
     [RelayCommand]
@@ -684,7 +722,28 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             ?? list.FirstOrDefault(x => x.IsGroup)
             ?? list.FirstOrDefault();
     }
+
+    private static PrintPreviewSelectionItem? GetMatchingPreviewItem(
+        IEnumerable<PrintPreviewSelectionItem> items,
+        PrintPreviewSelectionItem? current)
+    {
+        if (current == null)
+        {
+            return null;
+        }
+
+        return items.FirstOrDefault(x =>
+            x.IsAll == current.IsAll
+            && x.IsGroup == current.IsGroup
+            && string.Equals(x.GroupKey, current.GroupKey, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.DisplayName, current.DisplayName, StringComparison.OrdinalIgnoreCase));
+    }
 }
+
+public sealed record EditableDeliverySealContext(
+    string? CurrentSealNo,
+    Func<string?, CancellationToken, Task<string?>> SaveAsync,
+    Func<CancellationToken, Task<PrintBatchPreviewModel>> ReloadPreviewAsync);
 
 public sealed class PrintPreviewSelectionItem
 {

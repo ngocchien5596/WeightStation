@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Contracts.Sync;
 using StationApp.Domain.Constants;
@@ -497,33 +498,33 @@ public partial class SyncInfoViewModel : ObservableObject
                 entitySyncStatus = registration.SyncStatus.ToString();
                 if (registration.WeighingSessionId.HasValue && sessions.TryGetValue(registration.WeighingSessionId.Value, out var registrationSession))
                 {
-                    sessionNo = registrationSession.SessionNo;
+                    sessionNo = BusinessNumberFormatter.ToDisplay(registrationSession.SessionNo);
                 }
             }
             else if (item.AggregateType == SyncAggregateTypes.WeighTicket && weighTickets.TryGetValue(item.AggregateId, out var weighTicket))
             {
-                businessNo = weighTicket.TicketNo;
+                businessNo = BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo);
                 vehiclePlate = weighTicket.VehiclePlate;
                 entitySyncStatus = weighTicket.SyncStatus.ToString();
                 if (weighTicket.WeighingSessionId.HasValue && sessions.TryGetValue(weighTicket.WeighingSessionId.Value, out var ticketSession))
                 {
-                    sessionNo = ticketSession.SessionNo;
+                    sessionNo = BusinessNumberFormatter.ToDisplay(ticketSession.SessionNo);
                 }
             }
             else if (item.AggregateType == SyncAggregateTypes.DeliveryTicket && deliveryTickets.TryGetValue(item.AggregateId, out var deliveryTicket))
             {
-                businessNo = deliveryTicket.DeliveryNo;
+                businessNo = BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo);
                 entitySyncStatus = deliveryTicket.SyncStatus.ToString();
                 if (deliveryTicket.WeighingSessionId.HasValue && sessions.TryGetValue(deliveryTicket.WeighingSessionId.Value, out var deliverySession))
                 {
-                    sessionNo = deliverySession.SessionNo;
+                    sessionNo = BusinessNumberFormatter.ToDisplay(deliverySession.SessionNo);
                     vehiclePlate = deliverySession.VehiclePlate;
                 }
             }
             else if (item.AggregateType == SyncAggregateTypes.WeighingSession && sessions.TryGetValue(item.AggregateId, out var session))
             {
-                businessNo = session.SessionNo;
-                sessionNo = session.SessionNo;
+                businessNo = BusinessNumberFormatter.ToDisplay(session.SessionNo);
+                sessionNo = BusinessNumberFormatter.ToDisplay(session.SessionNo);
                 vehiclePlate = session.VehiclePlate;
                 entitySyncStatus = session.SyncStatus.ToString();
             }
@@ -533,7 +534,7 @@ public partial class SyncInfoViewModel : ObservableObject
                 entitySyncStatus = line.SyncStatus.ToString();
                 if (sessions.TryGetValue(line.WeighingSessionId, out var lineSession))
                 {
-                    sessionNo = lineSession.SessionNo;
+                    sessionNo = BusinessNumberFormatter.ToDisplay(lineSession.SessionNo);
                     vehiclePlate = lineSession.VehiclePlate;
                 }
             }

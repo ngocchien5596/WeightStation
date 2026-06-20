@@ -96,7 +96,7 @@ public class DeliveryTicketEntityConfiguration : IEntityTypeConfiguration<Delive
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
-        builder.HasIndex(e => e.DeliveryNo).IsUnique().HasDatabaseName("UX_delivery_tickets_no");
+        builder.HasIndex(e => new { e.StationCode, e.DeliveryNo }).IsUnique().HasDatabaseName("UX_delivery_tickets_station_delivery_no");
         builder.HasIndex(e => e.ErpCutOrderId).HasDatabaseName("IX_delivery_tickets_erp_reg_id");
         builder.HasIndex(e => e.SplitGroupId).HasDatabaseName("IX_delivery_tickets_split_group_id");
         builder.HasIndex(e => e.IsPrinted).HasDatabaseName("IX_delivery_tickets_is_printed");

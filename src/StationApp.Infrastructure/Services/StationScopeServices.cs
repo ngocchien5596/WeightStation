@@ -221,6 +221,46 @@ public sealed class StationFeatureService : IStationFeatureService
     }
 }
 
+public sealed class IncomingVehicleComplianceSettingsProvider : IIncomingVehicleComplianceSettingsProvider
+{
+    private const string ManagedStationCode = "QN01";
+    private readonly IStationScope _stationScope;
+    private readonly IStationOperationSettingsRepository _operationSettings;
+
+    public IncomingVehicleComplianceSettingsProvider(
+        IStationScope stationScope,
+        IStationOperationSettingsRepository operationSettings)
+    {
+        _stationScope = stationScope;
+        _operationSettings = operationSettings;
+    }
+
+    public async Task<IncomingVehicleComplianceRules> GetCurrentRulesAsync(CancellationToken ct)
+    {
+        var stationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
+        if (!string.Equals(stationCode, ManagedStationCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return IncomingVehicleComplianceRules.Disabled;
+        }
+
+        var values = await _operationSettings.GetSettingsByStationAsync(stationCode, ct);
+        return new IncomingVehicleComplianceRules(
+            new IncomingVehicleComplianceRuleSet(
+                Bool(values, IncomingVehicleOperationSettingKeys.RequireTtcpForBaggedOutbound, false),
+                Bool(values, IncomingVehicleOperationSettingKeys.RequireRegistrationForBaggedOutbound, false)),
+            new IncomingVehicleComplianceRuleSet(
+                Bool(values, IncomingVehicleOperationSettingKeys.RequireTtcpForBulkOutbound, false),
+                Bool(values, IncomingVehicleOperationSettingKeys.RequireRegistrationForBulkOutbound, false)));
+    }
+
+    private static bool Bool(IReadOnlyDictionary<string, string> values, string key, bool defaultValue)
+    {
+        return values.TryGetValue(key, out var value) && bool.TryParse(value, out var parsed)
+            ? parsed
+            : defaultValue;
+    }
+}
+
 public sealed class StationAdministrationService : IStationAdministrationService
 {
     private readonly StationDbContext _db;
@@ -372,7 +412,11 @@ public sealed class StationAdministrationService : IStationAdministrationService
             [ClayStationOperationSettingKeys.ClaySingleWeighEnabled] = request.Settings.ClaySingleWeighEnabled.ToString().ToLowerInvariant(),
             [ClayStationOperationSettingKeys.ClayDefaultWeighMode] = request.Settings.ClayDefaultWeighMode,
             [ClayStationOperationSettingKeys.ClayDefaultProductCode] = request.Settings.ClayDefaultProductCode ?? "",
-            [ClayStationOperationSettingKeys.ClayDefaultCustomerCode] = request.Settings.ClayDefaultCustomerCode ?? ""
+            [ClayStationOperationSettingKeys.ClayDefaultCustomerCode] = request.Settings.ClayDefaultCustomerCode ?? "",
+            [IncomingVehicleOperationSettingKeys.RequireTtcpForBaggedOutbound] = request.Settings.IncomingRequireTtcpForBaggedOutbound.ToString().ToLowerInvariant(),
+            [IncomingVehicleOperationSettingKeys.RequireRegistrationForBaggedOutbound] = request.Settings.IncomingRequireRegistrationForBaggedOutbound.ToString().ToLowerInvariant(),
+            [IncomingVehicleOperationSettingKeys.RequireTtcpForBulkOutbound] = request.Settings.IncomingRequireTtcpForBulkOutbound.ToString().ToLowerInvariant(),
+            [IncomingVehicleOperationSettingKeys.RequireRegistrationForBulkOutbound] = request.Settings.IncomingRequireRegistrationForBulkOutbound.ToString().ToLowerInvariant()
         };
         await _operationSettings.SaveSettingsAsync(station.StationCode, settingsValues, actor, ct);
 
@@ -522,7 +566,11 @@ public sealed class StationAdministrationService : IStationAdministrationService
                         Bool(values, ClayStationOperationSettingKeys.ClaySingleWeighEnabled, defaults.ClaySingleWeighEnabled),
                         Text(values, ClayStationOperationSettingKeys.ClayDefaultWeighMode, defaults.ClayDefaultWeighMode),
                         Text(values, ClayStationOperationSettingKeys.ClayDefaultProductCode, defaults.ClayDefaultProductCode),
-                        Text(values, ClayStationOperationSettingKeys.ClayDefaultCustomerCode, defaults.ClayDefaultCustomerCode));
+                        Text(values, ClayStationOperationSettingKeys.ClayDefaultCustomerCode, defaults.ClayDefaultCustomerCode),
+                        Bool(values, IncomingVehicleOperationSettingKeys.RequireTtcpForBaggedOutbound, defaults.IncomingRequireTtcpForBaggedOutbound),
+                        Bool(values, IncomingVehicleOperationSettingKeys.RequireRegistrationForBaggedOutbound, defaults.IncomingRequireRegistrationForBaggedOutbound),
+                        Bool(values, IncomingVehicleOperationSettingKeys.RequireTtcpForBulkOutbound, defaults.IncomingRequireTtcpForBulkOutbound),
+                        Bool(values, IncomingVehicleOperationSettingKeys.RequireRegistrationForBulkOutbound, defaults.IncomingRequireRegistrationForBulkOutbound));
                 },
                 StringComparer.OrdinalIgnoreCase);
     }

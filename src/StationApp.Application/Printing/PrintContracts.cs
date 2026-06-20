@@ -1,4 +1,5 @@
 using System.Globalization;
+using StationApp.Application.Formatting;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
@@ -199,14 +200,14 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
         return new WeighTicketPrintModel
         {
             DocumentId = ticket.Id,
-            DisplayNumber = ticket.TicketNo,
+            DisplayNumber = BusinessNumberFormatter.ToDisplay(ticket.TicketNo),
             TicketNo = ticket.TicketNo,
             VehiclePlate = vehicleLine,
             MoocNumber = ticket.MoocNumber ?? registration.MoocNumber,
             NetWeight = ticket.NetWeight,
             Fields = new[]
             {
-                Field("TicketNo", ticket.TicketNo),
+                Field("TicketNo", BusinessNumberFormatter.ToDisplay(ticket.TicketNo)),
                 Field("VehiclePlate", vehicleLine),
                 Field("VehicleRegistrationNo", FirstNonEmpty(ticket.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(ticket.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
@@ -275,13 +276,13 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         return new DeliveryTicketPrintModel
         {
             DocumentId = deliveryTicket.Id,
-            DisplayNumber = deliveryTicket.DeliveryNo,
+            DisplayNumber = BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
             DeliveryNo = deliveryTicket.DeliveryNo,
             OrderCode = FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId),
             ActualWeight = actualWeight,
             Fields = new[]
             {
-                Field("DeliveryNo", deliveryTicket.DeliveryNo),
+                Field("DeliveryNo", BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo)),
                 Field("ReferenceCode", FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId)),
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),

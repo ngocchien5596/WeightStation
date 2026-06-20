@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
 using StationApp.Contracts.Sync;
@@ -10,6 +11,7 @@ using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace StationApp.Infrastructure.Services;
 
@@ -18,25 +20,44 @@ public class TicketNumberGenerator : ITicketNumberGenerator
     private readonly IAppConfigRepository _configRepo;
     private readonly IDocumentCounterService _counterService;
     private readonly IClock _clock;
+    private readonly IStationScope _stationScope;
+    private readonly ILogger<TicketNumberGenerator> _logger;
 
-    public TicketNumberGenerator(IAppConfigRepository configRepo, IDocumentCounterService counterService, IClock clock)
+    public TicketNumberGenerator(
+        IAppConfigRepository configRepo,
+        IDocumentCounterService counterService,
+        IClock clock,
+        IStationScope stationScope,
+        ILogger<TicketNumberGenerator> logger)
     {
         _configRepo = configRepo;
         _counterService = counterService;
         _clock = clock;
+        _stationScope = stationScope;
+        _logger = logger;
     }
 
     public async Task<string> GenerateAsync(CancellationToken ct)
     {
         var prefix = await _configRepo.GetValueAsync("ticket_prefix", ct) ?? "QN";
+        var stationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         var ticketPrefix = $"{prefix}{yearMonth}";
 
-        var counterKey = $"WeighTicket_{ticketPrefix}";
+        var counterKey = BusinessNumberFormatter.BuildCounterKey("WeighTicket", stationCode, ticketPrefix);
         var nextSeq = await _counterService.GetNextSequenceAsync(counterKey, ct);
+        var ticketNo = BusinessNumberFormatter.PrefixWithStation(stationCode, $"{ticketPrefix}{nextSeq:D4}");
 
-        return $"{ticketPrefix}{nextSeq:D4}";
+        _logger.LogInformation(
+            "Generated weigh ticket number {TicketNo}. StationCode={StationCode}, Prefix={Prefix}, CounterKey={CounterKey}, Sequence={Sequence}",
+            ticketNo,
+            stationCode,
+            ticketPrefix,
+            counterKey,
+            nextSeq);
+
+        return ticketNo;
     }
 }
 
@@ -45,61 +66,88 @@ public class DeliveryNumberGenerator : IDeliveryNumberGenerator
     private readonly IAppConfigRepository _configRepo;
     private readonly IDocumentCounterService _counterService;
     private readonly IClock _clock;
+    private readonly IStationScope _stationScope;
+    private readonly ILogger<DeliveryNumberGenerator> _logger;
 
-    public DeliveryNumberGenerator(IAppConfigRepository configRepo, IDocumentCounterService counterService, IClock clock)
+    public DeliveryNumberGenerator(
+        IAppConfigRepository configRepo,
+        IDocumentCounterService counterService,
+        IClock clock,
+        IStationScope stationScope,
+        ILogger<DeliveryNumberGenerator> logger)
     {
         _configRepo = configRepo;
         _counterService = counterService;
         _clock = clock;
+        _stationScope = stationScope;
+        _logger = logger;
     }
 
     public async Task<string> GenerateAsync(CancellationToken ct)
     {
         var prefix = await _configRepo.GetValueAsync("delivery_prefix", ct) ?? "DN";
+        var stationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         var deliveryPrefix = $"{prefix}{yearMonth}";
 
-        var counterKey = $"DeliveryTicket_{deliveryPrefix}";
+        var counterKey = BusinessNumberFormatter.BuildCounterKey("DeliveryTicket", stationCode, deliveryPrefix);
         var nextSeq = await _counterService.GetNextSequenceAsync(counterKey, ct);
+        var deliveryNo = BusinessNumberFormatter.PrefixWithStation(stationCode, $"{deliveryPrefix}{nextSeq:D4}");
 
-        return $"{deliveryPrefix}{nextSeq:D4}";
+        _logger.LogInformation(
+            "Generated delivery ticket number {DeliveryNo}. StationCode={StationCode}, Prefix={Prefix}, CounterKey={CounterKey}, Sequence={Sequence}",
+            deliveryNo,
+            stationCode,
+            deliveryPrefix,
+            counterKey,
+            nextSeq);
+
+        return deliveryNo;
     }
 }
 
 public class WeighingSessionNumberGenerator : IWeighingSessionNumberGenerator
 {
-    private readonly IAppConfigRepository _configRepo;
     private readonly IDocumentCounterService _counterService;
     private readonly IClock _clock;
+    private readonly IStationScope _stationScope;
+    private readonly ILogger<WeighingSessionNumberGenerator> _logger;
 
-    public WeighingSessionNumberGenerator(IAppConfigRepository configRepo, IDocumentCounterService counterService, IClock clock)
+    public WeighingSessionNumberGenerator(
+        IDocumentCounterService counterService,
+        IClock clock,
+        IStationScope stationScope,
+        ILogger<WeighingSessionNumberGenerator> logger)
     {
-        _configRepo = configRepo;
         _counterService = counterService;
         _clock = clock;
+        _stationScope = stationScope;
+        _logger = logger;
     }
 
     public async Task<string> GenerateAsync(TransactionType transactionType, CancellationToken ct)
     {
+        var stationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
         var now = _clock.NowLocal;
         var yearMonth = now.ToString("yyMM");
         const string sessionPrefixBase = "LC";
         var sessionPrefix = $"{sessionPrefixBase}{yearMonth}";
 
-        var counterKey = $"WeighingSession_{sessionPrefix}";
+        var counterKey = BusinessNumberFormatter.BuildCounterKey("WeighingSession", stationCode, sessionPrefix);
         var nextSeq = await _counterService.GetNextSequenceAsync(counterKey, ct);
+        var sessionNo = BusinessNumberFormatter.PrefixWithStation(stationCode, $"{sessionPrefix}{nextSeq:D4}");
 
-        return $"{sessionPrefix}{nextSeq:D4}";
-    }
-}
+        _logger.LogInformation(
+            "Generated weighing session number {SessionNo}. StationCode={StationCode}, Prefix={Prefix}, CounterKey={CounterKey}, Sequence={Sequence}, TransactionType={TransactionType}",
+            sessionNo,
+            stationCode,
+            sessionPrefix,
+            counterKey,
+            nextSeq,
+            transactionType);
 
-internal static class StationCodeResolver
-{
-    public static async Task<string> ResolveAsync(IAppConfigRepository configRepo, CancellationToken ct)
-    {
-        var value = await configRepo.GetValueAsync(AppConfigKeys.StationCode, ct);
-        return string.IsNullOrWhiteSpace(value) ? "QN01" : value.Trim();
+        return sessionNo;
     }
 }
 

@@ -87,6 +87,18 @@
                                 VerticalAlignment="Center"
                                 Style="{StaticResource StandardDatePickerStyle}"/>
 
+                    <TextBlock Text="Loại" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <ComboBox Width="140"
+                              ItemsSource="{Binding FlowTypeOptions}"
+                              SelectedItem="{Binding SelectedFlowType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource StandardComboBoxStyle}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
                     <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
                         <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
                     </Button>

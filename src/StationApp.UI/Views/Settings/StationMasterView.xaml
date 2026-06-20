@@ -83,6 +83,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Mã trạm *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
@@ -194,21 +195,70 @@
                         </Grid>
                     </GroupBox>
 
+                    <GroupBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="8"
+                              Header="Quy định bắt buộc thông tin xe vào"
+                              Visibility="{Binding IsIncomingComplianceSettingsVisible, Converter={StaticResource BoolToVis}}"
+                              BorderBrush="#CCCCCC" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+                        <GroupBox.HeaderTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontWeight="Bold" Foreground="#1E3A8A" FontSize="12"/>
+                            </DataTemplate>
+                        </GroupBox.HeaderTemplate>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,24,0">
+                                <TextBlock Text="Xuất hàng - Bao" FontWeight="SemiBold" Foreground="#1F2937" Margin="0,0,0,8"/>
+                                <CheckBox Content="Bắt buộc TTCP khi bấm Cân nội địa"
+                                          IsChecked="{Binding IncomingRequireTtcpForBaggedOutbound}"
+                                          Style="{StaticResource StandardCheckBoxStyle}"
+                                          Margin="0,0,0,8"/>
+                                <CheckBox Content="Bắt buộc đăng kiểm khi bấm Cân nội địa"
+                                          IsChecked="{Binding IncomingRequireRegistrationForBaggedOutbound}"
+                                          Style="{StaticResource StandardCheckBoxStyle}"/>
+                            </StackPanel>
 
-                    <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="7"
+                            <StackPanel Grid.Row="1" Grid.Column="1">
+                                <TextBlock Text="Xuất hàng - Rời/Xá" FontWeight="SemiBold" Foreground="#1F2937" Margin="0,0,0,8"/>
+                                <CheckBox Content="Bắt buộc TTCP khi bấm Cân nội địa"
+                                          IsChecked="{Binding IncomingRequireTtcpForBulkOutbound}"
+                                          Style="{StaticResource StandardCheckBoxStyle}"
+                                          Margin="0,0,0,8"/>
+                                <CheckBox Content="Bắt buộc đăng kiểm khi bấm Cân nội địa"
+                                          IsChecked="{Binding IncomingRequireRegistrationForBulkOutbound}"
+                                          Style="{StaticResource StandardCheckBoxStyle}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Text="Đăng kiểm nghĩa là yêu cầu đủ số và hạn đăng kiểm xe; nếu có mooc thì phải nhập đủ số và hạn đăng kiểm mooc."
+                                       Foreground="#607086"
+                                       FontStyle="Italic"
+                                       Margin="0,12,0,0"
+                                       TextWrapping="Wrap"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="7"
                                Text="Lưu ý: Phân quyền chức năng theo trạm chỉ điều khiển menu vận hành/báo cáo. Quyền admin vẫn do vai trò tài khoản quyết định."
                                Foreground="#607086"
                                FontStyle="Italic"
                                Margin="0,0,0,8"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Ngày tạo" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Ngày tạo" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="2" Text="Người tạo" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding CreatedBy}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
+                    <TextBlock Grid.Row="5" Grid.Column="2" Text="Người tạo" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="5" Grid.Column="3" Text="{Binding CreatedBy}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,16,0"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="4" Text="Cập nhật" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="4" Grid.Column="5" Grid.ColumnSpan="3" Text="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
+                    <TextBlock Grid.Row="5" Grid.Column="4" Text="Cập nhật" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Row="5" Grid.Column="5" Grid.ColumnSpan="3" Text="{Binding UpdatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" IsReadOnly="True" Style="{StaticResource FormBox}" Margin="0,0,0,0"/>
                 </Grid>
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">

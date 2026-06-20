@@ -178,7 +178,7 @@ public sealed class EnsureInboundMasterDataUseCase
             changed = true;
         }
 
-        if (existing.TtcpWeight == null && ttcpWeight != null)
+        if (ttcpWeight != null && existing.TtcpWeight != ttcpWeight)
         {
             existing.TtcpWeight = ttcpWeight;
             changed = true;

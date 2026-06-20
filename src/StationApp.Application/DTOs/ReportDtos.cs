@@ -1,10 +1,13 @@
+using StationApp.Domain.Enums;
+
 namespace StationApp.Application.DTOs;
 
 public sealed record ExportSummaryReportFilter(
     DateTime FromTime,
     DateTime ToTime,
     string? ProductCode,
-    string? CustomerCode
+    string? CustomerCode,
+    OutgoingFlowType FlowType = OutgoingFlowType.All
 );
 
 public sealed record ExportSummaryReportRow(

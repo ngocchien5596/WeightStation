@@ -47,6 +47,8 @@ BEGIN
         @SessionId UNIQUEIDENTIFIER,
         @LineId UNIQUEIDENTIFIER,
         @IsExportScale BIT,
+        @CutOrderProductType NVARCHAR(30),
+        @CutOrderBagCount INT,
         @OldExportFinalizedWeight DECIMAL(18,3),
         @OldSessionWeight1 DECIMAL(18,3),
         @OldSessionWeight2 DECIMAL(18,3),
@@ -73,6 +75,8 @@ BEGIN
         SELECT TOP (1)
             @CutOrderId = co.Id,
             @IsExportScale = ISNULL(co.IsExportScale, 0),
+            @CutOrderProductType = co.ProductType,
+            @CutOrderBagCount = co.BagCount,
             @OldExportFinalizedWeight = co.ExportFinalizedWeight
         FROM dbo.cut_orders co WITH (UPDLOCK, HOLDLOCK)
         WHERE co.ErpCutOrderId = @TrimmedErpCutOrderId
@@ -148,7 +152,10 @@ BEGIN
            AND ABS(@ActualAllocatedWeight - @ComputedNetWeight) > 0.001
             THROW 52008, N'Voi luot can 1 cat lenh, ActualAllocatedWeight phai bang ABS(Weight1 - Weight2).', 1;
 
-        SET @TargetActualBagCount = COALESCE(@ActualAllocatedBagCount, @OldLineActualBagCount);
+        SET @TargetActualBagCount = CASE
+            WHEN @CutOrderProductType = N'Bao' THEN COALESCE(@CutOrderBagCount, @OldLineActualBagCount, @ActualAllocatedBagCount)
+            ELSE COALESCE(@ActualAllocatedBagCount, @OldLineActualBagCount)
+        END;
         SET @TargetSessionNetWeight = CASE
             WHEN @ResolvedUpdateSessionMaster = 1 AND @ActiveLineCount = 1 THEN @TargetActualWeight
             WHEN @ResolvedUpdateSessionMaster = 1 AND @ActiveLineCount > 1 THEN @OtherLinesWeight + @TargetActualWeight

@@ -128,14 +128,12 @@
                     <TextBlock Text="{StaticResource Incoming.VehiclePlateLabel}" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="1"
                                                    State="{Binding FormVehiclePlateInput}"
-                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
                     <TextBlock Text="Mooc" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="3"
                                                    State="{Binding FormMoocInput}"
-                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
                     <TextBlock Text="HTVC" Grid.Row="0" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="5"
@@ -219,8 +217,7 @@
                     <TextBlock Text="{StaticResource Incoming.DriverLabel}" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="5"
                                                    State="{Binding FormDriverInput}"
-                                                   TextBoxStyle="{StaticResource FormBox}"
-                                                   IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                                                   TextBoxStyle="{StaticResource FormBox}"/>
 
                     <TextBlock Text="Lo&#x1EA1;i" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <ComboBox Grid.Row="0" Grid.Column="3"

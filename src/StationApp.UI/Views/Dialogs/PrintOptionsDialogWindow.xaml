@@ -110,6 +110,17 @@
                         <TextBlock Text="S&#x1ED1; l&#x01B0;&#x1EE3;ng b&#x1EA3;n in / m&#x1ED7;i phi&#x1EBF;u" FontWeight="SemiBold"/>
                         <TextBox Text="{Binding CopyCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
 
+                        <StackPanel Margin="0,0,0,14"
+                                    Visibility="{Binding CanEditDeliverySealNo, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Ni&#xEA;m ch&#xEC; s&#x1ED1;" FontWeight="SemiBold"/>
+                            <TextBox Text="{Binding EditableSealNo, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,8"/>
+                            <Button Content="L&#x1B0;u ni&#xEA;m ch&#xEC; s&#x1ED1;"
+                                    Width="150"
+                                    Height="34"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding SaveEditableSealNoCommand}"/>
+                        </StackPanel>
+
                         <StackPanel Visibility="{Binding CanManageLayout, Converter={StaticResource BoolToVis}}">
                             <UniformGrid Columns="2" Margin="0,0,0,14">
                                 <StackPanel Margin="0,0,8,0">

@@ -769,6 +769,23 @@ public sealed class CaptureSessionWeight1UseCase
     }
 }
 
+internal static class WeighingSessionBagCountHelper
+{
+    public static int? ResolveActualBagCount(
+        string? productType,
+        int? registrationBagCount,
+        int? plannedBagCount,
+        int? fallbackBagCount = null)
+    {
+        if (!string.Equals(ProductTypes.Normalize(productType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase))
+        {
+            return fallbackBagCount;
+        }
+
+        return registrationBagCount ?? plannedBagCount ?? fallbackBagCount;
+    }
+}
+
 public class BaggedWeightToleranceExceededException : InvalidOperationException
 {
     public BaggedWeightToleranceExceededException(string message) : base(message)
@@ -778,8 +795,6 @@ public class BaggedWeightToleranceExceededException : InvalidOperationException
 
 public sealed class CaptureSessionWeight2UseCase
 {
-    private const decimal DefaultBagWeightKg = 50m;
-
     private readonly IWeighingSessionRepository _sessionRepo;
     private readonly ICutOrderRepository _regRepo;
     private readonly IProductRepository _productRepo;
@@ -882,7 +897,10 @@ public sealed class CaptureSessionWeight2UseCase
             var registration = registrations.First(x => x.Id == lineToAutoAllocate.CutOrderId);
             var sessionDeliveryTickets = await _deliveryRepo.GetByWeighingSessionIdAsync(session.Id, ct);
             var actualAllocatedWeight = session.NetWeight ?? 0m;
-            var actualAllocatedBagCount = CalculateAutoBagCount(actualAllocatedWeight);
+            var actualAllocatedBagCount = WeighingSessionBagCountHelper.ResolveActualBagCount(
+                registration.ProductType,
+                registration.BagCount,
+                lineToAutoAllocate.PlannedBagCount);
 
             lineToAutoAllocate.ActualAllocatedWeight = actualAllocatedWeight;
             lineToAutoAllocate.ActualAllocatedBagCount = actualAllocatedBagCount;
@@ -1070,16 +1088,6 @@ public sealed class CaptureSessionWeight2UseCase
         }
 
         return resolvedTypes;
-    }
-
-    private static int CalculateAutoBagCount(decimal actualWeight)
-    {
-        if (actualWeight <= 0m)
-        {
-            return 0;
-        }
-
-        return (int)decimal.Floor(actualWeight / DefaultBagWeightKg);
     }
 
     private void EnsureManualPermission(WeightMode mode)
@@ -1290,13 +1298,17 @@ public sealed class AllocateWeighingSessionUseCase
         foreach (var line in lines.OrderBy(x => inputOrderByLineId.GetValueOrDefault(x.Id, int.MaxValue)))
         {
             var input = inputByLineId[line.Id];
+            var registration = registrationById[line.CutOrderId];
             line.ActualAllocatedWeight = input.ActualAllocatedWeight;
-            line.ActualAllocatedBagCount = input.ActualAllocatedBagCount;
+            line.ActualAllocatedBagCount = WeighingSessionBagCountHelper.ResolveActualBagCount(
+                registration.ProductType,
+                registration.BagCount,
+                line.PlannedBagCount,
+                input.ActualAllocatedBagCount);
             line.LineStatus = WeighingSessionLineStatus.ALLOCATED;
             line.UpdatedAt = now;
             line.UpdatedBy = _userContext.Username;
 
-            var registration = registrationById[line.CutOrderId];
             var deliveryTicket = deliveryTicketByLineId.GetValueOrDefault(line.Id);
             if (deliveryTicket == null)
             {
@@ -1323,7 +1335,7 @@ public sealed class AllocateWeighingSessionUseCase
             }
 
             deliveryTicket.AllocatedWeight = input.ActualAllocatedWeight;
-            deliveryTicket.AllocatedBagCount = input.ActualAllocatedBagCount;
+            deliveryTicket.AllocatedBagCount = line.ActualAllocatedBagCount;
             deliveryTicket.UpdatedAt = now;
             deliveryTicket.UpdatedBy = _userContext.Username;
             line.DeliveryTicketId = deliveryTicket.Id;
@@ -1483,30 +1495,19 @@ public sealed class AllocateWeighingSessionUseCase
             return Array.Empty<string>();
         }
 
-        var firstNumber = await _deliveryNoGen.GenerateAsync(ct);
         if (count == 1)
         {
-            return [firstNumber];
+            return [await _deliveryNoGen.GenerateAsync(ct)];
         }
 
-        var splitIndex = firstNumber.Length;
-        while (splitIndex > 0 && char.IsDigit(firstNumber[splitIndex - 1]))
+        var numbers = new List<string>(count);
+        for (var index = 0; index < count; index++)
         {
-            splitIndex--;
+            ct.ThrowIfCancellationRequested();
+            numbers.Add(await _deliveryNoGen.GenerateAsync(ct));
         }
 
-        var prefix = firstNumber[..splitIndex];
-        var numericPart = firstNumber[splitIndex..];
-        if (numericPart.Length == 0 || !int.TryParse(numericPart, NumberStyles.None, CultureInfo.InvariantCulture, out var startSequence))
-        {
-            return Enumerable.Range(0, count)
-                .Select(offset => offset == 0 ? firstNumber : $"{firstNumber}-{offset + 1}")
-                .ToList();
-        }
-
-        return Enumerable.Range(0, count)
-            .Select(offset => $"{prefix}{(startSequence + offset).ToString($"D{numericPart.Length}", CultureInfo.InvariantCulture)}")
-            .ToList();
+        return numbers;
     }
 
     private async Task<IReadOnlyList<string>> AllocateWeighTicketNumbersAsync(int count, CancellationToken ct)
@@ -1516,30 +1517,19 @@ public sealed class AllocateWeighingSessionUseCase
             return Array.Empty<string>();
         }
 
-        var firstNumber = await _ticketNoGen.GenerateAsync(ct);
         if (count == 1)
         {
-            return [firstNumber];
+            return [await _ticketNoGen.GenerateAsync(ct)];
         }
 
-        var splitIndex = firstNumber.Length;
-        while (splitIndex > 0 && char.IsDigit(firstNumber[splitIndex - 1]))
+        var numbers = new List<string>(count);
+        for (var index = 0; index < count; index++)
         {
-            splitIndex--;
+            ct.ThrowIfCancellationRequested();
+            numbers.Add(await _ticketNoGen.GenerateAsync(ct));
         }
 
-        var prefix = firstNumber[..splitIndex];
-        var numericPart = firstNumber[splitIndex..];
-        if (numericPart.Length == 0 || !int.TryParse(numericPart, NumberStyles.None, CultureInfo.InvariantCulture, out var startSequence))
-        {
-            return Enumerable.Range(0, count)
-                .Select(offset => offset == 0 ? firstNumber : $"{firstNumber}-{offset + 1}")
-                .ToList();
-        }
-
-        return Enumerable.Range(0, count)
-            .Select(offset => $"{prefix}{(startSequence + offset).ToString($"D{numericPart.Length}", CultureInfo.InvariantCulture)}")
-            .ToList();
+        return numbers;
     }
 }
 

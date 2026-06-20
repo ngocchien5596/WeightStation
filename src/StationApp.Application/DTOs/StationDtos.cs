@@ -79,7 +79,11 @@ public sealed record StationOperationSettingsDto(
     bool ClaySingleWeighEnabled,
     string ClayDefaultWeighMode,
     string ClayDefaultProductCode,
-    string ClayDefaultCustomerCode)
+    string ClayDefaultCustomerCode,
+    bool IncomingRequireTtcpForBaggedOutbound,
+    bool IncomingRequireRegistrationForBaggedOutbound,
+    bool IncomingRequireTtcpForBulkOutbound,
+    bool IncomingRequireRegistrationForBulkOutbound)
 {
     public static StationOperationSettingsDto Defaults { get; } = new(
         CrusherSingleWeighEnabled: false,
@@ -89,5 +93,9 @@ public sealed record StationOperationSettingsDto(
         ClaySingleWeighEnabled: false,
         ClayDefaultWeighMode: "TWO_WEIGH",
         ClayDefaultProductCode: "",
-        ClayDefaultCustomerCode: "");
+        ClayDefaultCustomerCode: "",
+        IncomingRequireTtcpForBaggedOutbound: false,
+        IncomingRequireRegistrationForBaggedOutbound: false,
+        IncomingRequireTtcpForBulkOutbound: false,
+        IncomingRequireRegistrationForBulkOutbound: false);
 }

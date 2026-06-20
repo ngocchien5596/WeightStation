@@ -65,6 +65,10 @@ public partial class StationMasterViewModel : ObservableObject
     [ObservableProperty] private string _sharedDefaultWeighMode = "TWO_WEIGH";
     [ObservableProperty] private string _sharedDefaultProductCode = string.Empty;
     [ObservableProperty] private string _sharedDefaultCustomerCode = string.Empty;
+    [ObservableProperty] private bool _incomingRequireTtcpForBaggedOutbound;
+    [ObservableProperty] private bool _incomingRequireRegistrationForBaggedOutbound;
+    [ObservableProperty] private bool _incomingRequireTtcpForBulkOutbound;
+    [ObservableProperty] private bool _incomingRequireRegistrationForBulkOutbound;
 
     private bool _isSyncingSharedProperties;
 
@@ -268,6 +272,14 @@ public partial class StationMasterViewModel : ObservableObject
         RaiseModeStateChanged();
     }
 
+    partial void OnEditStationCodeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsIncomingComplianceSettingsVisible));
+    }
+
+    public bool IsIncomingComplianceSettingsVisible
+        => string.Equals(EditStationCode?.Trim(), "QN01", StringComparison.OrdinalIgnoreCase);
+
     public async Task LoadAsync()
     {
         await SearchAsync();
@@ -335,6 +347,10 @@ public partial class StationMasterViewModel : ObservableObject
         ClayDefaultWeighMode = "TWO_WEIGH";
         ClayDefaultProductCode = string.Empty;
         ClayDefaultCustomerCode = string.Empty;
+        IncomingRequireTtcpForBaggedOutbound = false;
+        IncomingRequireRegistrationForBaggedOutbound = false;
+        IncomingRequireTtcpForBulkOutbound = false;
+        IncomingRequireRegistrationForBulkOutbound = false;
 
         StationProducts.Clear();
         StationCustomers.Clear();
@@ -438,7 +454,11 @@ public partial class StationMasterViewModel : ObservableObject
             ClaySingleWeighEnabled,
             ClayDefaultWeighMode ?? "TWO_WEIGH",
             ClayDefaultProductCode ?? "",
-            ClayDefaultCustomerCode ?? "");
+            ClayDefaultCustomerCode ?? "",
+            IncomingRequireTtcpForBaggedOutbound,
+            IncomingRequireRegistrationForBaggedOutbound,
+            IncomingRequireTtcpForBulkOutbound,
+            IncomingRequireRegistrationForBulkOutbound);
     }
 
     private async Task LoadStationProductsAndCustomersAndApplySettingsAsync(StationManagementDto value)
@@ -478,8 +498,13 @@ public partial class StationMasterViewModel : ObservableObject
                 ClayDefaultWeighMode = value.Settings.ClayDefaultWeighMode ?? "TWO_WEIGH";
                 ClayDefaultProductCode = value.Settings.ClayDefaultProductCode ?? "";
                 ClayDefaultCustomerCode = value.Settings.ClayDefaultCustomerCode ?? "";
+                IncomingRequireTtcpForBaggedOutbound = value.Settings.IncomingRequireTtcpForBaggedOutbound;
+                IncomingRequireRegistrationForBaggedOutbound = value.Settings.IncomingRequireRegistrationForBaggedOutbound;
+                IncomingRequireTtcpForBulkOutbound = value.Settings.IncomingRequireTtcpForBulkOutbound;
+                IncomingRequireRegistrationForBulkOutbound = value.Settings.IncomingRequireRegistrationForBulkOutbound;
 
                 UpdateActiveConfigMode();
+                OnPropertyChanged(nameof(IsIncomingComplianceSettingsVisible));
             });
         }
         catch (Exception)

@@ -365,7 +365,8 @@ public sealed record OutgoingVehicleListFilter(
     string? MoocNumber,
     string? ReceiverName,
     string? CustomerName,
-    DateTime? CompletedDate
+    DateTime? CompletedDate,
+    OutgoingFlowType FlowType = OutgoingFlowType.All
 );
 
 public sealed record IncomingVehicleListItem(

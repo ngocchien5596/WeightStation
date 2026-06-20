@@ -12,9 +12,14 @@ GO
       + users
       + app_config
       + print_template_profiles
+      + stations
+      + station_feature_flags
+      + station_operation_settings
+      + user_station_assignments
       + vehicles
       + customers
       + products
+    - Xoa ca document_counters de reset lai sequence so chung tu cho du lieu moi.
     - Khong xoa schema, index, trigger, stored procedure, __EFMigrationsHistory.
     - Neu ten DB local cua ban khac StationAppLocal, sua lai dong USE o tren.
 */
@@ -73,6 +78,7 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.weighing_sessions', N'U') IS NOT NULL DELETE FROM dbo.weighing_sessions;
     IF OBJECT_ID(N'dbo.sync_outbox', N'U') IS NOT NULL DELETE FROM dbo.sync_outbox;
     IF OBJECT_ID(N'dbo.audit_logs', N'U') IS NOT NULL DELETE FROM dbo.audit_logs;
+    IF OBJECT_ID(N'dbo.document_counters', N'U') IS NOT NULL DELETE FROM dbo.document_counters;
 
     IF OBJECT_ID(N'dbo.weighing_session_images', N'U') IS NOT NULL ALTER TABLE dbo.weighing_session_images WITH CHECK CHECK CONSTRAINT ALL;
     IF OBJECT_ID(N'dbo.delivery_tickets', N'U') IS NOT NULL ALTER TABLE dbo.delivery_tickets WITH CHECK CHECK CONSTRAINT ALL;

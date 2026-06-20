@@ -15,7 +15,7 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.Property(e => e.CutOrderId).IsRequired();
         builder.Property(e => e.WeighingSessionId);
 
-        builder.Property(e => e.TicketNo).HasMaxLength(20).IsRequired();
+        builder.Property(e => e.TicketNo).HasMaxLength(30).IsRequired();
         builder.Property(e => e.ErpCutOrderId).HasMaxLength(50);
         builder.Property(e => e.VehiclePlate).HasMaxLength(30).IsRequired();
         builder.Property(e => e.MoocNumber).HasMaxLength(30);
@@ -72,7 +72,7 @@ public class WeighTicketEntityConfiguration : IEntityTypeConfiguration<WeighTick
         builder.HasIndex(e => e.RecordRole).HasDatabaseName("IX_weigh_tickets_record_role");
 
         // Indexes per Phase 0 spec section 9.1
-        builder.HasIndex(e => e.TicketNo).IsUnique().HasDatabaseName("UX_weigh_tickets_ticket_no");
+        builder.HasIndex(e => new { e.StationCode, e.TicketNo }).IsUnique().HasDatabaseName("UX_weigh_tickets_station_ticket_no");
         builder.HasIndex(e => e.IdempotencyKey).IsUnique().HasDatabaseName("UX_weigh_tickets_idempotency_key");
         builder.HasIndex(e => e.ErpCutOrderId).HasDatabaseName("IX_weigh_tickets_erp_vehicle_registration_id");
         builder.HasIndex(e => e.VehiclePlate).HasDatabaseName("IX_weigh_tickets_vehicle_plate");

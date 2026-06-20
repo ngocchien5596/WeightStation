@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -53,8 +54,13 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             return null;
         }
 
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var fullSessionNo = BusinessNumberFormatter.PrefixWithStation(stationCode, sessionNo);
+
         return await _db.WeighingSessions
-            .FirstOrDefaultAsync(x => !x.IsDeleted && x.SessionNo == sessionNo, ct);
+            .FirstOrDefaultAsync(
+                x => !x.IsDeleted && (x.SessionNo == sessionNo || x.SessionNo == fullSessionNo),
+                ct);
     }
 
     public async Task<IReadOnlyList<WeighingSession>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
@@ -188,7 +194,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
             return new WeighingSessionListItem(
                 session.Id,
-                session.SessionNo,
+                BusinessNumberFormatter.ToDisplay(session.SessionNo),
                 session.TransactionType,
                 session.VehiclePlate,
                 session.MoocNumber,
@@ -238,12 +244,15 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             query = query.Where(x => x.VehiclePlate.Contains(normalized));
         }
 
-        return await query
+        var sessions = await query
             .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(200)
+            .ToListAsync(ct);
+
+        return sessions
             .Select(x => new CrusherWeighingSessionListItem(
                 x.Id,
-                x.SessionNo,
+                BusinessNumberFormatter.ToDisplay(x.SessionNo),
                 x.VehiclePlate,
                 x.DriverName,
                 x.Weight1,
@@ -257,12 +266,11 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 x.SessionStatus,
                 x.CreatedAt,
                 x.UpdatedAt,
-                // Crusher Weighing: Product and Customer Information
                 x.ProductCode,
                 x.ProductName,
                 x.CustomerCode,
                 x.CustomerName))
-            .ToListAsync(ct);
+            .ToList();
     }
 
     public async Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchClaySessionsAsync(string? keyword, DateTime? selectedDate, CancellationToken ct)
@@ -290,12 +298,15 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             query = query.Where(x => x.VehiclePlate.Contains(normalized));
         }
 
-        return await query
+        var sessions = await query
             .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(200)
+            .ToListAsync(ct);
+
+        return sessions
             .Select(x => new CrusherWeighingSessionListItem(
                 x.Id,
-                x.SessionNo,
+                BusinessNumberFormatter.ToDisplay(x.SessionNo),
                 x.VehiclePlate,
                 x.DriverName,
                 x.Weight1,
@@ -313,7 +324,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 x.ProductName,
                 x.CustomerCode,
                 x.CustomerName))
-            .ToListAsync(ct);
+            .ToList();
     }
 
     public async Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct)
@@ -371,7 +382,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
 
             return new OutgoingSessionListItem(
                 session.Id,
-                session.SessionNo,
+                BusinessNumberFormatter.ToDisplay(session.SessionNo),
                 session.TransactionType,
                 session.VehiclePlate,
                 session.MoocNumber,
@@ -538,4 +549,3 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .FirstOrDefaultAsync(ct);
     }
 }
-

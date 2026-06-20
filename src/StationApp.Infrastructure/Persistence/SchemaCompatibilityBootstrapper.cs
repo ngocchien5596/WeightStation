@@ -667,9 +667,15 @@ BEGIN
     );
 END
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_sessions_session_no' AND object_id = OBJECT_ID(N'[weighing_sessions]'))
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_sessions_session_no' AND object_id = OBJECT_ID(N'[weighing_sessions]'))
 BEGIN
-    CREATE UNIQUE INDEX [UX_weighing_sessions_session_no] ON [weighing_sessions]([SessionNo]);
+    DROP INDEX [UX_weighing_sessions_session_no] ON [weighing_sessions];
+END
+
+IF COL_LENGTH(N'[weighing_sessions]', N'StationCode') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weighing_sessions_station_session_no' AND object_id = OBJECT_ID(N'[weighing_sessions]'))
+BEGIN
+    CREATE UNIQUE INDEX [UX_weighing_sessions_station_session_no] ON [weighing_sessions]([StationCode], [SessionNo]);
 END
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weighing_sessions_vehicle_plate' AND object_id = OBJECT_ID(N'[weighing_sessions]'))
@@ -878,9 +884,19 @@ BEGIN
 
     ALTER TABLE [weigh_tickets] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
 
-    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_station_ticket_no' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weigh_tickets_ticket_no' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
     BEGIN
-        CREATE INDEX [IX_weigh_tickets_station_ticket_no]
+        DROP INDEX [UX_weigh_tickets_ticket_no] ON [weigh_tickets];
+    END
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_weigh_tickets_station_ticket_no' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
+    BEGIN
+        DROP INDEX [IX_weigh_tickets_station_ticket_no] ON [weigh_tickets];
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_weigh_tickets_station_ticket_no' AND object_id = OBJECT_ID(N'[weigh_tickets]'))
+    BEGIN
+        CREATE UNIQUE INDEX [UX_weigh_tickets_station_ticket_no]
         ON [weigh_tickets]([StationCode], [TicketNo]);
     END
 END
@@ -896,9 +912,19 @@ BEGIN
 
     ALTER TABLE [delivery_tickets] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
 
-    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_station_delivery_no' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_delivery_tickets_no' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
     BEGIN
-        CREATE INDEX [IX_delivery_tickets_station_delivery_no]
+        DROP INDEX [UX_delivery_tickets_no] ON [delivery_tickets];
+    END
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_delivery_tickets_station_delivery_no' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        DROP INDEX [IX_delivery_tickets_station_delivery_no] ON [delivery_tickets];
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_delivery_tickets_station_delivery_no' AND object_id = OBJECT_ID(N'[delivery_tickets]'))
+    BEGIN
+        CREATE UNIQUE INDEX [UX_delivery_tickets_station_delivery_no]
         ON [delivery_tickets]([StationCode], [DeliveryNo]);
     END
 END
@@ -1187,12 +1213,20 @@ IF OBJECT_ID(N'dbo.weighing_sessions', N'U') IS NOT NULL
 BEGIN
     MERGE dbo.document_counters AS target
     USING (
-        SELECT 'WeighingSession_' + LEFT(SessionNo, 6) AS CounterKey, 
-               MAX(TRY_CAST(RIGHT(SessionNo, 4) AS INT)) AS MaxVal
-        FROM dbo.weighing_sessions
-        WHERE SessionNo LIKE 'LC[0-9][0-9][0-9][0-9]%' AND LEN(SessionNo) = 10
-        GROUP BY LEFT(SessionNo, 6)
-        HAVING MAX(TRY_CAST(RIGHT(SessionNo, 4) AS INT)) IS NOT NULL
+        SELECT 'WeighingSession_' + ISNULL(NULLIF(LTRIM(RTRIM(StationCode)), N''), N'QN01') + N'_' + LEFT(LocalSessionNo, 6) AS CounterKey,
+               MAX(TRY_CAST(RIGHT(LocalSessionNo, 4) AS INT)) AS MaxVal
+        FROM (
+            SELECT
+                StationCode,
+                CASE
+                    WHEN CHARINDEX(N'-', SessionNo) > 0 THEN SUBSTRING(SessionNo, CHARINDEX(N'-', SessionNo) + 1, LEN(SessionNo))
+                    ELSE SessionNo
+                END AS LocalSessionNo
+            FROM dbo.weighing_sessions
+        ) source
+        WHERE LocalSessionNo LIKE 'LC[0-9][0-9][0-9][0-9]%' AND LEN(LocalSessionNo) = 10
+        GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(StationCode)), N''), N'QN01'), LEFT(LocalSessionNo, 6)
+        HAVING MAX(TRY_CAST(RIGHT(LocalSessionNo, 4) AS INT)) IS NOT NULL
     ) AS source
     ON target.CounterKey = source.CounterKey
     WHEN MATCHED AND target.LastValue < source.MaxVal THEN
@@ -1216,12 +1250,20 @@ BEGIN
 
     MERGE dbo.document_counters AS target
     USING (
-        SELECT 'WeighTicket_' + LEFT(TicketNo, LEN(TicketNo) - 4) AS CounterKey, 
-               MAX(TRY_CAST(RIGHT(TicketNo, 4) AS INT)) AS MaxVal
-        FROM dbo.weigh_tickets
-        WHERE TicketNo LIKE @TicketPrefixLike AND LEN(TicketNo) = LEN(@TicketPrefix) + 8
-        GROUP BY LEFT(TicketNo, LEN(TicketNo) - 4)
-        HAVING MAX(TRY_CAST(RIGHT(TicketNo, 4) AS INT)) IS NOT NULL
+        SELECT 'WeighTicket_' + ISNULL(NULLIF(LTRIM(RTRIM(StationCode)), N''), N'QN01') + N'_' + LEFT(LocalTicketNo, LEN(LocalTicketNo) - 4) AS CounterKey,
+               MAX(TRY_CAST(RIGHT(LocalTicketNo, 4) AS INT)) AS MaxVal
+        FROM (
+            SELECT
+                StationCode,
+                CASE
+                    WHEN CHARINDEX(N'-', TicketNo) > 0 THEN SUBSTRING(TicketNo, CHARINDEX(N'-', TicketNo) + 1, LEN(TicketNo))
+                    ELSE TicketNo
+                END AS LocalTicketNo
+            FROM dbo.weigh_tickets
+        ) source
+        WHERE LocalTicketNo LIKE @TicketPrefixLike AND LEN(LocalTicketNo) = LEN(@TicketPrefix) + 8
+        GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(StationCode)), N''), N'QN01'), LEFT(LocalTicketNo, LEN(LocalTicketNo) - 4)
+        HAVING MAX(TRY_CAST(RIGHT(LocalTicketNo, 4) AS INT)) IS NOT NULL
     ) AS source
     ON target.CounterKey = source.CounterKey
     WHEN MATCHED AND target.LastValue < source.MaxVal THEN
@@ -1245,12 +1287,20 @@ BEGIN
 
     MERGE dbo.document_counters AS target
     USING (
-        SELECT 'DeliveryTicket_' + LEFT(DeliveryNo, LEN(DeliveryNo) - 4) AS CounterKey, 
-               MAX(TRY_CAST(RIGHT(DeliveryNo, 4) AS INT)) AS MaxVal
-        FROM dbo.delivery_tickets
-        WHERE DeliveryNo LIKE @DeliveryPrefixLike AND LEN(DeliveryNo) = LEN(@DeliveryPrefix) + 8
-        GROUP BY LEFT(DeliveryNo, LEN(DeliveryNo) - 4)
-        HAVING MAX(TRY_CAST(RIGHT(DeliveryNo, 4) AS INT)) IS NOT NULL
+        SELECT 'DeliveryTicket_' + ISNULL(NULLIF(LTRIM(RTRIM(StationCode)), N''), N'QN01') + N'_' + LEFT(LocalDeliveryNo, LEN(LocalDeliveryNo) - 4) AS CounterKey,
+               MAX(TRY_CAST(RIGHT(LocalDeliveryNo, 4) AS INT)) AS MaxVal
+        FROM (
+            SELECT
+                StationCode,
+                CASE
+                    WHEN CHARINDEX(N'-', DeliveryNo) > 0 THEN SUBSTRING(DeliveryNo, CHARINDEX(N'-', DeliveryNo) + 1, LEN(DeliveryNo))
+                    ELSE DeliveryNo
+                END AS LocalDeliveryNo
+            FROM dbo.delivery_tickets
+        ) source
+        WHERE LocalDeliveryNo LIKE @DeliveryPrefixLike AND LEN(LocalDeliveryNo) = LEN(@DeliveryPrefix) + 8
+        GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(StationCode)), N''), N'QN01'), LEFT(LocalDeliveryNo, LEN(LocalDeliveryNo) - 4)
+        HAVING MAX(TRY_CAST(RIGHT(LocalDeliveryNo, 4) AS INT)) IS NOT NULL
     ) AS source
     ON target.CounterKey = source.CounterKey
     WHEN MATCHED AND target.LastValue < source.MaxVal THEN

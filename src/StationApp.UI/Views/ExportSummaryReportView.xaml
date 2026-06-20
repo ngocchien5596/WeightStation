@@ -175,6 +175,16 @@
                     </ComboBox>
                 </StackPanel>
 
+                <StackPanel Grid.Column="4" Margin="0,0,12,0">
+                    <TextBlock Text="Loại" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Width="150"
+                              Height="34"
+                              Style="{StaticResource ReportLookupComboStyle}"
+                              ItemsSource="{Binding FlowTypeOptions}"
+                              SelectedItem="{Binding SelectedFlowType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              DisplayMemberPath="Label"/>
+                </StackPanel>
+
                 <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="126" Margin="0,0,8,0">
                         <TextBlock Text="XEM TR&#x1AF;&#x1EDA;C" FontWeight="SemiBold"/>
@@ -194,6 +204,7 @@
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="{Binding PreviewSummaryText}" FontWeight="SemiBold" Foreground="#0F3B66" Margin="0,0,0,8"/>
                 <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                          Language="vi-VN"
                           HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                           EnableRowVirtualization="True" EnableColumnVirtualization="True"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -209,12 +220,12 @@
                         <DataGridTextColumn Header="S&#x1ED1; PTVC" Binding="{Binding VehiclePlate}" Width="100"/>
                         <DataGridTextColumn Header="T&#xE0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="150"/>
                         <DataGridTextColumn Header="&#x110;&#x1EB7;t h&#xE0;ng (bao)" Binding="{Binding PlannedBagCount, StringFormat=N0}" Width="110"/>
-                        <DataGridTextColumn Header="&#x110;&#x1EB7;t h&#xE0;ng (t&#x1EA5;n)" Binding="{Binding PlannedTon, StringFormat=N3}" Width="120"/>
+                        <DataGridTextColumn Header="&#x110;&#x1EB7;t h&#xE0;ng (t&#x1EA5;n)" Binding="{Binding PlannedTon, StringFormat={}{0:#,##0.00}}" Width="120"/>
                         <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (bao)" Binding="{Binding ActualBagCount, StringFormat=N0}" Width="120"/>
-                        <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (t&#x1EA5;n)" Binding="{Binding ActualTon, StringFormat=N3}" Width="130"/>
+                        <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (t&#x1EA5;n)" Binding="{Binding ActualTon, StringFormat={}{0:#,##0.00}}" Width="130"/>
                         <DataGridTextColumn Header="Ghi ch&#xFA;" Binding="{Binding Notes}" Width="160"/>
-                        <DataGridTextColumn Header="Ch&#xEA;nh l&#x1EC7;ch" Binding="{Binding DifferenceTon, StringFormat=N3}" Width="100"/>
-                        <DataGridTextColumn Header="Kg/Bao" Binding="{Binding ActualKgPerBag, StringFormat=N2}" Width="90"/>
+                        <DataGridTextColumn Header="Ch&#xEA;nh l&#x1EC7;ch" Binding="{Binding DifferenceTon, StringFormat={}{0:#,##0.00}}" Width="100"/>
+                        <DataGridTextColumn Header="Kg/Bao" Binding="{Binding ActualKgPerBag, StringFormat={}{0:#,##0.##}}" Width="90"/>
                         <DataGridTextColumn Header="T&#xEC;nh tr&#x1EA1;ng" Binding="{Binding Status}" Width="100"/>
                     </DataGrid.Columns>
                 </DataGrid>

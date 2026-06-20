@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.Domain.Enums;
@@ -26,7 +27,7 @@ public partial class TicketListViewModel : ObservableObject
         var repo = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
         var list = await repo.SearchAsync(SearchKeyword, null, CancellationToken.None);
         Tickets = new ObservableCollection<TicketListItemDto>(
-            list.Select(t => new TicketListItemDto(t.Id, t.TicketNo, t.VehiclePlate, t.Status, t.SyncStatus,
+            list.Select(t => new TicketListItemDto(t.Id, BusinessNumberFormatter.ToDisplay(t.TicketNo), t.VehiclePlate, t.Status, t.SyncStatus,
                 t.TransactionType, t.Weight1, t.Weight2, t.NetWeight, t.CreatedAt)));
     }
 

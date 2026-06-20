@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -11,8 +12,6 @@ namespace StationApp.Infrastructure.Services;
 
 public sealed class ExportSummaryReportService : IExportSummaryReportService
 {
-    private const decimal BagWeightKg = 50m;
-
     private readonly StationDbContext _dbContext;
     private readonly IAppConfigRepository _appConfigRepository;
 
@@ -239,6 +238,18 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
 
     private static bool MatchesFilter(IReadOnlyList<CutOrder> cutOrders, ExportSummaryReportFilter filter)
     {
+        if (filter.FlowType == OutgoingFlowType.Domestic
+            && cutOrders.Any(x => x.IsExportScale))
+        {
+            return false;
+        }
+
+        if (filter.FlowType == OutgoingFlowType.Export
+            && cutOrders.All(x => !x.IsExportScale))
+        {
+            return false;
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.ProductCode)
             && !cutOrders.Any(x => string.Equals(x.ProductCode, filter.ProductCode, StringComparison.OrdinalIgnoreCase)))
         {
@@ -356,7 +367,9 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
 
             return x.CutOrder.PlannedWeight ?? x.Line.PlannedWeight ?? 0m;
         });
-        var actualBagCount = enrichedLines.Sum(x => x.IsBagged ? CalculateReportBagCount(x.Line.ActualAllocatedWeight, x.Line.ActualAllocatedBagCount) : 0);
+        var actualBagCount = enrichedLines.Sum(x => x.IsBagged
+            ? CalculateReportBagCount(x.CutOrder.BagCount, x.Line.PlannedBagCount, x.Line.ActualAllocatedBagCount)
+            : 0);
         var actualWeightKg = enrichedLines.Sum(x => x.Line.ActualAllocatedWeight ?? 0m);
         if (actualWeightKg <= 0m)
         {
@@ -423,11 +436,13 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
 
         return new ExportSummaryReportRow(
             reportedAt,
-            weighTicket?.TicketNo,
+            weighTicket is null ? null : BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo),
             string.IsNullOrWhiteSpace(customerCodes) ? null : customerCodes,
             string.IsNullOrWhiteSpace(customerNames) ? null : customerNames,
             string.IsNullOrWhiteSpace(cutOrderCodes) ? null : cutOrderCodes,
-            string.IsNullOrWhiteSpace(deliveryNos) ? null : deliveryNos,
+            string.IsNullOrWhiteSpace(deliveryNos)
+                ? null
+                : string.Join(", ", deliveryNos.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(BusinessNumberFormatter.ToDisplay)),
             session.VehiclePlate,
             session.DriverName ?? weighTicket?.DriverName,
             plannedBagCount,
@@ -444,14 +459,9 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             status);
     }
 
-    private static int CalculateReportBagCount(decimal? actualWeightKg, int? persistedBagCount)
+    private static int CalculateReportBagCount(int? registrationBagCount, int? plannedBagCount, int? persistedBagCount)
     {
-        if (!actualWeightKg.HasValue || actualWeightKg.Value <= 0m)
-        {
-            return persistedBagCount ?? 0;
-        }
-
-        return (int)decimal.Floor(actualWeightKg.Value / BagWeightKg);
+        return registrationBagCount ?? plannedBagCount ?? persistedBagCount ?? 0;
     }
 
     private static string? ResolveProductType(CutOrder cutOrder, IReadOnlyDictionary<string, Product> productLookup)
@@ -612,10 +622,10 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
 
         if (document.Rows.Count > 0)
         {
-            sheet.Range(dataStartRow, 13, row - 1, 13).Style.NumberFormat.Format = "#,##0.000";
-            sheet.Range(dataStartRow, 15, row - 1, 15).Style.NumberFormat.Format = "#,##0.000";
-            sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.000";
-            sheet.Range(dataStartRow, 18, row - 1, 18).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 13, row - 1, 13).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 15, row - 1, 15).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 18, row - 1, 18).Style.NumberFormat.Format = "#,##0.##";
         }
 
         var totalRow = row;
@@ -624,13 +634,13 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         totalLabelRange.Style.Font.Bold = true;
         totalLabelRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 15).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 17).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.000";
-        sheet.Range(totalRow, 15, totalRow, 15).Style.NumberFormat.Format = "#,##0.000";
-        sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.000";
-        sheet.Range(totalRow, 18, totalRow, 18).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 15).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 17).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range(totalRow, 15, totalRow, 15).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range(totalRow, 18, totalRow, 18).Style.NumberFormat.Format = "#,##0.##";
         sheet.Cell(totalRow, 12).Value = string.Empty;
         sheet.Cell(totalRow, 14).Value = string.Empty;
 
@@ -756,10 +766,10 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
 
         if (document.Rows.Count > 0)
         {
-            sheet.Range(dataStartRow, 11, row - 1, 11).Style.NumberFormat.Format = "#,##0.000";
-            sheet.Range(dataStartRow, 13, row - 1, 13).Style.NumberFormat.Format = "#,##0.000";
-            sheet.Range(dataStartRow, 16, row - 1, 16).Style.NumberFormat.Format = "#,##0.000";
-            sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 11, row - 1, 11).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 13, row - 1, 13).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 16, row - 1, 16).Style.NumberFormat.Format = "#,##0.00";
+            sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.##";
         }
 
         var totalRow = row;
@@ -768,13 +778,13 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         totalLabelRange.Style.Font.Bold = true;
         totalLabelRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        sheet.Cell(totalRow, 11).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 16).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 3, MidpointRounding.AwayFromZero);
-        sheet.Range(totalRow, 11, totalRow, 11).Style.NumberFormat.Format = "#,##0.000";
-        sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.000";
-        sheet.Range(totalRow, 16, totalRow, 16).Style.NumberFormat.Format = "#,##0.000";
-        sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Cell(totalRow, 11).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 16).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Range(totalRow, 11, totalRow, 11).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range(totalRow, 16, totalRow, 16).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.##";
         sheet.Cell(totalRow, 10).Value = string.Empty;
         sheet.Cell(totalRow, 12).Value = string.Empty;
 

@@ -755,7 +755,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 false,
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
-                    : 1);
+                    : 1,
+                kind == PrintDocumentKind.DeliveryTicket
+                    ? CreateEditableDeliverySealContext(sessionId, context)
+                    : null);
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -763,7 +766,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var result = await printService.PrintAsync(template, preview, printOptions, CancellationToken.None);
+            var batchToPrint = dialogVm.CurrentBatch;
+            var result = await printService.PrintAsync(template, batchToPrint, printOptions, CancellationToken.None);
             await PersistPrintResultAsync(scope, context, kind, result);
 
             if (result.HasFailures)
@@ -1214,6 +1218,39 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             ?? (await vehicleRepo.GetByPlateAsync(session.VehiclePlate, CancellationToken.None)).FirstOrDefault();
 
         return new SessionPrintContext(session, lines, registrationsById, weighTickets, deliveryTickets, vehicle);
+    }
+
+    private EditableDeliverySealContext? CreateEditableDeliverySealContext(Guid sessionId, SessionPrintContext context)
+    {
+        var currentSealNo = context.RegistrationsById.Values
+            .Select(x => x.SealNo?.Trim())
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        return new EditableDeliverySealContext(
+            currentSealNo,
+            async (sealNo, ct) =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionSealNoUseCase>();
+                var result = await useCase.ExecuteAsync(sessionId, sealNo, ct);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(result.ErrorMessage ?? "Không thể lưu niêm chì số.");
+                }
+
+                return result.Data;
+            },
+            async ct =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var refreshedContext = await LoadPrintContextAsync(scope, sessionId);
+                if (refreshedContext == null)
+                {
+                    throw new InvalidOperationException("Không thể tải lại preview phiếu giao nhận sau khi lưu niêm chì số.");
+                }
+
+                return BuildPrintBatchPreview(scope, refreshedContext, PrintDocumentKind.DeliveryTicket);
+            });
     }
 
     private PrintBatchPreviewModel BuildPrintBatchPreview(IServiceScope scope, SessionPrintContext context, PrintDocumentKind kind)

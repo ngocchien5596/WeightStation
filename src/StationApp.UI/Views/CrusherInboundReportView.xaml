@@ -185,6 +185,7 @@
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="{Binding PreviewSummaryText}" FontWeight="SemiBold" Foreground="#0F3B66" Margin="0,0,0,8"/>
                 <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewRows}" AutoGenerateColumns="False" IsReadOnly="True"
+                          Language="vi-VN"
                           HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                           EnableRowVirtualization="True" EnableColumnVirtualization="True"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">

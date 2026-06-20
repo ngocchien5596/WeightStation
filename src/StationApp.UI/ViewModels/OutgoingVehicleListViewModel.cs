@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
 using StationApp.Application.Security;
@@ -43,6 +44,8 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private DateTime? _selectedCompletedDate;
+    [ObservableProperty] private ObservableCollection<OutgoingFlowFilterOption> _flowTypeOptions = [];
+    [ObservableProperty] private OutgoingFlowFilterOption? _selectedFlowType;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isDetailsVisible;
     [ObservableProperty] private bool _isRelatedTicketsVisible;
@@ -65,10 +68,27 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         _clock = clock;
         _currentUserContext = currentUserContext;
         _logger = logger;
+        FlowTypeOptions =
+        [
+            new OutgoingFlowFilterOption("Tất cả", OutgoingFlowType.All),
+            new OutgoingFlowFilterOption("Nội địa", OutgoingFlowType.Domestic),
+            new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export)
+        ];
+        SelectedFlowType = FlowTypeOptions.FirstOrDefault();
         SelectedCompletedDate = _clock.NowLocal.Date;
     }
 
     partial void OnSelectedCompletedDateChanged(DateTime? value)
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        _ = ReloadForCompletedDateChangeAsync();
+    }
+
+    partial void OnSelectedFlowTypeChanged(OutgoingFlowFilterOption? value)
     {
         if (IsLoading)
         {
@@ -128,6 +148,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     {
         SearchSessionNo = null;
         SearchVehiclePlate = null;
+        SelectedFlowType = FlowTypeOptions.FirstOrDefault();
         SelectedCompletedDate = _clock.NowLocal.Date;
         IsDetailsVisible = false;
         IsRelatedTicketsVisible = false;
@@ -152,7 +173,8 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                     null,
                     null,
                     null,
-                    SelectedCompletedDate),
+                    SelectedCompletedDate,
+                    SelectedFlowType?.Value ?? OutgoingFlowType.All),
                 CancellationToken.None);
             var filtered = items
                 .Where(x => string.IsNullOrWhiteSpace(SearchSessionNo) || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase)))
@@ -229,7 +251,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         RelatedTickets = new ObservableCollection<RelatedDocumentListItem>(
             weighTickets.Select(ticket => new RelatedDocumentListItem(
                     UiText.Weighing.RelatedWeighTicket,
-                    ticket.TicketNo,
+                    BusinessNumberFormatter.ToDisplay(ticket.TicketNo),
                     null,
                     ticket.RecordRole,
                     ticket.SplitSequence,
@@ -240,7 +262,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 .Concat(deliveryTickets.Select(ticket => new RelatedDocumentListItem(
                     UiText.Weighing.RelatedDeliveryTicket,
                     null,
-                    ticket.DeliveryNo,
+                    BusinessNumberFormatter.ToDisplay(ticket.DeliveryNo),
                     ticket.RecordRole,
                     ticket.SplitSequence,
                     null,
@@ -415,7 +437,10 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 false,
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
-                    : 1);
+                    : 1,
+                kind == PrintDocumentKind.DeliveryTicket
+                    ? CreateEditableDeliverySealContext(sessionId, context)
+                    : null);
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -423,7 +448,8 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 return;
             }
 
-            var result = await printService.PrintAsync(template, preview, printOptions, CancellationToken.None);
+            var batchToPrint = dialogVm.CurrentBatch;
+            var result = await printService.PrintAsync(template, batchToPrint, printOptions, CancellationToken.None);
             await PersistPrintResultAsync(scope, context, kind, result);
 
             if (result.HasFailures)
@@ -502,6 +528,39 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         {
             await LoadSessionDetailsAsync(sessionId);
         }
+    }
+
+    private EditableDeliverySealContext? CreateEditableDeliverySealContext(Guid sessionId, SessionPrintContext context)
+    {
+        var currentSealNo = context.RegistrationsById.Values
+            .Select(x => x.SealNo?.Trim())
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        return new EditableDeliverySealContext(
+            currentSealNo,
+            async (sealNo, ct) =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionSealNoUseCase>();
+                var result = await useCase.ExecuteAsync(sessionId, sealNo, ct);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(result.ErrorMessage ?? "Không thể lưu niêm chì số.");
+                }
+
+                return result.Data;
+            },
+            async ct =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var refreshedContext = await LoadPrintContextAsync(scope, sessionId);
+                if (refreshedContext == null)
+                {
+                    throw new InvalidOperationException("Không thể tải lại preview phiếu giao nhận sau khi lưu niêm chì số.");
+                }
+
+                return BuildPrintBatchPreview(scope, refreshedContext, PrintDocumentKind.DeliveryTicket);
+            });
     }
 
     private async Task<SessionPrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid sessionId)
@@ -814,5 +873,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         Vehicle? Vehicle
     );
 }
+
+public sealed record OutgoingFlowFilterOption(string Label, OutgoingFlowType Value);
 
 

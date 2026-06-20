@@ -10,6 +10,7 @@ namespace StationApp.Application.UseCases;
 public sealed class UpdateIncomingRegistrationUseCase
 {
     private readonly ICutOrderRepository _regRepo;
+    private readonly IErpCutOrderWriteBackService _erpCutOrderWriteBackService;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
@@ -18,6 +19,7 @@ public sealed class UpdateIncomingRegistrationUseCase
 
     public UpdateIncomingRegistrationUseCase(
         ICutOrderRepository regRepo,
+        IErpCutOrderWriteBackService erpCutOrderWriteBackService,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock,
@@ -25,6 +27,7 @@ public sealed class UpdateIncomingRegistrationUseCase
         EnsureInboundMasterDataUseCase ensureInboundMasterDataUseCase)
     {
         _regRepo = regRepo;
+        _erpCutOrderWriteBackService = erpCutOrderWriteBackService;
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
@@ -67,6 +70,64 @@ public sealed class UpdateIncomingRegistrationUseCase
         reg.UpdatedAt = _clock.NowLocal;
         reg.UpdatedBy = _userContext.Username;
 
+        if (ShouldWriteBackToErp(reg))
+        {
+            if (string.IsNullOrWhiteSpace(reg.ErpCutOrderId))
+            {
+                return OperationResult<CutOrder>.Fail("Không tìm thấy mã cắt lệnh ERP để cập nhật Số PTVC/Mooc.");
+            }
+
+            try
+            {
+                var normalizedErpCutOrderId = reg.ErpCutOrderId.Trim();
+                var updatedAt = reg.UpdatedAt ?? _clock.NowLocal;
+
+                var erpResult = await _erpCutOrderWriteBackService.UpdateTransportInfoAsync(
+                    new ErpCutOrderWriteBackRequest(
+                        normalizedErpCutOrderId,
+                        reg.VehiclePlate,
+                        reg.MoocNumber,
+                        _userContext.Username,
+                        updatedAt),
+                    ct);
+
+                if (erpResult.AffectedRows <= 0)
+                {
+                    return OperationResult<CutOrder>.Fail($"ERP không tìm thấy cắt lệnh {reg.ErpCutOrderId} để cập nhật.");
+                }
+
+                var noteResult = await _erpCutOrderWriteBackService.UpdateDescriptionAsync(
+                    new ErpCutOrderNoteWriteBackRequest(
+                        normalizedErpCutOrderId,
+                        reg.Notes,
+                        _userContext.Username,
+                        updatedAt),
+                    ct);
+
+                if (noteResult.AffectedRows <= 0)
+                {
+                    return OperationResult<CutOrder>.Fail($"ERP không tìm thấy cắt lệnh {reg.ErpCutOrderId} để cập nhật ghi chú.");
+                }
+
+                var receiverResult = await _erpCutOrderWriteBackService.UpdateReceiverAsync(
+                    new ErpCutOrderReceiverWriteBackRequest(
+                        normalizedErpCutOrderId,
+                        reg.ReceiverName,
+                        _userContext.Username,
+                        updatedAt),
+                    ct);
+
+                if (receiverResult.AffectedRows <= 0)
+                {
+                    return OperationResult<CutOrder>.Fail($"ERP không tìm thấy cắt lệnh {reg.ErpCutOrderId} để cập nhật tên tài xế.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult<CutOrder>.Fail($"Không thể cập nhật ERP cho cắt lệnh {reg.ErpCutOrderId}: {ex.Message}");
+            }
+        }
+
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
             await _regRepo.UpdateAsync(reg, innerCt);
@@ -97,6 +158,12 @@ public sealed class UpdateIncomingRegistrationUseCase
             ct);
 
         return OperationResult<CutOrder>.Ok(reg);
+    }
+
+    private static bool ShouldWriteBackToErp(CutOrder reg)
+    {
+        return reg.CutOrderSource == CutOrderSource.ERP
+            && !string.IsNullOrWhiteSpace(reg.ErpCutOrderId);
     }
 }
 

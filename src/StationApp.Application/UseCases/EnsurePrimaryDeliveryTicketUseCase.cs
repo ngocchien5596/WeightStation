@@ -1,7 +1,6 @@
 ﻿using StationApp.Application.Interfaces;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
-using System.Globalization;
 
 namespace StationApp.Application.UseCases;
 
@@ -176,30 +175,19 @@ public sealed class EnsurePrimaryDeliveryTicketUseCase
             return Array.Empty<string>();
         }
 
-        var firstNumber = await _deliveryNoGen.GenerateAsync(ct);
         if (count == 1)
         {
-            return [firstNumber];
+            return [await _deliveryNoGen.GenerateAsync(ct)];
         }
 
-        var splitIndex = firstNumber.Length;
-        while (splitIndex > 0 && char.IsDigit(firstNumber[splitIndex - 1]))
+        var numbers = new List<string>(count);
+        for (var index = 0; index < count; index++)
         {
-            splitIndex--;
+            ct.ThrowIfCancellationRequested();
+            numbers.Add(await _deliveryNoGen.GenerateAsync(ct));
         }
 
-        var prefix = firstNumber[..splitIndex];
-        var numericPart = firstNumber[splitIndex..];
-        if (numericPart.Length == 0 || !int.TryParse(numericPart, NumberStyles.None, CultureInfo.InvariantCulture, out var startSequence))
-        {
-            return Enumerable.Range(0, count)
-                .Select(offset => offset == 0 ? firstNumber : $"{firstNumber}-{offset + 1}")
-                .ToList();
-        }
-
-        return Enumerable.Range(0, count)
-            .Select(offset => $"{prefix}{(startSequence + offset).ToString($"D{numericPart.Length}", CultureInfo.InvariantCulture)}")
-            .ToList();
+        return numbers;
     }
 }
 

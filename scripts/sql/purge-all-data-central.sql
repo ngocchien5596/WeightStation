@@ -8,10 +8,18 @@ GO
 /*
     WARNING:
     - Script nay chi xoa du lieu chung tu/session/log dong bo tren DB central.
-    - Giu lai master data de dong nhat voi script local:
+    - Giu lai master data/cau hinh de dong nhat voi script local:
+      + app_config
+      + users
+      + print_template_profiles
+      + stations
+      + station_feature_flags
+      + station_operation_settings
       + vehicles
       + customers
       + products
+      + device_configs (neu van con ton tai tren central)
+    - Xoa ca sync_outbox va audit_logs neu co de don sach du lieu van hanh/log noi bo.
     - Khong xoa schema, index, trigger, stored procedure, __EFMigrationsHistory.
     - Neu ten DB central cua ban khac StationAppCentral, sua lai dong USE o tren.
 */
@@ -29,6 +37,8 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.cut_orders', N'U') IS NOT NULL ALTER TABLE dbo.cut_orders NOCHECK CONSTRAINT ALL;
     IF OBJECT_ID(N'dbo.weighing_sessions', N'U') IS NOT NULL ALTER TABLE dbo.weighing_sessions NOCHECK CONSTRAINT ALL;
     IF OBJECT_ID(N'dbo.sync_ingestion_logs', N'U') IS NOT NULL ALTER TABLE dbo.sync_ingestion_logs NOCHECK CONSTRAINT ALL;
+    IF OBJECT_ID(N'dbo.sync_outbox', N'U') IS NOT NULL ALTER TABLE dbo.sync_outbox NOCHECK CONSTRAINT ALL;
+    IF OBJECT_ID(N'dbo.audit_logs', N'U') IS NOT NULL ALTER TABLE dbo.audit_logs NOCHECK CONSTRAINT ALL;
 
     IF OBJECT_ID(N'dbo.cut_orders', N'U') IS NOT NULL
     BEGIN
@@ -68,6 +78,8 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.cut_orders', N'U') IS NOT NULL DELETE FROM dbo.cut_orders;
     IF OBJECT_ID(N'dbo.weighing_sessions', N'U') IS NOT NULL DELETE FROM dbo.weighing_sessions;
     IF OBJECT_ID(N'dbo.sync_ingestion_logs', N'U') IS NOT NULL DELETE FROM dbo.sync_ingestion_logs;
+    IF OBJECT_ID(N'dbo.sync_outbox', N'U') IS NOT NULL DELETE FROM dbo.sync_outbox;
+    IF OBJECT_ID(N'dbo.audit_logs', N'U') IS NOT NULL DELETE FROM dbo.audit_logs;
 
     IF OBJECT_ID(N'dbo.weighing_session_images', N'U') IS NOT NULL ALTER TABLE dbo.weighing_session_images WITH CHECK CHECK CONSTRAINT ALL;
     IF OBJECT_ID(N'dbo.delivery_tickets', N'U') IS NOT NULL ALTER TABLE dbo.delivery_tickets WITH CHECK CHECK CONSTRAINT ALL;
@@ -76,6 +88,8 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.cut_orders', N'U') IS NOT NULL ALTER TABLE dbo.cut_orders WITH CHECK CHECK CONSTRAINT ALL;
     IF OBJECT_ID(N'dbo.weighing_sessions', N'U') IS NOT NULL ALTER TABLE dbo.weighing_sessions WITH CHECK CHECK CONSTRAINT ALL;
     IF OBJECT_ID(N'dbo.sync_ingestion_logs', N'U') IS NOT NULL ALTER TABLE dbo.sync_ingestion_logs WITH CHECK CHECK CONSTRAINT ALL;
+    IF OBJECT_ID(N'dbo.sync_outbox', N'U') IS NOT NULL ALTER TABLE dbo.sync_outbox WITH CHECK CHECK CONSTRAINT ALL;
+    IF OBJECT_ID(N'dbo.audit_logs', N'U') IS NOT NULL ALTER TABLE dbo.audit_logs WITH CHECK CHECK CONSTRAINT ALL;
 
     COMMIT TRANSACTION;
 END TRY

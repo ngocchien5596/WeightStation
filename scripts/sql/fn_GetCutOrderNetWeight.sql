@@ -23,10 +23,18 @@ RETURN
                 WHEN COALESCE(NULLIF(LTRIM(RTRIM(co.ProductType)), N''), p.ProductType) = N'Bao'
                      AND ISNULL(sessionAgg.UseActualWeightForBaggedCutOrders, 0) = 0
                     THEN ISNULL(co.PlannedWeight, 0) / 1000.0
+                WHEN COALESCE(NULLIF(LTRIM(RTRIM(co.ProductType)), N''), p.ProductType) = N'Bao'
+                     AND ISNULL(sessionAgg.UseActualWeightForBaggedCutOrders, 0) = 1
+                    THEN ((FLOOR(ISNULL(lineAgg.ActualAllocatedWeight, 0) / 100.0) * 100.0)
+                        + CASE
+                            WHEN (ISNULL(lineAgg.ActualAllocatedWeight, 0) % 100.0) > 50.0 THEN 100.0
+                            WHEN (ISNULL(lineAgg.ActualAllocatedWeight, 0) % 100.0) = 50.0 THEN 50.0
+                            ELSE 0.0
+                          END) / 1000.0
                 ELSE
                     ISNULL(lineAgg.ActualAllocatedWeight, 0) / 1000.0
             END
-            AS decimal(18,3)
+            AS decimal(18,2)
         ) AS NetWeightTon,
         CAST(sessionAgg.Weight1Time AS datetime2(7)) AS Weight1Time,
         CAST(sessionAgg.Weight2Time AS datetime2(7)) AS Weight2Time

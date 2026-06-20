@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
@@ -104,7 +105,7 @@ public sealed class ClayInboundReportService : IClayInboundReportService
             var masterTicket = masterTicketBySessionId.GetValueOrDefault(session.Id);
             var isSingleWeigh = IsSingleWeighMode(session.WeighingMode);
             rows.Add(new ClayInboundReportRow(
-                session.SessionNo,
+                BusinessNumberFormatter.ToDisplay(session.SessionNo),
                 session.InternalVehicleNo ?? session.VehiclePlate,
                 session.DriverName,
                 session.CustomerName,

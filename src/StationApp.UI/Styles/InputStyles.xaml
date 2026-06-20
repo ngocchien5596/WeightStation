@@ -265,15 +265,16 @@
         </Style.Triggers>
     </Style>
 
-    <Style x:Key="HeaderComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource StandardComboBoxStyle}">
+    <Style x:Key="HeaderComboBoxStyle" TargetType="ComboBox">
         <Setter Property="Background" Value="{DynamicResource ClockBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ClockBorderColor}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Foreground" Value="{DynamicResource ClockForeground}"/>
         <Setter Property="Height" Value="38"/>
-        <Setter Property="Padding" Value="12,2"/>
+        <Setter Property="Padding" Value="0"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="13.5"/>
+        <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
@@ -294,7 +295,7 @@
                                     Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="19"
+                                    CornerRadius="6"
                                     SnapsToDevicePixels="True">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -314,13 +315,13 @@
                                             Background="Transparent"
                                             BorderThickness="0">
                                         <Path x:Name="ArrowPath"
-                                              Width="9"
-                                              Height="5.5"
+                                              Width="8"
+                                              Height="5"
                                               Stretch="Fill"
                                               Fill="{TemplateBinding Foreground}"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
-                                              Data="M 0 0 L 9 0 L 4.5 5.5 Z"/>
+                                              Data="M 0 0 L 8 0 L 4 5 Z"/>
                                     </Border>
                                 </Grid>
                             </Border>
@@ -340,7 +341,7 @@
                                     SnapsToDevicePixels="True"
                                     MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
                                 <Border.Effect>
-                                    <DropShadowEffect BlurRadius="8" Color="#000000" Opacity="0.12" ShadowDepth="3"/>
+                                    <DropShadowEffect BlurRadius="12" Color="#000000" Opacity="0.15" ShadowDepth="4"/>
                                 </Border.Effect>
                                 <ScrollViewer Margin="1" SnapsToDevicePixels="True" MaxHeight="220">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
@@ -350,12 +351,14 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="OuterBorder" Property="Background" Value="#F8FAFC"/>
-                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="#B0C4DE"/>
+                            <Setter TargetName="OuterBorder" Property="Background" Value="#EAF4F2"/>
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="#C5A059"/>
+                            <Setter TargetName="ArrowPath" Property="Fill" Value="#203B73"/>
                         </Trigger>
                         <Trigger Property="IsDropDownOpen" Value="True">
-                            <Setter TargetName="OuterBorder" Property="Background" Value="#F1F5F9"/>
-                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="#A0B6D3"/>
+                            <Setter TargetName="OuterBorder" Property="Background" Value="#EAF4F2"/>
+                            <Setter TargetName="OuterBorder" Property="BorderBrush" Value="#C5A059"/>
+                            <Setter TargetName="ArrowPath" Property="Fill" Value="#203B73"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Background" Value="#E5E5E5"/>
@@ -364,6 +367,41 @@
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="ComboBoxItem">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="#1E293B"/>
+                    <Setter Property="Padding" Value="12,8"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ComboBoxItem">
+                                <Border x:Name="ItemBorder" 
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="4"
+                                        Margin="4,2">
+                                    <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter TargetName="ItemBorder" Property="Background" Value="#EAF4F2"/>
+                                        <Setter Property="Foreground" Value="#203B73"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="ItemBorder" Property="Background" Value="#203B73"/>
+                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
             </Setter.Value>
         </Setter>
     </Style>

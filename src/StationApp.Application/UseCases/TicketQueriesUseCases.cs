@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 
 namespace StationApp.Application.UseCases;
@@ -42,7 +43,7 @@ public class GetRelatedTicketsUseCase
         var items = weighTickets
             .Select(ticket => new RelatedDocumentListItem(
                 "PHIEU CAN",
-                ticket.TicketNo,
+                BusinessNumberFormatter.ToDisplay(ticket.TicketNo),
                 null,
                 ticket.RecordRole,
                 ticket.SplitSequence,
@@ -53,7 +54,7 @@ public class GetRelatedTicketsUseCase
             .Concat(deliveryTickets.Select(ticket => new RelatedDocumentListItem(
                 "PHIEU GIAO NHAN",
                 null,
-                ticket.DeliveryNo,
+                BusinessNumberFormatter.ToDisplay(ticket.DeliveryNo),
                 ticket.RecordRole,
                 ticket.SplitSequence,
                 null,

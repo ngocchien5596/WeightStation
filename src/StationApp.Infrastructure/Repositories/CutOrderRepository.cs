@@ -4,9 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using StationApp.Infrastructure.Persistence;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
+using StationApp.Infrastructure.Persistence;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -264,7 +265,7 @@ public class CutOrderRepository : ICutOrderRepository
 
             result.Add(new WeightViewListItem(
                 vr.Id,
-                primaryWeighTicket?.TicketNo,
+                primaryWeighTicket is null ? null : BusinessNumberFormatter.ToDisplay(primaryWeighTicket.TicketNo),
                 vr.ErpCutOrderId,
                 vr.VehiclePlate,
                 vr.CustomerName,
@@ -277,7 +278,7 @@ public class CutOrderRepository : ICutOrderRepository
                 session?.NetWeight ?? primaryWeighTicket?.NetWeight,
                 session?.Weight2Time ?? session?.Weight1Time ?? primaryWeighTicket?.Weight2Time ?? primaryWeighTicket?.Weight1Time ?? NormalizeCreatedAtForDisplay(vr.CutOrderSource, vr.CreatedAt),
                 primaryWeighTicket?.Weight2User ?? primaryWeighTicket?.Weight1User,
-                primaryDeliveryTicket?.DeliveryNo,
+                primaryDeliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(primaryDeliveryTicket.DeliveryNo),
                 vr.Notes,
                 vr.HasOverweightCase,
                 vr.TransactionType,
@@ -488,7 +489,7 @@ public class CutOrderRepository : ICutOrderRepository
                         : !string.IsNullOrWhiteSpace(vr.ErpCutOrderId) && deletedCarryForwardLookup.TryGetValue(vr.ErpCutOrderId.Trim(), out var deletedCarryForwardTime)
                         ? deletedCarryForwardTime.CarryForwardWeight1Time
                         : null),
-                suggestedSessionNo,
+                string.IsNullOrWhiteSpace(suggestedSessionNo) ? suggestedSessionNo : BusinessNumberFormatter.ToDisplay(suggestedSessionNo),
                 vr.ConsumptionPlace,
                 vr.Market,
                 vr.IsExportScale);
@@ -541,6 +542,15 @@ public class CutOrderRepository : ICutOrderRepository
                 Session = session
             };
         query = query.Where(x => !x.Registration.IsDeleted);
+
+        if (filter.FlowType == OutgoingFlowType.Domestic)
+        {
+            query = query.Where(x => !x.Registration.IsExportScale);
+        }
+        else if (filter.FlowType == OutgoingFlowType.Export)
+        {
+            query = query.Where(x => false);
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.SessionNo))
         {
@@ -703,7 +713,7 @@ public class CutOrderRepository : ICutOrderRepository
             return new OutgoingVehicleListItem(
                 vr.Id,
                 vr.WeighingSessionId,
-                session?.SessionNo,
+                session is null ? null : BusinessNumberFormatter.ToDisplay(session.SessionNo),
                 vr.ErpCutOrderId,
                 vr.TransactionType,
                 vr.VehiclePlate,
@@ -724,8 +734,8 @@ public class CutOrderRepository : ICutOrderRepository
                 totalBagCount,
                 weighDate,
                 weighUser,
-                displayWeigh?.TicketNo,
-                displayDelivery?.DeliveryNo,
+                displayWeigh is null ? null : BusinessNumberFormatter.ToDisplay(displayWeigh.TicketNo),
+                displayDelivery is null ? null : BusinessNumberFormatter.ToDisplay(displayDelivery.DeliveryNo),
                 ResolveOutgoingCompletedAt(vr, session),
                 displayWeigh?.IsPrinted ?? session?.HasPrintedMasterWeighTicket == true,
                 displayDelivery?.IsPrinted == true,
@@ -736,7 +746,9 @@ public class CutOrderRepository : ICutOrderRepository
             );
         }).ToList();
 
-        var exportItems = await GetExportScaleOutgoingItemsAsync(filter, ct);
+        var exportItems = filter.FlowType == OutgoingFlowType.Domestic
+            ? []
+            : await GetExportScaleOutgoingItemsAsync(filter, ct);
 
         return normalItems
             .Concat(exportItems)
@@ -774,6 +786,15 @@ public class CutOrderRepository : ICutOrderRepository
                 Session = session,
                 Line = line
             };
+
+        if (filter.FlowType == OutgoingFlowType.Export)
+        {
+            // Keep export query active.
+        }
+        else if (filter.FlowType == OutgoingFlowType.Domestic)
+        {
+            return [];
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.SessionNo))
         {
@@ -880,7 +901,7 @@ public class CutOrderRepository : ICutOrderRepository
             return new OutgoingVehicleListItem(
                 vr.Id,
                 session.Id,
-                session.SessionNo,
+                BusinessNumberFormatter.ToDisplay(session.SessionNo),
                 vr.ErpCutOrderId,
                 vr.TransactionType,
                 session.VehiclePlate,
@@ -901,8 +922,8 @@ public class CutOrderRepository : ICutOrderRepository
                 isBagged ? line.ActualAllocatedBagCount : null,
                 weighTicket?.Weight2Time ?? session.Weight2Time ?? session.Weight1Time,
                 weighTicket?.Weight2User ?? weighTicket?.Weight1User,
-                weighTicket?.TicketNo,
-                deliveryTicket?.DeliveryNo,
+                weighTicket is null ? null : BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo),
+                deliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
                 completedAt,
                 weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
                 deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket,
@@ -1258,7 +1279,7 @@ public class CutOrderRepository : ICutOrderRepository
             return new ExportVehicleTripListItem(
                 session.Id,
                 line.Id,
-                session.SessionNo,
+                BusinessNumberFormatter.ToDisplay(session.SessionNo),
                 session.VehiclePlate,
                 session.MoocNumber,
                 session.DriverName,
@@ -1269,8 +1290,8 @@ public class CutOrderRepository : ICutOrderRepository
                 session.Weight1Time,
                 session.Weight2Time,
                 session.SessionStatus,
-                weighTicket?.TicketNo,
-                deliveryTicket?.DeliveryNo,
+                weighTicket is null ? null : BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo),
+                deliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
                 weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
                 deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket);
         }).ToList().AsReadOnly();

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -37,7 +38,19 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
         => await _db.WeighTickets.FindAsync(new object[] { id }, ct);
 
     public async Task<WeighTicket?> GetByTicketNoAsync(string ticketNo, CancellationToken ct)
-        => await _db.WeighTickets.FirstOrDefaultAsync(t => t.TicketNo == ticketNo && !t.IsDeleted, ct);
+    {
+        ticketNo = ticketNo?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(ticketNo))
+        {
+            return null;
+        }
+
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var fullTicketNo = BusinessNumberFormatter.PrefixWithStation(stationCode, ticketNo);
+        return await _db.WeighTickets.FirstOrDefaultAsync(
+            t => !t.IsDeleted && (t.TicketNo == ticketNo || t.TicketNo == fullTicketNo),
+            ct);
+    }
 
     public async Task<IReadOnlyList<WeighTicket>> GetByStatusAsync(TicketStatus status, CancellationToken ct)
     {
@@ -60,7 +73,19 @@ public class TicketRepository : ITicketRepository, IWeighTicketRepository
     }
 
     public async Task<bool> ExistsByTicketNoAsync(string ticketNo, CancellationToken ct)
-        => await _db.WeighTickets.AnyAsync(t => t.TicketNo == ticketNo && !t.IsDeleted, ct);
+    {
+        ticketNo = ticketNo?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(ticketNo))
+        {
+            return false;
+        }
+
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var fullTicketNo = BusinessNumberFormatter.PrefixWithStation(stationCode, ticketNo);
+        return await _db.WeighTickets.AnyAsync(
+            t => !t.IsDeleted && (t.TicketNo == ticketNo || t.TicketNo == fullTicketNo),
+            ct);
+    }
 
     public async Task<IReadOnlyList<WeighTicket>> GetPrimaryDisplayTicketsAsync(string? keyword, CancellationToken ct)
     {

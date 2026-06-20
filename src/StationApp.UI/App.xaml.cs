@@ -175,6 +175,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IClayInboundReportExporter, ClayInboundReportExcelExporter>();
                     services.AddScoped<IExternalDatacanQueryService, ExternalDatacanQueryService>();
                     services.AddScoped<IDocumentCounterService, DocumentCounterService>();
+                    services.AddScoped<IErpCutOrderWriteBackService, OracleErpCutOrderWriteBackService>();
 
                     services.AddScoped<ITicketNumberGenerator, TicketNumberGenerator>();
                     services.AddScoped<IDeliveryNumberGenerator, DeliveryNumberGenerator>();
@@ -188,6 +189,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IStationAuthorizationService, StationAuthorizationService>();
                     services.AddScoped<IStationAdministrationService, StationAdministrationService>();
                     services.AddScoped<IStationFeatureService, StationFeatureService>();
+                    services.AddScoped<IIncomingVehicleComplianceSettingsProvider, IncomingVehicleComplianceSettingsProvider>();
                     services.AddScoped<IToleranceProvider, ToleranceProvider>();
                     services.AddScoped<ICameraSettingsProvider, CameraSettingsProvider>();
                     services.AddScoped<IAuditService, AuditService>();
@@ -236,6 +238,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<ConfirmEnterWeighingUseCase>();
                     services.AddScoped<CreateInboundRegistrationUseCase>();
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
+                    services.AddScoped<UpdateWeighingSessionSealNoUseCase>();
                     services.AddScoped<CreateWeighingSessionUseCase>();
                     services.AddScoped<CrusherWeighingUseCases>();
                     services.AddScoped<ClayWeighingUseCases>();
