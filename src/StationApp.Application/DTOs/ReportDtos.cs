@@ -25,6 +25,8 @@ public sealed record ExportSummaryReportRow(
     int ActualBagCount,
     decimal ActualWeightKg,
     decimal ActualTon,
+    int? ErpBagCount,
+    decimal? ErpTon,
     string ProductDisplayName,
     string? Notes,
     decimal DifferenceTon,

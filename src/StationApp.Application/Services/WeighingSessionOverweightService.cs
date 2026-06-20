@@ -1,4 +1,4 @@
-﻿using StationApp.Domain.Entities;
+using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Application.Services;
@@ -50,7 +50,7 @@ public sealed class WeighingSessionOverweightService
         }
 
         var overweightAmount = decimal.Round(
-            session.NetWeight!.Value - session.Ttcp10WeightSnapshot!.Value,
+            session.Weight2!.Value - session.Ttcp10WeightSnapshot!.Value,
             3,
             MidpointRounding.AwayFromZero);
 
@@ -78,12 +78,12 @@ public sealed class WeighingSessionOverweightService
         decimal? firstSplitNetWeight = null,
         bool isManualOverride = false)
     {
-        if (!session.NetWeight.HasValue || !session.Ttcp10WeightSnapshot.HasValue)
+        if (!session.NetWeight.HasValue || !session.Ttcp10WeightSnapshot.HasValue || !session.Weight1.HasValue)
         {
             throw new InvalidOperationException("Lượt cân chưa đủ dữ liệu để lập phương án tách tải.");
         }
 
-        var target = session.Ttcp10WeightSnapshot.Value;
+        var target = session.Ttcp10WeightSnapshot.Value - session.Weight1.Value;
         if (target <= 0m)
         {
             throw new InvalidOperationException("Ngưỡng TTCP 10% không hợp lệ.");

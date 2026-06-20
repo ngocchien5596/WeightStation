@@ -275,6 +275,10 @@ public class AuthorizationRbacUseCaseTests
         var clock = Substitute.For<IClock>();
         currentUser.RoleCode.Returns("OPERATOR");
 
+        var complianceSettingsProvider = Substitute.For<IIncomingVehicleComplianceSettingsProvider>();
+        complianceSettingsProvider.GetCurrentRulesAsync(Arg.Any<CancellationToken>())
+            .Returns(IncomingVehicleComplianceRules.Disabled);
+
         var sut = new CaptureSessionWeight1UseCase(
             sessionRepo,
             regRepo,
@@ -285,6 +289,7 @@ public class AuthorizationRbacUseCaseTests
             Substitute.For<ICameraCaptureService>(),
             ticketSyncService,
             ticketNoGen,
+            complianceSettingsProvider,
             uow,
             currentUser,
             clock);

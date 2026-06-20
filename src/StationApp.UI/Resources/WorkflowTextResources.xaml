@@ -110,6 +110,8 @@
     <sys:String x:Key="Weighing.Column.PrintDelivery">IN PGN</sys:String>
     <sys:String x:Key="Weighing.Column.Group">Nh&#x00F3;m</sys:String>
     <sys:String x:Key="Weighing.Column.Weight">Kh&#x1ED1;i l&#x01B0;&#x1EE3;ng</sys:String>
+    <sys:String x:Key="Weighing.Column.Weight1">C&#x00E2;n l&#x1EA7;n 1</sys:String>
+    <sys:String x:Key="Weighing.Column.Weight2">C&#x00E2;n l&#x1EA7;n 2</sys:String>
     <sys:String x:Key="Weighing.Column.LineCount">S&#x1ED1; d&#x00F2;ng</sys:String>
     <sys:String x:Key="Weighing.Column.BagCount">Bao</sys:String>
     <sys:String x:Key="Weighing.Column.Type">Lo&#x1EA1;i</sys:String>

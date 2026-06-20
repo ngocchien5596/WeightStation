@@ -406,6 +406,12 @@ public class WeighingSessionTicketSyncTests
                 await action(call.ArgAt<CancellationToken>(1));
             });
 
+        var complianceSettingsProvider = Substitute.For<IIncomingVehicleComplianceSettingsProvider>();
+        complianceSettingsProvider.GetCurrentRulesAsync(Arg.Any<CancellationToken>())
+            .Returns(new IncomingVehicleComplianceRules(
+                new IncomingVehicleComplianceRuleSet(true, false),
+                new IncomingVehicleComplianceRuleSet(true, false)));
+
         var sut = new CaptureSessionWeight1UseCase(
             sessionRepo,
             regRepo,
@@ -416,6 +422,7 @@ public class WeighingSessionTicketSyncTests
             CreateCameraCaptureService(),
             ticketSyncService,
             ticketNoGen,
+            complianceSettingsProvider,
             uow,
             currentUser,
             clock);
@@ -488,7 +495,8 @@ public class WeighingSessionTicketSyncTests
             CustomerCode = "C1",
             ProductCode = "P1",
             ProductType = ProductTypes.Bagged,
-            PlannedWeight = 22_000m
+            PlannedWeight = 22_000m,
+            BagCount = 440
         };
 
         sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
@@ -600,6 +608,7 @@ public class WeighingSessionTicketSyncTests
             ProductCode = "P2",
             ProductType = ProductTypes.Bagged,
             PlannedWeight = 21_000m,
+            BagCount = 420,
             Notes = "note"
         };
 
@@ -1190,7 +1199,7 @@ public class WeighingSessionTicketSyncTests
         weighRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { masterTicket });
         deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(Array.Empty<DeliveryTicket>());
         deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("PGN26050021");
-        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("PC26050018");
+        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("PC26050018", "PC26050019");
         uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(async call =>
             {

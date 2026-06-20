@@ -15,7 +15,7 @@ public class WeighingSessionOverweightServiceTests
     public void RefreshSessionOverweightState_SetsPendingWhenNetWeightExceedsThreshold()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 32_000m);
         var lines = new[]
         {
             CreateAllocatedLine(weight: 10_000m, bagCount: 200),
@@ -41,7 +41,7 @@ public class WeighingSessionOverweightServiceTests
     public void RefreshSessionOverweightState_SetsNotApplicableWhenNetWeightDoesNotExceedThreshold()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 21_500m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 21_500m, ttcp10: 32_000m);
 
         service.RefreshSessionOverweightState(
             session,
@@ -61,7 +61,7 @@ public class WeighingSessionOverweightServiceTests
     {
         var service = new WeighingSessionOverweightService();
         var now = new DateTime(2026, 5, 1, 10, 15, 0);
-        var session = CreateReadySession(netWeight: 21_500m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 21_500m, ttcp10: 32_000m);
         session.OverweightResolutionStatus = OverweightResolutionStatus.SPLIT_CONFIRMED;
         session.OverweightResolvedAt = now.AddMinutes(-30);
         session.OverweightResolvedBy = "old-user";
@@ -113,7 +113,7 @@ public class WeighingSessionOverweightServiceTests
         var service = new WeighingSessionOverweightService();
         var line1Id = Guid.NewGuid();
         var line2Id = Guid.NewGuid();
-        var session = CreateReadySession(netWeight: 24_000m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 24_000m, ttcp10: 32_000m);
         var lines = new[]
         {
             CreateAllocatedLine(line1Id, sequenceNo: 1, weight: 12_000m, bagCount: 120),
@@ -148,7 +148,7 @@ public class WeighingSessionOverweightServiceTests
     public void BuildSplitPlan_SystemSuggestion_UsesRandomFactorWithinConfiguredRange()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 27_500m);
+        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 37_500m);
         var lines = new[]
         {
             CreateAllocatedLine(sequenceNo: 1, weight: 18_000m, bagCount: 360),
@@ -169,7 +169,7 @@ public class WeighingSessionOverweightServiceTests
     public void BuildSplitPlan_ManualOverride_UsesRequestedWeight_AndHidesRandomFactor()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 27_500m);
+        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 37_500m);
         var lines = new[]
         {
             CreateAllocatedLine(sequenceNo: 1, weight: 18_000m, bagCount: 360),
@@ -188,7 +188,7 @@ public class WeighingSessionOverweightServiceTests
     public void BuildSplitPlan_ThrowsWhenSecondTicketStillExceedsThreshold()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 44_500m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 44_500m, ttcp10: 32_000m);
         var lines = new[]
         {
             CreateAllocatedLine(sequenceNo: 1, weight: 22_250m, bagCount: 445),
@@ -207,7 +207,7 @@ public class WeighingSessionOverweightServiceTests
         var userContext = Substitute.For<ICurrentUserContext>();
         var clock = Substitute.For<IClock>();
         var uow = Substitute.For<IUnitOfWork>();
-        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 32_000m);
         session.IsOverweight = true;
         session.OverweightAmount = 500m;
         session.OverweightResolutionStatus = OverweightResolutionStatus.PENDING;
@@ -242,7 +242,7 @@ public class WeighingSessionOverweightServiceTests
         var uow = Substitute.For<IUnitOfWork>();
         var service = new WeighingSessionOverweightService();
 
-        var session = CreateReadySession(netWeight: 33_000m, ttcp10: 27_500m);
+        var session = CreateReadySession(netWeight: 33_000m, ttcp10: 37_500m);
         session.IsOverweight = true;
         session.OverweightAmount = 5_500m;
         session.OverweightResolutionStatus = OverweightResolutionStatus.PENDING;
@@ -331,8 +331,8 @@ public class WeighingSessionOverweightServiceTests
         weighRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns([masterTicket]);
         deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns([normalDelivery1, normalDelivery2]);
         configRepo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, Arg.Any<CancellationToken>()).Returns("0.0025");
-        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN26050010");
-        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DN26050020");
+        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN26050010", "QN26050011");
+        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DN26050020", "DN26050021", "DN26050022");
         userContext.Username.Returns("supervisor");
         clock.NowLocal.Returns(new DateTime(2026, 5, 1, 11, 30, 0));
         uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
@@ -372,13 +372,49 @@ public class WeighingSessionOverweightServiceTests
     [InlineData(OverweightResolutionStatus.PENDING, false)]
     public void CanMoveToOutYard_RequiresResolvedOverweightState(OverweightResolutionStatus status, bool expected)
     {
-        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 22_000m);
+        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 32_000m);
         session.OverweightResolutionStatus = status;
         session.IsOverweight = status == OverweightResolutionStatus.PENDING;
 
         var result = CompleteWeighingSessionUseCase.CanMoveToOutYard(session);
 
         Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void RefreshSessionOverweightState_CalculatesOverweightAmountFromWeight2()
+    {
+        var service = new WeighingSessionOverweightService();
+        var session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            SessionNo = "WS-002",
+            TransactionType = TransactionType.OUTBOUND,
+            VehiclePlate = "14C-5555",
+            SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE,
+            Weight1 = 12_000m,
+            Weight2 = 45_000m,
+            NetWeight = 33_000m,
+            Ttcp10WeightSnapshot = 40_000m,
+            CreatedAt = new DateTime(2026, 5, 1, 8, 0, 0),
+            CreatedBy = "tester"
+        };
+        var lines = new[]
+        {
+            CreateAllocatedLine(weight: 33_000m, bagCount: 660)
+        };
+
+        service.RefreshSessionOverweightState(
+            session,
+            lines,
+            [],
+            [],
+            new DateTime(2026, 5, 1, 9, 0, 0),
+            "tester");
+
+        Assert.True(session.IsOverweight);
+        Assert.Equal(5_000m, session.OverweightAmount);
+        Assert.Equal(OverweightResolutionStatus.PENDING, session.OverweightResolutionStatus);
     }
 
     private static WeighingSession CreateReadySession(decimal netWeight, decimal ttcp10)
@@ -391,7 +427,7 @@ public class WeighingSessionOverweightServiceTests
             VehiclePlate = "51C-12345",
             SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE,
             Weight1 = 10_000m,
-            Weight2 = 32_000m,
+            Weight2 = 10_000m + netWeight,
             NetWeight = netWeight,
             Ttcp10WeightSnapshot = ttcp10,
             CreatedAt = new DateTime(2026, 5, 1, 8, 0, 0),

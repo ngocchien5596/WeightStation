@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -57,6 +57,24 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
             .SelectMany(group => group.Lines.Select(line =>
             {
                 var source = lineLookup[line.SessionLineId];
+                decimal? w1 = null;
+                decimal? w2 = null;
+
+                if (session.Weight1.HasValue)
+                {
+                    var split1Net = plan.SplitTicket1NetWeight;
+                    if (group.SplitSequence == 1)
+                    {
+                        w1 = session.Weight1.Value;
+                        w2 = decimal.Round(session.Weight1.Value + (session.TransactionType == TransactionType.OUTBOUND ? split1Net : -split1Net), 3, MidpointRounding.AwayFromZero);
+                    }
+                    else
+                    {
+                        w1 = decimal.Round(session.Weight1.Value + (session.TransactionType == TransactionType.OUTBOUND ? split1Net : -split1Net), 3, MidpointRounding.AwayFromZero);
+                        w2 = session.Weight2;
+                    }
+                }
+
                 return new OverweightSplitPreviewLineItem(
                     line.SessionLineId,
                     line.SequenceNo,
@@ -65,7 +83,9 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
                     source.ProductName,
                     group.SplitSequence,
                     line.AllocatedWeight,
-                    line.AllocatedBagCount);
+                    line.AllocatedBagCount,
+                    w1,
+                    w2);
             }))
             .ToList();
 

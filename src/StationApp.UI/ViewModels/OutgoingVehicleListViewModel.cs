@@ -72,7 +72,8 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         [
             new OutgoingFlowFilterOption("Tất cả", OutgoingFlowType.All),
             new OutgoingFlowFilterOption("Nội địa", OutgoingFlowType.Domestic),
-            new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export)
+            new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export),
+            new OutgoingFlowFilterOption("Nhập", OutgoingFlowType.Inbound)
         ];
         SelectedFlowType = FlowTypeOptions.FirstOrDefault();
         SelectedCompletedDate = _clock.NowLocal.Date;

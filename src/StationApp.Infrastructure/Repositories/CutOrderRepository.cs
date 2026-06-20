@@ -545,11 +545,15 @@ public class CutOrderRepository : ICutOrderRepository
 
         if (filter.FlowType == OutgoingFlowType.Domestic)
         {
-            query = query.Where(x => !x.Registration.IsExportScale);
+            query = query.Where(x => !x.Registration.IsExportScale && x.Registration.TransactionType == TransactionType.OUTBOUND);
         }
         else if (filter.FlowType == OutgoingFlowType.Export)
         {
             query = query.Where(x => false);
+        }
+        else if (filter.FlowType == OutgoingFlowType.Inbound)
+        {
+            query = query.Where(x => x.Registration.TransactionType == TransactionType.INBOUND);
         }
 
         if (!string.IsNullOrWhiteSpace(filter.SessionNo))
@@ -791,7 +795,7 @@ public class CutOrderRepository : ICutOrderRepository
         {
             // Keep export query active.
         }
-        else if (filter.FlowType == OutgoingFlowType.Domestic)
+        else if (filter.FlowType == OutgoingFlowType.Domestic || filter.FlowType == OutgoingFlowType.Inbound)
         {
             return [];
         }

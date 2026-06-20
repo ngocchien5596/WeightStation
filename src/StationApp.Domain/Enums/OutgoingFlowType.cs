@@ -4,5 +4,6 @@ public enum OutgoingFlowType
 {
     All = 0,
     Domestic = 1,
-    Export = 2
+    Export = 2,
+    Inbound = 3
 }

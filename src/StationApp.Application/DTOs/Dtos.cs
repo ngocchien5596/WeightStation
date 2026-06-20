@@ -743,7 +743,9 @@ public sealed record OverweightSplitPreviewLineItem(
     string? ProductName,
     byte SplitSequence,
     decimal AllocatedWeight,
-    int? AllocatedBagCount
+    int? AllocatedBagCount,
+    decimal? Weight1,
+    decimal? Weight2
 );
 
 public sealed record OverweightSplitPreviewDto(

@@ -548,13 +548,15 @@
                                           BorderThickness="0"
                                           ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="65" ElementStyle="{StaticResource GridTextCenter}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="55" ElementStyle="{StaticResource GridTextCenter}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="250" ElementStyle="{StaticResource GridTextLeft}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding AllocatedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.BagCount}" Binding="{Binding AllocatedBagCount}" Width="80" ElementStyle="{StaticResource GridTextCenter}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="40" ElementStyle="{StaticResource GridTextCenter}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="225" ElementStyle="{StaticResource GridTextLeft}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="235" ElementStyle="{StaticResource GridTextLeft}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding AllocatedWeight, StringFormat='{}{0:N0}'}" Width="105" ElementStyle="{StaticResource GridTextRight}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.BagCount}" Binding="{Binding AllocatedBagCount}" Width="65" ElementStyle="{StaticResource GridTextCenter}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight1}" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="95" ElementStyle="{StaticResource GridTextRight}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="95" ElementStyle="{StaticResource GridTextRight}"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Border>

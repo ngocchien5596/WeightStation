@@ -559,6 +559,7 @@ public sealed class CaptureSessionWeight1UseCase
     private readonly ICameraCaptureService _cameraCaptureService;
     private readonly WeighingSessionTicketSyncService _ticketSyncService;
     private readonly ITicketNumberGenerator _ticketNoGen;
+    private readonly IIncomingVehicleComplianceSettingsProvider _complianceSettingsProvider;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
@@ -573,6 +574,7 @@ public sealed class CaptureSessionWeight1UseCase
         ICameraCaptureService cameraCaptureService,
         WeighingSessionTicketSyncService ticketSyncService,
         ITicketNumberGenerator ticketNoGen,
+        IIncomingVehicleComplianceSettingsProvider complianceSettingsProvider,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock)
@@ -586,6 +588,7 @@ public sealed class CaptureSessionWeight1UseCase
         _cameraCaptureService = cameraCaptureService;
         _ticketSyncService = ticketSyncService;
         _ticketNoGen = ticketNoGen;
+        _complianceSettingsProvider = complianceSettingsProvider;
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
@@ -617,7 +620,19 @@ public sealed class CaptureSessionWeight1UseCase
             ttcp10Threshold = decimal.Round(vehicleTtcpWeight.Value * 1.10m, 3, MidpointRounding.AwayFromZero);
         }
 
-        if (session.TransactionType == TransactionType.OUTBOUND && !ttcp10Threshold.HasValue)
+        var complianceRules = await _complianceSettingsProvider.GetCurrentRulesAsync(ct);
+        var normalizedProductType = ProductTypes.Normalize(primaryRegistration.ProductType);
+        var requireTtcp = false;
+        if (normalizedProductType == ProductTypes.Bagged)
+        {
+            requireTtcp = complianceRules.BaggedOutbound.RequireTtcpOnCreateSession;
+        }
+        else if (normalizedProductType == ProductTypes.Bulk)
+        {
+            requireTtcp = complianceRules.BulkOutbound.RequireTtcpOnCreateSession;
+        }
+
+        if (session.TransactionType == TransactionType.OUTBOUND && requireTtcp && !ttcp10Threshold.HasValue)
         {
             throw new InvalidOperationException(
                 $"Xe {session.VehiclePlate}{(string.IsNullOrWhiteSpace(session.MoocNumber) ? string.Empty : $" / mooc {session.MoocNumber}")} chưa có TTCP hợp lệ trong Danh mục xe.");
