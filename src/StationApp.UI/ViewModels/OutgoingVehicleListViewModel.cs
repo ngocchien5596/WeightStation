@@ -439,9 +439,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
                     : 1,
-                kind == PrintDocumentKind.DeliveryTicket
-                    ? CreateEditableDeliverySealContext(sessionId, context)
-                    : null);
+                CreateEditablePrintDataContext(sessionId, context, kind));
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -531,15 +529,19 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         }
     }
 
-    private EditableDeliverySealContext? CreateEditableDeliverySealContext(Guid sessionId, SessionPrintContext context)
+    private EditablePrintDataContext? CreateEditablePrintDataContext(Guid sessionId, SessionPrintContext context, PrintDocumentKind kind)
     {
         var currentSealNo = context.RegistrationsById.Values
             .Select(x => x.SealNo?.Trim())
             .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        var currentMoocNumber = string.IsNullOrWhiteSpace(context.MasterSession.MoocNumber)
+            ? context.RegistrationsById.Values.Select(x => x.MoocNumber?.Trim()).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            : context.MasterSession.MoocNumber?.Trim();
 
-        return new EditableDeliverySealContext(
-            currentSealNo,
-            async (sealNo, ct) =>
+        return new EditablePrintDataContext(
+            kind == PrintDocumentKind.DeliveryTicket ? currentSealNo : null,
+            kind == PrintDocumentKind.WeighTicket ? currentMoocNumber : null,
+            kind == PrintDocumentKind.DeliveryTicket ? async (sealNo, ct) =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionSealNoUseCase>();
@@ -550,7 +552,21 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 }
 
                 return result.Data;
-            },
+            }
+            : null,
+            kind == PrintDocumentKind.WeighTicket ? async (moocNumber, ct) =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionMoocNumberUseCase>();
+                var result = await useCase.ExecuteAsync(sessionId, moocNumber, ct);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(result.ErrorMessage ?? "Không thể lưu số mooc.");
+                }
+
+                return result.Data;
+            }
+            : null,
             async ct =>
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -560,7 +576,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                     throw new InvalidOperationException("Không thể tải lại preview phiếu giao nhận sau khi lưu niêm chì số.");
                 }
 
-                return BuildPrintBatchPreview(scope, refreshedContext, PrintDocumentKind.DeliveryTicket);
+                return BuildPrintBatchPreview(scope, refreshedContext, kind);
             });
     }
 
@@ -600,6 +616,33 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         return new SessionPrintContext(session, lines, registrationsById, weighTickets, deliveryTickets, vehicle);
     }
 
+    private static int? ResolvePrintActualBagCount(SessionPrintContext context, WeighTicket ticket)
+    {
+        if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+        {
+            var totalBagCount = context.Lines
+                .Where(x => !x.IsDeleted)
+                .Sum(x => x.ActualAllocatedBagCount ?? x.BagCountDisplay ?? 0);
+            return totalBagCount > 0 ? totalBagCount : null;
+        }
+
+        return context.Lines
+            .Where(x => !x.IsDeleted && x.CutOrderId == ticket.CutOrderId)
+            .OrderBy(x => x.SequenceNo)
+            .Select(x => x.ActualAllocatedBagCount ?? x.BagCountDisplay)
+            .FirstOrDefault(x => x.HasValue);
+    }
+
+    private static bool ResolvePrintReturnedBrokenTrip(SessionPrintContext context, WeighTicket ticket)
+    {
+        if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+        {
+            return context.Lines.Any(x => !x.IsDeleted && x.IsReturnedBrokenTrip);
+        }
+
+        return context.Lines.Any(x => !x.IsDeleted && x.CutOrderId == ticket.CutOrderId && x.IsReturnedBrokenTrip);
+    }
+
     private PrintBatchPreviewModel BuildPrintBatchPreview(IServiceScope scope, SessionPrintContext context, PrintDocumentKind kind)
     {
         var printedAtLocal = _clock.NowLocal;
@@ -632,7 +675,9 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                         var primaryRegistration = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
                         registration = BuildDeliveryMasterRegistration(context, primaryRegistration);
                     }
-                    var page = composer.Compose(registration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    var actualBagCount = ResolvePrintActualBagCount(context, ticket);
+                    var isReturnedBrokenTrip = ResolvePrintReturnedBrokenTrip(context, ticket);
+                    var page = composer.Compose(registration, ticket, actualBagCount, isReturnedBrokenTrip, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";

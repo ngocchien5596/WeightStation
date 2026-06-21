@@ -3,6 +3,7 @@ namespace StationApp.Application.Interfaces;
 public interface IErpCutOrderWriteBackService
 {
     Task<ErpCutOrderWriteBackResult> UpdateTransportInfoAsync(ErpCutOrderWriteBackRequest request, CancellationToken ct);
+    Task<ErpCutOrderMoocWriteBackResult> UpdateMoocNoAsync(ErpCutOrderMoocWriteBackRequest request, CancellationToken ct);
     Task<ErpCutOrderSealWriteBackResult> UpdateSealNoAsync(ErpCutOrderSealWriteBackRequest request, CancellationToken ct);
     Task<ErpCutOrderNoteWriteBackResult> UpdateDescriptionAsync(ErpCutOrderNoteWriteBackRequest request, CancellationToken ct);
     Task<ErpCutOrderReceiverWriteBackResult> UpdateReceiverAsync(ErpCutOrderReceiverWriteBackRequest request, CancellationToken ct);
@@ -22,6 +23,20 @@ public sealed record ErpCutOrderWriteBackResult(
     string? PreviousVehiclePlate,
     string? PreviousMoocNumber,
     string? CurrentVehiclePlate,
+    string? CurrentMoocNumber
+);
+
+public sealed record ErpCutOrderMoocWriteBackRequest(
+    string ErpCutOrderId,
+    string? MoocNumber,
+    string? UpdatedBy,
+    DateTime UpdatedAt
+);
+
+public sealed record ErpCutOrderMoocWriteBackResult(
+    string ErpCutOrderId,
+    int AffectedRows,
+    string? PreviousMoocNumber,
     string? CurrentMoocNumber
 );
 

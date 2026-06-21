@@ -97,6 +97,73 @@ WHERE documentNo = :erpCutOrderId
             currentValues?.MoocNo);
     }
 
+    public async Task<ErpCutOrderMoocWriteBackResult> UpdateMoocNoAsync(ErpCutOrderMoocWriteBackRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.ErpCutOrderId))
+        {
+            throw new InvalidOperationException("ErpCutOrderId is required for ERP write-back.");
+        }
+
+        var connectionString = _configuration[ConnectionStringPath];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException($"Chưa cấu hình {ConnectionStringPath} trong appsettings.json.");
+        }
+
+        var normalizedErpCutOrderId = request.ErpCutOrderId.Trim();
+        var normalizedMoocNumber = NormalizeOptional(request.MoocNumber);
+
+        await using var connection = new OracleConnection(connectionString);
+        await connection.OpenAsync(ct);
+
+        _logger.LogInformation(
+            "Starting ERP mooc write-back. ErpCutOrderId={ErpCutOrderId}, MoocNumber={MoocNumber}",
+            normalizedErpCutOrderId,
+            normalizedMoocNumber);
+
+        var previousMoocNo = await ReadCurrentMoocNoAsync(connection, normalizedErpCutOrderId, ct);
+        if (previousMoocNo == null && !await ExistsByDocumentNoAsync(connection, normalizedErpCutOrderId, ct))
+        {
+            _logger.LogWarning(
+                "ERP mooc write-back skipped because document was not found. ErpCutOrderId={ErpCutOrderId}",
+                normalizedErpCutOrderId);
+            return new ErpCutOrderMoocWriteBackResult(
+                normalizedErpCutOrderId,
+                0,
+                null,
+                null);
+        }
+
+        const string updateSql = """
+UPDATE M_CommandLatching
+SET
+    MoocNo = :moocNo
+WHERE documentNo = :erpCutOrderId
+""";
+
+        await using var updateCommand = connection.CreateCommand();
+        updateCommand.BindByName = true;
+        updateCommand.CommandText = updateSql;
+        updateCommand.Parameters.Add("moocNo", OracleDbType.Varchar2, (object?)normalizedMoocNumber ?? DBNull.Value, System.Data.ParameterDirection.Input);
+        updateCommand.Parameters.Add("erpCutOrderId", OracleDbType.Varchar2, normalizedErpCutOrderId, System.Data.ParameterDirection.Input);
+
+        var affectedRows = await updateCommand.ExecuteNonQueryAsync(ct);
+        var currentMoocNo = await ReadCurrentMoocNoAsync(connection, normalizedErpCutOrderId, ct);
+
+        _logger.LogInformation(
+            "Completed ERP mooc write-back. ErpCutOrderId={ErpCutOrderId}, AffectedRows={AffectedRows}, PreviousMoocNumber={PreviousMoocNumber}, CurrentMoocNumber={CurrentMoocNumber}",
+            normalizedErpCutOrderId,
+            affectedRows,
+            previousMoocNo,
+            currentMoocNo);
+
+        return new ErpCutOrderMoocWriteBackResult(
+            normalizedErpCutOrderId,
+            affectedRows,
+            previousMoocNo,
+            currentMoocNo);
+    }
+
     public async Task<ErpCutOrderSealWriteBackResult> UpdateSealNoAsync(ErpCutOrderSealWriteBackRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.ErpCutOrderId))
@@ -332,6 +399,26 @@ WHERE documentNo = :erpCutOrderId
     {
         const string selectSql = """
 SELECT SoNiemChi
+FROM M_CommandLatching
+WHERE documentNo = :erpCutOrderId
+""";
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = selectSql;
+        command.Parameters.Add("erpCutOrderId", OracleDbType.Varchar2, erpCutOrderId, System.Data.ParameterDirection.Input);
+
+        var result = await command.ExecuteScalarAsync(ct);
+        return result == null || result == DBNull.Value ? null : Convert.ToString(result);
+    }
+
+    private static async Task<string?> ReadCurrentMoocNoAsync(
+        OracleConnection connection,
+        string erpCutOrderId,
+        CancellationToken ct)
+    {
+        const string selectSql = """
+SELECT MoocNo
 FROM M_CommandLatching
 WHERE documentNo = :erpCutOrderId
 """;

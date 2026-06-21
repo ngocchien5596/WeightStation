@@ -440,10 +440,17 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             return x.CutOrder.PlannedWeight ?? x.Line.PlannedWeight ?? 0m;
         });
         var actualBagCount = enrichedLines.Sum(x => x.IsBagged
-            ? CalculateReportBagCount(x.CutOrder.BagCount, x.Line.PlannedBagCount, x.Line.ActualAllocatedBagCount)
+            ? ExportReturnedBrokenTripHelper.ResolveSignedBagCount(
+                x.Line.ActualAllocatedBagCount,
+                x.Line.BagCountDisplay,
+                x.Line.ActualAllocatedWeight,
+                x.CutOrder.BagWeightKg,
+                x.Line.IsReturnedBrokenTrip)
             : 0);
-        var actualWeightKg = enrichedLines.Sum(x => x.Line.ActualAllocatedWeight ?? 0m);
-        if (actualWeightKg <= 0m)
+        var actualWeightKg = enrichedLines.Sum(x => ExportReturnedBrokenTripHelper.ResolveSignedWeight(
+            x.Line.ActualAllocatedWeight,
+            x.Line.IsReturnedBrokenTrip));
+        if (actualWeightKg == 0m && enrichedLines.All(x => !x.Line.ActualAllocatedWeight.HasValue))
         {
             actualWeightKg = session.NetWeight ?? 0m;
         }
@@ -555,11 +562,6 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             standardKgPerBag,
             actualKgPerBag,
             status);
-    }
-
-    private static int CalculateReportBagCount(int? registrationBagCount, int? plannedBagCount, int? persistedBagCount)
-    {
-        return registrationBagCount ?? plannedBagCount ?? persistedBagCount ?? 0;
     }
 
     private static string? ResolveProductType(CutOrder cutOrder, IReadOnlyDictionary<string, Product> productLookup)

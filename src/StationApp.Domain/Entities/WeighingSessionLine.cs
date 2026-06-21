@@ -21,6 +21,8 @@ public class WeighingSessionLine
 
     public decimal? ActualAllocatedWeight { get; set; }
     public int? ActualAllocatedBagCount { get; set; }
+    public int? BagCountDisplay { get; set; }
+    public bool IsReturnedBrokenTrip { get; set; }
     public WeighingSessionLineStatus LineStatus { get; set; } = WeighingSessionLineStatus.PENDING;
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }

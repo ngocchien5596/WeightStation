@@ -473,6 +473,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 line.PlannedBagCount,
                 line.ActualAllocatedWeight,
                 line.ActualAllocatedBagCount,
+                line.BagCountDisplay,
                 line.LineStatus,
                 line.HasPrintedDeliveryTicket,
                 reg.ProductType,

@@ -49,7 +49,7 @@ public class PrintComposerTests
             MoocRegistrationNoSnapshot = "DK-MOOC-SNAPSHOT"
         };
 
-        var model = composer.Compose(registration, ticket, vehicle, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
+        var model = composer.Compose(registration, ticket, actualBagCount: null, isReturnedBrokenTrip: false, vehicle, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("PC0001", model.TicketNo);
         Assert.Equal("DK-XE-SNAPSHOT", model.Fields.Single(x => x.FieldKey == "VehicleRegistrationNo").Value);
@@ -58,6 +58,40 @@ public class PrintComposerTests
         Assert.Equal("Nguyen Van B", model.Fields.Single(x => x.FieldKey == "RepresentativeName").Value);
         Assert.Equal("12.0", model.Fields.Single(x => x.FieldKey == "EmptyWeight").Value);
         Assert.Equal("34.0", model.Fields.Single(x => x.FieldKey == "GrossWeight").Value);
+    }
+
+    [Fact]
+    public void WeighTicketComposer_AppendsReturnedBrokenTripNote_ForExportScaleTrip()
+    {
+        var composer = new WeighTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            IsExportScale = true,
+            TransactionType = TransactionType.OUTBOUND,
+            ProductType = "Bao",
+            BagWeightKg = 50m
+        };
+
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            TicketNo = "PC0002",
+            CutOrderId = registration.Id,
+            TransactionType = TransactionType.OUTBOUND,
+            NetWeight = 1000m
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            actualBagCount: 20,
+            isReturnedBrokenTrip: true,
+            vehicle: null,
+            new DateTime(2026, 4, 27, 9, 30, 0),
+            "Test User");
+
+        Assert.Equal("20 bao - Rách vỡ", model.Fields.Single(x => x.FieldKey == "Notes").Value);
     }
 
     [Fact]

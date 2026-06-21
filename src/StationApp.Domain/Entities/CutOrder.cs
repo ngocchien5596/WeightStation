@@ -35,6 +35,8 @@ public class CutOrder
 
     public decimal? PlannedWeight { get; set; }
     public int? BagCount { get; set; }
+    public decimal? TareWeightKg { get; set; }
+    public decimal? BagWeightKg { get; set; }
     public string? Notes { get; set; }
 
     public bool IsCancelled { get; set; }

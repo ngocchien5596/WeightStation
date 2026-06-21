@@ -127,6 +127,8 @@ public interface IWeighTicketPrintComposer
     WeighTicketPrintModel Compose(
         CutOrder registration,
         WeighTicket ticket,
+        int? actualBagCount,
+        bool isReturnedBrokenTrip,
         Vehicle? vehicle,
         DateTime printedAtLocal,
         string? printedByDisplayName);
@@ -187,6 +189,8 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
     public WeighTicketPrintModel Compose(
         CutOrder registration,
         WeighTicket ticket,
+        int? actualBagCount,
+        bool isReturnedBrokenTrip,
         Vehicle? vehicle,
         DateTime printedAtLocal,
         string? printedByDisplayName)
@@ -196,6 +200,7 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
         var vehicleLine = BuildVehicleLine(
             FirstNonEmpty(ticket.VehiclePlate, registration.VehiclePlate),
             FirstNonEmpty(ticket.MoocNumber, registration.MoocNumber));
+        var notes = ResolveWeighTicketNotes(registration, ticket, actualBagCount, isReturnedBrokenTrip);
 
         return new WeighTicketPrintModel
         {
@@ -219,9 +224,7 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
                     : FirstNonEmpty(ticket.ProductName, registration.ProductName))?.ToUpperInvariant()),
                 Field("LotNo", registration.LotNo),
                 Field("RepresentativeName", registration.RepresentativeName),
-                Field("Notes", string.Equals(ticket.RecordRole, WeighTicketRecordRoles.MasterSession, StringComparison.OrdinalIgnoreCase)
-                    ? FirstNonEmpty(registration.Notes, ticket.Notes)
-                    : FirstNonEmpty(ticket.Notes, registration.Notes)),
+                Field("Notes", notes),
                 Field("Weight1DateTime", FormatDateTimeWithSeconds(ticket.Weight1Time)),
                 Field("Weight2DateTime", FormatDateTimeWithSeconds(ticket.Weight2Time)),
                 Field("EmptyWeight", FormatWeight(emptyWeight)),
@@ -235,6 +238,29 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
 
     private static PrintFieldValue Field(string key, string? value) => new(key, value);
     private static string? FirstNonEmpty(params string?[] values) => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+    private static string? ResolveWeighTicketNotes(CutOrder registration, WeighTicket ticket, int? actualBagCount, bool isReturnedBrokenTrip)
+    {
+        if (registration.IsExportScale && ticket.TransactionType == TransactionType.OUTBOUND)
+        {
+            var bagCount = actualBagCount
+                ?? BagCountDisplayHelper.Resolve(ticket.NetWeight, registration.BagWeightKg)
+                ?? ticket.BagCount;
+            var notes = bagCount.HasValue ? $"{bagCount.Value.ToString("N0", CultureInfo.InvariantCulture)} bao" : null;
+            if (!isReturnedBrokenTrip)
+            {
+                return notes;
+            }
+
+            return string.IsNullOrWhiteSpace(notes)
+                ? "Rách vỡ"
+                : $"{notes} - Rách vỡ";
+        }
+
+        return string.Equals(ticket.RecordRole, WeighTicketRecordRoles.MasterSession, StringComparison.OrdinalIgnoreCase)
+            ? FirstNonEmpty(registration.Notes, ticket.Notes)
+            : FirstNonEmpty(ticket.Notes, registration.Notes);
+    }
+
     private static string BuildVehicleLine(string? vehiclePlate, string? moocNumber)
     {
         if (string.IsNullOrWhiteSpace(moocNumber))
@@ -320,6 +346,6 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
     private static string? FormatDateOnly(DateTime? value) => value?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static string? FormatDateOnly(DateTime value) => value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static string? FormatWeight(decimal? value)
-        => value.HasValue ? (value.Value / 1000m).ToString("0.0##", CultureInfo.InvariantCulture) : null;
+        => value.HasValue ? (value.Value / 1000m).ToString("0.##", CultureInfo.InvariantCulture) : null;
 }
 

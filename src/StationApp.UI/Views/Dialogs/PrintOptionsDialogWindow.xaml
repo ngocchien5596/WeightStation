@@ -111,6 +111,17 @@
                         <TextBox Text="{Binding CopyCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
 
                         <StackPanel Margin="0,0,0,14"
+                                    Visibility="{Binding CanEditWeighMoocNumber, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="S&#x1ED1; mooc" FontWeight="SemiBold"/>
+                            <TextBox Text="{Binding EditableMoocNumber, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,8"/>
+                            <Button Content="L&#x1B0;u s&#x1ED1; mooc"
+                                    Width="150"
+                                    Height="34"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding SaveEditableMoocNumberCommand}"/>
+                        </StackPanel>
+
+                        <StackPanel Margin="0,0,0,14"
                                     Visibility="{Binding CanEditDeliverySealNo, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="Ni&#xEA;m ch&#xEC; s&#x1ED1;" FontWeight="SemiBold"/>
                             <TextBox Text="{Binding EditableSealNo, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,8"/>

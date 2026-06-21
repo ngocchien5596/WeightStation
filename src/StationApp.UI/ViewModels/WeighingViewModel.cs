@@ -34,6 +34,7 @@ namespace StationApp.UI.ViewModels;
 
 public partial class WeighingViewModel : ObservableObject, IDisposable
 {
+    private const decimal AllocationRoundingStepKg = 10m;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
     private readonly ICameraPreviewService _cameraPreviewService;
@@ -331,7 +332,6 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         IsOverweightHandlingVisible = false;
         SelectedSession = null;
         await LoadSessionsInternalAsync(false);
-        await LoadCameraPreviewAsync();
     }
 
     private async Task LoadSessionsInternalAsync(bool selectFirstWhenNoSelection)
@@ -1151,6 +1151,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
 
         try
         {
+            var orderedLines = AllocationLines
+                .OrderByDescending(x => x.IsPriority)
+                .ThenBy(x => x.SequenceNo)
+                .ToList();
+
+            if (NetWeight.HasValue)
+            {
+                NormalizeAllocationLinesForSave(orderedLines, NetWeight.Value);
+            }
+
             using var scope = _scopeFactory.CreateScope();
             _logger?.LogInformation(
                 "ConfirmAllocation started for session {SessionId}/{SessionNo}. LineCount={LineCount}, NetWeight={NetWeight}, Lines={Lines}",
@@ -1158,9 +1168,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 SelectedSession.SessionNo,
                 AllocationLines.Count,
                 NetWeight,
-                AllocationLines
-                    .OrderByDescending(x => x.IsPriority)
-                    .ThenBy(x => x.SequenceNo)
+                orderedLines
                     .Select(x => new
                     {
                         x.SessionLineId,
@@ -1174,9 +1182,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             await uc.ExecuteAsync(
                 new AllocateWeighingSessionRequest(
                     SelectedSession.SessionId,
-                    AllocationLines
-                        .OrderByDescending(x => x.IsPriority)
-                        .ThenBy(x => x.SequenceNo)
+                    orderedLines
                         .Select(x => new AllocateWeighingSessionLineRequest(
                             x.SessionLineId,
                             x.ActualAllocatedWeight,
@@ -1495,7 +1501,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             ? priorityRow.ActualAllocatedWeight.Value
             : priorityRow.PlannedWeight ?? totalWeight;
 
-        desiredWeight = decimal.Round(decimal.Clamp(desiredWeight, 0m, totalWeight), 3, MidpointRounding.AwayFromZero);
+        desiredWeight = RoundAllocationWeight(decimal.Clamp(desiredWeight, 0m, totalWeight));
         var remainingWeight = decimal.Round(totalWeight - desiredWeight, 3, MidpointRounding.AwayFromZero);
 
         using var __ = BeginPriorityAllocationUpdateScope();
@@ -1513,6 +1519,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
 
         var boundedTotal = decimal.Max(0m, totalWeight);
+        if (rows.Count == 1)
+        {
+            rows[0].ActualAllocatedWeight = decimal.Round(boundedTotal, 3, MidpointRounding.AwayFromZero);
+            return;
+        }
+
         var totalPlanned = rows.Sum(x => x.PlannedWeight ?? 0m);
         decimal allocated = 0m;
 
@@ -1525,17 +1537,60 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             }
             else if (totalPlanned > 0)
             {
-                var proportional = decimal.Round(boundedTotal * ((row.PlannedWeight ?? 0m) / totalPlanned), 3, MidpointRounding.AwayFromZero);
+                var proportional = RoundAllocationWeight(boundedTotal * ((row.PlannedWeight ?? 0m) / totalPlanned));
+                proportional = decimal.Min(proportional, decimal.Max(0m, boundedTotal - allocated));
                 row.ActualAllocatedWeight = proportional;
                 allocated += proportional;
             }
             else
             {
-                var even = decimal.Round(boundedTotal / rows.Count, 3, MidpointRounding.AwayFromZero);
+                var even = RoundAllocationWeight(boundedTotal / rows.Count);
+                even = decimal.Min(even, decimal.Max(0m, boundedTotal - allocated));
                 row.ActualAllocatedWeight = even;
                 allocated += even;
             }
         }
+    }
+
+    private static void NormalizeAllocationLinesForSave(IReadOnlyList<WeighingSessionLineRow> rows, decimal totalWeight)
+    {
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var boundedTotal = decimal.Max(0m, totalWeight);
+        if (rows.Count == 1)
+        {
+            rows[0].ActualAllocatedWeight = decimal.Round(boundedTotal, 3, MidpointRounding.AwayFromZero);
+            return;
+        }
+
+        decimal allocated = 0m;
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            if (i == rows.Count - 1)
+            {
+                row.ActualAllocatedWeight = decimal.Round(boundedTotal - allocated, 3, MidpointRounding.AwayFromZero);
+                continue;
+            }
+
+            var normalized = RoundAllocationWeight(row.ActualAllocatedWeight ?? 0m);
+            normalized = decimal.Min(normalized, decimal.Max(0m, boundedTotal - allocated));
+            row.ActualAllocatedWeight = normalized;
+            allocated += normalized;
+        }
+    }
+
+    private static decimal RoundAllocationWeight(decimal value)
+    {
+        if (value <= 0m)
+        {
+            return 0m;
+        }
+
+        return decimal.Round(value / AllocationRoundingStepKg, 0, MidpointRounding.AwayFromZero) * AllocationRoundingStepKg;
     }
 
     private IDisposable BeginPriorityAllocationUpdateScope() => new PriorityAllocationUpdateScope(this);
@@ -2218,9 +2273,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
                     : 1,
-                kind == PrintDocumentKind.DeliveryTicket
-                    ? CreateEditableDeliverySealContext(sessionId, context)
-                    : null);
+                CreateEditablePrintDataContext(sessionId, context, kind));
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -2284,15 +2337,46 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         return new SessionPrintContext(session, lines, registrationsById, weighTickets, deliveryTickets, vehicle);
     }
 
-    private EditableDeliverySealContext? CreateEditableDeliverySealContext(Guid sessionId, SessionPrintContext context)
+    private static int? ResolvePrintActualBagCount(SessionPrintContext context, WeighTicket ticket)
+    {
+        if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+        {
+            var totalBagCount = context.Lines
+                .Where(x => !x.IsDeleted)
+                .Sum(x => x.ActualAllocatedBagCount ?? x.BagCountDisplay ?? 0);
+            return totalBagCount > 0 ? totalBagCount : null;
+        }
+
+        return context.Lines
+            .Where(x => !x.IsDeleted && x.CutOrderId == ticket.CutOrderId)
+            .OrderBy(x => x.SequenceNo)
+            .Select(x => x.ActualAllocatedBagCount ?? x.BagCountDisplay)
+            .FirstOrDefault(x => x.HasValue);
+    }
+
+    private static bool ResolvePrintReturnedBrokenTrip(SessionPrintContext context, WeighTicket ticket)
+    {
+        if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+        {
+            return context.Lines.Any(x => !x.IsDeleted && x.IsReturnedBrokenTrip);
+        }
+
+        return context.Lines.Any(x => !x.IsDeleted && x.CutOrderId == ticket.CutOrderId && x.IsReturnedBrokenTrip);
+    }
+
+    private EditablePrintDataContext? CreateEditablePrintDataContext(Guid sessionId, SessionPrintContext context, PrintDocumentKind kind)
     {
         var currentSealNo = context.RegistrationsById.Values
             .Select(x => x.SealNo?.Trim())
             .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        var currentMoocNumber = string.IsNullOrWhiteSpace(context.MasterSession.MoocNumber)
+            ? context.RegistrationsById.Values.Select(x => x.MoocNumber?.Trim()).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            : context.MasterSession.MoocNumber?.Trim();
 
-        return new EditableDeliverySealContext(
-            currentSealNo,
-            async (sealNo, ct) =>
+        return new EditablePrintDataContext(
+            kind == PrintDocumentKind.DeliveryTicket ? currentSealNo : null,
+            kind == PrintDocumentKind.WeighTicket ? currentMoocNumber : null,
+            kind == PrintDocumentKind.DeliveryTicket ? async (sealNo, ct) =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionSealNoUseCase>();
@@ -2303,7 +2387,21 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 }
 
                 return result.Data;
-            },
+            }
+            : null,
+            kind == PrintDocumentKind.WeighTicket ? async (moocNumber, ct) =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionMoocNumberUseCase>();
+                var result = await useCase.ExecuteAsync(sessionId, moocNumber, ct);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(result.ErrorMessage ?? "Không thể lưu số mooc.");
+                }
+
+                return result.Data;
+            }
+            : null,
             async ct =>
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -2313,7 +2411,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                     throw new InvalidOperationException("Không thể tải lại preview phiếu giao nhận sau khi lưu niêm chì số.");
                 }
 
-                return BuildPrintBatchPreview(scope, refreshedContext, PrintDocumentKind.DeliveryTicket);
+                return BuildPrintBatchPreview(scope, refreshedContext, kind);
             });
     }
 
@@ -2351,7 +2449,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                         var primaryRegistration = context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
                         registration = BuildDeliveryMasterRegistration(context, primaryRegistration);
                     }
-                    var page = composer.Compose(registration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    var actualBagCount = ResolvePrintActualBagCount(context, ticket);
+                    var isReturnedBrokenTrip = ResolvePrintReturnedBrokenTrip(context, ticket);
+                    var page = composer.Compose(registration, ticket, actualBagCount, isReturnedBrokenTrip, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";
@@ -2791,6 +2891,7 @@ public partial class WeighingSessionLineRow : ObservableObject
         PlannedBagCount = isBagged ? item.PlannedBagCount : null;
         ActualAllocatedWeight = item.ActualAllocatedWeight;
         ActualAllocatedBagCount = isBagged ? item.ActualAllocatedBagCount : null;
+        BagCountDisplay = isBagged ? item.BagCountDisplay : null;
 
         LineStatus = item.LineStatus;
         HasPrintedDeliveryTicket = item.HasPrintedDeliveryTicket;
@@ -2798,6 +2899,7 @@ public partial class WeighingSessionLineRow : ObservableObject
 
     [ObservableProperty] private decimal? _actualAllocatedWeight;
     [ObservableProperty] private int? _actualAllocatedBagCount;
+    [ObservableProperty] private int? _bagCountDisplay;
     [ObservableProperty] private bool _isPriority;
 
     public Guid SessionLineId { get; }
@@ -2848,6 +2950,7 @@ public partial class WeighingSessionLineRow : ObservableObject
             PlannedBagCount,
             ActualAllocatedWeight,
             ActualAllocatedBagCount,
+            BagCountDisplay,
             LineStatus,
             HasPrintedDeliveryTicket,
             ProductType,

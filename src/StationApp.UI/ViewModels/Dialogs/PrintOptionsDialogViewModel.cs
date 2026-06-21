@@ -15,7 +15,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     private readonly IPrintTemplateProvider _templateProvider;
     private PrintTemplateDefinition _template;
     private PrintBatchPreviewModel _batch;
-    private readonly EditableDeliverySealContext? _editableDeliverySealContext;
+    private readonly EditablePrintDataContext? _editablePrintDataContext;
     private Dictionary<string, PrintFieldDefinition> _fieldDefaults;
     private bool _normalizingLayoutMessage;
 
@@ -43,6 +43,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     [ObservableProperty] private bool _canManageLayout;
     [ObservableProperty] private string? _editableSealNo;
     [ObservableProperty] private bool _isSavingEditableSealNo;
+    [ObservableProperty] private string? _editableMoocNumber;
+    [ObservableProperty] private bool _isSavingEditableMoocNumber;
 
     public PrintOptionsModel? DialogResultValue { get; private set; }
     public PrintBatchPreviewModel CurrentBatch => _batch;
@@ -51,7 +53,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     public bool CanPrint => SelectedPrinter != null && CopyCount > 0;
     public bool HasSelectedField => SelectedField != null;
     public bool CanManageProfiles => CanManageLayout && SelectedProfile != null;
-    public bool CanEditDeliverySealNo => _editableDeliverySealContext != null;
+    public bool CanEditDeliverySealNo => _editablePrintDataContext?.SaveSealNoAsync != null;
+    public bool CanEditWeighMoocNumber => _editablePrintDataContext?.SaveMoocNumberAsync != null;
     public string PreviewHeader => CanManageLayout
         ? "Preview canh chỉnh vị trí in"
         : "Preview trước khi in";
@@ -104,17 +107,18 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         IPrintTemplateProvider templateProvider,
         bool canManageLayout,
         int defaultCopyCount = 1,
-        EditableDeliverySealContext? editableDeliverySealContext = null)
+        EditablePrintDataContext? editablePrintDataContext = null)
     {
         Title = title;
         _template = template;
         _batch = batch;
         _renderer = renderer;
         _templateProvider = templateProvider;
-        _editableDeliverySealContext = editableDeliverySealContext;
+        _editablePrintDataContext = editablePrintDataContext;
         _fieldDefaults = template.Fields.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
         CanManageLayout = canManageLayout;
-        EditableSealNo = editableDeliverySealContext?.CurrentSealNo;
+        EditableSealNo = editablePrintDataContext?.CurrentSealNo;
+        EditableMoocNumber = editablePrintDataContext?.CurrentMoocNumber;
 
         OnPropertyChanged(nameof(PreviewHeader));
         OnPropertyChanged(nameof(PreviewDescription));
@@ -246,7 +250,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveEditableSealNoAsync()
     {
-        if (_editableDeliverySealContext == null || IsSavingEditableSealNo)
+        if (_editablePrintDataContext?.SaveSealNoAsync == null || IsSavingEditableSealNo)
         {
             return;
         }
@@ -254,9 +258,9 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         IsSavingEditableSealNo = true;
         try
         {
-            var savedValue = await _editableDeliverySealContext.SaveAsync(EditableSealNo, CancellationToken.None);
+            var savedValue = await _editablePrintDataContext.SaveSealNoAsync(EditableSealNo, CancellationToken.None);
             EditableSealNo = savedValue;
-            _batch = await _editableDeliverySealContext.ReloadPreviewAsync(CancellationToken.None);
+            _batch = await _editablePrintDataContext.ReloadPreviewAsync(CancellationToken.None);
             PreviewItems = new ObservableCollection<PrintPreviewSelectionItem>(BuildPreviewItems(_batch));
             SelectedPreviewItem = GetMatchingPreviewItem(PreviewItems, SelectedPreviewItem) ?? GetDefaultPreviewItem(PreviewItems);
             RefreshPreview();
@@ -270,6 +274,36 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         finally
         {
             IsSavingEditableSealNo = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveEditableMoocNumberAsync()
+    {
+        if (_editablePrintDataContext?.SaveMoocNumberAsync == null || IsSavingEditableMoocNumber)
+        {
+            return;
+        }
+
+        IsSavingEditableMoocNumber = true;
+        try
+        {
+            var savedValue = await _editablePrintDataContext.SaveMoocNumberAsync(EditableMoocNumber, CancellationToken.None);
+            EditableMoocNumber = savedValue;
+            _batch = await _editablePrintDataContext.ReloadPreviewAsync(CancellationToken.None);
+            PreviewItems = new ObservableCollection<PrintPreviewSelectionItem>(BuildPreviewItems(_batch));
+            SelectedPreviewItem = GetMatchingPreviewItem(PreviewItems, SelectedPreviewItem) ?? GetDefaultPreviewItem(PreviewItems);
+            RefreshPreview();
+            LayoutMessage = "Đã lưu số mooc và cập nhật preview.";
+            ValidationMessage = null;
+        }
+        catch (Exception ex)
+        {
+            ValidationMessage = ex.Message;
+        }
+        finally
+        {
+            IsSavingEditableMoocNumber = false;
         }
     }
 
@@ -740,9 +774,11 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     }
 }
 
-public sealed record EditableDeliverySealContext(
+public sealed record EditablePrintDataContext(
     string? CurrentSealNo,
-    Func<string?, CancellationToken, Task<string?>> SaveAsync,
+    string? CurrentMoocNumber,
+    Func<string?, CancellationToken, Task<string?>>? SaveSealNoAsync,
+    Func<string?, CancellationToken, Task<string?>>? SaveMoocNumberAsync,
     Func<CancellationToken, Task<PrintBatchPreviewModel>> ReloadPreviewAsync);
 
 public sealed class PrintPreviewSelectionItem

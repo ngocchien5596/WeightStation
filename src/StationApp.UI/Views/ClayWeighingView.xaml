@@ -57,7 +57,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="320"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="360"/>
             </Grid.ColumnDefinitions>
 
             <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">

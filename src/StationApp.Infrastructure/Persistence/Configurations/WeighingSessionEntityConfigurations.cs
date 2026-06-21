@@ -76,6 +76,8 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
         builder.Property(e => e.ProductName).HasMaxLength(255);
         builder.Property(e => e.PlannedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.ActualAllocatedWeight).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.BagCountDisplay);
+        builder.Property(e => e.IsReturnedBrokenTrip).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.LineStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.DeletedBy).HasMaxLength(100);
@@ -125,4 +127,3 @@ public class WeighingSessionImageEntityConfiguration : IEntityTypeConfiguration<
         builder.HasIndex(e => e.CapturedAt).HasDatabaseName("IX_weighing_session_images_captured_at");
     }
 }
-

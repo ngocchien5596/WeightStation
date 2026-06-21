@@ -239,6 +239,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<CreateInboundRegistrationUseCase>();
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
                     services.AddScoped<UpdateWeighingSessionSealNoUseCase>();
+                    services.AddScoped<UpdateWeighingSessionMoocNumberUseCase>();
                     services.AddScoped<CreateWeighingSessionUseCase>();
                     services.AddScoped<CrusherWeighingUseCases>();
                     services.AddScoped<ClayWeighingUseCases>();
@@ -260,7 +261,9 @@ public partial class App : System.Windows.Application
                     services.AddScoped<MapTemporaryExportCutOrderUseCase>();
                     services.AddScoped<CreateExportVehicleSessionUseCase>();
                     services.AddScoped<TransferExportVehicleTripUseCase>();
+                    services.AddScoped<DeleteExportVehicleTripUseCase>();
                     services.AddScoped<FinalizeExportCutOrderUseCase>();
+                    services.AddScoped<ToggleExportReturnedBrokenTripUseCase>();
                     services.AddScoped<BuildExportSummaryReportUseCase>();
                     services.AddScoped<ExportExportSummaryReportUseCase>();
                     services.AddScoped<GetExportSummaryReportLookupOptionsUseCase>();

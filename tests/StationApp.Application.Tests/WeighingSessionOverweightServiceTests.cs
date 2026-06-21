@@ -318,8 +318,8 @@ public class WeighingSessionOverweightServiceTests
 
         var lineItems = new[]
         {
-            new StationApp.Application.DTOs.WeighingSessionLineItem(line1Id, registration1, 1, "ERP-1", "Customer A", "Customer A", "P1", "PCB40 CN", 27_431m, 549, 27_431m, 549, WeighingSessionLineStatus.ALLOCATED, false),
-            new StationApp.Application.DTOs.WeighingSessionLineItem(line2Id, registration2, 2, "ERP-2", "Customer B", "Customer B", "P2", "PCB40 CN", 5_569m, 111, 5_569m, 111, WeighingSessionLineStatus.ALLOCATED, false)
+            new StationApp.Application.DTOs.WeighingSessionLineItem(line1Id, registration1, 1, "ERP-1", "Customer A", "Customer A", "P1", "PCB40 CN", 27_431m, 549, 27_431m, 549, 549, WeighingSessionLineStatus.ALLOCATED, false),
+            new StationApp.Application.DTOs.WeighingSessionLineItem(line2Id, registration2, 2, "ERP-2", "Customer B", "Customer B", "P2", "PCB40 CN", 5_569m, 111, 5_569m, 111, 111, WeighingSessionLineStatus.ALLOCATED, false)
         };
 
         var addedWeighTickets = new List<WeighTicket>();

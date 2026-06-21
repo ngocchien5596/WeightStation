@@ -450,8 +450,13 @@ public sealed record ExportScaleCutOrderListItem(
     string? ProductCode,
     string? ProductName,
     decimal? PlannedWeight,
+    int? PlannedBagCountDisplay,
     decimal AccumulatedWeight,
+    int AccumulatedBagCountDisplay,
     decimal RemainingWeight,
+    int RemainingBagCountDisplay,
+    decimal? TareWeightKg,
+    decimal? BagWeightKg,
     int TripCount,
     DateTime? LastTripAt,
     bool IsFinalized,
@@ -493,14 +498,18 @@ public sealed record ExportVehicleTripListItem(
     decimal? Weight2,
     decimal? NetWeight,
     decimal? ActualAllocatedWeight,
+    int? BagCountDisplay,
     DateTime? Weight1Time,
     DateTime? Weight2Time,
     WeighingSessionStatus SessionStatus,
     string? WeighTicketNo,
     string? DeliveryNo,
     bool HasPrintedWeighTicket,
-    bool HasPrintedDeliveryTicket
-);
+    bool HasPrintedDeliveryTicket)
+{
+    public bool IsReturnedBrokenTrip { get; set; }
+    public bool CanToggleReturnedBrokenTrip { get; set; }
+}
 
 public sealed record TransitionToExportScaleRequest(Guid CutOrderId);
 
@@ -512,6 +521,8 @@ public sealed record CreateTemporaryExportCutOrderRequest(
     string? ProductType = null,
     decimal? PlannedWeight = null,
     int? BagCount = null,
+    decimal? TareWeightKg = null,
+    decimal? BagWeightKg = null,
     string? Notes = null
 );
 
@@ -710,6 +721,7 @@ public sealed record WeighingSessionLineItem(
     int? PlannedBagCount,
     decimal? ActualAllocatedWeight,
     int? ActualAllocatedBagCount,
+    int? BagCountDisplay,
     WeighingSessionLineStatus LineStatus,
     bool HasPrintedDeliveryTicket,
     string? ProductType = null,

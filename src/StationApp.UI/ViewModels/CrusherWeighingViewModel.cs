@@ -364,7 +364,6 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable
 
         // Reload sessions list
         await LoadSessionsAsync();
-        await LoadCameraPreviewAsync();
     }
 
     partial void OnSelectedPreviewCameraCodeChanged(string value)

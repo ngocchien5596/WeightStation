@@ -29,6 +29,7 @@ _verify_build/
 
 # AI & Agent artifacts
 .agent/
+.agents/
 .gemini/
 .tmp/
 artifacts/
@@ -36,6 +37,8 @@ scratch/
 brain/
 .script_build_cache/
 .script_build_cache_test/
+._temp_verify
+publish/
 
 # Logs and DB connection info
 logs/

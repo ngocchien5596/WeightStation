@@ -1,5 +1,7 @@
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -75,17 +77,29 @@ public sealed class TransitionToExportScaleUseCase
 public sealed class CreateTemporaryExportCutOrderUseCase
 {
     private readonly ICutOrderRepository _cutOrderRepo;
+    private readonly ICustomerRepository _customerRepo;
+    private readonly IProductRepository _productRepo;
+    private readonly ISyncOutboxRepository _syncOutboxRepo;
+    private readonly ISyncPayloadFactory _syncPayloadFactory;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
 
     public CreateTemporaryExportCutOrderUseCase(
         ICutOrderRepository cutOrderRepo,
+        ICustomerRepository customerRepo,
+        IProductRepository productRepo,
+        ISyncOutboxRepository syncOutboxRepo,
+        ISyncPayloadFactory syncPayloadFactory,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock)
     {
         _cutOrderRepo = cutOrderRepo;
+        _customerRepo = customerRepo;
+        _productRepo = productRepo;
+        _syncOutboxRepo = syncOutboxRepo;
+        _syncPayloadFactory = syncPayloadFactory;
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
@@ -93,8 +107,17 @@ public sealed class CreateTemporaryExportCutOrderUseCase
 
     public async Task<Guid> ExecuteAsync(CreateTemporaryExportCutOrderRequest request, CancellationToken ct)
     {
+        var customerCode = RequireText(request.CustomerCode, "Mã khách hàng");
+        var customerName = RequireText(request.CustomerName, "Kh\u00e1ch h\u00e0ng");
+        var productCode = RequireText(request.ProductCode, "Mã sản phẩm");
+        var productName = RequireText(request.ProductName, "S\u1ea3n ph\u1ea9m");
+        var plannedWeightKg = RequirePositive(request.PlannedWeight, "S\u1ed1 l\u01b0\u1ee3ng \u0111\u1eb7t (kg)");
+        var tareWeightKg = RequireNonNegative(request.TareWeightKg, "Tr\u1ecdng l\u01b0\u1ee3ng v\u1ecf (kg)");
+        var bagWeightKg = RequirePositive(request.BagWeightKg, "Tr\u1ecdng l\u01b0\u1ee3ng bao (kg)");
+
         var now = _clock.NowLocal;
         var displayCode = await _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(ct);
+        var bagCount = CalculateBagCount(plannedWeightKg, bagWeightKg);
         var cutOrder = new CutOrder
         {
             Id = Guid.NewGuid(),
@@ -104,13 +127,15 @@ public sealed class CreateTemporaryExportCutOrderUseCase
             TransactionType = TransactionType.OUTBOUND,
             TransportMethod = TransportMethod.ROAD,
             VehiclePlate = displayCode,
-            CustomerCode = NormalizeOptional(request.CustomerCode),
-            CustomerName = NormalizeOptional(request.CustomerName),
-            ProductCode = NormalizeOptional(request.ProductCode),
-            ProductName = NormalizeOptional(request.ProductName),
+            CustomerCode = customerCode,
+            CustomerName = customerName,
+            ProductCode = productCode,
+            ProductName = productName,
             ProductType = NormalizeOptional(request.ProductType),
-            PlannedWeight = request.PlannedWeight,
-            BagCount = request.BagCount,
+            PlannedWeight = plannedWeightKg,
+            BagCount = bagCount,
+            TareWeightKg = tareWeightKg,
+            BagWeightKg = bagWeightKg,
             Notes = NormalizeOptional(request.Notes),
             ProcessingStage = ProcessingStage.WEIGHING,
             IsExportScale = true,
@@ -124,7 +149,12 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         };
 
         await _uow.ExecuteInTransactionAsync(
-            innerCt => _cutOrderRepo.AddAsync(cutOrder, innerCt),
+            async innerCt =>
+            {
+                await _cutOrderRepo.AddAsync(cutOrder, innerCt);
+                await EnsureCustomerAsync(customerCode, customerName, now, innerCt);
+                await EnsureProductAsync(productCode, productName, request.ProductType, now, innerCt);
+            },
             ct);
 
         return cutOrder.Id;
@@ -132,6 +162,170 @@ public sealed class CreateTemporaryExportCutOrderUseCase
 
     private static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string RequireText(string? value, string fieldName)
+    {
+        var normalized = NormalizeOptional(value);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException($"{fieldName} l\u00e0 b\u1eaft bu\u1ed9c.");
+        }
+
+        return normalized;
+    }
+
+    private static decimal RequirePositive(decimal? value, string fieldName)
+    {
+        if (!value.HasValue || value.Value <= 0m)
+        {
+            throw new InvalidOperationException($"{fieldName} ph\u1ea3i l\u1edbn h\u01a1n 0.");
+        }
+
+        return decimal.Round(value.Value, 3, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal RequireNonNegative(decimal? value, string fieldName)
+    {
+        if (!value.HasValue || value.Value < 0m)
+        {
+            throw new InvalidOperationException($"{fieldName} ph\u1ea3i l\u1edbn h\u01a1n ho\u1eb7c b\u1eb1ng 0.");
+        }
+
+        return decimal.Round(value.Value, 3, MidpointRounding.AwayFromZero);
+    }
+
+    private static int CalculateBagCount(decimal plannedWeightKg, decimal bagWeightKg)
+    {
+        var exact = plannedWeightKg / bagWeightKg;
+        return (int)decimal.Round(exact, 0, MidpointRounding.AwayFromZero);
+    }
+
+    private async Task EnsureCustomerAsync(string? customerCode, string customerName, DateTime now, CancellationToken ct)
+    {
+        var normalizedCode = NormalizeOptional(customerCode);
+        if (string.IsNullOrWhiteSpace(normalizedCode))
+        {
+            return;
+        }
+
+        var existing = await _customerRepo.GetByCodeAsync(normalizedCode, ct);
+        if (existing == null)
+        {
+            existing = new Customer
+            {
+                Id = Guid.NewGuid(),
+                CustomerCode = normalizedCode,
+                CustomerName = customerName,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            };
+            await _customerRepo.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
+            return;
+        }
+
+        var changed = false;
+        if (!existing.IsActive)
+        {
+            existing.IsActive = true;
+            changed = true;
+        }
+
+        if (!string.Equals(existing.CustomerName, customerName, StringComparison.Ordinal))
+        {
+            existing.CustomerName = customerName;
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        existing.UpdatedAt = now;
+        existing.UpdatedBy = _userContext.Username;
+        await _customerRepo.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
+    }
+
+    private async Task EnsureProductAsync(string? productCode, string productName, string? productType, DateTime now, CancellationToken ct)
+    {
+        var normalizedCode = NormalizeOptional(productCode);
+        if (string.IsNullOrWhiteSpace(normalizedCode))
+        {
+            return;
+        }
+
+        var normalizedType = ProductTypes.Normalize(productType) ?? ProductTypes.InferForTransaction(TransactionType.OUTBOUND);
+        var existing = await _productRepo.GetByCodeAsync(normalizedCode, ct);
+        if (existing == null)
+        {
+            existing = new Product
+            {
+                Id = Guid.NewGuid(),
+                ProductCode = normalizedCode,
+                ProductName = productName,
+                ProductType = normalizedType,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            };
+            await _productRepo.AddAsync(existing, ct);
+            await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Product, _syncPayloadFactory.CreatePayload(existing), now, ct);
+            return;
+        }
+
+        var changed = false;
+        if (!existing.IsActive)
+        {
+            existing.IsActive = true;
+            changed = true;
+        }
+
+        if (!string.Equals(existing.ProductName, productName, StringComparison.Ordinal))
+        {
+            existing.ProductName = productName;
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedType)
+            && !string.Equals(existing.ProductType, normalizedType, StringComparison.Ordinal))
+        {
+            existing.ProductType = normalizedType;
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        existing.UpdatedAt = now;
+        existing.UpdatedBy = _userContext.Username;
+        await _productRepo.UpdateAsync(existing, ct);
+        await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Product, _syncPayloadFactory.CreatePayload(existing), now, ct);
+    }
+
+    private async Task EnqueueMasterSyncAsync(
+        Guid aggregateId,
+        string aggregateType,
+        string payloadJson,
+        DateTime now,
+        CancellationToken ct)
+    {
+        await _syncOutboxRepo.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = aggregateId,
+            AggregateType = aggregateType,
+            PayloadJson = payloadJson,
+            IdempotencyKey = aggregateId,
+            Status = OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = now
+        }, ct);
+    }
 }
 
 public sealed class MapTemporaryExportCutOrderUseCase
@@ -216,6 +410,9 @@ public sealed class MapTemporaryExportCutOrderUseCase
         realCutOrder.WeighingSessionId = null;
         realCutOrder.ExportStartedAt ??= now;
         realCutOrder.ExportStartedBy ??= username;
+        realCutOrder.TareWeightKg ??= temporaryCutOrder.TareWeightKg;
+        realCutOrder.BagWeightKg ??= temporaryCutOrder.BagWeightKg;
+        realCutOrder.BagCount ??= temporaryCutOrder.BagCount;
         realCutOrder.MappedTemporaryCutOrderId = temporaryCutOrder.Id;
         realCutOrder.MappedAt = now;
         realCutOrder.MappedBy = username;
@@ -571,7 +768,11 @@ public sealed class CreateExportVehicleSessionUseCase
         string? moocNumber)
     {
         vehicle.DriverName = NormalizeOptional(request.DriverName);
-        vehicle.TtcpWeight = request.TtcpWeight;
+        if (request.TtcpWeight is > 0m)
+        {
+            vehicle.TtcpWeight = request.TtcpWeight;
+        }
+
         vehicle.VehicleRegistrationNo = NormalizeOptional(request.VehicleRegistrationNo);
         vehicle.VehicleRegistrationExpiryDate = request.VehicleRegistrationExpiryDate;
         vehicle.MoocNumber = moocNumber ?? string.Empty;
@@ -875,6 +1076,185 @@ public sealed class TransferExportVehicleTripUseCase
     }
 }
 
+public sealed class DeleteExportVehicleTripUseCase
+{
+    private readonly ICutOrderRepository _cutOrderRepo;
+    private readonly IWeighingSessionRepository _sessionRepo;
+    private readonly IWeighTicketRepository _weighRepo;
+    private readonly IDeliveryTicketRepository _deliveryRepo;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _userContext;
+    private readonly IClock _clock;
+
+    public DeleteExportVehicleTripUseCase(
+        ICutOrderRepository cutOrderRepo,
+        IWeighingSessionRepository sessionRepo,
+        IWeighTicketRepository weighRepo,
+        IDeliveryTicketRepository deliveryRepo,
+        IUnitOfWork uow,
+        ICurrentUserContext userContext,
+        IClock clock)
+    {
+        _cutOrderRepo = cutOrderRepo;
+        _sessionRepo = sessionRepo;
+        _weighRepo = weighRepo;
+        _deliveryRepo = deliveryRepo;
+        _uow = uow;
+        _userContext = userContext;
+        _clock = clock;
+    }
+
+    public async Task ExecuteAsync(Guid sessionId, CancellationToken ct)
+    {
+        var session = await _sessionRepo.GetByIdAsync(sessionId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy chuyến xe cần xóa.");
+
+        if (session.IsDeleted)
+        {
+            return;
+        }
+
+        if (session.Weight2.HasValue || session.Weight2Time.HasValue)
+        {
+            throw new InvalidOperationException("Không thể xóa chuyến xe đã hoàn thành cân lần 2.");
+        }
+
+        var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
+        var activeLines = lines.Where(x => !x.IsDeleted).ToList();
+        if (activeLines.Count != 1)
+        {
+            throw new InvalidOperationException("Chỉ hỗ trợ xóa chuyến xuất khẩu có đúng 1 dòng cắt lệnh.");
+        }
+
+        var line = activeLines[0];
+        var cutOrder = await _cutOrderRepo.GetByIdAsync(line.CutOrderId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy cắt lệnh nguồn của chuyến xe.");
+
+        if (cutOrder.IsDeleted || cutOrder.IsCancelled)
+        {
+            throw new InvalidOperationException("Cắt lệnh nguồn đã bị hủy hoặc xóa.");
+        }
+
+        if (cutOrder.ExportFinalizedAt.HasValue || cutOrder.CutOrderStatus == CutOrderStatus.COMPLETED)
+        {
+            throw new InvalidOperationException("Không thể xóa chuyến xe thuộc cắt lệnh đã chốt.");
+        }
+
+        var weighTickets = (await _weighRepo.GetByWeighingSessionIdAsync(session.Id, ct))
+            .Where(x => !x.IsDeleted)
+            .ToList();
+        var deliveryTickets = (await _deliveryRepo.GetByWeighingSessionIdAsync(session.Id, ct))
+            .Where(x => !x.IsDeleted)
+            .ToList();
+        var existingWeighTickets = await _weighRepo.GetAllByCutOrderIdAsync(cutOrder.Id, ct);
+        var existingDeliveryTickets = await _deliveryRepo.GetAllByCutOrderIdAsync(cutOrder.Id, ct);
+
+        var now = _clock.NowLocal;
+        var username = _userContext.Username;
+
+        session.IsDeleted = true;
+        session.IsCancelled = true;
+        session.SessionStatus = WeighingSessionStatus.CANCELLED;
+        session.DeletedAt = now;
+        session.DeletedBy = username;
+        session.SyncStatus = SyncStatus.SYNC_QUEUED;
+        session.LastSyncAttemptAt = null;
+        session.LastSyncError = null;
+        session.UpdatedAt = now;
+        session.UpdatedBy = username;
+
+        line.IsDeleted = true;
+        line.DeletedAt = now;
+        line.DeletedBy = username;
+        line.LineStatus = WeighingSessionLineStatus.CANCELLED;
+        line.ActualAllocatedWeight = null;
+        line.ActualAllocatedBagCount = null;
+        line.BagCountDisplay = null;
+        line.IsReturnedBrokenTrip = false;
+        line.DeliveryTicketId = null;
+        line.SyncStatus = SyncStatus.SYNC_QUEUED;
+        line.LastSyncAttemptAt = null;
+        line.LastSyncError = null;
+        line.UpdatedAt = now;
+        line.UpdatedBy = username;
+
+        foreach (var weighTicket in weighTickets)
+        {
+            weighTicket.IsDeleted = true;
+            weighTicket.IsCancelled = true;
+            weighTicket.Status = TicketStatus.TICKET_CANCELLED;
+            weighTicket.NetWeight = 0m;
+            weighTicket.DeletedAt = now;
+            weighTicket.DeletedBy = username;
+            weighTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
+            weighTicket.UpdatedAt = now;
+            weighTicket.UpdatedBy = username;
+        }
+
+        foreach (var deliveryTicket in deliveryTickets)
+        {
+            deliveryTicket.IsDeleted = true;
+            deliveryTicket.AllocatedWeight = 0m;
+            deliveryTicket.AllocatedBagCount = 0;
+            deliveryTicket.DeletedAt = now;
+            deliveryTicket.DeletedBy = username;
+            deliveryTicket.SyncStatus = SyncStatus.SYNC_QUEUED;
+            deliveryTicket.UpdatedAt = now;
+            deliveryTicket.UpdatedBy = username;
+        }
+
+        if (cutOrder.CurrentPrimaryWeighTicketId.HasValue && weighTickets.Any(x => x.Id == cutOrder.CurrentPrimaryWeighTicketId.Value))
+        {
+            cutOrder.CurrentPrimaryWeighTicketId = SelectPrimaryWeighTicket(
+                existingWeighTickets.Where(x => weighTickets.All(deleted => deleted.Id != x.Id)))?.Id;
+        }
+
+        if (cutOrder.CurrentPrimaryDeliveryTicketId.HasValue && deliveryTickets.Any(x => x.Id == cutOrder.CurrentPrimaryDeliveryTicketId.Value))
+        {
+            cutOrder.CurrentPrimaryDeliveryTicketId = SelectPrimaryDeliveryTicket(
+                existingDeliveryTickets.Where(x => deliveryTickets.All(deleted => deleted.Id != x.Id)))?.Id;
+        }
+
+        cutOrder.SyncStatus = SyncStatus.SYNC_QUEUED;
+        cutOrder.UpdatedAt = now;
+        cutOrder.UpdatedBy = username;
+
+        await _uow.ExecuteInTransactionAsync(async innerCt =>
+        {
+            await _sessionRepo.UpdateAsync(session, innerCt);
+            await _sessionRepo.UpdateLineAsync(line, innerCt);
+
+            foreach (var weighTicket in weighTickets)
+            {
+                await _weighRepo.UpdateAsync(weighTicket, innerCt);
+            }
+
+            foreach (var deliveryTicket in deliveryTickets)
+            {
+                await _deliveryRepo.UpdateAsync(deliveryTicket, innerCt);
+            }
+
+            await _cutOrderRepo.UpdateAsync(cutOrder, innerCt);
+        }, ct);
+    }
+
+    private static WeighTicket? SelectPrimaryWeighTicket(IEnumerable<WeighTicket> tickets)
+    {
+        return tickets
+            .Where(x => !x.IsDeleted && !x.IsCancelled)
+            .OrderByDescending(x => x.Weight2Time ?? x.Weight1Time ?? x.UpdatedAt ?? x.CreatedAt)
+            .FirstOrDefault();
+    }
+
+    private static DeliveryTicket? SelectPrimaryDeliveryTicket(IEnumerable<DeliveryTicket> tickets)
+    {
+        return tickets
+            .Where(x => !x.IsDeleted)
+            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .FirstOrDefault();
+    }
+}
+
 public sealed class FinalizeExportCutOrderUseCase
 {
     private readonly ICutOrderRepository _cutOrderRepo;
@@ -924,7 +1304,7 @@ public sealed class FinalizeExportCutOrderUseCase
 
         var totalWeight = trips
             .Where(x => x.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED)
-            .Sum(x => x.ActualAllocatedWeight ?? 0m);
+            .Sum(x => ExportReturnedBrokenTripHelper.ResolveSignedWeight(x.ActualAllocatedWeight, x.IsReturnedBrokenTrip));
         if (totalWeight <= 0m)
         {
             throw new InvalidOperationException("Ch\u01b0a c\u00f3 chuy\u1ebfn xe h\u1ee3p l\u1ec7 \u0111\u1ec3 ch\u1ed1t s\u1ed1 l\u01b0\u1ee3ng.");
@@ -943,6 +1323,71 @@ public sealed class FinalizeExportCutOrderUseCase
 
         await _uow.ExecuteInTransactionAsync(
             innerCt => _cutOrderRepo.UpdateAsync(cutOrder, innerCt),
+            ct);
+    }
+}
+
+public sealed class ToggleExportReturnedBrokenTripUseCase
+{
+    private readonly IWeighingSessionRepository _sessionRepo;
+    private readonly ICutOrderRepository _cutOrderRepo;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _userContext;
+    private readonly IClock _clock;
+
+    public ToggleExportReturnedBrokenTripUseCase(
+        IWeighingSessionRepository sessionRepo,
+        ICutOrderRepository cutOrderRepo,
+        IUnitOfWork uow,
+        ICurrentUserContext userContext,
+        IClock clock)
+    {
+        _sessionRepo = sessionRepo;
+        _cutOrderRepo = cutOrderRepo;
+        _uow = uow;
+        _userContext = userContext;
+        _clock = clock;
+    }
+
+    public async Task ExecuteAsync(Guid sessionLineId, bool isReturnedBrokenTrip, CancellationToken ct)
+    {
+        var line = await _sessionRepo.GetLineByIdAsync(sessionLineId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy dòng chuyến xe cần cập nhật.");
+        var cutOrder = await _cutOrderRepo.GetByIdAsync(line.CutOrderId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy cắt lệnh của chuyến xe.");
+        var session = await _sessionRepo.GetByIdAsync(line.WeighingSessionId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy lượt cân của chuyến xe.");
+
+        if (line.IsDeleted || cutOrder.IsDeleted || cutOrder.IsCancelled || session.IsDeleted || session.IsCancelled)
+        {
+            throw new InvalidOperationException("Chuyến xe không còn hợp lệ để cập nhật trạng thái hàng hoàn.");
+        }
+
+        if (!cutOrder.IsExportScale || cutOrder.TransactionType != TransactionType.OUTBOUND)
+        {
+            throw new InvalidOperationException("Chỉ hỗ trợ đánh dấu hàng hoàn cho luồng cân xuất khẩu.");
+        }
+
+        if ((line.ActualAllocatedWeight ?? 0m) <= 0m)
+        {
+            throw new InvalidOperationException("Chỉ được đánh dấu hàng hoàn khi chuyến đã có số lượng thực xuất.");
+        }
+
+        if (line.IsReturnedBrokenTrip == isReturnedBrokenTrip)
+        {
+            return;
+        }
+
+        var now = _clock.NowLocal;
+        line.IsReturnedBrokenTrip = isReturnedBrokenTrip;
+        line.SyncStatus = SyncStatus.SYNC_QUEUED;
+        line.LastSyncAttemptAt = null;
+        line.LastSyncError = null;
+        line.UpdatedAt = now;
+        line.UpdatedBy = _userContext.Username;
+
+        await _uow.ExecuteInTransactionAsync(
+            innerCt => _sessionRepo.UpdateLineAsync(line, innerCt),
             ct);
     }
 }

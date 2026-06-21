@@ -1,0 +1,166 @@
+<Window x:Class="StationApp.UI.Views.Dialogs.CreateTemporaryExportCutOrderDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:StationApp.UI.Controls"
+        Title="{Binding Title}"
+        Width="760"
+        Height="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None">
+    <Border Background="White" CornerRadius="10" BorderBrush="#1B3263" BorderThickness="1" Margin="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="60"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="#1B3263" CornerRadius="9,9,0,0">
+                <Grid>
+                    <TextBlock Text="{Binding Title}" Foreground="White" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    <Button Content="X"
+                            Width="36"
+                            Height="36"
+                            HorizontalAlignment="Right"
+                            Margin="0,4,4,4"
+                            Background="Transparent"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Command="{Binding CancelCommand}"/>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Grid Margin="18,18,18,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="110"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="34"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="M&#xE3; KH" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="1"
+                                                   Margin="0,3,12,3"
+                                                   State="{Binding CustomerCodeInput}"
+                                                   TextBoxStyle="{StaticResource StandardTextBoxStyle}"/>
+
+                    <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Kh&#xE1;ch h&#xE0;ng" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
+                                                   Margin="0,3,0,3"
+                                                   State="{Binding CustomerNameInput}"
+                                                   TextBoxStyle="{StaticResource StandardTextBoxStyle}"/>
+
+                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="M&#xE3; SP" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="1"
+                                                   Margin="0,3,12,3"
+                                                   State="{Binding ProductCodeInput}"
+                                                   TextBoxStyle="{StaticResource StandardTextBoxStyle}"/>
+
+                    <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="3"
+                                                   Margin="0,3,0,3"
+                                                   State="{Binding ProductNameInput}"
+                                                   TextBoxStyle="{StaticResource StandardTextBoxStyle}"/>
+
+                    <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="SL &#x111;&#x1EB7;t (t&#x1EA5;n)" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <TextBox Grid.Row="2" Grid.Column="1" Margin="0,3,12,3" Text="{Binding PlannedWeightTonsInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="SL &#x111;&#x1EB7;t (bao)" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#334155"/>
+                    <TextBox Grid.Row="2" Grid.Column="3" Margin="0,3,0,3" Text="{Binding BagCountPreview}" IsReadOnly="True" Background="#F8F9F9" Style="{StaticResource StandardTextBoxStyle}"/>
+
+                    <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="TL v&#x1ECF; (kg)" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <Grid Grid.Row="3" Grid.Column="1" Margin="0,3,12,3">
+                        <TextBox x:Name="TareWeightInput" Text="{Binding TareWeightKgInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
+                        <TextBlock Text="Ví dụ: 5.36" 
+                                   Foreground="#94A3B8" 
+                                   IsHitTestVisible="False" 
+                                   VerticalAlignment="Center" 
+                                   Margin="8,0,0,0"
+                                   FontSize="13"
+                                   FontStyle="Italic">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=TareWeightInput}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Text, ElementName=TareWeightInput}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+
+                    <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="TL bao (kg)" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <TextBox Grid.Row="3" Grid.Column="3" Margin="0,3,0,3" Text="{Binding BagWeightKgInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4"
+                               Text="{Binding FractionalBagWarningMessage}"
+                               Foreground="#B45309"
+                               FontWeight="SemiBold"
+                               Visibility="{Binding HasFractionalBagWarning, Converter={StaticResource BoolToVis}}"
+                               VerticalAlignment="Center"
+                               Margin="0,4,0,4"/>
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Ghi ch&#xFA;" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#334155"/>
+                    <TextBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3"
+                             Margin="0,3,0,3"
+                             Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource StandardTextBoxStyle}"/>
+
+                    <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4"
+                               Text="{Binding ValidationMessage}"
+                               Foreground="#DC2626"
+                               FontWeight="SemiBold"
+                               Margin="0,6,0,0"
+                               TextWrapping="Wrap"/>
+                </Grid>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Background="#F3F6FA" CornerRadius="0,0,9,9" Padding="16,12">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="H&#x1EE7;y" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,10,0" Command="{Binding CancelCommand}"/>
+                    <Button Content="L&#x1B0;u" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConfirmCommand}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

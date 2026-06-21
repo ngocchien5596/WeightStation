@@ -51,9 +51,13 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     private WeightMode _pendingWeight1Mode = WeightMode.AUTO;
     private WeightMode _pendingWeight2Mode = WeightMode.AUTO;
     private int _vehicleMasterLookupVersion;
+    private int _tripLoadVersion;
+    private bool _suppressSelectedCutOrderTripLoad;
+    private bool _isTripSelectionResetting;
 
     private const string AutoModeText = "TỰ ĐỘNG";
     private const string ManualModeText = "CÂN TAY";
+    private const int VehicleAutocompleteLimit = 50;
     private static readonly SolidColorBrush StableBrush = new(Color.FromRgb(46, 213, 115));
     private static readonly SolidColorBrush UnstableBrush = new(Colors.Orange);
 
@@ -65,6 +69,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private ObservableCollection<ExportVehicleTripListItem> _trips = new();
     [ObservableProperty] private ExportScaleCutOrderListItem? _selectedCutOrder;
     [ObservableProperty] private ExportVehicleTripListItem? _selectedTrip;
+    [ObservableProperty] private int _selectedTripIndex = -1;
+    [ObservableProperty] private int _clearTripSelectionRequest;
     [ObservableProperty] private string? _searchErpCutOrderId;
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private bool _showCompletedCutOrders;
@@ -103,10 +109,27 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         && !IsLoading
         && !string.IsNullOrWhiteSpace(NewVehiclePlate);
 
+    public int CompletedTripCount => Trips.Count(x => x.IsReturnedBrokenTrip);
+
     public bool CanTransferTrip =>
         SelectedCutOrder != null
         && SelectedTrip != null
         && !SelectedCutOrder.IsFinalized
+        && !IsLoading;
+
+    public bool CanDeleteTrip =>
+        SelectedCutOrder != null
+        && SelectedTrip != null
+        && !SelectedCutOrder.IsFinalized
+        && !SelectedTrip.Weight2.HasValue
+        && !SelectedTrip.Weight2Time.HasValue
+        && !IsLoading;
+
+    public bool CanToggleReturnedBrokenTrip =>
+        SelectedCutOrder != null
+        && SelectedTrip != null
+        && !SelectedCutOrder.IsFinalized
+        && SelectedTrip.CanToggleReturnedBrokenTrip
         && !IsLoading;
 
     public bool CanFinalize =>
@@ -121,6 +144,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     public bool ShowCameraPreviewPlaceholder =>
         !IsCameraPreviewAvailable
         || !_cameraPreviewService.IsPreviewRunning;
+    public bool IsTripsGridEnabled => !IsLoading;
     public bool IsAutoMode => CurrentCaptureMode == AutoModeText;
     public bool IsManualMode => CurrentCaptureMode == ManualModeText;
     public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
@@ -192,6 +216,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         WireTextState(TripVehiclePlateInput, value => NewVehiclePlate = value);
         WireTextState(TripMoocInput, value => NewMoocNumber = value);
         WireTextState(TripDriverInput, value => NewDriverName = value);
+        _trips.CollectionChanged += Trips_CollectionChanged;
     }
 
     public async Task InitializeAsync()
@@ -210,25 +235,15 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        SearchErpCutOrderId = null;
-        SearchVehiclePlate = null;
-        SelectedCutOrder = null;
-        SelectedTrip = null;
-        ClearTripFormFields();
-        await LoadCutOrdersAsync();
-        await LoadCameraPreviewAsync();
+        await RefreshAndClearSelectionAsync();
     }
 
     [RelayCommand]
     private async Task CreateTemporaryCutOrderAsync()
     {
-        var confirmed = await _dialogService.ShowConfirmAsync(
-            "Xác nhận tạo cắt lệnh tạm",
-            "Bạn có chắc chắn muốn tạo cắt lệnh tạm cho luồng cân xuất khẩu không?\n\nChỉ tạo khi cần cân/tạo chuyến xe trước khi ERP truyền cắt lệnh thật xuống.",
-            "Tạo cắt lệnh tạm",
-            "Hủy");
-
-        if (!confirmed)
+        var dialogVm = new CreateTemporaryExportCutOrderDialogViewModel(_scopeFactory);
+        var dialogResult = await _dialogService.ShowCustomDialogAsync<CreateTemporaryExportCutOrderDialogViewModel, CreateTemporaryExportCutOrderDialogResult>(dialogVm);
+        if (dialogResult == null)
         {
             return;
         }
@@ -238,7 +253,18 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             IsLoading = true;
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<CreateTemporaryExportCutOrderUseCase>();
-            var cutOrderId = await uc.ExecuteAsync(new CreateTemporaryExportCutOrderRequest(), CancellationToken.None);
+            var cutOrderId = await uc.ExecuteAsync(
+                new CreateTemporaryExportCutOrderRequest(
+                    CustomerCode: dialogResult.CustomerCode,
+                    CustomerName: dialogResult.CustomerName,
+                    ProductCode: dialogResult.ProductCode,
+                    ProductName: dialogResult.ProductName,
+                    ProductType: dialogResult.ProductType,
+                    PlannedWeight: dialogResult.PlannedWeightKg,
+                    TareWeightKg: dialogResult.TareWeightKg,
+                    BagWeightKg: dialogResult.BagWeightKg,
+                    Notes: dialogResult.Notes),
+                CancellationToken.None);
 
             _toastService.ShowSuccess("Đã tạo cắt lệnh xuất khẩu tạm.");
             await LoadCutOrdersAsync(cutOrderId);
@@ -285,7 +311,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 CancellationToken.None);
 
             _toastService.ShowSuccess("\u0110\u00e3 t\u1ea1o chuy\u1ebfn xe xu\u1ea5t kh\u1ea9u.");
-            await LoadCutOrdersAsync(SelectedCutOrder.CutOrderId);
+            await LoadCutOrdersAsync(SelectedCutOrder.CutOrderId, loadTripsForSelectedCutOrder: false);
             if (SelectedCutOrder != null)
             {
                 await LoadTripsAsync(SelectedCutOrder.CutOrderId, result.SessionId);
@@ -361,7 +387,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 CancellationToken.None);
 
             _toastService.ShowSuccess("Đã chuyển chuyến xe sang cắt lệnh mới.");
-            await LoadCutOrdersAsync(targetOption.CutOrderId);
+            await LoadCutOrdersAsync(targetOption.CutOrderId, loadTripsForSelectedCutOrder: false);
             if (SelectedCutOrder != null)
             {
                 await LoadTripsAsync(SelectedCutOrder.CutOrderId, sessionId);
@@ -376,6 +402,125 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         {
             _logger?.LogError(ex, "Transfer export trip failed");
             _toastService.ShowError("Không thể chuyển chuyến xe sang cắt lệnh khác.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteTrip))]
+    private async Task DeleteTripAsync()
+    {
+        if (SelectedCutOrder == null || SelectedTrip == null)
+        {
+            return;
+        }
+
+        var sessionId = SelectedTrip.SessionId;
+        var cutOrderId = SelectedCutOrder.CutOrderId;
+        var sessionNo = SelectedTrip.SessionNo;
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "Xác nhận xóa chuyến xe",
+            $"Xóa chuyến xe {sessionNo}?\n\nChỉ cho phép xóa khi chuyến chưa hoàn thành cân lần 2.",
+            "Xóa chuyến",
+            "Hủy");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<DeleteExportVehicleTripUseCase>();
+            await useCase.ExecuteAsync(sessionId, CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã xóa chuyến xe xuất khẩu.");
+            await LoadCutOrdersAsync(cutOrderId, loadTripsForSelectedCutOrder: false);
+            if (SelectedCutOrder != null)
+            {
+                await LoadTripsAsync(SelectedCutOrder.CutOrderId);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(ex, "Delete export trip rejected by business validation");
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Delete export trip failed");
+            _toastService.ShowError("Không thể xóa chuyến xe. Vui lòng thử lại.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleReturnedBrokenTripAsync(ExportVehicleTripListItem? trip)
+    {
+        if (SelectedCutOrder == null || trip == null || !trip.CanToggleReturnedBrokenTrip || IsLoading)
+        {
+            return;
+        }
+
+        var newState = trip.IsReturnedBrokenTrip;
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            newState ? "Xác nhận hàng rách vỡ" : "Bỏ đánh dấu hàng rách vỡ",
+            newState
+                ? $"Đánh dấu chuyến {trip.SessionNo} là hàng rách vỡ?\n\nChuyến này sẽ được trừ khỏi lũy kế và phiếu cân sẽ thêm ghi chú \"Hàng rách vỡ\"."
+                : $"Bỏ đánh dấu hàng rách vỡ cho chuyến {trip.SessionNo}?\n\nChuyến này sẽ được tính lại như chuyến xuất bình thường.",
+            "Đồng ý",
+            "Hủy");
+
+        if (!confirmed)
+        {
+            trip.IsReturnedBrokenTrip = !newState;
+            return;
+        }
+
+        var cutOrderId = SelectedCutOrder.CutOrderId;
+        var sessionId = trip.SessionId;
+        var sessionLineId = trip.SessionLineId;
+
+        try
+        {
+            IsLoading = true;
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<ToggleExportReturnedBrokenTripUseCase>();
+            _logger?.LogInformation(
+                "Toggle export returned broken trip requested. CutOrderId={CutOrderId}, SessionId={SessionId}, SessionLineId={SessionLineId}, NewState={NewState}",
+                cutOrderId,
+                sessionId,
+                sessionLineId,
+                newState);
+
+            await useCase.ExecuteAsync(sessionLineId, newState, CancellationToken.None);
+
+            await RefreshAndClearSelectionAsync();
+            await LoadCutOrdersAsync(cutOrderId);
+            _logger?.LogDebug(
+                "Export weighing refreshed after returned broken trip toggle. CutOrderId={CutOrderId}, SelectedCutOrderId={SelectedCutOrderId}, SelectedTripId={SelectedTripId}, TripCount={TripCount}",
+                cutOrderId,
+                SelectedCutOrder?.CutOrderId,
+                SelectedTrip?.SessionId,
+                Trips.Count);
+
+            _toastService.ShowSuccess("Đã cập nhật trạng thái hàng rách vỡ.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            trip.IsReturnedBrokenTrip = !newState;
+            _logger?.LogWarning(ex, "Toggle returned broken trip rejected by business validation");
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            trip.IsReturnedBrokenTrip = !newState;
+            _logger?.LogError(ex, "Toggle returned broken trip failed");
+            _toastService.ShowError("Không thể cập nhật trạng thái hàng rách vỡ.");
+        }
+        finally
+        {
+            IsLoading = false;
+            RefreshCommandStates();
         }
     }
 
@@ -500,7 +645,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             ClearPendingCapturedWeights();
             if (selectedCutOrderId.HasValue)
             {
-                await LoadCutOrdersAsync(selectedCutOrderId.Value);
+                await LoadCutOrdersAsync(selectedCutOrderId.Value, loadTripsForSelectedCutOrder: false);
                 await LoadTripsAsync(selectedCutOrderId.Value, selectedTripId);
             }
         }
@@ -642,7 +787,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task LoadCutOrdersAsync(Guid? preserveCutOrderId = null)
+    private async Task LoadCutOrdersAsync(Guid? preserveCutOrderId = null, bool loadTripsForSelectedCutOrder = true)
     {
         try
         {
@@ -661,14 +806,23 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 CancellationToken.None);
 
             CutOrders = new ObservableCollection<ExportScaleCutOrderListItem>(list);
-            SelectedCutOrder = selectedId.HasValue
+            var nextSelectedCutOrder = selectedId.HasValue
                 ? CutOrders.FirstOrDefault(x => x.CutOrderId == selectedId.Value)
                 : null;
+            _suppressSelectedCutOrderTripLoad = !loadTripsForSelectedCutOrder;
+            try
+            {
+                SelectedCutOrder = nextSelectedCutOrder;
+            }
+            finally
+            {
+                _suppressSelectedCutOrderTripLoad = false;
+            }
 
             if (SelectedCutOrder == null)
             {
                 Trips.Clear();
-                SelectedTrip = null;
+                ClearSelectedTrip();
                 ClearTripFormFields();
             }
         }
@@ -689,15 +843,43 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
     private async Task LoadTripsAsync(Guid cutOrderId, Guid? selectedTripId = null)
     {
+        var loadVersion = ++_tripLoadVersion;
         try
         {
+            IsLoading = true;
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
             var list = await repo.GetExportVehicleTripsAsync(cutOrderId, CancellationToken.None);
+
+            if (loadVersion != _tripLoadVersion || SelectedCutOrder?.CutOrderId != cutOrderId)
+            {
+                _logger?.LogDebug(
+                    "Ignored stale export trip load. CutOrderId={CutOrderId}, LoadVersion={LoadVersion}, CurrentVersion={CurrentVersion}, SelectedCutOrderId={SelectedCutOrderId}",
+                    cutOrderId,
+                    loadVersion,
+                    _tripLoadVersion,
+                    SelectedCutOrder?.CutOrderId);
+                return;
+            }
+
             Trips = new ObservableCollection<ExportVehicleTripListItem>(list);
             SelectedTrip = selectedTripId.HasValue
                 ? Trips.FirstOrDefault(x => x.SessionId == selectedTripId.Value)
                 : null;
+            SelectedTripIndex = SelectedTrip is null ? -1 : Trips.IndexOf(SelectedTrip);
+            if (!selectedTripId.HasValue || SelectedTrip == null)
+            {
+                ClearSelectedTrip();
+            }
+
+            _logger?.LogDebug(
+                "Loaded export trips. CutOrderId={CutOrderId}, SelectedTripId={SelectedTripId}, SelectedSessionNo={SelectedSessionNo}, SelectedStatus={SelectedStatus}, IsLoading={IsLoading}, TripCount={TripCount}",
+                cutOrderId,
+                SelectedTrip?.SessionId,
+                SelectedTrip?.SessionNo,
+                SelectedTrip?.SessionStatus,
+                IsLoading,
+                Trips.Count);
         }
         catch (Exception ex)
         {
@@ -706,7 +888,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            RefreshCommandStates();
+            if (loadVersion == _tripLoadVersion)
+            {
+                IsLoading = false;
+                RefreshCommandStates();
+            }
         }
     }
 
@@ -756,9 +942,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
                     : 1,
-                kind == PrintDocumentKind.DeliveryTicket
-                    ? CreateEditableDeliverySealContext(sessionId, context)
-                    : null);
+                CreateEditablePrintDataContext(sessionId, context, kind));
 
             var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
             if (printOptions == null)
@@ -801,6 +985,23 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         return Math.Abs(weight1 - weight2);
     }
 
+    private async Task RefreshAndClearSelectionAsync()
+    {
+        SearchErpCutOrderId = null;
+        SearchVehiclePlate = null;
+        SelectedCutOrder = null;
+        ClearSelectedTrip();
+        ClearTripFormFields();
+        await LoadCutOrdersAsync();
+    }
+
+    private void ClearSelectedTrip()
+    {
+        SelectedTrip = null;
+        SelectedTripIndex = -1;
+        ClearTripSelectionRequest++;
+    }
+
     private void ApplySelectedTripWeights()
     {
         Weight1 = SelectedTrip?.Weight1;
@@ -837,7 +1038,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await LoadCutOrdersAsync(cutOrderId.Value);
+        await LoadCutOrdersAsync(cutOrderId.Value, loadTripsForSelectedCutOrder: false);
         if (SelectedCutOrder != null)
         {
             await LoadTripsAsync(SelectedCutOrder.CutOrderId, sessionId);
@@ -1220,15 +1421,46 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         return new SessionPrintContext(session, lines, registrationsById, weighTickets, deliveryTickets, vehicle);
     }
 
-    private EditableDeliverySealContext? CreateEditableDeliverySealContext(Guid sessionId, SessionPrintContext context)
+    private static int? ResolvePrintActualBagCount(SessionPrintContext context, WeighTicket ticket)
+    {
+        if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+        {
+            var totalBagCount = context.Lines
+                .Where(x => !x.IsDeleted)
+                .Sum(x => x.ActualAllocatedBagCount ?? x.BagCountDisplay ?? 0);
+            return totalBagCount > 0 ? totalBagCount : null;
+        }
+
+        return context.Lines
+            .Where(x => !x.IsDeleted && x.CutOrderId == ticket.CutOrderId)
+            .OrderBy(x => x.SequenceNo)
+            .Select(x => x.ActualAllocatedBagCount ?? x.BagCountDisplay)
+            .FirstOrDefault(x => x.HasValue);
+    }
+
+    private static bool ResolvePrintReturnedBrokenTrip(SessionPrintContext context, WeighTicket ticket)
+    {
+        if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
+        {
+            return context.Lines.Any(x => !x.IsDeleted && x.IsReturnedBrokenTrip);
+        }
+
+        return context.Lines.Any(x => !x.IsDeleted && x.CutOrderId == ticket.CutOrderId && x.IsReturnedBrokenTrip);
+    }
+
+    private EditablePrintDataContext? CreateEditablePrintDataContext(Guid sessionId, SessionPrintContext context, PrintDocumentKind kind)
     {
         var currentSealNo = context.RegistrationsById.Values
             .Select(x => x.SealNo?.Trim())
             .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        var currentMoocNumber = string.IsNullOrWhiteSpace(context.MasterSession.MoocNumber)
+            ? context.RegistrationsById.Values.Select(x => x.MoocNumber?.Trim()).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            : context.MasterSession.MoocNumber?.Trim();
 
-        return new EditableDeliverySealContext(
-            currentSealNo,
-            async (sealNo, ct) =>
+        return new EditablePrintDataContext(
+            kind == PrintDocumentKind.DeliveryTicket ? currentSealNo : null,
+            kind == PrintDocumentKind.WeighTicket ? currentMoocNumber : null,
+            kind == PrintDocumentKind.DeliveryTicket ? async (sealNo, ct) =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionSealNoUseCase>();
@@ -1239,7 +1471,21 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 }
 
                 return result.Data;
-            },
+            }
+            : null,
+            kind == PrintDocumentKind.WeighTicket ? async (moocNumber, ct) =>
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var useCase = scope.ServiceProvider.GetRequiredService<UpdateWeighingSessionMoocNumberUseCase>();
+                var result = await useCase.ExecuteAsync(sessionId, moocNumber, ct);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(result.ErrorMessage ?? "Không thể lưu số mooc.");
+                }
+
+                return result.Data;
+            }
+            : null,
             async ct =>
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -1249,7 +1495,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                     throw new InvalidOperationException("Không thể tải lại preview phiếu giao nhận sau khi lưu niêm chì số.");
                 }
 
-                return BuildPrintBatchPreview(scope, refreshedContext, PrintDocumentKind.DeliveryTicket);
+                return BuildPrintBatchPreview(scope, refreshedContext, kind);
             });
     }
 
@@ -1281,7 +1527,9 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 {
                     var registration = context.RegistrationsById.GetValueOrDefault(ticket.CutOrderId)
                         ?? context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
-                    var page = composer.Compose(registration, ticket, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    var actualBagCount = ResolvePrintActualBagCount(context, ticket);
+                    var isReturnedBrokenTrip = ResolvePrintReturnedBrokenTrip(context, ticket);
+                    var page = composer.Compose(registration, ticket, actualBagCount, isReturnedBrokenTrip, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";
@@ -1567,7 +1815,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
-        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword), ct);
+        var limit = fieldType == AutocompleteFieldType.Vehicle
+            ? VehicleAutocompleteLimit
+            : 10;
+        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, limit), ct);
     }
 
     private static void WireTextState(AutocompleteInputViewModel state, Action<string?> setter)
@@ -1666,10 +1917,13 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(CanCreateTrip));
         OnPropertyChanged(nameof(CanTransferTrip));
+        OnPropertyChanged(nameof(CanDeleteTrip));
+        OnPropertyChanged(nameof(CanToggleReturnedBrokenTrip));
         OnPropertyChanged(nameof(CanFinalize));
         OnPropertyChanged(nameof(CanPrintWeighTicket));
         OnPropertyChanged(nameof(CanPrintDeliveryTicket));
         OnPropertyChanged(nameof(CanViewImageHistory));
+        OnPropertyChanged(nameof(IsTripsGridEnabled));
         OnPropertyChanged(nameof(IsAutoMode));
         OnPropertyChanged(nameof(IsManualMode));
         OnPropertyChanged(nameof(CanUseManualMode));
@@ -1677,6 +1931,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsTripFormReadOnly));
         CreateTripCommand.NotifyCanExecuteChanged();
         TransferTripCommand.NotifyCanExecuteChanged();
+        DeleteTripCommand.NotifyCanExecuteChanged();
+        ToggleReturnedBrokenTripCommand.NotifyCanExecuteChanged();
         FinalizeCommand.NotifyCanExecuteChanged();
         PrintWeighTicketCommand.NotifyCanExecuteChanged();
         PrintDeliveryTicketCommand.NotifyCanExecuteChanged();
@@ -1686,25 +1942,95 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         SaveCapturedWeightCommand.NotifyCanExecuteChanged();
     }
 
+    public void LogTripGridSelectionState(
+        string source,
+        ExportVehicleTripListItem? gridSelectedTrip,
+        int gridSelectedIndex,
+        ExportVehicleTripListItem? gridCurrentTrip,
+        bool isResettingSelection)
+    {
+        _logger?.LogDebug(
+            "Export trip grid selection state. Source={Source}, GridSelectedIndex={GridSelectedIndex}, GridSelectedSessionNo={GridSelectedSessionNo}, GridSelectedStatus={GridSelectedStatus}, GridCurrentSessionNo={GridCurrentSessionNo}, VmSelectedSessionNo={VmSelectedSessionNo}, VmSelectedStatus={VmSelectedStatus}, IsLoading={IsLoading}, IsResettingSelection={IsResettingSelection}, CanCaptureWeight2={CanCaptureWeight2}",
+            source,
+            gridSelectedIndex,
+            gridSelectedTrip?.SessionNo,
+            gridSelectedTrip?.SessionStatus,
+            gridCurrentTrip?.SessionNo,
+            SelectedTrip?.SessionNo,
+            SelectedTrip?.SessionStatus,
+            IsLoading,
+            isResettingSelection,
+            CanCaptureWeight2());
+    }
+
+    public void BeginTripSelectionReset()
+    {
+        _isTripSelectionResetting = true;
+    }
+
+    public void CompleteTripSelectionReset()
+    {
+        _isTripSelectionResetting = false;
+        RefreshCommandStates();
+    }
+
     partial void OnSelectedCutOrderChanged(ExportScaleCutOrderListItem? value)
     {
         if (value == null)
         {
             Trips.Clear();
-            SelectedTrip = null;
+            ClearSelectedTrip();
             ClearTripFormFields();
             RefreshCommandStates();
             return;
         }
 
-        SelectedTrip = null;
+        Trips.Clear();
+        ClearSelectedTrip();
         ClearTripFormFields();
-        _ = LoadTripsAsync(value.CutOrderId);
+        if (_suppressSelectedCutOrderTripLoad)
+        {
+            _logger?.LogDebug(
+                "Suppressed automatic export trip load for selected cut order. CutOrderId={CutOrderId}",
+                value.CutOrderId);
+        }
+        else
+        {
+            _ = LoadTripsAsync(value.CutOrderId);
+        }
+
         RefreshCommandStates();
     }
 
     partial void OnSelectedTripChanged(ExportVehicleTripListItem? value)
     {
+        if (_isTripSelectionResetting && value != null)
+        {
+            _logger?.LogDebug(
+                "Ignored export trip selection while reset is active. SessionNo={SessionNo}, SessionId={SessionId}, Status={Status}",
+                value.SessionNo,
+                value.SessionId,
+                value.SessionStatus);
+            SelectedTrip = null;
+            SelectedTripIndex = -1;
+            RefreshCommandStates();
+            return;
+        }
+
+        SelectedTripIndex = value is null ? -1 : Trips.IndexOf(value);
+
+        _logger?.LogDebug(
+            "Export trip selection changed. SessionNo={SessionNo}, SessionId={SessionId}, SessionLineId={SessionLineId}, Status={Status}, Weight1={Weight1}, Weight2={Weight2}, Weight2Time={Weight2Time}, IsLoading={IsLoading}, CanCaptureWeight2={CanCaptureWeight2}",
+            value?.SessionNo,
+            value?.SessionId,
+            value?.SessionLineId,
+            value?.SessionStatus,
+            value?.Weight1,
+            value?.Weight2,
+            value?.Weight2Time,
+            IsLoading,
+            CanCaptureWeight2());
+
         if (value == null)
         {
             ClearTripFormFields();
@@ -1719,6 +2045,37 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
         ApplySelectedTripWeights();
         RefreshCommandStates();
+    }
+
+    partial void OnTripsChanging(ObservableCollection<ExportVehicleTripListItem> value)
+    {
+        RewireTripsSubscriptions(Trips, null);
+    }
+
+    partial void OnTripsChanged(ObservableCollection<ExportVehicleTripListItem> value)
+    {
+        RewireTripsSubscriptions(null, value);
+        OnPropertyChanged(nameof(CompletedTripCount));
+    }
+
+    private void RewireTripsSubscriptions(
+        ObservableCollection<ExportVehicleTripListItem>? oldValue,
+        ObservableCollection<ExportVehicleTripListItem>? newValue)
+    {
+        if (oldValue != null)
+        {
+            oldValue.CollectionChanged -= Trips_CollectionChanged;
+        }
+
+        if (newValue != null)
+        {
+            newValue.CollectionChanged += Trips_CollectionChanged;
+        }
+    }
+
+    private void Trips_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(CompletedTripCount));
     }
 
     partial void OnNewVehiclePlateChanged(string? value)
@@ -1783,15 +2140,14 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
     private bool ValidateCreateTripForm()
     {
-        if (string.IsNullOrWhiteSpace(NewVehiclePlate))
+        if (SelectedCutOrder?.IsTemporaryExport == true && !ValidateTemporaryCutOrderForTripCreation(SelectedCutOrder))
         {
-            _toastService.ShowWarning(UiText.Common.RequiredVehiclePlate);
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(NewDriverName))
+        if (string.IsNullOrWhiteSpace(NewVehiclePlate))
         {
-            _toastService.ShowWarning(UiText.Common.RequiredDriverName);
+            _toastService.ShowWarning(UiText.Common.RequiredVehiclePlate);
             return false;
         }
 
@@ -1799,6 +2155,41 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrWhiteSpace(expiryValidationMessage))
         {
             _toastService.ShowWarning(expiryValidationMessage);
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateTemporaryCutOrderForTripCreation(ExportScaleCutOrderListItem cutOrder)
+    {
+        if (string.IsNullOrWhiteSpace(cutOrder.CustomerName))
+        {
+            _toastService.ShowWarning("C\u1eaft l\u1ec7nh t\u1ea1m ch\u01b0a c\u00f3 th\u00f4ng tin kh\u00e1ch h\u00e0ng.");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(cutOrder.ProductName))
+        {
+            _toastService.ShowWarning("C\u1eaft l\u1ec7nh t\u1ea1m ch\u01b0a c\u00f3 th\u00f4ng tin s\u1ea3n ph\u1ea9m.");
+            return false;
+        }
+
+        if (!cutOrder.PlannedWeight.HasValue || cutOrder.PlannedWeight.Value <= 0m)
+        {
+            _toastService.ShowWarning("C\u1eaft l\u1ec7nh t\u1ea1m ch\u01b0a c\u00f3 s\u1ed1 l\u01b0\u1ee3ng \u0111\u1eb7t h\u1ee3p l\u1ec7.");
+            return false;
+        }
+
+        if (!cutOrder.TareWeightKg.HasValue || cutOrder.TareWeightKg.Value < 0m)
+        {
+            _toastService.ShowWarning("C\u1eaft l\u1ec7nh t\u1ea1m ch\u01b0a c\u00f3 tr\u1ecdng l\u01b0\u1ee3ng v\u1ecf h\u1ee3p l\u1ec7.");
+            return false;
+        }
+
+        if (!cutOrder.BagWeightKg.HasValue || cutOrder.BagWeightKg.Value <= 0m)
+        {
+            _toastService.ShowWarning("C\u1eaft l\u1ec7nh t\u1ea1m ch\u01b0a c\u00f3 tr\u1ecdng l\u01b0\u1ee3ng bao h\u1ee3p l\u1ec7.");
             return false;
         }
 

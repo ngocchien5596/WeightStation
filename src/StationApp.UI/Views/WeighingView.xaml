@@ -65,7 +65,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="320"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="360"/>
             </Grid.ColumnDefinitions>
 
             <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
@@ -408,7 +408,16 @@
                                           BorderThickness="0"
                                           ScrollViewer.HorizontalScrollBarVisibility="Auto">
                                     <DataGrid.Columns>
-                                        <DataGridCheckBoxColumn Header="{StaticResource Incoming.Column.Select}" Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="60" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
+                                        <DataGridTemplateColumn Header="{StaticResource Incoming.Column.Select}" Width="60">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              Focusable="False"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.TransactionType}" Binding="{Binding TransactionType, Converter={StaticResource TransactionTypeDisplayConverter}}" Width="95" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.TransportMethod}" Binding="{Binding TransportMethod, Converter={StaticResource TransportMethodDisplayConverter}}" Width="95" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
@@ -438,7 +447,7 @@
         </Grid>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsAllocationVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1100" VerticalAlignment="Center" Margin="16">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1250" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -469,7 +478,16 @@
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="250" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource GridTextRight}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
-                                    <DataGridCheckBoxColumn Header="{StaticResource Weighing.Column.Priority}" Binding="{Binding IsPriority, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="85" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
+                                    <DataGridTemplateColumn Header="{StaticResource Weighing.Column.Priority}" Width="85">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsPriority, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          Focusable="False"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualWeight}" Binding="{Binding ActualAllocatedWeight, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.ActualBags}" Binding="{Binding ActualAllocatedBagCount, UpdateSourceTrigger=PropertyChanged}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                 </DataGrid.Columns>
@@ -489,7 +507,7 @@
         </Grid>
 
         <Grid Style="{StaticResource ModalOverlayStyle}" Visibility="{Binding IsOverweightHandlingVisible, Converter={StaticResource BoolToVis}}" Grid.RowSpan="4">
-            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1180" MaxHeight="700" VerticalAlignment="Center" Margin="16">
+            <Border Style="{StaticResource ModalShellStyle}" MaxWidth="1200" MaxHeight="700" VerticalAlignment="Center" Margin="16">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

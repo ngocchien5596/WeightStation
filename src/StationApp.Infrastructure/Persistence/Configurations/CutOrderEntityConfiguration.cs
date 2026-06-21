@@ -43,6 +43,8 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.SealNo).HasMaxLength(100);
 
         builder.Property(e => e.PlannedWeight).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.TareWeightKg).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.BagWeightKg).HasColumnType("decimal(18,3)");
         builder.Property(e => e.Notes).HasMaxLength(500);
 
         builder.Property(e => e.IsCancelled).IsRequired().HasDefaultValue(false);

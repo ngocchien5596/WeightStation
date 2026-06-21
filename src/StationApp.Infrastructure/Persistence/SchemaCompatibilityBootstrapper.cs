@@ -19,6 +19,8 @@ public static class SchemaCompatibilityBootstrapper
         new("SealNo", "nvarchar(100) NULL"),
         new("CarryForwardWeight1", "decimal(18,3) NULL"),
         new("CarryForwardWeight1Time", "datetime2 NULL"),
+        new("TareWeightKg", "decimal(18,3) NULL"),
+        new("BagWeightKg", "decimal(18,3) NULL"),
         new("IsExportScale", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_export_scale_bootstrap] DEFAULT ((0))"),
         new("ExportFinalizedWeight", "decimal(18,3) NULL"),
         new("ExportFinalizedAt", "datetime2 NULL"),
@@ -125,6 +127,8 @@ public static class SchemaCompatibilityBootstrapper
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionLineColumnPatches =
     [
         new("StationCode", "nvarchar(50) NULL"),
+        new("BagCountDisplay", "int NULL"),
+        new("IsReturnedBrokenTrip", "bit NOT NULL CONSTRAINT [DF_weighing_session_lines_is_returned_broken_trip_bootstrap] DEFAULT ((0))"),
         new("SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
         new("LastSyncAttemptAt", "datetime2 NULL"),
         new("LastSyncError", "nvarchar(1000) NULL")
@@ -653,6 +657,8 @@ BEGIN
         [PlannedBagCount] int NULL,
         [ActualAllocatedWeight] decimal(18,3) NULL,
         [ActualAllocatedBagCount] int NULL,
+        [BagCountDisplay] int NULL,
+        [IsReturnedBrokenTrip] bit NOT NULL CONSTRAINT [DF_weighing_session_lines_is_returned_broken_trip_bootstrap] DEFAULT ((0)),
         [LineStatus] nvarchar(30) NOT NULL,
         [IsDeleted] bit NOT NULL CONSTRAINT [DF_weighing_session_lines_is_deleted_bootstrap] DEFAULT ((0)),
         [DeletedAt] datetime2 NULL,

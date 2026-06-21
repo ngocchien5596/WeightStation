@@ -1,5 +1,6 @@
 using System.Globalization;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
 using StationApp.Application.Services;
@@ -270,6 +271,8 @@ public sealed class MarkRegistrationsNoLoadUseCase
             PlannedBagCount = registration.BagCount,
             ActualAllocatedWeight = 0m,
             ActualAllocatedBagCount = 0,
+            BagCountDisplay = 0,
+            IsReturnedBrokenTrip = false,
             LineStatus = WeighingSessionLineStatus.ALLOCATED,
             HasPrintedDeliveryTicket = false,
             CreatedAt = now,
@@ -484,6 +487,8 @@ public sealed class AppendCutOrdersToWeighingSessionUseCase
                   orphanLine.LineStatus = WeighingSessionLineStatus.CANCELLED;
                   orphanLine.ActualAllocatedWeight = null;
                   orphanLine.ActualAllocatedBagCount = null;
+                  orphanLine.BagCountDisplay = null;
+                  orphanLine.IsReturnedBrokenTrip = false;
                   orphanLine.DeliveryTicketId = null;
                   orphanLine.UpdatedAt = now;
                   orphanLine.UpdatedBy = _userContext.Username;
@@ -620,6 +625,7 @@ public sealed class CaptureSessionWeight1UseCase
             ttcp10Threshold = decimal.Round(vehicleTtcpWeight.Value * 1.10m, 3, MidpointRounding.AwayFromZero);
         }
 
+        var isExportScaleSession = registrations.Any(x => x.IsExportScale);
         var complianceRules = await _complianceSettingsProvider.GetCurrentRulesAsync(ct);
         var normalizedProductType = ProductTypes.Normalize(primaryRegistration.ProductType);
         var requireTtcp = false;
@@ -632,7 +638,10 @@ public sealed class CaptureSessionWeight1UseCase
             requireTtcp = complianceRules.BulkOutbound.RequireTtcpOnCreateSession;
         }
 
-        if (session.TransactionType == TransactionType.OUTBOUND && requireTtcp && !ttcp10Threshold.HasValue)
+        if (session.TransactionType == TransactionType.OUTBOUND
+            && !isExportScaleSession
+            && requireTtcp
+            && !ttcp10Threshold.HasValue)
         {
             throw new InvalidOperationException(
                 $"Xe {session.VehiclePlate}{(string.IsNullOrWhiteSpace(session.MoocNumber) ? string.Empty : $" / mooc {session.MoocNumber}")} chưa có TTCP hợp lệ trong Danh mục xe.");
@@ -919,6 +928,10 @@ public sealed class CaptureSessionWeight2UseCase
 
             lineToAutoAllocate.ActualAllocatedWeight = actualAllocatedWeight;
             lineToAutoAllocate.ActualAllocatedBagCount = actualAllocatedBagCount;
+            lineToAutoAllocate.BagCountDisplay = BagCountDisplayHelper.Resolve(
+                actualAllocatedWeight,
+                registration.BagWeightKg,
+                actualAllocatedBagCount);
             lineToAutoAllocate.LineStatus = WeighingSessionLineStatus.ALLOCATED;
             lineToAutoAllocate.UpdatedAt = now;
             lineToAutoAllocate.UpdatedBy = _userContext.Username;
@@ -1320,6 +1333,10 @@ public sealed class AllocateWeighingSessionUseCase
                 registration.BagCount,
                 line.PlannedBagCount,
                 input.ActualAllocatedBagCount);
+            line.BagCountDisplay = BagCountDisplayHelper.Resolve(
+                input.ActualAllocatedWeight,
+                registration.BagWeightKg,
+                line.ActualAllocatedBagCount);
             line.LineStatus = WeighingSessionLineStatus.ALLOCATED;
             line.UpdatedAt = now;
             line.UpdatedBy = _userContext.Username;
@@ -1628,6 +1645,8 @@ public sealed class MarkWeighingSessionNoLoadUseCase
         {
             line.ActualAllocatedWeight = 0m;
             line.ActualAllocatedBagCount = 0;
+            line.BagCountDisplay = 0;
+            line.IsReturnedBrokenTrip = false;
             line.LineStatus = WeighingSessionLineStatus.ALLOCATED;
             line.HasPrintedDeliveryTicket = false;
             line.UpdatedAt = now;

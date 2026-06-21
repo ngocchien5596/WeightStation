@@ -30,7 +30,7 @@ public class AutocompleteService : IAutocompleteService
             return Array.Empty<AutocompleteItem>();
         }
 
-        var limit = Math.Clamp(query.Limit, 1, 20);
+        var limit = Math.Clamp(query.Limit, 1, 50);
 
         return query.FieldType switch
         {

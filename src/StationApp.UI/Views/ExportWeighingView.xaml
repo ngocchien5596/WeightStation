@@ -13,6 +13,7 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <converters:SessionStatusDisplayConverter x:Key="SessionStatusDisplayConverter"/>
+            <converters:WeightToTonConverter x:Key="WeightToTonConverter"/>
             <Style x:Key="FormLabel" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
                 <Setter Property="Margin" Value="0,0,8,0"/>
                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -112,7 +113,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="320"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="360"/>
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0">
@@ -125,10 +126,14 @@
             <Border Grid.Row="0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="85"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="85"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="85"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="85"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="30"/>
@@ -138,29 +143,49 @@
                         <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="M&#xE3; c&#x1EAF;t l&#x1EC7;nh" Grid.Row="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedCutOrder.DisplayCutOrderCode, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <!-- Row 0: Mã cắt lệnh & Khách hàng -->
+                    <TextBlock Text="M&#xE3; c&#x1EAF;t l&#x1EC7;nh" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" HorizontalAlignment="Left" Width="180" Text="{Binding SelectedCutOrder.DisplayCutOrderCode, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding SelectedCutOrder.ProductName, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="Kh&#xE1;ch h&#xE0;ng" Grid.Row="0" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="0" Grid.Column="5" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Text="{Binding SelectedCutOrder.CustomerName, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="SL &#x111;&#x1EB7;t (kg)" Grid.Row="1" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedCutOrder.PlannedWeight, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <!-- Row 1: Chuyến cuối & Sản phẩm -->
+                    <TextBlock Text="Chuy&#x1EBF;n cu&#x1ED1;i" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" HorizontalAlignment="Left" Width="180" Text="{Binding SelectedCutOrder.LastTripAt, Mode=OneWay, StringFormat='{}{0:dd/MM/yyyy HH:mm}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="L&#x0169;y k&#x1EBF; (kg)" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding SelectedCutOrder.AccumulatedWeight, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" Grid.Row="1" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="1" Grid.Column="5" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Text="{Binding SelectedCutOrder.ProductName, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="C&#xF2;n l&#x1EA1;i (kg)" Grid.Row="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedCutOrder.RemainingWeight, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <!-- Row 2: SL đặt (tấn), SL đặt (bao), TL vỏ (kg), TL bao (kg) -->
+                    <TextBlock Text="SL &#x111;&#x1EB7;t (t&#x1EA5;n)" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.PlannedWeight, Mode=OneWay, Converter={StaticResource WeightToTonConverter}, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="Chuy&#x1EBF;n cu&#x1ED1;i" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding SelectedCutOrder.LastTripAt, Mode=OneWay, StringFormat='{}{0:dd/MM/yyyy HH:mm}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="SL &#x111;&#x1EB7;t (bao)" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.PlannedBagCountDisplay, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="Kh&#xE1;ch h&#xE0;ng" Grid.Row="3" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding SelectedCutOrder.CustomerName, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="TL v&#x1ECF; (kg)" Grid.Row="2" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="5" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.TareWeightKg, Mode=OneWay, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="4" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding SelectedCutOrder.Notes, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="TL bao (kg)" Grid.Row="2" Grid.Column="6" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="2" Grid.Column="7" HorizontalAlignment="Right" Width="80" Text="{Binding SelectedCutOrder.BagWeightKg, Mode=OneWay, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <!-- Row 3: Lũy kế (tấn), Lũy kế (bao), Còn lại (tấn), Còn lại (bao) -->
+                    <TextBlock Text="L&#x0169;y k&#x1EBF; (t&#x1EA5;n)" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.AccumulatedWeight, Mode=OneWay, Converter={StaticResource WeightToTonConverter}, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="L&#x0169;y k&#x1EBF; (bao)" Grid.Row="3" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="3" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.AccumulatedBagCountDisplay, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="C&#xF2;n l&#x1EA1;i (t&#x1EA5;n)" Grid.Row="3" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="5" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.RemainingWeight, Mode=OneWay, Converter={StaticResource WeightToTonConverter}, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="C&#xF2;n l&#x1EA1;i (bao)" Grid.Row="3" Grid.Column="6" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="3" Grid.Column="7" HorizontalAlignment="Right" Width="80" Text="{Binding SelectedCutOrder.RemainingBagCountDisplay, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <!-- Row 4: Ghi chú -->
+                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="7" HorizontalAlignment="Stretch" Text="{Binding SelectedCutOrder.Notes, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
                 </Grid>
             </Border>
@@ -183,21 +208,21 @@
 
                     <TextBlock Text="S&#x1ED1; PTVC" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="1"
-                                                  State="{Binding TripVehiclePlateInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsTripFormReadOnly}"/>
+                                                   State="{Binding TripVehiclePlateInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsTripFormReadOnly}"/>
 
                     <TextBlock Text="Mooc" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
-                                                  State="{Binding TripMoocInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsTripFormReadOnly}"/>
+                                                   State="{Binding TripMoocInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsTripFormReadOnly}"/>
 
                     <TextBlock Text="T&#xE0;i x&#x1EBF;" Grid.Row="0" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="5"
-                                                  State="{Binding TripDriverInput}"
-                                                  TextBoxStyle="{StaticResource FormBox}"
-                                                  IsReadOnly="{Binding IsTripFormReadOnly}"/>
+                                                   State="{Binding TripDriverInput}"
+                                                   TextBoxStyle="{StaticResource FormBox}"
+                                                   IsReadOnly="{Binding IsTripFormReadOnly}"/>
 
                     <TextBlock Text="S&#x1ED1; &#x0110;K Xe" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding VehicleRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsTripFormReadOnly}" Style="{StaticResource FormBox}"/>
@@ -368,6 +393,7 @@
             <Button Content="T&#x1EA0;O C&#x1EAE;T L&#x1EC6;NH T&#x1EA0;M" Command="{Binding CreateTemporaryCutOrderCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="TẠO CHUYẾN XE" Command="{Binding CreateTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="CHUYỂN CHUYẾN" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="X&#xD3;A CHUY&#x1EBE;N XE" Command="{Binding DeleteTripCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="XEM &#x1EA2;NH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
@@ -413,9 +439,14 @@
                         <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="M&#xC3; SP" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="S&#x1EA2;N PH&#x1EA8;M" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="SL &#x110;&#x1EB6;T (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="SL &#x111;&#x1EB7;t (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="SL &#x111;&#x1EB7;t (BAO)" Binding="{Binding PlannedBagCountDisplay, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="L&#x0168;Y K&#x1EBE; (KG)" Binding="{Binding AccumulatedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="L&#x0168;Y K&#x1EBE; (BAO)" Binding="{Binding AccumulatedBagCountDisplay, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="C&#xD2;N L&#x1EA0;I (KG)" Binding="{Binding RemainingWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="C&#xD2;N L&#x1EA0;I (BAO)" Binding="{Binding RemainingBagCountDisplay, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="TL V&#x1ECE; (KG)" Binding="{Binding TareWeightKg, StringFormat='{}{0:#,##0.###}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="TL BAO (KG)" Binding="{Binding BagWeightKg, StringFormat='{}{0:#,##0.###}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="S&#x1ED0; CHUY&#x1EBE;N" Binding="{Binding TripCount}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="CHUY&#x1EBE;N CU&#x1ED0;I" Binding="{Binding LastTripAt, StringFormat='dd/MM/yyyy HH:mm'}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                     </DataGrid.Columns>
@@ -427,6 +458,8 @@
                     <Run Text="DANH S&#x00C1;CH CHUY&#x1EBE;N XE"/>
                     <Run Text=" - T&#x1ED5;ng chuy&#x1EBF;n &#x111;&#xE3; l&#x1EA5;y: "/>
                     <Run Text="{Binding SelectedCutOrder.TripCount, FallbackValue='0', TargetNullValue='0'}" Foreground="#2980B9"/>
+                    <Run Text=" - T&#x1ED5;ng chuy&#x1EBF;n &#x111;&#xE3; ho&#xE0;n: "/>
+                    <Run Text="{Binding CompletedTripCount, Mode=OneWay, FallbackValue='0', TargetNullValue='0'}" Foreground="#16A085"/>
                     <Run Text=" (C&#x1EAF;t l&#x1EC7;nh: "/>
                     <Run Text="{Binding SelectedCutOrder.DisplayCutOrderCode, Mode=OneWay, FallbackValue='Ch&#x1B0;a ch&#x1ECD;n', TargetNullValue='Ch&#x1B0;a ch&#x1ECD;n'}" Foreground="#2980B9"/>
                     <Run Text=")"/>
@@ -434,26 +467,53 @@
             </StackPanel>
 
             <Border Grid.Row="4" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4">
-                <DataGrid ItemsSource="{Binding Trips}" SelectedItem="{Binding SelectedTrip}"
+                <DataGrid x:Name="TripsDataGrid"
+                          ItemsSource="{Binding Trips}"
+                          PreviewMouseLeftButtonDown="OnTripsGridPreviewMouseLeftButtonDown"
+                          SelectionChanged="OnTripsGridSelectionChanged"
+                          SelectionMode="Single"
+                          SelectionUnit="FullRow"
+                          IsEnabled="{Binding IsTripsGridEnabled}"
                           IsSynchronizedWithCurrentItem="False"
                           Style="{StaticResource DetailDataGridStyle}"
                           ColumnHeaderStyle="{StaticResource DetailDataGridColumnHeaderStyle}"
-                          RowStyle="{StaticResource DetailDataGridRowStyle}"
                           CellStyle="{StaticResource DetailDataGridCellStyle}"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           FrozenColumnCount="3">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow" BasedOn="{StaticResource DetailDataGridRowStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsReturnedBrokenTrip}" Value="True">
+                                    <Setter Property="Foreground" Value="#C0392B"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="S&#x1ED0; L&#x1AF;&#x1EE2;T C&#xC2;N" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="S&#x1ED0; PTVC" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="T&#xC0;I X&#x1EBE;" Binding="{Binding DriverName}" Width="160" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 1" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 2" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="NET" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="PH&#xC2;N B&#x1ED4;" Binding="{Binding ActualAllocatedWeight, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="TR&#x1EA0;NG TH&#xC1;I" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplayConverter}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="PC" Binding="{Binding WeighTicketNo}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="S&#x1ED1; L&#x1AF;&#x1EE2;T C&#xC2;N" Binding="{Binding SessionNo}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="S&#x1ED1; PTVC" Binding="{Binding VehiclePlate}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="T&#xC0;I X&#x1EBE;" Binding="{Binding DriverName}" Width="140" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 1" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 2" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="NET" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="BAO" Binding="{Binding BagCountDisplay, StringFormat='{}{0:N0}'}" Width="70" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="TR&#x1EA0;NG TH&#xC1;I" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplayConverter}}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="PC" Binding="{Binding WeighTicketNo}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="105" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTemplateColumn Header="HOÀN" Width="75">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Focusable="False"
+                                              IsEnabled="{Binding CanToggleReturnedBrokenTrip}"
+                                              IsChecked="{Binding IsReturnedBrokenTrip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              Command="{Binding DataContext.ToggleReturnedBrokenTripCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

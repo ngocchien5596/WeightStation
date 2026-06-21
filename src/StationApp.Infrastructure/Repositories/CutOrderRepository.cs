@@ -152,11 +152,36 @@ public class CutOrderRepository : ICutOrderRepository
             .ToDictionary(x => x.Key, x => x.Min(item => item.SequenceNo));
         var ids = lineOrder.Keys.ToList();
 
-        var registrations = await _db.CutOrders
+        var registrationsBySession = await _db.CutOrders
             .Where(x => x.StationCode == stationCode
                 && !x.IsDeleted
-                && (x.WeighingSessionId == weighingSessionId || ids.Contains(x.Id)))
+                && x.WeighingSessionId == weighingSessionId)
             .ToListAsync(ct);
+
+        List<CutOrder> registrations;
+        if (ids.Count == 0)
+        {
+            registrations = registrationsBySession;
+        }
+        else
+        {
+            var registrationsByLine = new List<CutOrder>(ids.Count);
+            foreach (var id in ids)
+            {
+                var cutOrder = await _db.CutOrders
+                    .FirstOrDefaultAsync(x => x.StationCode == stationCode && !x.IsDeleted && x.Id == id, ct);
+                if (cutOrder != null)
+                {
+                    registrationsByLine.Add(cutOrder);
+                }
+            }
+
+            registrations = registrationsBySession
+                .Concat(registrationsByLine)
+                .GroupBy(x => x.Id)
+                .Select(x => x.First())
+                .ToList();
+        }
 
         return registrations
             .OrderBy(x => lineOrder.TryGetValue(x.Id, out var sequence) ? sequence : int.MaxValue)
@@ -1001,11 +1026,15 @@ public class CutOrderRepository : ICutOrderRepository
         var cutOrderIds = cutOrders.Select(co => co.Id).ToList();
         var tripRows = await (
             from line in _db.WeighingSessionLines.AsNoTracking()
+            join cutOrder in _db.CutOrders.AsNoTracking()
+                on line.CutOrderId equals cutOrder.Id
             join session in _db.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
             where cutOrderIds.Contains(line.CutOrderId)
                 && line.StationCode == stationCode
+                && cutOrder.StationCode == stationCode
                 && session.StationCode == stationCode
+                && !cutOrder.IsDeleted
                 && !line.IsDeleted
                 && !session.IsDeleted
                 && !session.IsCancelled
@@ -1017,6 +1046,10 @@ public class CutOrderRepository : ICutOrderRepository
                 line.CutOrderId,
                 line.WeighingSessionId,
                 line.ActualAllocatedWeight,
+                line.ActualAllocatedBagCount,
+                line.BagCountDisplay,
+                line.IsReturnedBrokenTrip,
+                cutOrder.BagWeightKg,
                 session.Weight2Time,
                 session.UpdatedAt,
                 session.CreatedAt
@@ -1029,8 +1062,16 @@ public class CutOrderRepository : ICutOrderRepository
                 x => x.Key,
                 x => new
                 {
-                    AccumulatedWeight = x.Sum(item => item.ActualAllocatedWeight ?? 0m),
-                    TripCount = x.Select(item => item.WeighingSessionId).Distinct().Count(),
+                    AccumulatedWeight = x.Sum(item => ExportReturnedBrokenTripHelper.ResolveSignedWeight(
+                        item.ActualAllocatedWeight,
+                        item.IsReturnedBrokenTrip)),
+                    AccumulatedBagCountDisplay = x.Sum(item => ExportReturnedBrokenTripHelper.ResolveSignedBagCount(
+                        item.ActualAllocatedBagCount,
+                        item.BagCountDisplay,
+                        item.ActualAllocatedWeight,
+                        item.BagWeightKg,
+                        item.IsReturnedBrokenTrip)),
+                    TripCount = x.Where(item => !item.IsReturnedBrokenTrip).Select(item => item.WeighingSessionId).Distinct().Count(),
                     LastTripAt = x.Max(item => item.Weight2Time ?? item.UpdatedAt ?? item.CreatedAt)
                 });
 
@@ -1039,6 +1080,12 @@ public class CutOrderRepository : ICutOrderRepository
             progressByCutOrder.TryGetValue(co.Id, out var progress);
             var accumulatedWeight = progress?.AccumulatedWeight ?? 0m;
             var plannedWeight = co.PlannedWeight ?? 0m;
+            var plannedBagCountDisplay = BagCountDisplayHelper.Resolve(co.PlannedWeight, co.BagWeightKg, co.BagCount);
+            var accumulatedBagCountDisplay = progress?.AccumulatedBagCountDisplay
+                ?? BagCountDisplayHelper.Resolve(accumulatedWeight, co.BagWeightKg, null)
+                ?? 0;
+            var remainingWeight = plannedWeight - accumulatedWeight;
+            var remainingBagCountDisplay = Math.Max(0, (plannedBagCountDisplay ?? 0) - accumulatedBagCountDisplay);
 
             return new ExportScaleCutOrderListItem(
                 co.Id,
@@ -1049,8 +1096,13 @@ public class CutOrderRepository : ICutOrderRepository
                 co.ProductCode,
                 co.ProductName,
                 co.PlannedWeight,
+                plannedBagCountDisplay,
                 accumulatedWeight,
-                plannedWeight - accumulatedWeight,
+                accumulatedBagCountDisplay,
+                remainingWeight,
+                remainingBagCountDisplay,
+                co.TareWeightKg,
+                co.BagWeightKg,
                 progress?.TripCount ?? 0,
                 progress?.LastTripAt,
                 co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED,
@@ -1120,6 +1172,7 @@ public class CutOrderRepository : ICutOrderRepository
                 line.CutOrderId,
                 line.WeighingSessionId,
                 line.ActualAllocatedWeight,
+                line.IsReturnedBrokenTrip,
                 session.Weight2Time,
                 session.UpdatedAt,
                 session.CreatedAt
@@ -1132,8 +1185,10 @@ public class CutOrderRepository : ICutOrderRepository
                 x => x.Key,
                 x => new
                 {
-                    AccumulatedWeight = x.Sum(item => item.ActualAllocatedWeight ?? 0m),
-                    TripCount = x.Select(item => item.WeighingSessionId).Distinct().Count(),
+                    AccumulatedWeight = x.Sum(item => ExportReturnedBrokenTripHelper.ResolveSignedWeight(
+                        item.ActualAllocatedWeight,
+                        item.IsReturnedBrokenTrip)),
+                    TripCount = x.Where(item => !item.IsReturnedBrokenTrip).Select(item => item.WeighingSessionId).Distinct().Count(),
                     LastTripAt = x.Max(item => item.Weight2Time ?? item.UpdatedAt ?? item.CreatedAt)
                 });
 
@@ -1248,7 +1303,8 @@ public class CutOrderRepository : ICutOrderRepository
             select new
             {
                 Line = line,
-                Session = session
+                Session = session,
+                CutOrder = cutOrder
             })
             .ToListAsync(ct);
 
@@ -1270,6 +1326,7 @@ public class CutOrderRepository : ICutOrderRepository
         {
             var session = row.Session;
             var line = row.Line;
+            var cutOrder = row.CutOrder;
             var weighTicket = weighTickets
                 .Where(wt => wt.WeighingSessionId == session.Id)
                 .OrderBy(wt => wt.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
@@ -1279,6 +1336,12 @@ public class CutOrderRepository : ICutOrderRepository
                 .Where(dt => dt.WeighingSessionId == session.Id && dt.WeighingSessionLineId == line.Id)
                 .OrderByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
                 .FirstOrDefault();
+            var tripWeightKg = line.ActualAllocatedWeight ?? session.NetWeight;
+            var tripBagCountDisplay = line.BagCountDisplay
+                ?? BagCountDisplayHelper.Resolve(
+                tripWeightKg,
+                cutOrder.BagWeightKg,
+                deliveryTicket?.AllocatedBagCount ?? line.ActualAllocatedBagCount);
 
             return new ExportVehicleTripListItem(
                 session.Id,
@@ -1291,13 +1354,22 @@ public class CutOrderRepository : ICutOrderRepository
                 session.Weight2,
                 session.NetWeight,
                 line.ActualAllocatedWeight,
+                tripBagCountDisplay,
                 session.Weight1Time,
                 session.Weight2Time,
                 session.SessionStatus,
                 weighTicket is null ? null : BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo),
                 deliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
                 weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
-                deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket);
+                deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket)
+            {
+                IsReturnedBrokenTrip = line.IsReturnedBrokenTrip,
+                CanToggleReturnedBrokenTrip =
+                    !cutOrder.ExportFinalizedAt.HasValue
+                    && !cutOrder.ErpExportCompleted
+                    && (line.ActualAllocatedWeight ?? 0m) > 0m
+                    && session.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED
+            };
         }).ToList().AsReadOnly();
     }
 
