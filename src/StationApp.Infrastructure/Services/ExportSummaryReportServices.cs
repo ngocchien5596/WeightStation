@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -218,6 +219,85 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
                 .ToList());
     }
 
+    public async Task<ExportScaleSummaryReportDocument> BuildExportScaleReportAsync(
+        Guid cutOrderId,
+        DateTime? targetDateForShiftReport,
+        string preparedByDisplayName,
+        CancellationToken ct)
+    {
+        var stationCode = await ResolveStationCodeAsync(ct);
+        var cutOrder = await _dbContext.CutOrders.AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.StationCode == stationCode
+                && x.Id == cutOrderId
+                && !x.IsDeleted
+                && !x.IsCancelled
+                && x.IsExportScale
+                && x.TransactionType == TransactionType.OUTBOUND,
+                ct);
+
+        if (cutOrder == null)
+        {
+            throw new InvalidOperationException("Không tìm thấy cắt lệnh xuất khẩu để lập báo cáo.");
+        }
+
+        var rows = await (
+            from line in _dbContext.WeighingSessionLines.AsNoTracking()
+            join session in _dbContext.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where line.StationCode == stationCode
+                && session.StationCode == stationCode
+                && line.CutOrderId == cutOrderId
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+                && !session.IsNoLoad
+                && line.LineStatus == WeighingSessionLineStatus.ALLOCATED
+                && session.TransactionType == TransactionType.OUTBOUND
+                && session.Weight2Time.HasValue
+                && (session.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
+                    || session.SessionStatus == WeighingSessionStatus.COMPLETED)
+            orderby session.Weight2Time, session.SessionNo, line.SequenceNo
+            select new
+            {
+                Session = session,
+                Line = line
+            })
+            .ToListAsync(ct);
+
+        var canComputeBagMetrics = CanComputeExportScaleBagMetrics(cutOrder);
+        var tareWeightKg = canComputeBagMetrics ? cutOrder.TareWeightKg!.Value : 0m;
+        var netCementWeightKg = canComputeBagMetrics ? cutOrder.BagWeightKg!.Value : 0m;
+        var grossWeightKg = canComputeBagMetrics ? tareWeightKg + netCementWeightKg : 0m;
+        var plannedWeightTon = decimal.Round((cutOrder.PlannedWeight ?? 0m) / 1000m, 3, MidpointRounding.AwayFromZero);
+        var plannedBagCount = canComputeBagMetrics && netCementWeightKg > 0m
+            ? (int)decimal.Round((cutOrder.PlannedWeight ?? 0m) / netCementWeightKg, 0, MidpointRounding.AwayFromZero)
+            : 0;
+
+        var rawRows = rows.Select((item, index) =>
+            BuildExportScaleRow(index + 1, item.Session, item.Line, cutOrder, canComputeBagMetrics, grossWeightKg, tareWeightKg))
+            .ToList();
+        var mappedRows = MergeReturnedBrokenTrips(rawRows);
+
+        var effectiveShiftReportDate = targetDateForShiftReport?.Date
+            ?? rawRows.LastOrDefault()?.ExportDate.Date
+            ?? DateTime.Today;
+
+        return new ExportScaleSummaryReportDocument(
+            cutOrder.Id,
+            ResolveCutOrderDisplayCode(cutOrder),
+            cutOrder.CustomerName,
+            cutOrder.ProductName,
+            plannedWeightTon,
+            plannedBagCount,
+            tareWeightKg,
+            netCementWeightKg,
+            grossWeightKg,
+            effectiveShiftReportDate,
+            preparedByDisplayName,
+            mappedRows);
+    }
+
     public async Task<IReadOnlyList<ReportLookupOptionDto>> GetProductOptionsAsync(CancellationToken ct)
     {
         return await _dbContext.Products.AsNoTracking()
@@ -234,6 +314,40 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             .OrderBy(x => x.CustomerCode)
             .Select(x => new ReportLookupOptionDto(x.CustomerCode, $"{x.CustomerCode} - {x.CustomerName}"))
             .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<ReportLookupOptionDto>> GetExportScaleCutOrderOptionsAsync(CancellationToken ct)
+    {
+        var stationCode = await ResolveStationCodeAsync(ct);
+        var reportableCutOrders = await _dbContext.CutOrders.AsNoTracking()
+            .Where(cutOrder =>
+                cutOrder.StationCode == stationCode
+                && !cutOrder.IsDeleted
+                && !cutOrder.IsCancelled
+                && cutOrder.TransactionType == TransactionType.OUTBOUND
+                && (cutOrder.IsExportScale || cutOrder.IsTemporaryExport))
+            .OrderByDescending(cutOrder => cutOrder.UpdatedAt ?? cutOrder.CreatedAt)
+            .ThenByDescending(cutOrder => cutOrder.CreatedAt)
+            .Take(500)
+            .ToListAsync(ct);
+
+        return reportableCutOrders
+            .Select(cutOrder =>
+            {
+                var displayCode = ResolveCutOrderDisplayCode(cutOrder);
+                var displayParts = new[]
+                {
+                    displayCode,
+                    cutOrder.VehiclePlate,
+                    cutOrder.CustomerName,
+                    cutOrder.ProductName
+                }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Select(part => part!.Trim());
+
+                return new ReportLookupOptionDto(cutOrder.Id.ToString("D"), string.Join(" - ", displayParts));
+            })
+            .ToList();
     }
 
     private async Task<Dictionary<string, decimal>> FetchErpWeightsAsync(
@@ -317,6 +431,12 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
 
         if (filter.FlowType == OutgoingFlowType.Export
             && cutOrders.All(x => !x.IsExportScale))
+        {
+            return false;
+        }
+
+        if (filter.PortTransferOnly
+            && !cutOrders.Any(x => x.IsPortTransfer))
         {
             return false;
         }
@@ -476,6 +596,9 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         decimal? actualKgPerBag = actualBagCount > 0
             ? decimal.Round(actualWeightKg / actualBagCount, 2, MidpointRounding.AwayFromZero)
             : null;
+        decimal? kgPerBagRatio = actualKgPerBag.HasValue
+            ? decimal.Round(actualKgPerBag.Value / 50m, 4, MidpointRounding.AwayFromZero)
+            : null;
 
         int? erpBagCount = plannedBagCount;
         decimal? erpTon = null;
@@ -534,7 +657,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
                 .Distinct(StringComparer.OrdinalIgnoreCase));
 
         var status = enrichedLines.Count > 0 && enrichedLines.All(x => !x.IsBagged)
-            ? "OK"
+            ? "ĐẠT"
             : ResolveBaggedStatus(actualKgPerBag, standardKgPerBag, toleranceKgPerBag);
 
         return new ExportSummaryReportRow(
@@ -561,6 +684,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             differenceTon,
             standardKgPerBag,
             actualKgPerBag,
+            kgPerBagRatio,
             status);
     }
 
@@ -591,11 +715,152 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         var delta = actualKgPerBag.Value - standardKgPerBag.Value;
         if (Math.Abs(delta) <= toleranceKgPerBag)
         {
-            return "OK";
+            return "ĐẠT";
         }
 
         return delta > 0 ? "Vượt" : "Thiếu";
     }
+    private static ExportScaleSummaryReportRow BuildExportScaleRow(
+        int stt,
+        WeighingSession session,
+        WeighingSessionLine line,
+        CutOrder cutOrder,
+        bool canComputeBagMetrics,
+        decimal grossBagWeightKg,
+        decimal bagWeightKg)
+    {
+        var weight2Time = session.Weight2Time ?? session.UpdatedAt ?? session.CreatedAt;
+        var netWeightKg = Math.Abs(line.ActualAllocatedWeight ?? session.NetWeight ?? 0m);
+        var netWeightTon = decimal.Round(netWeightKg / 1000m, 3, MidpointRounding.AwayFromZero);
+        var bagCount = canComputeBagMetrics
+            ? Math.Abs(ExportReturnedBrokenTripHelper.ResolveSignedBagCount(
+                line.ActualAllocatedBagCount,
+                line.BagCountDisplay,
+                line.ActualAllocatedWeight,
+                cutOrder.BagWeightKg,
+                line.IsReturnedBrokenTrip))
+            : 0;
+        var bagShellWeightTon = canComputeBagMetrics
+            ? decimal.Round((bagCount * bagWeightKg) / 1000m, 3, MidpointRounding.AwayFromZero)
+            : 0m;
+        var returnedBrokenWeightTon = line.IsReturnedBrokenTrip
+            ? netWeightTon
+            : 0m;
+        var returnedBrokenBagCount = line.IsReturnedBrokenTrip ? bagCount : 0;
+        var actualExportTon = decimal.Round(Math.Max(0m, netWeightTon - bagShellWeightTon - returnedBrokenWeightTon), 3, MidpointRounding.AwayFromZero);
+        var actualExportBagCount = Math.Max(0, bagCount - returnedBrokenBagCount);
+        var differenceKgPerTrip = canComputeBagMetrics
+            ? decimal.Round((netWeightTon * 1000m) - (bagCount * grossBagWeightKg), 3, MidpointRounding.AwayFromZero)
+            : 0m;
+        decimal? differenceKgPerBag = bagCount > 0
+            ? decimal.Round(differenceKgPerTrip / bagCount, 3, MidpointRounding.AwayFromZero)
+            : null;
+
+        var notes = line.Note;
+
+        return new ExportScaleSummaryReportRow(
+            stt,
+            BusinessNumberFormatter.ToDisplay(session.SessionNo),
+            ResolveShiftCode(weight2Time),
+            weight2Time.Date,
+            session.VehiclePlate,
+            netWeightTon,
+            bagCount,
+            bagShellWeightTon,
+            returnedBrokenWeightTon,
+            returnedBrokenBagCount,
+            actualExportTon,
+            actualExportBagCount,
+            differenceKgPerTrip,
+            differenceKgPerBag,
+            string.IsNullOrWhiteSpace(notes) ? null : notes,
+            line.IsReturnedBrokenTrip);
+    }
+
+    private static List<ExportScaleSummaryReportRow> MergeReturnedBrokenTrips(IReadOnlyList<ExportScaleSummaryReportRow> rawRows)
+    {
+        var mergedRows = new List<ExportScaleSummaryReportRow>();
+
+        foreach (var row in rawRows)
+        {
+            if (!row.IsReturnedBrokenTrip)
+            {
+                mergedRows.Add(row with { Stt = mergedRows.Count + 1 });
+                continue;
+            }
+
+            var matchedIndex = -1;
+            for (var i = mergedRows.Count - 1; i >= 0; i--)
+            {
+                if (!mergedRows[i].IsReturnedBrokenTrip
+                    && string.Equals(mergedRows[i].VehiclePlate, row.VehiclePlate, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedIndex = i;
+                    break;
+                }
+            }
+
+            if (matchedIndex < 0)
+            {
+                mergedRows.Add(row with { Stt = mergedRows.Count + 1 });
+                continue;
+            }
+
+            var targetRow = mergedRows[matchedIndex];
+            var mergedNotes = string.Join("; ",
+                new[] { targetRow.Notes, row.Notes }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .SelectMany(x => x!.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase));
+
+            mergedRows[matchedIndex] = targetRow with
+            {
+                ReturnedBrokenWeightTon = decimal.Round(
+                    targetRow.ReturnedBrokenWeightTon + row.ReturnedBrokenWeightTon,
+                    3,
+                    MidpointRounding.AwayFromZero),
+                ReturnedBrokenBagCount = targetRow.ReturnedBrokenBagCount + row.ReturnedBrokenBagCount,
+                ActualExportTon = decimal.Round(
+                    Math.Max(0m, targetRow.ActualExportTon - row.ReturnedBrokenWeightTon),
+                    3,
+                    MidpointRounding.AwayFromZero),
+                ActualExportBagCount = Math.Max(0, targetRow.ActualExportBagCount - row.ReturnedBrokenBagCount),
+                Notes = string.IsNullOrWhiteSpace(mergedNotes) ? null : mergedNotes
+            };
+        }
+
+        for (var i = 0; i < mergedRows.Count; i++)
+        {
+            mergedRows[i] = mergedRows[i] with { Stt = i + 1 };
+        }
+
+        return mergedRows;
+    }
+
+    private static bool CanComputeExportScaleBagMetrics(CutOrder cutOrder)
+        => cutOrder.BagWeightKg.GetValueOrDefault() > 0m && cutOrder.TareWeightKg.GetValueOrDefault() > 0m;
+
+    private static string ResolveShiftCode(DateTime time)
+    {
+        var timeOfDay = time.TimeOfDay;
+        if (timeOfDay >= TimeSpan.FromHours(6) && timeOfDay < TimeSpan.FromHours(14))
+        {
+            return "A";
+        }
+
+        if (timeOfDay >= TimeSpan.FromHours(14) && timeOfDay < TimeSpan.FromHours(22))
+        {
+            return "B";
+        }
+
+        return "C";
+    }
+
+    private static string ResolveCutOrderDisplayCode(CutOrder cutOrder)
+        => cutOrder.IsTemporaryExport
+            ? cutOrder.TemporaryExportDisplayCode ?? cutOrder.ErpCutOrderId ?? cutOrder.Id.ToString("N")[..8]
+            : cutOrder.ErpCutOrderId ?? cutOrder.Id.ToString("N")[..8];
 }
 
 public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExporter
@@ -616,7 +881,30 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         BuildHeader(sheet, document);
         var lastTableRow = BuildTableV2(sheet, document);
         BuildFooter(sheet, document, lastTableRow);
-        ApplySheetLayout(sheet, lastTableRow + 5);
+        ApplySheetLayout(sheet, lastTableRow + 6);
+
+        workbook.SaveAs(outputPath);
+        return Task.CompletedTask;
+    }
+
+    public Task ExportExportScaleAsync(ExportScaleSummaryReportDocument document, string outputPath, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var directory = Path.GetDirectoryName(outputPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        using var workbook = new XLWorkbook();
+        var sheet = workbook.Worksheets.Add("BaoCaoXuatXK");
+
+        BuildExportScaleHeader(sheet, document);
+        var lastTableRow = BuildExportScaleTable(sheet, document);
+        BuildExportScaleShiftSummary(sheet, document, lastTableRow);
+        BuildExportScaleFooter(sheet, document, Math.Max(lastTableRow, 10));
+        ApplyExportScaleSheetLayout(sheet, Math.Max(lastTableRow + 6, 20));
 
         workbook.SaveAs(outputPath);
         return Task.CompletedTask;
@@ -632,8 +920,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         leftHeader.Style.Font.Bold = true;
         leftHeader.Style.Font.FontSize = 12;
 
-        sheet.Range("O2:U3").Merge().Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc";
-        var rightHeader = sheet.Range("O2:U3");
+        sheet.Range("O2:V3").Merge().Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc";
+        var rightHeader = sheet.Range("O2:V3");
         rightHeader.Style.Alignment.WrapText = true;
         rightHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         rightHeader.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -641,8 +929,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         rightHeader.Style.Font.FontSize = 12;
 
         var title = $"BÁO CÁO XUẤT TỔNG HỢP TỪ {document.FromTime:HH:mm:ss dd/MM/yyyy} ĐẾN {document.ToTime:HH:mm:ss dd/MM/yyyy}";
-        sheet.Range("B5:U5").Merge().Value = title;
-        var titleRange = sheet.Range("B5:U5");
+        sheet.Range("B5:V5").Merge().Value = title;
+        var titleRange = sheet.Range("B5:V5");
         titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         titleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         titleRange.Style.Font.Bold = true;
@@ -654,7 +942,7 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         const int topHeaderRow = 7;
         const int bottomHeaderRow = 8;
         const int dataStartRow = 9;
-        const int lastColumn = 21;
+        const int lastColumn = 22;
 
         sheet.Cell(topHeaderRow, 2).Value = "NGÀY XUẤT";
         sheet.Cell(topHeaderRow, 3).Value = "GIỜ XUẤT";
@@ -672,7 +960,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Cell(topHeaderRow, 18).Value = "GHI CHÚ";
         sheet.Cell(topHeaderRow, 19).Value = "CHÊNH LỆCH";
         sheet.Cell(topHeaderRow, 20).Value = "KG/BAO";
-        sheet.Cell(topHeaderRow, 21).Value = "OK/VƯỢT/THIẾU";
+        sheet.Cell(topHeaderRow, 21).Value = "TỈ LỆ (0,99≤x≤1,01)";
+        sheet.Cell(topHeaderRow, 22).Value = "ĐẠT/VƯỢT/THIẾU";
 
         sheet.Range(topHeaderRow, 12, topHeaderRow, 13).Merge();
         sheet.Range(topHeaderRow, 14, topHeaderRow, 15).Merge();
@@ -685,7 +974,7 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Cell(bottomHeaderRow, 16).Value = "BAO";
         sheet.Cell(bottomHeaderRow, 17).Value = "TẤN";
 
-        foreach (var singleColumn in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 21 })
+        foreach (var singleColumn in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 21, 22 })
         {
             sheet.Range(topHeaderRow, singleColumn, bottomHeaderRow, singleColumn).Merge();
         }
@@ -721,8 +1010,9 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             sheet.Cell(row, 17).Value = item.ErpTon;
             sheet.Cell(row, 18).Value = item.Notes;
             sheet.Cell(row, 19).Value = item.DifferenceTon;
-            sheet.Cell(row, 20).Value = item.ActualKgPerBag;
-            sheet.Cell(row, 21).Value = item.Status;
+            sheet.Cell(row, 20).Value = FormatOptionalDecimal(item.ActualKgPerBag, 2);
+            sheet.Cell(row, 21).Value = FormatOptionalDecimal(item.KgPerBagRatio, 4);
+            sheet.Cell(row, 22).Value = item.Status;
             row++;
         }
 
@@ -732,7 +1022,6 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             sheet.Range(dataStartRow, 15, row - 1, 15).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 19, row - 1, 19).Style.NumberFormat.Format = "#,##0.00";
-            sheet.Range(dataStartRow, 20, row - 1, 20).Style.NumberFormat.Format = "#,##0.##";
         }
 
         var totalRow = row;
@@ -749,7 +1038,6 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Range(totalRow, 15, totalRow, 15).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 19, totalRow, 19).Style.NumberFormat.Format = "#,##0.00";
-        sheet.Range(totalRow, 20, totalRow, 20).Style.NumberFormat.Format = "#,##0.##";
         sheet.Cell(totalRow, 12).Value = string.Empty;
         sheet.Cell(totalRow, 14).Value = string.Empty;
         sheet.Cell(totalRow, 16).Value = string.Empty;
@@ -761,7 +1049,9 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             var totalActualBagCount = totalBaggedRows.Sum(x => x.ActualBagCount);
             if (totalActualBagCount > 0)
             {
-                sheet.Cell(totalRow, 20).Value = decimal.Round(totalActualWeightKg / totalActualBagCount, 2, MidpointRounding.AwayFromZero);
+                var totalKgPerBag = decimal.Round(totalActualWeightKg / totalActualBagCount, 2, MidpointRounding.AwayFromZero);
+                sheet.Cell(totalRow, 20).Value = FormatOptionalDecimal(totalKgPerBag, 2);
+                sheet.Cell(totalRow, 21).Value = FormatOptionalDecimal(decimal.Round(totalKgPerBag / 50m, 4, MidpointRounding.AwayFromZero), 4);
             }
         }
 
@@ -788,7 +1078,7 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
     {
         if (rowCount > 0)
         {
-            sheet.Range(dataStartRow, 2, totalRow - 1, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            sheet.Range(dataStartRow, 2, totalRow - 1, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
             sheet.Range(dataStartRow, 2, totalRow - 1, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 12, totalRow - 1, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 14, totalRow - 1, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -796,8 +1086,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             sheet.Range(dataStartRow, 13, totalRow - 1, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             sheet.Range(dataStartRow, 15, totalRow - 1, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             sheet.Range(dataStartRow, 17, totalRow - 1, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 19, totalRow - 1, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 21, totalRow - 1, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 19, totalRow - 1, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            sheet.Range(dataStartRow, 22, totalRow - 1, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
         sheet.Range(totalRow, 12, totalRow, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -806,8 +1096,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Range(totalRow, 13, totalRow, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         sheet.Range(totalRow, 15, totalRow, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         sheet.Range(totalRow, 17, totalRow, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 19, totalRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 21, totalRow, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(totalRow, 19, totalRow, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        sheet.Range(totalRow, 22, totalRow, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
     private static int BuildTable(IXLWorksheet sheet, ExportSummaryReportDocument document)
@@ -830,7 +1120,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Cell(topHeaderRow, 15).Value = "GHI CHÚ";
         sheet.Cell(topHeaderRow, 16).Value = "CHÊNH LỆCH";
         sheet.Cell(topHeaderRow, 17).Value = "KG/BAO";
-        sheet.Cell(topHeaderRow, 18).Value = "OK/VƯỢT/THIẾU";
+        sheet.Cell(topHeaderRow, 18).Value = "TỈ LỆ (0,99≤x≤1,01)";
+        sheet.Cell(topHeaderRow, 19).Value = "ĐẠT/VƯỢT/THIẾU";
 
         sheet.Range(topHeaderRow, 10, topHeaderRow, 11).Merge();
         sheet.Range(topHeaderRow, 12, topHeaderRow, 13).Merge();
@@ -840,12 +1131,12 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Cell(bottomHeaderRow, 12).Value = "BAO";
         sheet.Cell(bottomHeaderRow, 13).Value = "TẤN";
 
-        foreach (var singleColumn in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18 })
+        foreach (var singleColumn in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 17, 18, 19 })
         {
             sheet.Range(topHeaderRow, singleColumn, bottomHeaderRow, singleColumn).Merge();
         }
 
-        var headerRange = sheet.Range(topHeaderRow, 2, bottomHeaderRow, 18);
+        var headerRange = sheet.Range(topHeaderRow, 2, bottomHeaderRow, 19);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -873,8 +1164,9 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             sheet.Cell(row, 14).Value = item.ProductDisplayName;
             sheet.Cell(row, 15).Value = item.Notes;
             sheet.Cell(row, 16).Value = item.DifferenceTon;
-            sheet.Cell(row, 17).Value = item.ActualKgPerBag;
-            sheet.Cell(row, 18).Value = item.Status;
+            sheet.Cell(row, 17).Value = FormatOptionalDecimal(item.ActualKgPerBag, 2);
+            sheet.Cell(row, 18).Value = FormatOptionalDecimal(item.KgPerBagRatio, 4);
+            sheet.Cell(row, 19).Value = item.Status;
             row++;
         }
 
@@ -883,7 +1175,6 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             sheet.Range(dataStartRow, 11, row - 1, 11).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 13, row - 1, 13).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 16, row - 1, 16).Style.NumberFormat.Format = "#,##0.00";
-            sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.##";
         }
 
         var totalRow = row;
@@ -898,7 +1189,6 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Range(totalRow, 11, totalRow, 11).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 16, totalRow, 16).Style.NumberFormat.Format = "#,##0.00";
-        sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.##";
         sheet.Cell(totalRow, 10).Value = string.Empty;
         sheet.Cell(totalRow, 12).Value = string.Empty;
 
@@ -909,29 +1199,31 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             var totalActualBagCount = totalBaggedRows.Sum(x => x.ActualBagCount);
             if (totalActualBagCount > 0)
             {
-                sheet.Cell(totalRow, 17).Value = decimal.Round(totalActualWeightKg / totalActualBagCount, 2, MidpointRounding.AwayFromZero);
+                var totalKgPerBag = decimal.Round(totalActualWeightKg / totalActualBagCount, 2, MidpointRounding.AwayFromZero);
+                sheet.Cell(totalRow, 17).Value = FormatOptionalDecimal(totalKgPerBag, 2);
+                sheet.Cell(totalRow, 18).Value = FormatOptionalDecimal(decimal.Round(totalKgPerBag / 50m, 4, MidpointRounding.AwayFromZero), 4);
             }
         }
 
-        var bodyRange = sheet.Range(topHeaderRow, 2, totalRow, 18);
+        var bodyRange = sheet.Range(topHeaderRow, 2, totalRow, 19);
         bodyRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         bodyRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
         bodyRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
         if (document.Rows.Count > 0)
         {
-            var dataRange = sheet.Range(dataStartRow, 2, totalRow - 1, 18);
+            var dataRange = sheet.Range(dataStartRow, 2, totalRow - 1, 19);
             dataRange.Style.Alignment.WrapText = true;
-            sheet.Range(dataStartRow, 10, totalRow, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 18, totalRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 10, totalRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            sheet.Range(dataStartRow, 19, totalRow, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
         else
         {
-            sheet.Range(totalRow, 10, totalRow, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(totalRow, 18, totalRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(totalRow, 10, totalRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            sheet.Range(totalRow, 19, totalRow, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
-        var totalRange = sheet.Range(totalRow, 2, totalRow, 18);
+        var totalRange = sheet.Range(totalRow, 2, totalRow, 19);
         totalRange.Style.Font.Bold = true;
         totalRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#E2F0D9");
 
@@ -949,22 +1241,22 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
     {
         if (rowCount > 0)
         {
-            sheet.Range(dataStartRow, 2, totalRow - 1, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            sheet.Range(dataStartRow, 2, totalRow - 1, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
             sheet.Range(dataStartRow, 2, totalRow - 1, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 11, totalRow - 1, 11).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 13, totalRow - 1, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 12, totalRow - 1, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             sheet.Range(dataStartRow, 14, totalRow - 1, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 17, totalRow - 1, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 19, totalRow - 1, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 17, totalRow - 1, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            sheet.Range(dataStartRow, 20, totalRow - 1, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
         sheet.Range(totalRow, 11, totalRow, 11).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         sheet.Range(totalRow, 13, totalRow, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         sheet.Range(totalRow, 12, totalRow, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         sheet.Range(totalRow, 14, totalRow, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 17, totalRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 19, totalRow, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(totalRow, 17, totalRow, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        sheet.Range(totalRow, 20, totalRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
     private static void InsertCutOrderCodeColumn(
@@ -995,29 +1287,365 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Column(cutOrderCodeColumn).Width = 16;
     }
 
+    private static void BuildExportScaleHeader(IXLWorksheet sheet, ExportScaleSummaryReportDocument document)
+    {
+        sheet.Range("A2:N2").Merge().Value = "BÁO CÁO XUẤT - XK";
+        var titleRange = sheet.Range("A2:N2");
+        titleRange.Style.Font.Bold = true;
+        titleRange.Style.Font.FontSize = 16;
+        titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        titleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+        sheet.Range("C4:D4").Merge().Value = "Khách hàng";
+        sheet.Range("C4:D4").Style.Font.Bold = true;
+        sheet.Range("E4:I4").Merge().Value = document.CustomerName ?? string.Empty;
+        sheet.Range("E4:I4").Style.Font.Bold = true;
+
+        sheet.Range("J4:K4").Merge().Value = "Cắt lệnh";
+        sheet.Range("L4:N4").Merge().Value = document.CutOrderCode;
+        sheet.Range("L4:N4").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.Range("L4:N4").Style.Font.Bold = true;
+
+        sheet.Range("C5:D5").Merge().Value = "Sản phẩm";
+        sheet.Range("C5:D5").Style.Font.Bold = true;
+        sheet.Range("E5:I5").Merge().Value = document.ProductName ?? string.Empty;
+        sheet.Range("E5:I5").Style.Font.Bold = true;
+
+        sheet.Range("J5:K5").Merge().Value = "Ngày báo cáo ca";
+        sheet.Range("L5:N5").Merge().Value = document.TargetDateForShiftReport;
+        sheet.Range("L5:N5").Style.DateFormat.Format = "dd/MM/yyyy";
+        sheet.Range("L5:N5").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.Range("L5:N5").Style.Font.Bold = true;
+
+        sheet.Range("C6:D6").Merge().Value = "Trọng lượng vỏ (kg)";
+        sheet.Cell("E6").Value = document.TareWeightKg;
+        sheet.Cell("E6").Style.Font.Bold = true;
+        sheet.Cell("E6").Style.NumberFormat.Format = "#,##0";
+        sheet.Cell("F6").Value = "Kg/1 vỏ";
+
+        sheet.Range("C7:D7").Merge().Value = "Trọng lượng xi măng Net (kg)";
+        sheet.Cell("E7").Value = document.NetCementWeightKg;
+        sheet.Cell("E7").Style.Font.Bold = true;
+        sheet.Cell("E7").Style.NumberFormat.Format = "#,##0";
+        sheet.Cell("F7").Value = "Kg/1 bao";
+
+        sheet.Range("C8:D8").Merge().Value = "Trọng lượng XM có vỏ (kg)";
+        sheet.Cell("E8").FormulaA1 = "=E6+E7";
+        sheet.Cell("E8").Style.Font.Bold = true;
+        sheet.Cell("E8").Style.NumberFormat.Format = "#,##0";
+        sheet.Cell("F8").Value = "Kg/1 bao";
+
+        sheet.Range("J6:K6").Merge().Value = "Số chuyến đã xuất";
+        sheet.Cell("L6").Style.Font.Bold = true;
+        sheet.Cell("L6").Style.NumberFormat.Format = "#,##0";
+
+        sheet.Range("J7:K7").Merge().Value = "Số chuyến hồi trả";
+        sheet.Cell("L7").Style.Font.Bold = true;
+        sheet.Cell("L7").Style.NumberFormat.Format = "#,##0";
+
+        sheet.Range("J8:K8").Merge().Value = "Số lượng giao hàng (tấn)";
+        sheet.Cell("L8").FormulaA1 = "=+K11*E7/1000";
+        sheet.Cell("L8").Style.Font.Bold = true;
+        sheet.Cell("L8").Style.NumberFormat.Format = "#,##0.00";
+        sheet.Range("M8:N8").Merge().Value = "(Quy đổi từ số bao thực giao)";
+
+        var staticRange = sheet.Range("A4:O8");
+        staticRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        staticRange.Style.Alignment.WrapText = true;
+
+        sheet.Range("C9:D9").Merge().Value = "Số lượng đặt hàng";
+        sheet.Range("E9:F9").Merge().Value = "Số lượng qua cân";
+        sheet.Cell("G9").Value = "KL vỏ";
+        sheet.Range("H9:I9").Merge().Value = "SL nhận hồi về";
+        sheet.Range("J9:K9").Merge().Value = "Số lượng thực xuất";
+        sheet.Range("L9:M9").Merge().Value = "Tổng chênh lệch";
+        sheet.Range("N9:O9").Merge().Value = "Số lượng tồn";
+
+        sheet.Cell("C10").Value = "Tấn";
+        sheet.Cell("D10").Value = "Bao";
+        sheet.Cell("E10").Value = "Tấn";
+        sheet.Cell("F10").Value = "Bao";
+        sheet.Cell("G10").Value = "Tấn";
+        sheet.Cell("H10").Value = "Tấn";
+        sheet.Cell("I10").Value = "Bao";
+        sheet.Cell("J10").Value = "Tấn";
+        sheet.Cell("K10").Value = "Bao";
+        sheet.Cell("L10").Value = "Theo lô (tấn)";
+        sheet.Cell("M10").Value = "BQ bao (kg/bao)";
+        sheet.Cell("N10").Value = "Tấn";
+        sheet.Cell("O10").Value = "Bao";
+
+        sheet.Cell("C11").Value = document.PlannedWeightTon;
+        sheet.Cell("D11").FormulaA1 = "=IF(OR(E7=0,ISBLANK(E7)),0,C11*1000/E7)";
+
+        var summaryRange = sheet.Range("C9:O11");
+        summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        summaryRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        summaryRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        summaryRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        summaryRange.Style.Alignment.WrapText = true;
+        
+        sheet.Range("C9:O10").Style.Font.Bold = false;
+        sheet.Range("C11:O11").Style.Font.Bold = true;
+
+        sheet.Range("C9:O10").Style.Fill.BackgroundColor = XLColor.FromHtml("#DAF3F5");
+
+        sheet.Range("H9:I11").Style.Font.FontColor = XLColor.Red;
+        sheet.Range("J9:K11").Style.Font.FontColor = XLColor.Navy;
+
+        foreach (var col in new[] { "C", "E", "G", "H", "J", "L", "M", "N" })
+        {
+            sheet.Cell($"{col}11").Style.NumberFormat.Format = "#,##0.00";
+        }
+        foreach (var col in new[] { "D", "F", "I", "K", "O" })
+        {
+            sheet.Cell($"{col}11").Style.NumberFormat.Format = "#,##0";
+        }
+    }
+
+    private static int BuildExportScaleTable(IXLWorksheet sheet, ExportScaleSummaryReportDocument document)
+    {
+        const int headerTopRow = 13;
+        const int dataStartRow = 15;
+
+        sheet.Range("A13:A14").Merge().Value = "Stt";
+        sheet.Range("B13:B14").Merge().Value = "Ca";
+        sheet.Range("C13:C14").Merge().Value = "Ngày xuất";
+        sheet.Range("D13:D14").Merge().Value = "Phương tiện";
+        sheet.Range("E13:F13").Merge().Value = "Số lượng qua cân";
+        sheet.Range("G13:G14").Merge().Value = "Khối lượng vỏ bao (tấn)";
+        sheet.Range("H13:I13").Merge().Value = "Rách vỡ hồi về";
+        sheet.Range("J13:K13").Merge().Value = "SL thực xuất (trừ vỏ)";
+        sheet.Range("L13:M13").Merge().Value = "KL lệch quy cách (Kg)";
+        sheet.Range("N13:O14").Merge().Value = "Ghi chú";
+
+        sheet.Cell("E14").Value = "Tấn";
+        sheet.Cell("F14").Value = "Bao";
+        sheet.Cell("H14").Value = "Tấn";
+        sheet.Cell("I14").Value = "Bao";
+        sheet.Cell("J14").Value = "Tấn";
+        sheet.Cell("K14").Value = "Bao";
+        sheet.Cell("L14").Value = "Theo chuyến";
+        sheet.Cell("M14").Value = "Theo bao";
+
+        var headerRange = sheet.Range("A13:O14");
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        headerRange.Style.Alignment.WrapText = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#D9F2D9");
+        headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+        sheet.Range("A13:O14").Style.Font.FontColor = XLColor.Red;
+
+
+        var row = dataStartRow;
+        foreach (var item in document.Rows)
+        {
+            sheet.Cell(row, 1).Value = item.Stt;
+            sheet.Cell(row, 2).Value = item.Shift;
+            sheet.Cell(row, 3).Value = item.ExportDate;
+            sheet.Cell(row, 3).Style.DateFormat.Format = "dd/MM/yyyy";
+            sheet.Cell(row, 4).Value = item.VehiclePlate;
+            sheet.Cell(row, 5).Value = item.NetWeightTon;
+            sheet.Cell(row, 6).Value = item.BagCount;
+            sheet.Cell(row, 7).FormulaA1 = $"=IF(OR($E$6=0,ISBLANK($E$6)),0,F{row}*$E$6/1000)";
+            if (item.ReturnedBrokenWeightTon > 0m)
+            {
+                sheet.Cell(row, 8).Value = item.ReturnedBrokenWeightTon;
+            }
+            else
+            {
+                sheet.Cell(row, 8).Value = Blank.Value;
+            }
+
+            if (item.ReturnedBrokenBagCount > 0)
+            {
+                sheet.Cell(row, 9).Value = item.ReturnedBrokenBagCount;
+            }
+            else
+            {
+                sheet.Cell(row, 9).Value = Blank.Value;
+            }
+            sheet.Cell(row, 10).FormulaA1 = $"=E{row}-G{row}-H{row}";
+            sheet.Cell(row, 11).FormulaA1 = $"=F{row}-I{row}";
+            sheet.Cell(row, 12).FormulaA1 = $"=IF(OR($E$8=0,ISBLANK($E$8)),0,E{row}*1000-F{row}*$E$8)";
+            sheet.Cell(row, 13).FormulaA1 = $"=IF(F{row}=0,\"-\",L{row}/F{row})";
+            sheet.Range(row, 14, row, 15).Merge().Value = BuildExportScaleNotes(item);
+            sheet.Cell(row, 16).Value = item.IsReturnedBrokenTrip ? "Hoàn" : "";
+
+            if (item.IsReturnedBrokenTrip)
+            {
+                sheet.Range(row, 1, row, 15).Style.Font.FontColor = XLColor.Red;
+            }
+            row++;
+        }
+
+        var dataEndRow = Math.Max(dataStartRow, row - 1);
+        sheet.Cell("L6").FormulaA1 = $"=COUNTIF(P{dataStartRow}:P{dataEndRow},\"<>Hoàn\")";
+        sheet.Cell("L7").FormulaA1 = $"=COUNTIF(H{dataStartRow}:H{dataEndRow},\">0\")";
+        sheet.Cell("E11").FormulaA1 = $"=SUMIF(P{dataStartRow}:P{dataEndRow},\"<>Hoàn\",E{dataStartRow}:E{dataEndRow})";
+        sheet.Cell("F11").FormulaA1 = $"=SUMIF(P{dataStartRow}:P{dataEndRow},\"<>Hoàn\",F{dataStartRow}:F{dataEndRow})";
+        sheet.Cell("G11").FormulaA1 = $"=SUM(G{dataStartRow}:G{dataEndRow})";
+        sheet.Cell("H11").FormulaA1 = $"=SUM(H{dataStartRow}:H{dataEndRow})";
+        sheet.Cell("I11").FormulaA1 = $"=SUM(I{dataStartRow}:I{dataEndRow})";
+        sheet.Cell("J11").FormulaA1 = $"=SUM(J{dataStartRow}:J{dataEndRow})";
+        sheet.Cell("K11").FormulaA1 = $"=SUM(K{dataStartRow}:K{dataEndRow})";
+        sheet.Cell("L11").FormulaA1 = $"=SUM(L{dataStartRow}:L{dataEndRow})/1000";
+        sheet.Cell("M11").FormulaA1 = $"=IFERROR(AVERAGE(M{dataStartRow}:M{dataEndRow}),0)";
+        sheet.Cell("N11").FormulaA1 = "=C11-J11";
+        sheet.Cell("O11").FormulaA1 = "=D11-K11";
+
+        if (row > dataStartRow)
+        {
+            sheet.Range(dataStartRow, 6, row - 1, 6).Style.NumberFormat.Format = "#,##0";
+            sheet.Range(dataStartRow, 9, row - 1, 9).Style.NumberFormat.Format = "#,##0";
+            sheet.Range(dataStartRow, 11, row - 1, 11).Style.NumberFormat.Format = "#,##0";
+            foreach (var decimalColumn in new[] { 5, 7, 8, 10, 12, 13 })
+            {
+                sheet.Range(dataStartRow, decimalColumn, row - 1, decimalColumn).Style.NumberFormat.Format = "#,##0.00";
+            }
+        }
+
+        sheet.Range(headerTopRow, 1, dataEndRow, 15).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        sheet.Range(headerTopRow, 1, dataEndRow, 15).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        sheet.Range(dataStartRow, 1, dataEndRow, 15).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        sheet.Range(dataStartRow, 1, dataEndRow, 15).Style.Alignment.WrapText = true;
+        sheet.Range(dataStartRow, 1, dataEndRow, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(dataStartRow, 5, dataEndRow, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        sheet.Range(dataStartRow, 14, dataEndRow, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        // Hide column 16 (P) which has "Loại" values for formulas
+        sheet.Column(16).Hide();
+
+        return dataEndRow;
+    }
+
+    private static void BuildExportScaleShiftSummary(IXLWorksheet sheet, ExportScaleSummaryReportDocument document, int lastTableRow)
+    {
+        const int dataStartRow = 15;
+        var dataEndRow = Math.Max(dataStartRow, lastTableRow);
+
+        sheet.Range("Q2:U2").Merge().Value = "Báo cáo số liệu xuất theo ca";
+        sheet.Range("Q2:U2").Style.Font.Bold = true;
+        sheet.Range("Q2:U2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        sheet.Range("Q4:Q6").Merge().Value = "Ca";
+        sheet.Range("R4:R6").Merge().Value = "Ngày";
+        sheet.Range("S4:S6").Merge().Value = "KL (tấn)";
+        sheet.Range("T4:T6").Merge().Value = "Số bao";
+        sheet.Range("U4:U6").Merge().Value = "Số chuyến";
+
+        sheet.Cell("Q7").Value = "A";
+        sheet.Cell("Q8").Value = "B";
+        sheet.Cell("Q9").Value = "C";
+        sheet.Cell("Q10").Value = "Tổng";
+        
+        sheet.Range("R7:R9").Merge().Value = document.TargetDateForShiftReport;
+        sheet.Range("R7:R9").Style.DateFormat.Format = "dd/MM/yyyy";
+
+        foreach (var row in new[] { 7, 8, 9 })
+        {
+            sheet.Cell(row, 19).FormulaA1 = $"=SUMIFS($E${dataStartRow}:$E${dataEndRow},$B${dataStartRow}:$B${dataEndRow},Q{row},$C${dataStartRow}:$C${dataEndRow},$R$7)-SUMIFS($H${dataStartRow}:$H${dataEndRow},$B${dataStartRow}:$B${dataEndRow},Q{row},$C${dataStartRow}:$C${dataEndRow},$R$7)";
+            sheet.Cell(row, 20).FormulaA1 = $"=SUMIFS($K${dataStartRow}:$K${dataEndRow},$B${dataStartRow}:$B${dataEndRow},Q{row},$C${dataStartRow}:$C${dataEndRow},$R$7)";
+            sheet.Cell(row, 21).FormulaA1 = $"=COUNTIFS($B${dataStartRow}:$B${dataEndRow},Q{row},$C${dataStartRow}:$C${dataEndRow},$R$7)";
+        }
+
+        sheet.Cell("S10").FormulaA1 = "=SUM(S7:S9)";
+        sheet.Cell("T10").FormulaA1 = "=SUM(T7:T9)";
+        sheet.Cell("U10").FormulaA1 = "=SUM(U7:U9)";
+
+        var summaryRange = sheet.Range("Q4:U10");
+        summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        summaryRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        summaryRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        summaryRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        summaryRange.Style.Alignment.WrapText = true;
+        
+        sheet.Range("Q4:U6").Style.Font.Bold = true;
+        sheet.Range("Q10:U10").Style.Font.Bold = true;
+        sheet.Range("Q4:U6").Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+        
+        sheet.Range("S7:S10").Style.NumberFormat.Format = "#,##0.00;-#,##0.00;\"-\"";
+        sheet.Range("T7:T10").Style.NumberFormat.Format = "#,##0;-#,##0;\"-\"";
+        sheet.Range("U7:U10").Style.NumberFormat.Format = "#,##0;-#,##0;\"-\"";
+    }
+
+    private static void BuildExportScaleFooter(IXLWorksheet sheet, ExportScaleSummaryReportDocument document, int lastTableRow)
+    {
+        var footerTitleRow = lastTableRow + 3;
+        var footerNameRow = lastTableRow + 6;
+
+        sheet.Range(footerTitleRow, 12, footerTitleRow, 14).Merge().Value = "Người lập";
+        sheet.Range(footerTitleRow, 12, footerTitleRow, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(footerTitleRow, 12, footerTitleRow, 14).Style.Font.Bold = true;
+
+        sheet.Range(footerNameRow, 12, footerNameRow, 14).Merge().Value = document.PreparedByDisplayName;
+        sheet.Range(footerNameRow, 12, footerNameRow, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+    }
+
+    private static void ApplyExportScaleSheetLayout(IXLWorksheet sheet, int lastRelevantRow)
+    {
+        sheet.SheetView.FreezeRows(14);
+        sheet.Range(1, 1, Math.Max(20, lastRelevantRow), 21).Style.Font.FontName = "Times New Roman";
+        sheet.Columns(1, 21).AdjustToContents(1, lastRelevantRow);
+        ApplyColumnWidthLimits(sheet, new Dictionary<int, (double Min, double Max)>
+        {
+            [1] = (5, 7),
+            [2] = (12, 12),
+            [3] = (12, 14),
+            [4] = (14, 18),
+            [5] = (12, 14),
+            [6] = (12, 14),
+            [7] = (12, 14),
+            [8] = (14, 16),
+            [9] = (12, 14),
+            [10] = (12, 14),
+            [11] = (12, 14),
+            [12] = (14, 16),
+            [13] = (14, 16),
+            [14] = (18, 30),
+            [15] = (12, 12),
+            [16] = (12, 12),
+            [17] = (6, 8),
+            [18] = (12, 14),
+            [19] = (12, 14),
+            [20] = (10, 12),
+            [21] = (10, 12)
+        });
+        sheet.Row(2).Height = 24;
+        sheet.Rows(1, lastRelevantRow).AdjustToContents();
+    }
+
+    private static string BuildExportScaleNotes(ExportScaleSummaryReportRow row)
+    {
+        return row.Notes ?? string.Empty;
+    }
+
     private static void BuildFooter(IXLWorksheet sheet, ExportSummaryReportDocument document, int lastTableRow)
     {
         var footerTitleRow = lastTableRow + 3;
         var footerNameRow = lastTableRow + 6;
 
-        sheet.Range(footerTitleRow, 17, footerTitleRow, 20).Merge().Value = "Người lập";
-        sheet.Range(footerTitleRow, 17, footerTitleRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(footerTitleRow, 17, footerTitleRow, 20).Style.Font.Bold = true;
+        sheet.Range(footerTitleRow, 19, footerTitleRow, 22).Merge().Value = "Người lập";
+        sheet.Range(footerTitleRow, 19, footerTitleRow, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(footerTitleRow, 19, footerTitleRow, 22).Style.Font.Bold = true;
 
-        sheet.Range(footerNameRow, 17, footerNameRow, 20).Merge().Value = document.PreparedByDisplayName;
-        sheet.Range(footerNameRow, 17, footerNameRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(footerNameRow, 19, footerNameRow, 22).Merge().Value = document.PreparedByDisplayName;
+        sheet.Range(footerNameRow, 19, footerNameRow, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
     private static void ApplySheetLayout(IXLWorksheet sheet, int lastRelevantRow)
     {
         sheet.Column(1).Width = 2;
-        sheet.Column(22).Width = 2;
         sheet.Column(23).Width = 2;
+        sheet.Column(24).Width = 2;
 
         sheet.SheetView.FreezeRows(8);
-        sheet.Range(7, 2, Math.Max(8, lastRelevantRow), 21).Style.Font.FontName = "Times New Roman";
-        sheet.Range(2, 2, Math.Max(8, lastRelevantRow), 21).Style.Font.FontName = "Times New Roman";
-        sheet.Columns(2, 21).AdjustToContents(2, lastRelevantRow);
+        sheet.Range(7, 2, Math.Max(8, lastRelevantRow), 22).Style.Font.FontName = "Times New Roman";
+        sheet.Range(2, 2, Math.Max(8, lastRelevantRow), 22).Style.Font.FontName = "Times New Roman";
+        sheet.Columns(2, 22).AdjustToContents(2, lastRelevantRow);
         ApplyColumnWidthLimits(sheet, new Dictionary<int, (double Min, double Max)>
         {
             [2] = (12, 14),
@@ -1039,7 +1667,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             [18] = (16, 34),
             [19] = (10, 13),
             [20] = (9, 12),
-            [21] = (12, 16)
+            [21] = (9, 12),
+            [22] = (12, 16)
         });
         sheet.Rows(2, lastRelevantRow).AdjustToContents();
     }
@@ -1051,5 +1680,16 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             var column = sheet.Column(columnNumber);
             column.Width = Math.Clamp(column.Width, min, max);
         }
+    }
+
+    private static string FormatOptionalDecimal(decimal? value, int maxDecimalPlaces)
+    {
+        if (!value.HasValue)
+        {
+            return string.Empty;
+        }
+
+        var format = "#,##0" + (maxDecimalPlaces > 0 ? "." + new string('#', maxDecimalPlaces) : string.Empty);
+        return value.Value.ToString(format, CultureInfo.InvariantCulture);
     }
 }

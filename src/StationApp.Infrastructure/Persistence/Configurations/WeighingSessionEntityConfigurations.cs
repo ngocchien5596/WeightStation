@@ -77,6 +77,9 @@ public class WeighingSessionLineEntityConfiguration : IEntityTypeConfiguration<W
         builder.Property(e => e.PlannedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.ActualAllocatedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.BagCountDisplay);
+        builder.Property(e => e.BagCountConfirmedBy).HasMaxLength(100);
+        builder.Property(e => e.BagCountConfirmationMode).HasMaxLength(50);
+        builder.Property(e => e.Note).HasMaxLength(500);
         builder.Property(e => e.IsReturnedBrokenTrip).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.LineStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);

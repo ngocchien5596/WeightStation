@@ -34,7 +34,6 @@ public partial class ExportSummaryReportViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
     [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _productOptions = [];
     [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _customerOptions = [];
-    [ObservableProperty] private ObservableCollection<OutgoingFlowFilterOption> _flowTypeOptions = [];
     [ObservableProperty] private ICollectionView? _productOptionsView;
     [ObservableProperty] private ICollectionView? _customerOptionsView;
     [ObservableProperty] private string? _productSearchText;
@@ -43,7 +42,7 @@ public partial class ExportSummaryReportViewModel : ObservableObject
     [ObservableProperty] private bool _isCustomerDropDownOpen;
     [ObservableProperty] private ReportLookupOptionDto? _selectedProduct;
     [ObservableProperty] private ReportLookupOptionDto? _selectedCustomer;
-    [ObservableProperty] private OutgoingFlowFilterOption? _selectedFlowType;
+    [ObservableProperty] private bool _portTransferOnly;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<ExportSummaryReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
@@ -67,13 +66,7 @@ public partial class ExportSummaryReportViewModel : ObservableObject
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
-        FlowTypeOptions =
-        [
-            new OutgoingFlowFilterOption("Tất cả", OutgoingFlowType.All),
-            new OutgoingFlowFilterOption("Nội địa", OutgoingFlowType.Domestic),
-            new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export)
-        ];
-        SelectedFlowType = FlowTypeOptions.FirstOrDefault();
+        PortTransferOnly = false;
 
         ApplyCurrentShift();
 
@@ -146,7 +139,7 @@ public partial class ExportSummaryReportViewModel : ObservableObject
             DefaultExt = ".xlsx",
             AddExtension = true,
             InitialDirectory = GetDefaultReportFolder(),
-            FileName = $"BaoCaoXuatTongHop_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
+            FileName = $"BaoCaoXuatND_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
         };
 
         if (saveDialog.ShowDialog() != true)
@@ -187,7 +180,8 @@ public partial class ExportSummaryReportViewModel : ObservableObject
             toTime,
             NormalizeCode(selectedProduct),
             NormalizeCode(selectedCustomer),
-            SelectedFlowType?.Value ?? OutgoingFlowType.All);
+            OutgoingFlowType.Domestic,
+            PortTransferOnly);
 
         return await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
     }

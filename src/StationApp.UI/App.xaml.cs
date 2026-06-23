@@ -245,6 +245,8 @@ public partial class App : System.Windows.Application
                     services.AddScoped<ClayWeighingUseCases>();
                     services.AddScoped<AppendCutOrdersToWeighingSessionUseCase>();
                     services.AddScoped<SetWeighingSessionBaggedActualWeightOverrideUseCase>();
+                    services.AddScoped<SetWeighingSessionPortTransferUseCase>();
+                    services.AddScoped<SetCutOrderPortTransferUseCase>();
                     services.AddScoped<CaptureSessionWeight1UseCase>();
                     services.AddScoped<CaptureSessionWeight2UseCase>();
                     services.AddScoped<AllocateWeighingSessionUseCase>();
@@ -267,6 +269,9 @@ public partial class App : System.Windows.Application
                     services.AddScoped<BuildExportSummaryReportUseCase>();
                     services.AddScoped<ExportExportSummaryReportUseCase>();
                     services.AddScoped<GetExportSummaryReportLookupOptionsUseCase>();
+                    services.AddScoped<BuildExportScaleSummaryReportUseCase>();
+                    services.AddScoped<ExportExportScaleSummaryReportUseCase>();
+                    services.AddScoped<GetExportScaleSummaryReportLookupOptionsUseCase>();
                     services.AddScoped<BuildInboundSummaryReportUseCase>();
                     services.AddScoped<ExportInboundSummaryReportUseCase>();
                     services.AddScoped<GetInboundSummaryReportLookupOptionsUseCase>();
@@ -330,6 +335,7 @@ public partial class App : System.Windows.Application
                     services.AddTransient<ClayWeighingViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<ExportSummaryReportViewModel>();
+                    services.AddTransient<ExportScaleReportViewModel>();
                     services.AddTransient<InboundSummaryReportViewModel>();
                     services.AddTransient<CrusherInboundReportViewModel>();
                     services.AddTransient<ClayInboundReportViewModel>();

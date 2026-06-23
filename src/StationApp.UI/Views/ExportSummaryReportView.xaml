@@ -103,7 +103,12 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
-            <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t t&#x1ED5;ng h&#x1EE3;p" Style="{StaticResource HeaderLabel}"/>
+            <TextBlock Text="BÁO CÁO XUẤT - NĐ" 
+                       FontSize="18" 
+                       FontWeight="SemiBold" 
+                       Foreground="White" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"/>
         </Border>
 
         <Border Grid.Row="1"
@@ -115,7 +120,6 @@
                 CornerRadius="10">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -175,22 +179,17 @@
                     </ComboBox>
                 </StackPanel>
 
-                <StackPanel Grid.Column="4" Margin="0,0,12,0">
-                    <TextBlock Text="Loại" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <ComboBox Width="120"
-                              Height="34"
-                              Style="{StaticResource ReportLookupComboStyle}"
-                              ItemsSource="{Binding FlowTypeOptions}"
-                              SelectedItem="{Binding SelectedFlowType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              DisplayMemberPath="Label"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right">
-                    <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="116" Margin="0,0,8,0">
-                        <TextBlock Text="XEM TR&#x1AF;&#x1EDA;C" FontWeight="SemiBold"/>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                    <CheckBox Content="CHUY&#x1EC0;N T&#x1EA2;I"
+                              IsChecked="{Binding PortTransferOnly, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource StandardCheckBoxStyle}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,16,0"/>
+                    <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
+                        <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>
-                    <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="116">
-                        <TextBlock Text="T&#x1EA2;I EXCEL" FontWeight="SemiBold"/>
+                    <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="64">
+                        <TextBlock Text="T&#x1EA2;I" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -228,7 +227,8 @@
                         <DataGridTextColumn Header="Ghi ch&#xFA;" Binding="{Binding Notes}" Width="160"/>
                         <DataGridTextColumn Header="Ch&#xEA;nh l&#x1EC7;ch" Binding="{Binding DifferenceTon, StringFormat={}{0:#,##0.00}}" Width="100"/>
                         <DataGridTextColumn Header="Kg/Bao" Binding="{Binding ActualKgPerBag, StringFormat={}{0:#,##0.##}}" Width="90"/>
-                        <DataGridTextColumn Header="T&#xEC;nh tr&#x1EA1;ng" Binding="{Binding Status}" Width="100"/>
+                        <DataGridTextColumn Header="Tỉ lệ" Binding="{Binding KgPerBagRatio, StringFormat={}{0:#,##0.0000}}" Width="90"/>
+                        <DataGridTextColumn Header="Tình trạng" Binding="{Binding Status}" Width="100"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

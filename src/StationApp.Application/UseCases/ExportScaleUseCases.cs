@@ -113,11 +113,11 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         var productName = RequireText(request.ProductName, "S\u1ea3n ph\u1ea9m");
         var plannedWeightKg = RequirePositive(request.PlannedWeight, "S\u1ed1 l\u01b0\u1ee3ng \u0111\u1eb7t (kg)");
         var tareWeightKg = RequireNonNegative(request.TareWeightKg, "Tr\u1ecdng l\u01b0\u1ee3ng v\u1ecf (kg)");
-        var bagWeightKg = RequirePositive(request.BagWeightKg, "Tr\u1ecdng l\u01b0\u1ee3ng bao (kg)");
+        var bagWeightKg = RequireNonNegative(request.BagWeightKg, "Trọng lượng bao (kg)");
 
         var now = _clock.NowLocal;
         var displayCode = await _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(ct);
-        var bagCount = CalculateBagCount(plannedWeightKg, bagWeightKg);
+        var bagCount = bagWeightKg > 0m ? CalculateBagCount(plannedWeightKg, bagWeightKg) : 0;
         var cutOrder = new CutOrder
         {
             Id = Guid.NewGuid(),

@@ -22,6 +22,11 @@ public class WeighingSessionLine
     public decimal? ActualAllocatedWeight { get; set; }
     public int? ActualAllocatedBagCount { get; set; }
     public int? BagCountDisplay { get; set; }
+    public int? SystemCalculatedBagCount { get; set; }
+    public DateTime? BagCountConfirmedAt { get; set; }
+    public string? BagCountConfirmedBy { get; set; }
+    public string? BagCountConfirmationMode { get; set; }
+    public string? Note { get; set; }
     public bool IsReturnedBrokenTrip { get; set; }
     public WeighingSessionLineStatus LineStatus { get; set; } = WeighingSessionLineStatus.PENDING;
     public bool IsDeleted { get; set; }

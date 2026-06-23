@@ -106,7 +106,7 @@
                         <CheckBox Content="Cân mỏ sét" IsChecked="{Binding ShowMenuClayWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Cân xuất khẩu" IsChecked="{Binding ShowMenuExportWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Danh sách xe ra" IsChecked="{Binding ShowMenuOutgoingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="Báo cáo xuất" IsChecked="{Binding ShowMenuExportReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="B&#xE1;o c&#xE1;o xu&#x1EA5;t - N&#x110;" IsChecked="{Binding ShowMenuExportReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Báo cáo nhập" IsChecked="{Binding ShowMenuInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Báo cáo nhập (trạm đập)" IsChecked="{Binding ShowMenuCrusherInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Báo cáo nhập (mỏ sét)" IsChecked="{Binding ShowMenuClayInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>

@@ -67,6 +67,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     private CameraPreviewFrameReceivedEventArgs? _latestPendingPreviewFrame;
     private int _isPreviewUiUpdatePending;
     private bool _isApplyingNoLoadState;
+    private bool _isApplyingPortTransferState;
 
     public event Action<Guid>? NavigateToExportWeighingRequested;
 
@@ -149,6 +150,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private ObservableCollection<OverweightSplitPreviewGroupItem> _overweightPreviewGroups = new();
     [ObservableProperty] private ObservableCollection<OverweightSplitPreviewLineItem> _overweightPreviewLines = new();
     [ObservableProperty] private bool _isNoLoadMarked;
+    [ObservableProperty] private bool _isPortTransferMarked;
 
     public bool IsAutoMode => CurrentCaptureMode == "TỰ ĐỘNG";
     public bool IsManualMode => CurrentCaptureMode == "CÂN TAY";
@@ -174,6 +176,10 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         !IsCameraPreviewAvailable
         || !_cameraPreviewService.IsPreviewRunning;
     public bool CanToggleNoLoad => SelectedSession?.IsNoLoad == true || CanMarkNoLoad();
+    public bool CanTogglePortTransfer =>
+        SelectedSession != null
+        && SelectedSession.TransactionType == TransactionType.OUTBOUND
+        && SessionLines.Count > 0;
 
     public WeighingViewModel(
         IServiceScopeFactory scopeFactory,
@@ -262,6 +268,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
 
         _ = MarkNoLoadFromCheckboxAsync();
+    }
+
+    partial void OnIsPortTransferMarkedChanged(bool value)
+    {
+        if (_isApplyingPortTransferState || SelectedSession == null)
+        {
+            return;
+        }
+
+        _ = PersistPortTransferAsync(value);
     }
 
     partial void OnUseActualWeightForBaggedCutOrdersChanged(bool value)
@@ -481,6 +497,17 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         {
             _isApplyingNoLoadState = false;
         }
+        _isApplyingPortTransferState = true;
+        try
+        {
+            IsPortTransferMarked = value.TransactionType == TransactionType.OUTBOUND
+                && lineItems.Any()
+                && lineItems.All(x => x.IsPortTransfer);
+        }
+        finally
+        {
+            _isApplyingPortTransferState = false;
+        }
         SessionLines = new ObservableCollection<WeighingSessionLineRow>(lineItems.Select(x => new WeighingSessionLineRow(x)));
         NotifySessionActionStateChanged();
         OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
@@ -513,6 +540,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         finally
         {
             _isApplyingNoLoadState = false;
+        }
+        _isApplyingPortTransferState = true;
+        try
+        {
+            IsPortTransferMarked = false;
+        }
+        finally
+        {
+            _isApplyingPortTransferState = false;
         }
         Weight1 = null;
         Weight2 = null;
@@ -1411,11 +1447,56 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
         }
     }
 
+    private async Task PersistPortTransferAsync(bool value)
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var previousValue = !value;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<SetWeighingSessionPortTransferUseCase>();
+            await useCase.ExecuteAsync(SelectedSession.SessionId, value, CancellationToken.None);
+            _toastService.ShowSuccess(value
+                ? "Da danh dau cat lenh la chuyen tai hang ra cang."
+                : "Da bo danh dau chuyen tai hang ra cang.");
+            await FocusSessionAsync(SelectedSession.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+            RevertPortTransfer(previousValue);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Update port transfer flag failed");
+            _toastService.ShowError("Khong the cap nhat trang thai chuyen tai. Vui long thu lai.");
+            RevertPortTransfer(previousValue);
+        }
+    }
+
+    private void RevertPortTransfer(bool value)
+    {
+        _isApplyingPortTransferState = true;
+        try
+        {
+            IsPortTransferMarked = value;
+        }
+        finally
+        {
+            _isApplyingPortTransferState = false;
+        }
+    }
+
     private void NotifySessionActionStateChanged()
     {
         OnPropertyChanged(nameof(ShowAllocationAction));
         OnPropertyChanged(nameof(ShowOverweightHandlingAction));
         OnPropertyChanged(nameof(CanToggleNoLoad));
+        OnPropertyChanged(nameof(CanTogglePortTransfer));
         OpenAllocationCommand.NotifyCanExecuteChanged();
         CaptureWeight1Command.NotifyCanExecuteChanged();
         CaptureWeight2Command.NotifyCanExecuteChanged();
@@ -2524,7 +2605,15 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            var page = deliveryComposer.Compose(registration!, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            var page = deliveryComposer.Compose(
+                registration!,
+                ticket,
+                relatedWeighTicket,
+                line,
+                context.MasterSession.UseActualWeightForBaggedCutOrders,
+                context.Vehicle,
+                printedAtLocal,
+                _currentUserContext.DisplayName);
             if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
                 page.PreviewGroupKey = "delivery-master";
@@ -2885,6 +2974,7 @@ public partial class WeighingSessionLineRow : ObservableObject
         ProductName = item.ProductName;
         ProductType = item.ProductType;
         Notes = item.Notes;
+        IsPortTransfer = item.IsPortTransfer;
         PlannedWeight = item.PlannedWeight;
 
         var isBagged = string.Equals(StationApp.Domain.Constants.ProductTypes.Normalize(ProductType), StationApp.Domain.Constants.ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
@@ -2912,6 +3002,7 @@ public partial class WeighingSessionLineRow : ObservableObject
     public string? ProductName { get; }
     public string? ProductType { get; }
     public string? Notes { get; }
+    public bool IsPortTransfer { get; }
     public decimal? PlannedWeight { get; }
     public int? PlannedBagCount { get; }
     public WeighingSessionLineStatus LineStatus { get; }
@@ -2954,7 +3045,8 @@ public partial class WeighingSessionLineRow : ObservableObject
             LineStatus,
             HasPrintedDeliveryTicket,
             ProductType,
-            Notes));
+            Notes,
+            IsPortTransfer));
     }
 }
 

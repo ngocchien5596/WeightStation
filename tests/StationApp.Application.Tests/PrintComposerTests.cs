@@ -107,7 +107,7 @@ public class PrintComposerTests
             CustomerName = "Cong ty A",
             CustomerCode = "C001",
             ProductName = "Xi mang",
-            ProductType = "Bao",
+            ProductType = "Roi",
             PlannedWeight = 21000,
             BagCount = 400,
             ConsumptionPlace = "Noi tieu thu",
@@ -137,7 +137,7 @@ public class PrintComposerTests
             MoocRegistrationNoSnapshot = "DK-MOOC-SNAPSHOT"
         };
 
-        var model = composer.Compose(registration, ticket, weigh, sessionLine: null, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
+        var model = composer.Compose(registration, ticket, weigh, sessionLine: null, useActualWeightForBaggedCutOrders: false, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("PGN0001", model.DeliveryNo);
         Assert.Equal("ERP-001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
@@ -157,7 +157,7 @@ public class PrintComposerTests
             VehiclePlate = "51C-12345",
             CustomerName = "Cong ty A",
             ProductName = "Xi mang",
-            ProductType = "Bao"
+            ProductType = "Roi"
         };
 
         var ticket = new DeliveryTicket
@@ -186,10 +186,10 @@ public class PrintComposerTests
             ActualAllocatedBagCount = 200
         };
 
-        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
+        var model = composer.Compose(registration, ticket, weigh, sessionLine, useActualWeightForBaggedCutOrders: false, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("10.25", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
-        Assert.Equal("200", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
+        Assert.Null(model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class PrintComposerTests
             VehiclePlate = "51C-12345",
             CustomerName = "Cong ty A",
             ProductName = "Xi mang",
-            ProductType = "Bao"
+            ProductType = "Roi"
         };
 
         var ticket = new DeliveryTicket
@@ -233,11 +233,222 @@ public class PrintComposerTests
             ActualAllocatedBagCount = 200
         };
 
-        var model = composer.Compose(registration, ticket, weigh, sessionLine, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
+        var model = composer.Compose(registration, ticket, weigh, sessionLine, useActualWeightForBaggedCutOrders: false, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
+
+        Assert.Equal("2.5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Null(model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_RoundsBaggedActualWeight_LikeErpNetWeightProcedure()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang",
+            ProductType = "Bao"
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            DeliveryNo = "PGN0004",
+            ErpCutOrderId = "ERP-004",
+            AllocatedWeight = 20551m,
+            AllocatedBagCount = 411
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            weighTicket: null,
+            sessionLine: null,
+            useActualWeightForBaggedCutOrders: true,
+            vehicle: null,
+            new DateTime(2026, 4, 27, 9, 30, 0),
+            "Test User");
+
+        Assert.Equal("20.6", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal(20600m, model.ActualWeight);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_UsesPlannedWeight_ForBaggedCutOrderWhenErpDoesNotUseActualWeight()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang",
+            ProductType = "Bao",
+            PlannedWeight = 5000m
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            DeliveryNo = "PGN0005",
+            ErpCutOrderId = "ERP-005",
+            AllocatedWeight = 5070m,
+            AllocatedBagCount = 100
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            weighTicket: null,
+            sessionLine: null,
+            useActualWeightForBaggedCutOrders: false,
+            vehicle: null,
+            new DateTime(2026, 4, 27, 9, 30, 0),
+            "Test User");
+
+        Assert.Equal("5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal(5000m, model.ActualWeight);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_UsesPlannedBagCount_WhenBaggedCutOrderDoesNotUseActualWeight()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang",
+            ProductType = "Bao",
+            PlannedWeight = 5000m,
+            BagCount = 100
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            DeliveryNo = "PGN0006",
+            ErpCutOrderId = "ERP-006",
+            AllocatedWeight = 5070m,
+            AllocatedBagCount = null
+        };
+
+        var sessionLine = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            SequenceNo = 1,
+            ActualAllocatedWeight = 5070m,
+            ActualAllocatedBagCount = null,
+            PlannedBagCount = 100
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            weighTicket: null,
+            sessionLine,
+            useActualWeightForBaggedCutOrders: false,
+            vehicle: null,
+            new DateTime(2026, 4, 27, 9, 30, 0),
+            "Test User");
+
+        Assert.Equal("5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("100", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_ShowsActualBagCount_WhenBagWeightMarksCutOrderAsBagged()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang",
+            ProductType = null,
+            BagWeightKg = 50m,
+            PlannedWeight = 5000m
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            DeliveryNo = "PGN0007",
+            ErpCutOrderId = "ERP-007",
+            AllocatedWeight = 5070m,
+            AllocatedBagCount = 100
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            weighTicket: null,
+            sessionLine: null,
+            useActualWeightForBaggedCutOrders: false,
+            vehicle: null,
+            new DateTime(2026, 4, 27, 9, 30, 0),
+            "Test User");
+
+        Assert.Equal("5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
+        Assert.Equal("100", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_RecalculatesActualBagCount_WhenBaggedCutOrderUsesActualWeight()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "51C-12345",
+            CustomerName = "Cong ty A",
+            ProductName = "Xi mang",
+            ProductType = "Bao",
+            PlannedWeight = 3000m,
+            BagCount = 60
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            DeliveryNo = "PGN0008",
+            ErpCutOrderId = "ERP-008",
+            AllocatedWeight = 2500m,
+            AllocatedBagCount = 60
+        };
+
+        var sessionLine = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            SequenceNo = 1,
+            ActualAllocatedWeight = 2500m,
+            ActualAllocatedBagCount = 60,
+            BagCountDisplay = 60,
+            PlannedBagCount = 60
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            weighTicket: null,
+            sessionLine,
+            useActualWeightForBaggedCutOrders: true,
+            vehicle: null,
+            new DateTime(2026, 4, 27, 9, 30, 0),
+            "Test User");
 
         Assert.Equal("2.5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Equal("50", model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
     }
 }
-
-

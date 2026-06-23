@@ -184,19 +184,58 @@ public partial class SyncInfoViewModel : ObservableObject
     private async Task ForceSyncAsync()
     {
         using var scope = _scopeFactory.CreateScope();
-        var outboxRepo = scope.ServiceProvider.GetRequiredService<StationApp.Application.Interfaces.ISyncOutboxRepository>();
-        var uow = scope.ServiceProvider.GetRequiredService<StationApp.Application.Interfaces.IUnitOfWork>();
+        var context = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+        var payloadFactory = scope.ServiceProvider.GetRequiredService<ISyncPayloadFactory>();
         var clock = scope.ServiceProvider.GetRequiredService<StationApp.Application.Interfaces.IClock>();
+        var userContext = scope.ServiceProvider.GetRequiredService<ICurrentUserContext>();
         var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
-        var affected = await outboxRepo.ForceRetryNowAsync(clock.NowLocal, CancellationToken.None);
-        await uow.SaveChangesAsync(CancellationToken.None);
-        await LoadAsync();
+        var stationScope = scope.ServiceProvider.GetRequiredService<IStationScope>();
+        var stationCode = await stationScope.GetCurrentStationCodeAsync(CancellationToken.None);
 
-        await dialogService.ShowInfoAsync(
-            "\u0054\u0068\u00f4\u006e\u0067\u0020\u0062\u00e1\u006f",
-            affected > 0
-                ? $"\u0110\u00e3\u0020\u006d\u1edf\u0020\u006c\u1ea1\u0069\u0020{affected}\u0020\u0062\u1ea3\u006e\u0020\u0067\u0068\u0069\u0020\u0111\u1ed3\u006e\u0067\u0020\u0062\u1ed9\u0020\u0111\u1ec3\u0020\u0077\u006f\u0072\u006b\u0065\u0072\u0020\u0072\u0065\u0074\u0072\u0079\u0020\u006e\u0067\u0061\u0079\u0020\u0074\u0072\u006f\u006e\u0067\u0020\u0063\u0068\u0075\u0020\u006b\u1ef3\u0020\u006b\u1ebf\u0020\u0074\u0069\u1ebf\u0070\u002e"
-                : "\u004b\u0068\u00f4\u006e\u0067\u0020\u0063\u00f3\u0020\u0062\u1ea3\u006e\u0020\u0067\u0068\u0069\u0020\u006e\u00e0\u006f\u0020\u0111\u1ec3\u0020\u0111\u1ed3\u006e\u0067\u0020\u0062\u1ed9\u0020\u006c\u1ea1\u0069\u002e");
+        try
+        {
+            var now = clock.NowLocal;
+            var actor = string.IsNullOrWhiteSpace(userContext.Username) ? "SYSTEM_FORCE_RESYNC" : userContext.Username;
+            var latestOutboxItems = (await context.SyncOutbox
+                    .Where(o => o.StationCode == stationCode)
+                    .ToListAsync(CancellationToken.None))
+                .GroupBy(o => new { o.AggregateId, o.AggregateType })
+                .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
+                .Where(o => o.Status != OutboxStatus.SUCCESS)
+                .OrderBy(o => o.CreatedAt)
+                .ToList();
+
+            var affected = 0;
+            var skipped = 0;
+            foreach (var outbox in latestOutboxItems)
+            {
+                var item = CreateSyncListItem(outbox);
+                var payload = await PrepareAggregateForResyncAsync(context, payloadFactory, item, now, actor);
+                if (payload == null)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                await QueueAggregateForResyncAsync(context, item, payload.Value, now, CancellationToken.None);
+                affected++;
+            }
+
+            await context.SaveChangesAsync(CancellationToken.None);
+            await LoadAsync();
+
+            await dialogService.ShowInfoAsync(
+                "\u0054\u0068\u00f4\u006e\u0067\u0020\u0062\u00e1\u006f",
+                affected > 0
+                    ? skipped > 0
+                        ? $"Đã đưa {affected} chứng từ chưa sync thành công vào hàng đợi đồng bộ lại. Bỏ qua {skipped} dòng không tìm thấy chứng từ gốc."
+                        : $"Đã đưa {affected} chứng từ chưa sync thành công vào hàng đợi đồng bộ lại."
+                    : "Không có chứng từ nào cần đồng bộ lại.");
+        }
+        catch (Exception ex)
+        {
+            await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi đồng bộ lại toàn bộ chứng từ chưa thành công: {ex.Message}");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanResyncSelected))]
@@ -244,39 +283,7 @@ public partial class SyncInfoViewModel : ObservableObject
                 return;
             }
 
-            var latestOutbox = await context.SyncOutbox
-                .Where(x => x.AggregateId == item.AggregateId && x.AggregateType == item.RawAggregateType)
-                .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
-                .FirstOrDefaultAsync(CancellationToken.None);
-
-            if (latestOutbox == null || latestOutbox.Status is OutboxStatus.SUCCESS or OutboxStatus.FAILED_FINAL)
-            {
-                await context.SyncOutbox.AddAsync(new SyncOutbox
-                {
-                    Id = Guid.NewGuid(),
-                    AggregateId = item.AggregateId,
-                    AggregateType = item.RawAggregateType,
-                    PayloadJson = payload.Value.PayloadJson,
-                    IdempotencyKey = payload.Value.IdempotencyKey,
-                    Status = OutboxStatus.PENDING,
-                    RetryCount = 0,
-                    LastError = null,
-                    NextRetryAt = now,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                }, CancellationToken.None);
-            }
-            else
-            {
-                latestOutbox.PayloadJson = payload.Value.PayloadJson;
-                latestOutbox.IdempotencyKey = payload.Value.IdempotencyKey;
-                latestOutbox.Status = OutboxStatus.PENDING;
-                latestOutbox.RetryCount = 0;
-                latestOutbox.LastError = null;
-                latestOutbox.NextRetryAt = now;
-                latestOutbox.UpdatedAt = now;
-            }
-
+            await QueueAggregateForResyncAsync(context, item, payload.Value, now, CancellationToken.None);
             await context.SaveChangesAsync(CancellationToken.None);
             await LoadAsync();
             await dialogService.ShowInfoAsync("Thông báo", "Đã đưa chứng từ đã chọn vào hàng đợi đồng bộ lại.");
@@ -285,6 +292,47 @@ public partial class SyncInfoViewModel : ObservableObject
         {
             await dialogService.ShowErrorAsync("Lỗi hệ thống", $"Lỗi khi đồng bộ lại chứng từ: {ex.Message}");
         }
+    }
+
+    private static async Task QueueAggregateForResyncAsync(
+        StationDbContext context,
+        SyncOutboxListItem item,
+        (string PayloadJson, Guid IdempotencyKey) payload,
+        DateTime now,
+        CancellationToken ct)
+    {
+        var latestOutbox = await context.SyncOutbox
+            .Where(x => x.AggregateId == item.AggregateId && x.AggregateType == item.RawAggregateType)
+            .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (latestOutbox == null || latestOutbox.Status is OutboxStatus.SUCCESS or OutboxStatus.FAILED_FINAL)
+        {
+            await context.SyncOutbox.AddAsync(new SyncOutbox
+            {
+                Id = Guid.NewGuid(),
+                StationCode = item.StationCode,
+                AggregateId = item.AggregateId,
+                AggregateType = item.RawAggregateType,
+                PayloadJson = payload.PayloadJson,
+                IdempotencyKey = payload.IdempotencyKey,
+                Status = OutboxStatus.PENDING,
+                RetryCount = 0,
+                LastError = null,
+                NextRetryAt = now,
+                CreatedAt = now,
+                UpdatedAt = now
+            }, ct);
+            return;
+        }
+
+        latestOutbox.PayloadJson = payload.PayloadJson;
+        latestOutbox.IdempotencyKey = payload.IdempotencyKey;
+        latestOutbox.Status = OutboxStatus.PENDING;
+        latestOutbox.RetryCount = 0;
+        latestOutbox.LastError = null;
+        latestOutbox.NextRetryAt = now;
+        latestOutbox.UpdatedAt = now;
     }
 
     [RelayCommand]
@@ -404,14 +452,21 @@ public partial class SyncInfoViewModel : ObservableObject
             }
         }
 
-        if (SelectedOutboxStatus != "\u0054\u1ea5\u0074\u0020\u0063\u1ea3" && Enum.TryParse<OutboxStatus>(SelectedOutboxStatus, out var outboxStatus))
-        {
-            query = query.Where(x => x.Status == outboxStatus);
-        }
-
         query = ApplySearchFilter(context, query, SearchKeyword);
 
-        TotalSyncItemsCount = await query.CountAsync(CancellationToken.None);
+        var latestOutboxItems = (await query.ToListAsync(CancellationToken.None))
+            .GroupBy(x => new { x.AggregateId, x.AggregateType })
+            .Select(g => g.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).First())
+            .ToList();
+
+        if (SelectedOutboxStatus != "\u0054\u1ea5\u0074\u0020\u0063\u1ea3" && Enum.TryParse<OutboxStatus>(SelectedOutboxStatus, out var outboxStatus))
+        {
+            latestOutboxItems = latestOutboxItems
+                .Where(x => x.Status == outboxStatus)
+                .ToList();
+        }
+
+        TotalSyncItemsCount = latestOutboxItems.Count;
         var pageSize = Math.Max(20, PageSize);
         var totalPages = Math.Max(1, (int)Math.Ceiling(TotalSyncItemsCount / (double)pageSize));
         if (PageNumber > totalPages)
@@ -420,12 +475,12 @@ public partial class SyncInfoViewModel : ObservableObject
         }
 
         var skip = (PageNumber - 1) * pageSize;
-        var outboxItems = await query
+        var outboxItems = latestOutboxItems
             .OrderBy(x => x.Status == OutboxStatus.PENDING ? 0 : x.Status == OutboxStatus.FAILED_RETRYABLE ? 1 : x.Status == OutboxStatus.PROCESSING ? 2 : 3)
             .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .Skip(skip)
             .Take(pageSize)
-            .ToListAsync(CancellationToken.None);
+            .ToList();
 
         CanGoToPreviousPage = PageNumber > 1;
         CanGoToNextPage = PageNumber < totalPages;
@@ -561,6 +616,7 @@ public partial class SyncInfoViewModel : ObservableObject
 
             return new SyncOutboxListItem(
                 item.Id,
+                item.StationCode,
                 item.AggregateId,
                 item.AggregateType,
                 aggregateDisplay,
@@ -578,6 +634,24 @@ public partial class SyncInfoViewModel : ObservableObject
 
         return items.ToList();
     }
+
+    private static SyncOutboxListItem CreateSyncListItem(SyncOutbox outbox)
+        => new(
+            outbox.Id,
+            outbox.StationCode,
+            outbox.AggregateId,
+            outbox.AggregateType,
+            GetAggregateTypeDisplay(outbox.AggregateType),
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            "-",
+            outbox.Status.ToString(),
+            outbox.RetryCount,
+            outbox.LastError,
+            outbox.CreatedAt,
+            outbox.UpdatedAt,
+            outbox.NextRetryAt);
 
     private static IQueryable<SyncOutbox> ApplySearchFilter(StationDbContext context, IQueryable<SyncOutbox> query, string? searchKeyword)
     {
@@ -799,6 +873,7 @@ public partial class SyncInfoViewModel : ObservableObject
 
 public sealed record SyncOutboxListItem(
     Guid OutboxId,
+    string StationCode,
     Guid AggregateId,
     string RawAggregateType,
     string AggregateType,

@@ -23,7 +23,7 @@
     <sys:String x:Key="Sync.LastFailure" xmlns:sys="clr-namespace:System;assembly=mscorlib">Sync l&#x1ED7;i g&#x1EA7;n nh&#x1EA5;t</sys:String>
     <sys:String x:Key="Sync.LastError" xmlns:sys="clr-namespace:System;assembly=mscorlib">L&#x1ED7;i &#x111;&#x1ED3;ng b&#x1ED9; g&#x1EA7;n nh&#x1EA5;t</sys:String>
     <sys:String x:Key="Sync.Refresh" xmlns:sys="clr-namespace:System;assembly=mscorlib">L&#xC0;M M&#x1EDA;I</sys:String>
-    <sys:String x:Key="Sync.Force" xmlns:sys="clr-namespace:System;assembly=mscorlib">&#x110;&#x1ED2;NG B&#x1ED8; NGAY</sys:String>
+    <sys:String x:Key="Sync.Force" xmlns:sys="clr-namespace:System;assembly=mscorlib">&#x110;&#x1ED2;NG B&#x1ED8; L&#x1EA0;I T&#x1EA4;T C&#x1EA2;</sys:String>
     <sys:String x:Key="Sync.LastMaster" xmlns:sys="clr-namespace:System;assembly=mscorlib">Sync cu&#x1ED1;i</sys:String>
     <sys:String x:Key="Sync.MasterError" xmlns:sys="clr-namespace:System;assembly=mscorlib">L&#x1ED7;i master data</sys:String>
     <sys:String x:Key="Sync.Reload" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#x1EA3;i l&#x1EA1;i</sys:String>

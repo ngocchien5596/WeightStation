@@ -7,7 +7,8 @@ public sealed record ExportSummaryReportFilter(
     DateTime ToTime,
     string? ProductCode,
     string? CustomerCode,
-    OutgoingFlowType FlowType = OutgoingFlowType.All
+    OutgoingFlowType FlowType = OutgoingFlowType.All,
+    bool PortTransferOnly = false
 );
 
 public sealed record ExportSummaryReportRow(
@@ -32,6 +33,7 @@ public sealed record ExportSummaryReportRow(
     decimal DifferenceTon,
     decimal? StandardKgPerBag,
     decimal? ActualKgPerBag,
+    decimal? KgPerBagRatio,
     string Status
 );
 

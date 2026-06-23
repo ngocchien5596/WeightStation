@@ -501,6 +501,7 @@
                         <DataGridTextColumn Header="TR&#x1EA0;NG TH&#xC1;I" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplayConverter}}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="PC" Binding="{Binding WeighTicketNo}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="105" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="GHI CHÚ" Binding="{Binding Note}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTemplateColumn Header="HOÀN" Width="75">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>

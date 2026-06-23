@@ -22,6 +22,7 @@ public static class SchemaCompatibilityBootstrapper
         new("TareWeightKg", "decimal(18,3) NULL"),
         new("BagWeightKg", "decimal(18,3) NULL"),
         new("IsExportScale", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_export_scale_bootstrap] DEFAULT ((0))"),
+        new("IsPortTransfer", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_port_transfer_bootstrap] DEFAULT ((0))"),
         new("ExportFinalizedWeight", "decimal(18,3) NULL"),
         new("ExportFinalizedAt", "datetime2 NULL"),
         new("ExportFinalizedBy", "nvarchar(100) NULL"),
@@ -128,6 +129,11 @@ public static class SchemaCompatibilityBootstrapper
     [
         new("StationCode", "nvarchar(50) NULL"),
         new("BagCountDisplay", "int NULL"),
+        new("SystemCalculatedBagCount", "int NULL"),
+        new("BagCountConfirmedAt", "datetime2 NULL"),
+        new("BagCountConfirmedBy", "nvarchar(100) NULL"),
+        new("BagCountConfirmationMode", "nvarchar(50) NULL"),
+        new("Note", "nvarchar(500) NULL"),
         new("IsReturnedBrokenTrip", "bit NOT NULL CONSTRAINT [DF_weighing_session_lines_is_returned_broken_trip_bootstrap] DEFAULT ((0))"),
         new("SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')"),
         new("LastSyncAttemptAt", "datetime2 NULL"),
@@ -571,6 +577,14 @@ BEGIN
         ON [cut_orders]([IsTemporaryExport], [IsExportScale], [ProcessingStage], [IsDeleted]);
     END
 
+    IF COL_LENGTH('cut_orders', 'IsPortTransfer') IS NOT NULL
+       AND COL_LENGTH('cut_orders', 'TransactionType') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_station_port_transfer' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_station_port_transfer]
+        ON [cut_orders]([StationCode], [IsPortTransfer], [TransactionType], [IsDeleted]);
+    END
+
     IF COL_LENGTH('cut_orders', 'MappedRealCutOrderId') IS NOT NULL
        AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_mapped_real' AND object_id = OBJECT_ID(N'[cut_orders]'))
     BEGIN
@@ -844,12 +858,25 @@ BEGIN
     SET [StationCode] = @StationCode
     WHERE [StationCode] IS NULL OR LTRIM(RTRIM([StationCode])) = N'';
 
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_station_port_transfer' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        DROP INDEX [IX_cut_orders_station_port_transfer] ON [cut_orders];
+    END
+
     ALTER TABLE [cut_orders] ALTER COLUMN [StationCode] nvarchar(50) NOT NULL;
 
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_station_stage_status' AND object_id = OBJECT_ID(N'[cut_orders]'))
     BEGIN
         CREATE INDEX [IX_cut_orders_station_stage_status]
         ON [cut_orders]([StationCode], [ProcessingStage], [CutOrderStatus], [IsDeleted]);
+    END
+
+    IF COL_LENGTH('cut_orders', 'IsPortTransfer') IS NOT NULL
+       AND COL_LENGTH('cut_orders', 'TransactionType') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_station_port_transfer' AND object_id = OBJECT_ID(N'[cut_orders]'))
+    BEGIN
+        CREATE INDEX [IX_cut_orders_station_port_transfer]
+        ON [cut_orders]([StationCode], [IsPortTransfer], [TransactionType], [IsDeleted]);
     END
 END
 

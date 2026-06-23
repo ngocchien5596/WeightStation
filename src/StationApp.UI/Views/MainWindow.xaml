@@ -140,7 +140,12 @@
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewExportSummaryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_ExportSummary">
-                                    <TextBlock Text="Báo cáo xuất" VerticalAlignment="Center"/>
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t - N&#x110;" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewExportScaleReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_ExportScale">
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t - XK" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewInboundSummaryReport, Converter={StaticResource BoolToVis}}"

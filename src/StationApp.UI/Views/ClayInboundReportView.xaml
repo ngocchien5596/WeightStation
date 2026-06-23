@@ -100,7 +100,12 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
-            <TextBlock Text="B&#xE1;o c&#xE1;o nh&#x1EAD;p (m&#x1ECF; s&#xE9;t)" Style="{StaticResource HeaderLabel}"/>
+            <TextBlock Text="BÁO CÁO NHẬP (MỎ SÉT)" 
+                       FontSize="18" 
+                       FontWeight="SemiBold" 
+                       Foreground="White" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"/>
         </Border>
 
         <Border Grid.Row="1" Margin="12,12,12,8" Padding="12" Background="{DynamicResource CardBrush}" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10">
@@ -167,11 +172,11 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
-                    <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="126" Margin="0,0,8,0">
-                        <TextBlock Text="XEM TR&#x1AF;&#x1EDA;C" FontWeight="SemiBold"/>
+                    <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
+                        <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>
-                    <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="126">
-                        <TextBlock Text="T&#x1EA2;I EXCEL" FontWeight="SemiBold"/>
+                    <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="64">
+                        <TextBlock Text="T&#x1EA2;I" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
             </Grid>

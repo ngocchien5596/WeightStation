@@ -20,6 +20,9 @@ using StationApp.Domain.Enums;
 using StationApp.UI.Helpers;
 using StationApp.UI.Resources;
 using StationApp.UI.Services;
+using StationApp.UI.ViewModels.Dialogs;
+using StationApp.Application.Printing;
+using StationApp.UI.Printing;
 
 namespace StationApp.UI.ViewModels;
 
@@ -31,6 +34,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
     private readonly IToastService _toastService;
     private readonly ICurrentUserContext _currentUserContext;
     private readonly ICurrentStationContext _currentStationContext;
+    private readonly IDialogService _dialogService;
     private readonly ILogger<ClayWeighingViewModel>? _logger;
     private readonly Dispatcher _uiDispatcher;
     private readonly DispatcherTimer _scaleUiTimer;
@@ -72,6 +76,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight2Command))]
     [NotifyCanExecuteChangedFor(nameof(SaveCrusherWeighingCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
     private CrusherWeighingSessionListItem? _selectedSession;
     [ObservableProperty] private string? _searchVehicle;
     [ObservableProperty] private string? _searchSessionNo;
@@ -167,6 +172,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         IToastService toastService,
         ICurrentUserContext currentUserContext,
         ICurrentStationContext currentStationContext,
+        IDialogService dialogService,
         ILogger<ClayWeighingViewModel>? logger = null)
     {
         _scopeFactory = scopeFactory;
@@ -175,6 +181,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         _toastService = toastService;
         _currentUserContext = currentUserContext;
         _currentStationContext = currentStationContext;
+        _dialogService = dialogService;
         _logger = logger;
         _uiDispatcher = Dispatcher.CurrentDispatcher;
         _scaleDevice.WeightReceived += OnWeightReceived;
@@ -895,6 +902,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
             TakeCrusherWeight1Command.NotifyCanExecuteChanged();
             TakeCrusherWeight2Command.NotifyCanExecuteChanged();
             SaveCrusherWeighingCommand.NotifyCanExecuteChanged();
+            PrintWeighTicketCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -906,6 +914,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         TakeCrusherWeight1Command.NotifyCanExecuteChanged();
         TakeCrusherWeight2Command.NotifyCanExecuteChanged();
         SaveCrusherWeighingCommand.NotifyCanExecuteChanged();
+        PrintWeighTicketCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedDriverNameChanged(string? value)
@@ -1629,6 +1638,147 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         StabilityBrush = isStable
             ? new SolidColorBrush(Color.FromRgb(46, 213, 115))
             : new SolidColorBrush(Colors.Orange);
+    }
+
+    public bool CanPrintWeighTicket => SelectedSession != null && SelectedSession.NetWeight.HasValue && SelectedSession.NetWeight.Value > 0;
+
+    [RelayCommand(CanExecute = nameof(CanPrintWeighTicket))]
+    private async Task PrintWeighTicketAsync()
+    {
+        await ExecutePrintFlowAsync();
+    }
+
+    private async Task ExecutePrintFlowAsync()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            using var scope = _scopeFactory.CreateScope();
+            
+            var templateProvider = scope.ServiceProvider.GetRequiredService<IPrintTemplateProvider>();
+            var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
+            var printService = scope.ServiceProvider.GetRequiredService<IPrintService>();
+            var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+            var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
+            var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+            
+            var mockCutOrder = new CutOrder
+            {
+                Id = Guid.NewGuid(),
+                VehiclePlate = SelectedSession.VehiclePlate,
+                CustomerName = SelectedSession.CustomerName,
+                ProductName = SelectedSession.ProductName,
+                IsExportScale = false
+            };
+            
+            var mockTicket = new WeighTicket
+            {
+                Id = SelectedSession.SessionId,
+                TicketNo = SelectedSession.SessionNo,
+                VehiclePlate = SelectedSession.VehiclePlate,
+                TransactionType = TransactionType.INBOUND,
+                Weight1 = SelectedSession.Weight1 ?? 0m,
+                Weight2 = SelectedSession.Weight2 ?? 0m,
+                NetWeight = SelectedSession.NetWeight ?? 0m,
+                CustomerName = SelectedSession.CustomerName,
+                ProductName = SelectedSession.ProductName,
+                Weight1Time = SelectedSession.Weight1Time ?? clock.NowLocal,
+                Weight2Time = SelectedSession.Weight2Time ?? clock.NowLocal,
+                RecordRole = WeighTicketRecordRoles.MasterSession
+            };
+
+            var composer = scope.ServiceProvider.GetRequiredService<IWeighTicketPrintComposer>();
+            var printedAtLocal = clock.NowLocal;
+            
+            var page = composer.Compose(
+                mockCutOrder,
+                mockTicket,
+                actualBagCount: null,
+                isReturnedBrokenTrip: false,
+                vehicle: null,
+                printedAtLocal: printedAtLocal,
+                printedByDisplayName: _currentUserContext.DisplayName);
+            
+            var stationName = _currentStationContext.StationName;
+            if (!string.IsNullOrWhiteSpace(stationName))
+            {
+                var fieldsList = new List<PrintFieldValue>(page.Fields);
+                fieldsList.RemoveAll(x => string.Equals(x.FieldKey, "StaticFooterLeft", StringComparison.OrdinalIgnoreCase));
+                fieldsList.Add(new PrintFieldValue("StaticFooterLeft", $"XMCP c\u00e2n 120 t\u1ea5n - {stationName}"));
+                
+                page = new WeighTicketPrintModel
+                {
+                    DocumentId = page.DocumentId,
+                    DisplayNumber = page.DisplayNumber,
+                    TicketNo = page.TicketNo,
+                    VehiclePlate = page.VehiclePlate,
+                    MoocNumber = page.MoocNumber,
+                    NetWeight = page.NetWeight,
+                    PreviewGroupKey = page.PreviewGroupKey,
+                    PreviewGroupName = page.PreviewGroupName,
+                    Fields = fieldsList
+                };
+            }
+
+            var preview = new PrintBatchPreviewModel
+            {
+                Kind = PrintDocumentKind.WeighTicket,
+                Title = UiText.Weighing.PrintPreviewWeighMaster,
+                Pages = new List<PrintPreviewPageModel> { page }
+            };
+
+            var template = await templateProvider.GetTemplateAsync(PrintDocumentKind.WeighTicket, CancellationToken.None);
+            var profiles = await templateProvider.GetProfilesAsync(PrintDocumentKind.WeighTicket, CancellationToken.None);
+            
+            var printerKey = AppConfigKeys.DefaultWeighTicketPrinter;
+            var preferredPrinter = await appConfig.GetValueAsync(printerKey, CancellationToken.None);
+            var printers = PrinterSelectionHelper.ApplyPreferredPrinter(
+                printerDiscovery.GetInstalledPrinters(),
+                preferredPrinter);
+
+            var dialogVm = new PrintOptionsDialogViewModel(
+                UiText.Weighing.PrintDialogWeighTicket,
+                template,
+                preview,
+                profiles,
+                printers,
+                renderer,
+                templateProvider,
+                false,
+                1,
+                editablePrintDataContext: null);
+
+            var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
+            if (printOptions == null)
+            {
+                return;
+            }
+
+            var batchToPrint = dialogVm.CurrentBatch;
+            var result = await printService.PrintAsync(template, batchToPrint, printOptions, CancellationToken.None);
+            
+            if (result.HasFailures)
+            {
+                _toastService.ShowError(string.Format(UiText.Weighing.PrintErrorFormat, "phiếu cân"));
+                return;
+            }
+
+            _toastService.ShowSuccess(string.Format(UiText.Weighing.PrintSuccessFormat, "phiếu cân"));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Clay print flow failed");
+            _toastService.ShowError(string.Format(UiText.Weighing.PrintErrorFormat, "phiếu cân"));
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     public void Dispose()

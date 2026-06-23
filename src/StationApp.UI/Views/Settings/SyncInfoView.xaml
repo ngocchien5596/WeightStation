@@ -77,7 +77,8 @@
                 </Button>
 
                 <Button Command="{Binding ForceSyncCommand}"
-                        Style="{StaticResource WorkflowButtonStyle}">
+                        Style="{StaticResource WorkflowButtonStyle}"
+                        ToolTip="&#x110;&#x01B0;a t&#x1EA5;t c&#x1EA3; ch&#x1EE9;ng t&#x1EEB; ch&#x01B0;a sync th&#xE0;nh c&#xF4;ng v&#xE0;o h&#xE0;ng &#x111;&#x1EE3;i &#x111;&#x1ED3;ng b&#x1ED9; l&#x1EA1;i, bao g&#x1ED3;m FAILED_FINAL.">
                     <TextBlock Text="{StaticResource Sync.Force}" VerticalAlignment="Center"/>
                 </Button>
             </StackPanel>

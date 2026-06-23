@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Serilog;
 using Serilog.Events;
 using StationApp.CentralApi.Authentication;
@@ -245,6 +246,26 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
         """);
 
     await EnsureColumnAsync(db, "cut_orders", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_cut_orders_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "cut_orders", "WeighingSessionId", "uniqueidentifier NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ProductType", "nvarchar(30) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "OrderCode", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "LotNo", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "RepresentativeName", "nvarchar(150) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "Market", "nvarchar(255) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ConsumptionPlace", "nvarchar(255) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "LoadingPlace", "nvarchar(255) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "SealNo", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "CarryForwardWeight1", "decimal(18,3) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "CarryForwardWeight1Time", "datetime2 NULL");
+    await EnsureColumnAsync(db, "cut_orders", "TareWeightKg", "decimal(18,3) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "BagWeightKg", "decimal(18,3) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "IsExportScale", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_export_scale_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "cut_orders", "IsPortTransfer", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_port_transfer_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "cut_orders", "ExportFinalizedWeight", "decimal(18,3) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ExportFinalizedAt", "datetime2 NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ExportFinalizedBy", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ExportStartedAt", "datetime2 NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ExportStartedBy", "nvarchar(100) NULL");
     await EnsureColumnAsync(db, "cut_orders", "ErpExportCompleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_erp_export_completed_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "cut_orders", "IsTemporaryExport", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_temporary_export_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "cut_orders", "MappedRealCutOrderId", "uniqueidentifier NULL");
@@ -254,6 +275,10 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "cut_orders", "TemporaryExportSourceErpCutOrderId", "nvarchar(100) NULL");
     await EnsureColumnAsync(db, "cut_orders", "MappedAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "cut_orders", "MappedBy", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "ErpRegistrationCode", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "IsDeleted", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_deleted_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "cut_orders", "DeletedAt", "datetime2 NULL");
+    await EnsureColumnAsync(db, "cut_orders", "DeletedBy", "nvarchar(100) NULL");
 
     await EnsureDeliveryTicketSyncStatusSchemaAsync(db);
     await EnsureStationMasterSchemaAsync(db);
@@ -289,6 +314,13 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "weighing_sessions", "CustomerName", "nvarchar(255) NULL");
 
     await EnsureColumnAsync(db, "weighing_session_lines", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_weighing_session_lines_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "weighing_session_lines", "BagCountDisplay", "int NULL");
+    await EnsureColumnAsync(db, "weighing_session_lines", "SystemCalculatedBagCount", "int NULL");
+    await EnsureColumnAsync(db, "weighing_session_lines", "BagCountConfirmedAt", "datetime2 NULL");
+    await EnsureColumnAsync(db, "weighing_session_lines", "BagCountConfirmedBy", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "weighing_session_lines", "BagCountConfirmationMode", "nvarchar(50) NULL");
+    await EnsureColumnAsync(db, "weighing_session_lines", "Note", "nvarchar(500) NULL");
+    await EnsureColumnAsync(db, "weighing_session_lines", "IsReturnedBrokenTrip", "bit NOT NULL CONSTRAINT [DF_weighing_session_lines_is_returned_broken_trip_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "weighing_session_lines", "SyncStatus", "nvarchar(30) NOT NULL CONSTRAINT [DF_weighing_session_lines_sync_status_bootstrap] DEFAULT (N'SYNC_QUEUED')");
     await EnsureColumnAsync(db, "weighing_session_lines", "LastSyncAttemptAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "weighing_session_lines", "LastSyncError", "nvarchar(1000) NULL");
@@ -354,8 +386,20 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
         BEGIN
             CREATE UNIQUE INDEX [UX_products_station_code] ON [products]([StationCode], [ProductCode]);
         END
+
+        -- 4. cut_orders Port Transfer filter index
+        IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL
+           AND COL_LENGTH('cut_orders', 'IsPortTransfer') IS NOT NULL
+           AND COL_LENGTH('cut_orders', 'TransactionType') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_cut_orders_station_port_transfer' AND object_id = OBJECT_ID(N'[cut_orders]'))
+        BEGIN
+            CREATE INDEX [IX_cut_orders_station_port_transfer]
+            ON [cut_orders]([StationCode], [IsPortTransfer], [TransactionType], [IsDeleted]);
+        END
         """;
     await db.Database.ExecuteSqlRawAsync(masterIndexesSql);
+
+    await EnsureMappedModelColumnsAsync(db);
 }
 
 static Task EnsureColumnAsync(CentralSyncDbContext db, string tableName, string columnName, string sqlDefinition)
@@ -368,6 +412,124 @@ static Task EnsureColumnAsync(CentralSyncDbContext db, string tableName, string 
     """;
 
     return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static async Task EnsureMappedModelColumnsAsync(CentralSyncDbContext db)
+{
+    var ensuredColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var entityType in db.Model.GetEntityTypes())
+    {
+        var tableName = entityType.GetTableName();
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            continue;
+        }
+
+        var schema = entityType.GetSchema();
+        var storeObject = StoreObjectIdentifier.Table(tableName, schema);
+
+        foreach (var property in entityType.GetProperties())
+        {
+            var columnName = property.GetColumnName(storeObject);
+            if (string.IsNullOrWhiteSpace(columnName))
+            {
+                continue;
+            }
+
+            var key = $"{schema ?? "dbo"}.{tableName}.{columnName}";
+            if (!ensuredColumns.Add(key))
+            {
+                continue;
+            }
+
+            var columnDefinition = BuildColumnDefinition(property);
+            await EnsureColumnAsync(db, tableName, columnName, columnDefinition);
+        }
+    }
+}
+
+static string BuildColumnDefinition(IProperty property)
+{
+    var storeType = property.GetColumnType();
+    if (string.IsNullOrWhiteSpace(storeType))
+    {
+        storeType = property.GetRelationalTypeMapping().StoreType;
+    }
+
+    if (property.IsNullable)
+    {
+        return $"{storeType} NULL";
+    }
+
+    var configuredDefault = BuildConfiguredDefaultSql(property);
+    if (!string.IsNullOrWhiteSpace(configuredDefault))
+    {
+        return $"{storeType} NOT NULL DEFAULT {configuredDefault}";
+    }
+
+    return $"{storeType} NOT NULL DEFAULT {BuildSafeDefaultSql(property)}";
+}
+
+static string? BuildConfiguredDefaultSql(IProperty property)
+{
+    var defaultValueSql = property.GetDefaultValueSql();
+    if (!string.IsNullOrWhiteSpace(defaultValueSql))
+    {
+        return $"({defaultValueSql})";
+    }
+
+    var defaultValue = property.GetDefaultValue();
+    return defaultValue is null ? null : BuildLiteralSql(defaultValue);
+}
+
+static string BuildSafeDefaultSql(IProperty property)
+{
+    var clrType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+
+    if (clrType == typeof(bool))
+    {
+        return "((0))";
+    }
+
+    if (clrType == typeof(Guid))
+    {
+        return "('00000000-0000-0000-0000-000000000000')";
+    }
+
+    if (clrType == typeof(DateTime) || clrType == typeof(DateTimeOffset))
+    {
+        return "(sysutcdatetime())";
+    }
+
+    if (clrType == typeof(string) || clrType.IsEnum)
+    {
+        return "(N'')";
+    }
+
+    if (clrType == typeof(byte[])
+        || clrType == typeof(ReadOnlyMemory<byte>)
+        || clrType == typeof(Memory<byte>))
+    {
+        return "(0x)";
+    }
+
+    return "((0))";
+}
+
+static string BuildLiteralSql(object value)
+{
+    return value switch
+    {
+        bool boolValue => boolValue ? "((1))" : "((0))",
+        string stringValue => $"(N'{stringValue.Replace("'", "''")}')",
+        Guid guidValue => $"('{guidValue}')",
+        DateTime dateTimeValue => $"('{dateTimeValue:O}')",
+        DateTimeOffset dateTimeOffsetValue => $"('{dateTimeOffsetValue:O}')",
+        Enum enumValue => $"(N'{enumValue}')",
+        byte[] bytes => $"(0x{Convert.ToHexString(bytes)})",
+        _ => $"({Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "0"})"
+    };
 }
 
 static Task EnsureDeliveryTicketSyncStatusSchemaAsync(CentralSyncDbContext db)

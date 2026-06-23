@@ -325,10 +325,40 @@ public class ExportScaleUseCasesTests
     }
 
     [Fact]
-    public async Task CreateTemporaryExportCutOrder_RejectsNonPositiveBagWeight()
+    public async Task CreateTemporaryExportCutOrder_AcceptsZeroBagWeight()
     {
         _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(Arg.Any<CancellationToken>())
             .Returns("XK-TAM-0007");
+        _customerRepo.GetByCodeAsync("C001", Arg.Any<CancellationToken>()).Returns((Customer?)null);
+        _productRepo.GetByCodeAsync("P001", Arg.Any<CancellationToken>()).Returns((Product?)null);
+
+        var sut = CreateTemporaryExportCutOrderUseCase();
+
+        var cutOrderId = await sut.ExecuteAsync(
+            new CreateTemporaryExportCutOrderRequest(
+                CustomerCode: "C001",
+                CustomerName: "Cong ty A",
+                ProductCode: "P001",
+                ProductName: "Xi mang bao",
+                ProductType: ProductTypes.Bagged,
+                PlannedWeight: 4550m,
+                TareWeightKg: 1000m,
+                BagWeightKg: 0m),
+            CancellationToken.None);
+
+        await _cutOrderRepo.Received(1).AddAsync(
+            Arg.Is<CutOrder>(x =>
+                x.Id == cutOrderId
+                && x.BagWeightKg == 0m
+                && x.BagCount == 0),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateTemporaryExportCutOrder_RejectsNegativeBagWeight()
+    {
+        _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(Arg.Any<CancellationToken>())
+            .Returns("XK-TAM-0007-Neg");
 
         var sut = CreateTemporaryExportCutOrderUseCase();
 
@@ -341,10 +371,10 @@ public class ExportScaleUseCasesTests
                     ProductName: "Xi mang bao",
                     PlannedWeight: 4550m,
                     TareWeightKg: 1000m,
-                    BagWeightKg: 0m),
+                    BagWeightKg: -1m),
                 CancellationToken.None));
 
-        Assert.Equal("Trọng lượng bao (kg) phải lớn hơn 0.", ex.Message);
+        Assert.Equal("Trọng lượng bao (kg) phải lớn hơn hoặc bằng 0.", ex.Message);
     }
 
     [Fact]

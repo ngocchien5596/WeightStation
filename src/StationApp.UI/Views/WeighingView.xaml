@@ -133,6 +133,13 @@
                               HorizontalAlignment="Left"
                               Margin="4,0,0,0"
                               Content="{StaticResource Weighing.Action.NoLoad}"/>
+                    <CheckBox Grid.Row="7" Grid.Column="3"
+                              IsChecked="{Binding IsPortTransferMarked, Mode=TwoWay}"
+                              IsEnabled="{Binding CanTogglePortTransfer}"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Left"
+                              Margin="4,0,0,0"
+                              Content="CHUY&#x1EC0;N T&#x1EA2;I"/>
                 </Grid>
             </Border>
 

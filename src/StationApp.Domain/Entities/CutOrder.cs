@@ -52,6 +52,7 @@ public class CutOrder
     public decimal? CarryForwardWeight1 { get; set; }
     public DateTime? CarryForwardWeight1Time { get; set; }
     public bool IsExportScale { get; set; }
+    public bool IsPortTransfer { get; set; }
     public decimal? ExportFinalizedWeight { get; set; }
     public DateTime? ExportFinalizedAt { get; set; }
     public string? ExportFinalizedBy { get; set; }

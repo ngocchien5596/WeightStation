@@ -60,73 +60,76 @@
                 <ColumnDefinition Width="360"/>
             </Grid.ColumnDefinitions>
 
-            <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="120"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="30"/>
-                        <RowDefinition Height="30"/>
-                        <RowDefinition Height="30"/>
-                        <RowDefinition Height="30"/>
-                    </Grid.RowDefinitions>
+            <StackPanel Grid.Column="0">
+                <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="30"/>
+                        </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Style="{StaticResource FormLabel}"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1"
-                              ItemsSource="{Binding WeighingModeOptions}"
-                              SelectedValue="{Binding SelectedWeighingMode, Mode=TwoWay}"
-                              SelectedValuePath="Value"
-                              IsEnabled="{Binding CanEditCrusherInfoForm}"
-                              Style="{StaticResource StandardComboBoxStyle}"
-                              Margin="0,2"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Style="{StaticResource FormLabel}"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1"
+                                  ItemsSource="{Binding WeighingModeOptions}"
+                                  SelectedValue="{Binding SelectedWeighingMode, Mode=TwoWay}"
+                                  SelectedValuePath="Value"
+                                  IsEnabled="{Binding CanEditCrusherInfoForm}"
+                                  Style="{StaticResource StandardComboBoxStyle}"
+                                  Margin="0,2"/>
 
-                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Xe n&#x1ED9;i b&#x1ED9;" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
-                                                  State="{Binding InternalVehiclePlateInput}"
-                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                  TextBoxStyle="{StaticResource FormBox}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Xe n&#x1ED9;i b&#x1ED9;" Style="{StaticResource FormLabel}"/>
+                        <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
+                                                      State="{Binding InternalVehiclePlateInput}"
+                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                      TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="T&#x00E0;i x&#x1EBF;" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="1" Grid.Column="1"
-                             Text="{Binding SelectedDriverName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
-                             Style="{StaticResource FormBox}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="T&#x00E0;i x&#x1EBF;" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1"
+                                 Text="{Binding SelectedDriverName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
+                                 Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="TL xe chu&#x1EA9;n (kg)" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="1" Grid.Column="3"
-                             Text="{Binding StandardTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
-                             Style="{StaticResource FormBox}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="TL xe chu&#x1EA9;n (kg)" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="1" Grid.Column="3"
+                                 Text="{Binding StandardTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
+                                 Style="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="M&#x00E3; SP" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="1"
-                                                  State="{Binding ProductCodeInput}"
-                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                  TextBoxStyle="{StaticResource FormBox}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="M&#x00E3; SP" Style="{StaticResource FormLabel}"/>
+                        <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="1"
+                                                      State="{Binding ProductCodeInput}"
+                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                      TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="2" Text="S&#x1EA3;n ph&#x1EA9;m" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="3"
-                                                  State="{Binding ProductNameInput}"
-                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                  TextBoxStyle="{StaticResource FormBox}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="S&#x1EA3;n ph&#x1EA9;m" Style="{StaticResource FormLabel}"/>
+                        <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="3"
+                                                      State="{Binding ProductNameInput}"
+                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                      TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="M&#x00E3; KH" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="1"
-                                                  State="{Binding CustomerCodeInput}"
-                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                  TextBoxStyle="{StaticResource FormBox}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="M&#x00E3; KH" Style="{StaticResource FormLabel}"/>
+                        <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="1"
+                                                      State="{Binding CustomerCodeInput}"
+                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                      TextBoxStyle="{StaticResource FormBox}"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="2" Text="Kh&#x00E1;ch h&#x00E0;ng" Style="{StaticResource FormLabel}"/>
-                    <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="3"
-                                                  State="{Binding CustomerNameInput}"
-                                                  IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                  TextBoxStyle="{StaticResource FormBox}"/>
-                </Grid>
-            </Border>
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="Kh&#x00E1;ch h&#x00E0;ng" Style="{StaticResource FormLabel}"/>
+                        <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="3"
+                                                      State="{Binding CustomerNameInput}"
+                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
+                                                      TextBoxStyle="{StaticResource FormBox}"/>
+                    </Grid>
+                </Border>
+                <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Margin="0,8,0,0" HorizontalAlignment="Left" Width="120"/>
+            </StackPanel>
 
             <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="10">
                 <Grid>

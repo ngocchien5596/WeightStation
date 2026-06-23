@@ -126,10 +126,7 @@
                         </TextBlock>
                     </Grid>
 
-                    <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="TL bao (kg)" FontWeight="SemiBold" Foreground="#334155"/>
-                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
-                    </StackPanel>
+                    <TextBlock Grid.Row="3" Grid.Column="2" Text="TL bao (kg)" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="3" Grid.Column="3" Margin="0,3,0,3" Text="{Binding BagWeightKgInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
 
                     <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4"

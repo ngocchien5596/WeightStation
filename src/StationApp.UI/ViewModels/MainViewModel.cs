@@ -56,8 +56,9 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewClayWeighing => StationFeatures.ShowMenuClayWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportWeighing => StationFeatures.ShowMenuExportWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationFeatures.ShowMenuOutgoingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport;
+    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport;
     public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewExportScaleReport => CanViewExportSummaryReport;
     public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
@@ -301,6 +302,14 @@ public partial class MainViewModel : ObservableObject
                         destination,
                         navigationVersion);
                     break;
+                case "Reports_ExportScale":
+                    var exportScaleVm = _serviceProvider.GetRequiredService<ExportScaleReportViewModel>();
+                    CurrentView = new ExportScaleReportView { DataContext = exportScaleVm };
+                    _ = RunViewInitializationAsync(
+                        () => exportScaleVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
                 case "Reports_InboundSummary":
                     var inboundSummaryVm = _serviceProvider.GetRequiredService<InboundSummaryReportViewModel>();
                     CurrentView = new InboundSummaryReportView { DataContext = inboundSummaryVm };
@@ -431,6 +440,7 @@ public partial class MainViewModel : ObservableObject
             "ExportWeighing" => CanViewExportWeighing,
             "OutgoingVehicles" => CanViewOutgoingVehicles,
             "Reports_ExportSummary" => CanViewExportSummaryReport,
+            "Reports_ExportScale" => CanViewExportScaleReport,
             "Reports_InboundSummary" => CanViewInboundSummaryReport,
             "Reports_CrusherInbound" => CanViewCrusherInboundReport,
             "Reports_ClayInbound" => CanViewClayInboundReport,
@@ -583,6 +593,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewOutgoingVehicles));
         OnPropertyChanged(nameof(CanViewReportsMenu));
         OnPropertyChanged(nameof(CanViewExportSummaryReport));
+        OnPropertyChanged(nameof(CanViewExportScaleReport));
         OnPropertyChanged(nameof(CanViewInboundSummaryReport));
         OnPropertyChanged(nameof(CanViewCrusherInboundReport));
         OnPropertyChanged(nameof(CanViewClayInboundReport));

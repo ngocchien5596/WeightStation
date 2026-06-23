@@ -429,6 +429,8 @@ public sealed record OutgoingVehicleListItem(
     bool UseActualWeightForBaggedCutOrders,
     bool ErpExportCompleted,
     bool IsNoLoad,
+    bool IsExportScale,
+    bool IsPortTransfer,
     bool HighlightAsSplitOverweight
 );
 
@@ -505,7 +507,8 @@ public sealed record ExportVehicleTripListItem(
     string? WeighTicketNo,
     string? DeliveryNo,
     bool HasPrintedWeighTicket,
-    bool HasPrintedDeliveryTicket)
+    bool HasPrintedDeliveryTicket,
+    string? Note = null)
 {
     public bool IsReturnedBrokenTrip { get; set; }
     public bool CanToggleReturnedBrokenTrip { get; set; }
@@ -628,7 +631,11 @@ public sealed record CaptureSessionWeightRequest(
     decimal Weight,
     bool IsStable,
     WeightMode Mode,
-    bool BypassTolerance = false
+    bool BypassTolerance = false,
+    int? ConfirmedBagCount = null,
+    int? SystemCalculatedBagCount = null,
+    bool IsReturnedBrokenTrip = false,
+    string? Note = null
 );
 
 public sealed record AllocateWeighingSessionLineRequest(
@@ -670,6 +677,7 @@ public sealed record WeighingSessionListItem(
     bool HasPrintedMasterWeighTicket,
     bool UseActualWeightForBaggedCutOrders,
     bool IsNoLoad,
+    bool IsPortTransfer,
     bool AllDeliveryTicketsPrinted,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
@@ -725,7 +733,8 @@ public sealed record WeighingSessionLineItem(
     WeighingSessionLineStatus LineStatus,
     bool HasPrintedDeliveryTicket,
     string? ProductType = null,
-    string? Notes = null
+    string? Notes = null,
+    bool IsPortTransfer = false
 );
 
 public sealed record OverweightSplitPreviewGroupItem(

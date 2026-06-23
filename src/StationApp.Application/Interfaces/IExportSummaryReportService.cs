@@ -9,7 +9,15 @@ public interface IExportSummaryReportService
         string preparedByDisplayName,
         CancellationToken ct);
 
+    Task<ExportScaleSummaryReportDocument> BuildExportScaleReportAsync(
+        Guid cutOrderId,
+        DateTime? targetDateForShiftReport,
+        string preparedByDisplayName,
+        CancellationToken ct);
+
     Task<IReadOnlyList<ReportLookupOptionDto>> GetProductOptionsAsync(CancellationToken ct);
 
     Task<IReadOnlyList<ReportLookupOptionDto>> GetCustomerOptionsAsync(CancellationToken ct);
+
+    Task<IReadOnlyList<ReportLookupOptionDto>> GetExportScaleCutOrderOptionsAsync(CancellationToken ct);
 }

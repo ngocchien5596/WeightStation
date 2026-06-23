@@ -607,16 +607,15 @@ public class CutOrderRepository : ICutOrderRepository
             var end = start.AddDays(1);
             query = query.Where(x =>
                 x.Session != null
-                    ? ((x.Session.Weight2Time ?? x.Session.Weight1Time ?? x.Session.CreatedAt) >= start
-                        && (x.Session.Weight2Time ?? x.Session.Weight1Time ?? x.Session.CreatedAt) < end)
-                    : ((x.Registration.UpdatedAt ?? x.Registration.CreatedAt) >= start
-                        && (x.Registration.UpdatedAt ?? x.Registration.CreatedAt) < end));
+                && x.Session.Weight2Time.HasValue
+                && x.Session.Weight2Time.Value >= start
+                && x.Session.Weight2Time.Value < end);
         }
 
         var registrations = await query
             .OrderByDescending(x => x.Session != null
-                ? (x.Session.Weight2Time ?? x.Session.Weight1Time ?? x.Session.CreatedAt)
-                : (x.Registration.UpdatedAt ?? x.Registration.CreatedAt))
+                ? (x.Session.Weight2Time ?? DateTime.MinValue)
+                : DateTime.MinValue)
             .Take(200)
             .ToListAsync(ct);
 
@@ -681,6 +680,10 @@ public class CutOrderRepository : ICutOrderRepository
                 && productTypeLookup.TryGetValue(vr.ProductCode.Trim(), out var fallbackProductType))
             {
                 resolvedProductType = ProductTypes.Normalize(fallbackProductType);
+            }
+            if (resolvedProductType == null && vr.BagWeightKg.HasValue && vr.BagWeightKg.Value > 0m)
+            {
+                resolvedProductType = ProductTypes.Bagged;
             }
 
             var isBagged = string.Equals(resolvedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
@@ -771,6 +774,8 @@ public class CutOrderRepository : ICutOrderRepository
                 session?.UseActualWeightForBaggedCutOrders == true,
                 vr.ErpExportCompleted,
                 isNoLoad,
+                vr.IsExportScale,
+                vr.IsPortTransfer,
                 hasSplitOverweight
             );
         }).ToList();
@@ -858,7 +863,7 @@ public class CutOrderRepository : ICutOrderRepository
         }
 
         var rows = await query
-            .OrderByDescending(x => x.Session.Weight2Time ?? x.Session.UpdatedAt ?? x.Session.CreatedAt)
+            .OrderByDescending(x => x.Session.Weight2Time ?? DateTime.MinValue)
             .Take(200)
             .ToListAsync(ct);
 
@@ -869,8 +874,9 @@ public class CutOrderRepository : ICutOrderRepository
             rows = rows
                 .Where(x =>
                 {
-                    var completedAt = x.Session.Weight2Time ?? x.Session.UpdatedAt ?? x.Session.CreatedAt;
-                    return completedAt >= start && completedAt < end;
+                    return x.Session.Weight2Time.HasValue
+                        && x.Session.Weight2Time.Value >= start
+                        && x.Session.Weight2Time.Value < end;
                 })
                 .ToList();
         }
@@ -911,6 +917,10 @@ public class CutOrderRepository : ICutOrderRepository
             {
                 resolvedProductType = ProductTypes.Normalize(fallbackProductType);
             }
+            if (resolvedProductType == null && vr.BagWeightKg.HasValue && vr.BagWeightKg.Value > 0m)
+            {
+                resolvedProductType = ProductTypes.Bagged;
+            }
 
             var isBagged = string.Equals(resolvedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
             var weighTicket = weighTickets
@@ -922,7 +932,7 @@ public class CutOrderRepository : ICutOrderRepository
                 .Where(dt => dt.WeighingSessionId == session.Id && dt.WeighingSessionLineId == line.Id)
                 .OrderByDescending(dt => dt.UpdatedAt ?? dt.CreatedAt)
                 .FirstOrDefault();
-            var completedAt = session.Weight2Time ?? session.UpdatedAt ?? session.CreatedAt;
+            var completedAt = session.Weight2Time;
             var actualWeightKg = deliveryTicket?.AllocatedWeight
                 ?? line.ActualAllocatedWeight
                 ?? session.NetWeight;
@@ -949,7 +959,7 @@ public class CutOrderRepository : ICutOrderRepository
                 isBagged ? (deliveryTicket?.AllocatedBagCount ?? line.ActualAllocatedBagCount) : null,
                 session.NetWeight,
                 isBagged ? line.ActualAllocatedBagCount : null,
-                weighTicket?.Weight2Time ?? session.Weight2Time ?? session.Weight1Time,
+                weighTicket?.Weight2Time ?? session.Weight2Time,
                 weighTicket?.Weight2User ?? weighTicket?.Weight1User,
                 weighTicket is null ? null : BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo),
                 deliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
@@ -959,20 +969,15 @@ public class CutOrderRepository : ICutOrderRepository
                 session.UseActualWeightForBaggedCutOrders,
                 vr.ErpExportCompleted,
                 session.IsNoLoad,
+                vr.IsExportScale,
+                vr.IsPortTransfer,
                 false);
         }).ToList().AsReadOnly();
     }
 
-    private static DateTime ResolveOutgoingCompletedAt(CutOrder registration, WeighingSession? session)
+    private static DateTime? ResolveOutgoingCompletedAt(CutOrder registration, WeighingSession? session)
     {
-        if (session != null)
-        {
-            return session.Weight2Time
-                ?? session.Weight1Time
-                ?? session.CreatedAt;
-        }
-
-        return registration.UpdatedAt ?? NormalizeCreatedAtForDisplay(registration.CutOrderSource, registration.CreatedAt);
+        return session?.Weight2Time;
     }
 
     public async Task<IReadOnlyList<ExportScaleCutOrderListItem>> GetActiveExportScaleCutOrdersAsync(ExportScaleCutOrderFilter filter, CancellationToken ct)
@@ -1361,7 +1366,8 @@ public class CutOrderRepository : ICutOrderRepository
                 weighTicket is null ? null : BusinessNumberFormatter.ToDisplay(weighTicket.TicketNo),
                 deliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
                 weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
-                deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket)
+                deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket,
+                line.Note)
             {
                 IsReturnedBrokenTrip = line.IsReturnedBrokenTrip,
                 CanToggleReturnedBrokenTrip =
@@ -1510,5 +1516,3 @@ public class CutOrderRepository : ICutOrderRepository
         return list.AsReadOnly();
     }
 }
-
-

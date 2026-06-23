@@ -110,8 +110,17 @@ public sealed partial class CreateTemporaryExportCutOrderDialogViewModel : Obser
         var productCode = NormalizeRequired(ProductCode, "Mã sản phẩm");
         var productName = NormalizeRequired(ProductName, "S\u1ea3n ph\u1ea9m");
         var plannedWeightTons = ParseRequiredDecimal(PlannedWeightTonsInput, "Số lượng đặt (tấn)", mustBePositive: true);
-        var tareWeightKg = ParseRequiredDecimal(TareWeightKgInput, "Tr\u1ecdng l\u01b0\u1ee3ng v\u1ecf (kg)", mustBePositive: false);
-        var bagWeightKg = ParseRequiredDecimal(BagWeightKgInput, "Tr\u1ecdng l\u01b0\u1ee3ng bao (kg)", mustBePositive: true);
+        var tareWeightKg = ParseRequiredDecimal(TareWeightKgInput, "Trọng lượng vỏ (kg)", mustBePositive: false);
+        
+        decimal? bagWeightKg;
+        if (string.IsNullOrWhiteSpace(BagWeightKgInput))
+        {
+            bagWeightKg = 0m;
+        }
+        else
+        {
+            bagWeightKg = ParseRequiredDecimal(BagWeightKgInput, "Trọng lượng bao (kg)", mustBePositive: false);
+        }
 
         if (customerCode == null
             || customerName == null
@@ -287,10 +296,23 @@ public sealed partial class CreateTemporaryExportCutOrderDialogViewModel : Obser
         FractionalBagWarningMessage = string.Empty;
 
         if (!TryParseDecimal(PlannedWeightTonsInput, out var plannedWeightTons)
-            || !TryParseDecimal(BagWeightKgInput, out var bagWeightKg)
-            || plannedWeightTons <= 0m
-            || bagWeightKg <= 0m)
+            || plannedWeightTons <= 0m)
         {
+            return;
+        }
+
+        decimal bagWeightKg = 0m;
+        if (!string.IsNullOrWhiteSpace(BagWeightKgInput))
+        {
+            if (!TryParseDecimal(BagWeightKgInput, out bagWeightKg) || bagWeightKg < 0m)
+            {
+                return;
+            }
+        }
+
+        if (bagWeightKg == 0m)
+        {
+            BagCountPreview = "0";
             return;
         }
 

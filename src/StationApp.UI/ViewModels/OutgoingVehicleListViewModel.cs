@@ -50,9 +50,12 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [ObservableProperty] private bool _isDetailsVisible;
     [ObservableProperty] private bool _isRelatedTicketsVisible;
     [ObservableProperty] private bool _useActualWeightForBaggedCutOrders;
+    [ObservableProperty] private bool _isPortTransferMarked;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _detailLines = new();
     [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
     private bool _isApplyingBaggedActualWeightOverrideState;
+    private bool _isApplyingPortTransferState;
+    private bool _isSuppressingFilterReload;
 
     public OutgoingVehicleListViewModel(
         IServiceScopeFactory scopeFactory,
@@ -68,20 +71,28 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         _clock = clock;
         _currentUserContext = currentUserContext;
         _logger = logger;
-        FlowTypeOptions =
-        [
-            new OutgoingFlowFilterOption("Tất cả", OutgoingFlowType.All),
-            new OutgoingFlowFilterOption("Nội địa", OutgoingFlowType.Domestic),
-            new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export),
-            new OutgoingFlowFilterOption("Nhập", OutgoingFlowType.Inbound)
-        ];
-        SelectedFlowType = FlowTypeOptions.FirstOrDefault();
-        SelectedCompletedDate = _clock.NowLocal.Date;
+        _isSuppressingFilterReload = true;
+        try
+        {
+            FlowTypeOptions =
+            [
+                new OutgoingFlowFilterOption("Tất cả", OutgoingFlowType.All),
+                new OutgoingFlowFilterOption("Nội địa", OutgoingFlowType.Domestic),
+                new OutgoingFlowFilterOption("Xuất khẩu", OutgoingFlowType.Export),
+                new OutgoingFlowFilterOption("Nhập", OutgoingFlowType.Inbound)
+            ];
+            SelectedFlowType = FlowTypeOptions.FirstOrDefault();
+            SelectedCompletedDate = _clock.NowLocal.Date;
+        }
+        finally
+        {
+            _isSuppressingFilterReload = false;
+        }
     }
 
     partial void OnSelectedCompletedDateChanged(DateTime? value)
     {
-        if (IsLoading)
+        if (IsLoading || _isSuppressingFilterReload)
         {
             return;
         }
@@ -91,7 +102,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
     partial void OnSelectedFlowTypeChanged(OutgoingFlowFilterOption? value)
     {
-        if (IsLoading)
+        if (IsLoading || _isSuppressingFilterReload)
         {
             return;
         }
@@ -111,6 +122,10 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         ShowBaggedActualWeightOverride
         && SelectedVehicle?.WeighingSessionId.HasValue == true
         && SelectedVehicle.PlannedBagCount.HasValue;
+    public bool CanTogglePortTransfer =>
+        SelectedVehicle != null
+        && SelectedVehicle.TransactionType == TransactionType.OUTBOUND
+        && !SelectedVehicle.IsExportScale;
 
     partial void OnSelectedVehicleChanged(OutgoingVehicleListItem? value)
     {
@@ -124,8 +139,19 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             _isApplyingBaggedActualWeightOverrideState = false;
         }
 
+        _isApplyingPortTransferState = true;
+        try
+        {
+            IsPortTransferMarked = value?.IsPortTransfer == true;
+        }
+        finally
+        {
+            _isApplyingPortTransferState = false;
+        }
+
         OnPropertyChanged(nameof(CanToggleBaggedActualWeightOverride));
         OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
+        OnPropertyChanged(nameof(CanTogglePortTransfer));
     }
 
     partial void OnUseActualWeightForBaggedCutOrdersChanged(bool value)
@@ -138,6 +164,16 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         _ = PersistBaggedActualWeightOverrideAsync(value);
     }
 
+    partial void OnIsPortTransferMarkedChanged(bool value)
+    {
+        if (_isApplyingPortTransferState || SelectedVehicle == null)
+        {
+            return;
+        }
+
+        _ = PersistPortTransferAsync(value);
+    }
+
     [RelayCommand]
     private async Task LoadVehiclesAsync()
     {
@@ -147,15 +183,24 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        SearchSessionNo = null;
-        SearchVehiclePlate = null;
-        SelectedFlowType = FlowTypeOptions.FirstOrDefault();
-        SelectedCompletedDate = _clock.NowLocal.Date;
-        IsDetailsVisible = false;
-        IsRelatedTicketsVisible = false;
-        DetailLines = new ObservableCollection<WeighingSessionLineRow>();
-        RelatedTickets = new ObservableCollection<RelatedDocumentListItem>();
-        SelectedVehicle = null;
+        _isSuppressingFilterReload = true;
+        try
+        {
+            SearchSessionNo = null;
+            SearchVehiclePlate = null;
+            SelectedFlowType = FlowTypeOptions.FirstOrDefault();
+            SelectedCompletedDate = _clock.NowLocal.Date;
+            IsDetailsVisible = false;
+            IsRelatedTicketsVisible = false;
+            DetailLines = new ObservableCollection<WeighingSessionLineRow>();
+            RelatedTickets = new ObservableCollection<RelatedDocumentListItem>();
+            SelectedVehicle = null;
+        }
+        finally
+        {
+            _isSuppressingFilterReload = false;
+        }
+
         await LoadVehiclesInternalAsync(false);
     }
 
@@ -164,6 +209,14 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         IsLoading = true;
         try
         {
+            _logger?.LogInformation(
+                "OutgoingVehicleList.LoadStarted completedDate={CompletedDate:yyyy-MM-dd} flowType={FlowType} sessionSearch={SessionSearch} vehicleSearch={VehicleSearch} keepSelection={KeepSelection}",
+                SelectedCompletedDate,
+                SelectedFlowType?.Value ?? OutgoingFlowType.All,
+                string.IsNullOrWhiteSpace(SearchSessionNo) ? null : SearchSessionNo,
+                string.IsNullOrWhiteSpace(SearchVehiclePlate) ? null : SearchVehiclePlate,
+                keepSelection);
+
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
             var items = await repo.GetOutgoingListAsync(
@@ -181,6 +234,13 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 .Where(x => string.IsNullOrWhiteSpace(SearchSessionNo) || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase)))
                 .Where(x => string.IsNullOrWhiteSpace(SearchVehiclePlate) || x.VehiclePlate.Contains(SearchVehiclePlate, StringComparison.OrdinalIgnoreCase))
                 .ToList();
+
+            _logger?.LogInformation(
+                "OutgoingVehicleList.LoadCompleted completedDate={CompletedDate:yyyy-MM-dd} flowType={FlowType} repositoryCount={RepositoryCount} filteredCount={FilteredCount}",
+                SelectedCompletedDate,
+                SelectedFlowType?.Value ?? OutgoingFlowType.All,
+                items.Count,
+                filtered.Count);
 
             Vehicles = new ObservableCollection<OutgoingVehicleListItem>(filtered);
 
@@ -514,6 +574,52 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         }
     }
 
+    private async Task PersistPortTransferAsync(bool value)
+    {
+        if (SelectedVehicle == null)
+        {
+            return;
+        }
+
+        var currentCutOrderId = SelectedVehicle.CutOrderId;
+        var previousValue = !value;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<SetCutOrderPortTransferUseCase>();
+            await useCase.ExecuteAsync(currentCutOrderId, value, CancellationToken.None);
+            _toastService.ShowSuccess(value
+                ? "Da danh dau cat lenh la chuyen tai hang ra cang."
+                : "Da bo danh dau chuyen tai hang ra cang.");
+            await LoadVehiclesInternalAsync(false);
+            SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == currentCutOrderId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+            RevertPortTransfer(previousValue);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Update port transfer flag from outgoing list failed");
+            _toastService.ShowError("Khong the cap nhat trang thai CHUYEN TAI. Vui long thu lai.");
+            RevertPortTransfer(previousValue);
+        }
+    }
+
+    private void RevertPortTransfer(bool value)
+    {
+        _isApplyingPortTransferState = true;
+        try
+        {
+            IsPortTransferMarked = value;
+        }
+        finally
+        {
+            _isApplyingPortTransferState = false;
+        }
+    }
+
     private async Task ReloadAndReselectAsync(Guid sessionId)
     {
         var currentCutOrderId = SelectedVehicle?.CutOrderId;
@@ -749,7 +855,15 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            var page = deliveryComposer.Compose(registration!, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            var page = deliveryComposer.Compose(
+                registration!,
+                ticket,
+                relatedWeighTicket,
+                line,
+                context.MasterSession.UseActualWeightForBaggedCutOrders,
+                context.Vehicle,
+                printedAtLocal,
+                _currentUserContext.DisplayName);
             if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
                 page.PreviewGroupKey = "delivery-master";

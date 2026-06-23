@@ -162,12 +162,20 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
         var lines = await _db.WeighingSessionLines.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
             .ToListAsync(ct);
+        var cutOrderIds = lines.Select(x => x.CutOrderId).Distinct().ToList();
+        var portTransferByCutOrderId = cutOrderIds.Count == 0
+            ? new Dictionary<Guid, bool>()
+            : await _db.CutOrders.AsNoTracking()
+                .Where(x => x.StationCode == stationCode && cutOrderIds.Contains(x.Id) && !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Id, x => x.IsPortTransfer, ct);
 
         return sessions.Select(session =>
         {
             var sessionLines = lines.Where(x => x.WeighingSessionId == session.Id).ToList();
             var lineCount = sessionLines.Count;
             var allPrinted = lineCount > 0 && sessionLines.All(x => x.HasPrintedDeliveryTicket);
+            var isPortTransfer = sessionLines.Count > 0
+                && sessionLines.All(x => portTransferByCutOrderId.GetValueOrDefault(x.CutOrderId));
 
             var customerSummary = string.Join(" / ", sessionLines
                 .Select(x => x.CustomerName)
@@ -211,6 +219,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.HasPrintedMasterWeighTicket,
                 session.UseActualWeightForBaggedCutOrders,
                 session.IsNoLoad,
+                isPortTransfer,
                 allPrinted,
                 session.CreatedAt,
                 session.UpdatedAt,
@@ -477,7 +486,8 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 line.LineStatus,
                 line.HasPrintedDeliveryTicket,
                 reg.ProductType,
-                reg.Notes
+                reg.Notes,
+                reg.IsPortTransfer
             ))
             .ToListAsync(ct);
 

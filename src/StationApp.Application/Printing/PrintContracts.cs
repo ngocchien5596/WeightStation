@@ -141,6 +141,7 @@ public interface IDeliveryTicketPrintComposer
         DeliveryTicket deliveryTicket,
         WeighTicket? weighTicket,
         WeighingSessionLine? sessionLine,
+        bool useActualWeightForBaggedCutOrders,
         Vehicle? vehicle,
         DateTime printedAtLocal,
         string? printedByDisplayName);
@@ -286,18 +287,26 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         DeliveryTicket deliveryTicket,
         WeighTicket? weighTicket,
         WeighingSessionLine? sessionLine,
+        bool useActualWeightForBaggedCutOrders,
         Vehicle? vehicle,
         DateTime printedAtLocal,
         string? printedByDisplayName)
     {
         var vehicleLine = string.Join(Environment.NewLine, new[] { FirstNonEmpty(weighTicket?.VehiclePlate, registration.VehiclePlate), FirstNonEmpty(weighTicket?.MoocNumber, registration.MoocNumber) }
             .Where(v => !string.IsNullOrWhiteSpace(v)));
-        var actualWeight = deliveryTicket.AllocatedWeight ?? sessionLine?.ActualAllocatedWeight ?? weighTicket?.NetWeight;
-        var isBagged = string.Equals(ProductTypes.Normalize(registration.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+        var actualWeight = CutOrderNetWeightHelper.ResolveDeliveryTicketActualWeightKg(
+            registration,
+            deliveryTicket.AllocatedWeight ?? sessionLine?.ActualAllocatedWeight ?? weighTicket?.NetWeight,
+            useActualWeightForBaggedCutOrders);
+        var isBagged = IsBaggedProduct(registration);
         var plannedBagCount = isBagged ? registration.BagCount?.ToString(CultureInfo.InvariantCulture) : null;
-        var actualBagCount = isBagged
-            ? (deliveryTicket.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount)?.ToString(CultureInfo.InvariantCulture)
-            : null;
+        var actualBagCount = ResolveActualBagCount(
+            registration,
+            deliveryTicket,
+            sessionLine,
+            actualWeight,
+            isBagged,
+            useActualWeightForBaggedCutOrders)?.ToString(CultureInfo.InvariantCulture);
 
         return new DeliveryTicketPrintModel
         {
@@ -341,11 +350,77 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
 
     private static PrintFieldValue Field(string key, string? value) => new(key, value);
     private static string? FirstNonEmpty(params string?[] values) => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+    private static int? ResolveActualBagCount(
+        CutOrder registration,
+        DeliveryTicket deliveryTicket,
+        WeighingSessionLine? sessionLine,
+        decimal? actualWeightKg,
+        bool isBagged,
+        bool useActualWeightForBaggedCutOrders)
+    {
+        if (!isBagged)
+        {
+            return null;
+        }
+
+        if (useActualWeightForBaggedCutOrders)
+        {
+            var resolvedFromWeight = BagCountDisplayHelper.Resolve(
+                actualWeightKg,
+                registration.BagWeightKg,
+                null)
+                ?? ResolveActualBagCountFromPlannedRatio(registration, actualWeightKg);
+
+            if (resolvedFromWeight.HasValue)
+            {
+                return resolvedFromWeight;
+            }
+        }
+
+        var allocatedBagCount = deliveryTicket.AllocatedBagCount ?? sessionLine?.ActualAllocatedBagCount;
+        if (allocatedBagCount.HasValue)
+        {
+            return allocatedBagCount;
+        }
+
+        if (!useActualWeightForBaggedCutOrders)
+        {
+            return registration.BagCount ?? sessionLine?.PlannedBagCount;
+        }
+
+        return sessionLine?.BagCountDisplay ?? registration.BagCount ?? sessionLine?.PlannedBagCount;
+    }
+
+    private static int? ResolveActualBagCountFromPlannedRatio(CutOrder registration, decimal? actualWeightKg)
+    {
+        if (!actualWeightKg.HasValue
+            || !registration.PlannedWeight.HasValue
+            || registration.PlannedWeight.Value <= 0m
+            || !registration.BagCount.HasValue
+            || registration.BagCount.Value <= 0)
+        {
+            return null;
+        }
+
+        var inferredBagWeightKg = registration.PlannedWeight.Value / registration.BagCount.Value;
+        if (inferredBagWeightKg <= 0m)
+        {
+            return null;
+        }
+
+        return (int)decimal.Round(
+            actualWeightKg.Value / inferredBagWeightKg,
+            0,
+            MidpointRounding.AwayFromZero);
+    }
+
     private static string? FormatHour(DateTime? value) => value?.ToString("HH", CultureInfo.InvariantCulture);
     private static string? FormatMinute(DateTime? value) => value?.ToString("mm", CultureInfo.InvariantCulture);
     private static string? FormatDateOnly(DateTime? value) => value?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static string? FormatDateOnly(DateTime value) => value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+    private static bool IsBaggedProduct(CutOrder registration)
+        => string.Equals(ProductTypes.Normalize(registration.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase)
+            || registration.BagWeightKg.GetValueOrDefault() > 0m;
     private static string? FormatWeight(decimal? value)
         => value.HasValue ? (value.Value / 1000m).ToString("0.##", CultureInfo.InvariantCulture) : null;
 }
-

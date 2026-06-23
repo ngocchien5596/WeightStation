@@ -62,6 +62,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.CarryForwardWeight1).HasColumnType("decimal(18,3)");
         builder.Property(e => e.CarryForwardWeight1Time);
         builder.Property(e => e.IsExportScale).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.IsPortTransfer).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.ExportFinalizedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.ExportFinalizedBy).HasMaxLength(100);
         builder.Property(e => e.ExportStartedBy).HasMaxLength(100);
@@ -101,6 +102,8 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.HasIndex(e => e.WeighingSessionId).HasDatabaseName("IX_cut_orders_weighing_session_id");
         builder.HasIndex(e => new { e.StationCode, e.IsExportScale, e.CutOrderStatus, e.ProcessingStage, e.IsDeleted })
                .HasDatabaseName("IX_cut_orders_station_export_status");
+        builder.HasIndex(e => new { e.StationCode, e.IsPortTransfer, e.TransactionType, e.IsDeleted })
+               .HasDatabaseName("IX_cut_orders_station_port_transfer");
         builder.HasIndex(e => new { e.IsTemporaryExport, e.IsExportScale, e.ProcessingStage, e.IsDeleted })
                .HasDatabaseName("IX_cut_orders_temp_export");
         builder.HasIndex(e => new { e.MappedRealCutOrderId, e.IsDeleted })

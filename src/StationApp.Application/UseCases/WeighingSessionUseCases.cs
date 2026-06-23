@@ -553,6 +553,120 @@ public sealed class SetWeighingSessionBaggedActualWeightOverrideUseCase
     }
 }
 
+public sealed class SetWeighingSessionPortTransferUseCase
+{
+    private readonly ICutOrderRepository _regRepo;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _userContext;
+    private readonly IClock _clock;
+
+    public SetWeighingSessionPortTransferUseCase(
+        ICutOrderRepository regRepo,
+        IUnitOfWork uow,
+        ICurrentUserContext userContext,
+        IClock clock)
+    {
+        _regRepo = regRepo;
+        _uow = uow;
+        _userContext = userContext;
+        _clock = clock;
+    }
+
+    public async Task ExecuteAsync(Guid sessionId, bool enabled, CancellationToken ct)
+    {
+        var registrations = (await _regRepo.GetByWeighingSessionIdAsync(sessionId, ct))
+            .Where(x => !x.IsDeleted
+                && !x.IsCancelled
+                && !x.IsExportScale
+                && x.TransactionType == TransactionType.OUTBOUND)
+            .ToList();
+
+        if (registrations.Count == 0)
+        {
+            throw new InvalidOperationException("Không có cắt lệnh xuất nội địa hợp lệ để đánh dấu chuyền tải.");
+        }
+
+        var changed = registrations
+            .Where(x => x.IsPortTransfer != enabled)
+            .ToList();
+        if (changed.Count == 0)
+        {
+            return;
+        }
+
+        var now = _clock.NowLocal;
+        foreach (var registration in changed)
+        {
+            registration.IsPortTransfer = enabled;
+            registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+            registration.LastSyncAttemptAt = null;
+            registration.LastSyncError = null;
+            registration.UpdatedAt = now;
+            registration.UpdatedBy = _userContext.Username;
+        }
+
+        await _uow.ExecuteInTransactionAsync(async innerCt =>
+        {
+            foreach (var registration in changed)
+            {
+                await _regRepo.UpdateAsync(registration, innerCt);
+            }
+        }, ct);
+    }
+}
+
+public sealed class SetCutOrderPortTransferUseCase
+{
+    private readonly ICutOrderRepository _regRepo;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _userContext;
+    private readonly IClock _clock;
+
+    public SetCutOrderPortTransferUseCase(
+        ICutOrderRepository regRepo,
+        IUnitOfWork uow,
+        ICurrentUserContext userContext,
+        IClock clock)
+    {
+        _regRepo = regRepo;
+        _uow = uow;
+        _userContext = userContext;
+        _clock = clock;
+    }
+
+    public async Task ExecuteAsync(Guid cutOrderId, bool enabled, CancellationToken ct)
+    {
+        var registration = await _regRepo.GetByIdAsync(cutOrderId, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy cắt lệnh.");
+
+        if (registration.IsDeleted || registration.IsCancelled)
+        {
+            throw new InvalidOperationException("Cắt lệnh không còn hợp lệ để đánh dấu chuyền tải.");
+        }
+
+        if (registration.IsExportScale || registration.TransactionType != TransactionType.OUTBOUND)
+        {
+            throw new InvalidOperationException("Chỉ hỗ trợ đánh dấu chuyền tải cho cắt lệnh xuất nội địa.");
+        }
+
+        if (registration.IsPortTransfer == enabled)
+        {
+            return;
+        }
+
+        registration.IsPortTransfer = enabled;
+        registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+        registration.LastSyncAttemptAt = null;
+        registration.LastSyncError = null;
+        registration.UpdatedAt = _clock.NowLocal;
+        registration.UpdatedBy = _userContext.Username;
+
+        await _uow.ExecuteInTransactionAsync(
+            innerCt => _regRepo.UpdateAsync(registration, innerCt),
+            ct);
+    }
+}
+
 public sealed class CaptureSessionWeight1UseCase
 {
     private readonly IWeighingSessionRepository _sessionRepo;
@@ -884,6 +998,24 @@ public sealed class CaptureSessionWeight2UseCase
         var now = _clock.NowLocal;
         var netWeight = Math.Abs(session.Weight1.Value - request.Weight);
         var registrations = await _regRepo.GetByWeighingSessionIdAsync(session.Id, ct);
+        var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
+        var lineToAutoAllocate = lines.Count == 1 ? lines[0] : null;
+        var autoAllocateRegistration = lineToAutoAllocate is null
+            ? null
+            : registrations.FirstOrDefault(x => x.Id == lineToAutoAllocate.CutOrderId);
+        var requiresExportBagCountConfirmation = autoAllocateRegistration != null
+            && session.TransactionType == TransactionType.OUTBOUND
+            && await IsExportScaleBaggedCutOrderAsync(autoAllocateRegistration, ct);
+
+        if (requiresExportBagCountConfirmation && request.ConfirmedBagCount is null)
+        {
+            throw new InvalidOperationException("Vui lòng xác nhận số bao thực tế trước khi lưu cân lần 2.");
+        }
+
+        if (request.ConfirmedBagCount is < 0)
+        {
+            throw new InvalidOperationException("Số bao xác nhận không được nhỏ hơn 0.");
+        }
 
         if (session.TransactionType == TransactionType.INBOUND && session.Weight1.Value < request.Weight)
         {
@@ -910,28 +1042,44 @@ public sealed class CaptureSessionWeight2UseCase
         var ticket = await _weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, ct)
             ?? throw new InvalidOperationException("Chưa có phiếu cân tổng để cập nhật.");
 
-        var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
-        var lineToAutoAllocate = lines.Count == 1 ? lines[0] : null;
         var inboundRegistrationsToComplete = new List<CutOrder>();
         var deliveryTicketToCreate = (DeliveryTicket?)null;
         var deliveryTicketToUpdate = (DeliveryTicket?)null;
 
         if (lineToAutoAllocate != null)
         {
-            var registration = registrations.First(x => x.Id == lineToAutoAllocate.CutOrderId);
+            var registration = autoAllocateRegistration
+                ?? registrations.First(x => x.Id == lineToAutoAllocate.CutOrderId);
             var sessionDeliveryTickets = await _deliveryRepo.GetByWeighingSessionIdAsync(session.Id, ct);
             var actualAllocatedWeight = session.NetWeight ?? 0m;
-            var actualAllocatedBagCount = WeighingSessionBagCountHelper.ResolveActualBagCount(
-                registration.ProductType,
-                registration.BagCount,
-                lineToAutoAllocate.PlannedBagCount);
+            var actualAllocatedBagCount = requiresExportBagCountConfirmation
+                ? request.ConfirmedBagCount
+                : WeighingSessionBagCountHelper.ResolveActualBagCount(
+                    registration.ProductType,
+                    registration.BagCount,
+                    lineToAutoAllocate.PlannedBagCount);
 
             lineToAutoAllocate.ActualAllocatedWeight = actualAllocatedWeight;
             lineToAutoAllocate.ActualAllocatedBagCount = actualAllocatedBagCount;
-            lineToAutoAllocate.BagCountDisplay = BagCountDisplayHelper.Resolve(
-                actualAllocatedWeight,
-                registration.BagWeightKg,
-                actualAllocatedBagCount);
+            lineToAutoAllocate.BagCountDisplay = requiresExportBagCountConfirmation
+                ? actualAllocatedBagCount
+                : BagCountDisplayHelper.Resolve(
+                    actualAllocatedWeight,
+                    registration.BagWeightKg,
+                    actualAllocatedBagCount);
+            if (requiresExportBagCountConfirmation)
+            {
+                lineToAutoAllocate.SystemCalculatedBagCount = request.SystemCalculatedBagCount;
+                lineToAutoAllocate.BagCountConfirmedAt = now;
+                lineToAutoAllocate.BagCountConfirmedBy = _userContext.Username;
+                lineToAutoAllocate.BagCountConfirmationMode =
+                    request.SystemCalculatedBagCount == request.ConfirmedBagCount
+                        ? "AcceptedSuggested"
+                        : "AdjustedManual";
+                ticket.BagCount = actualAllocatedBagCount;
+            }
+            lineToAutoAllocate.IsReturnedBrokenTrip = request.IsReturnedBrokenTrip;
+            lineToAutoAllocate.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
             lineToAutoAllocate.LineStatus = WeighingSessionLineStatus.ALLOCATED;
             lineToAutoAllocate.UpdatedAt = now;
             lineToAutoAllocate.UpdatedBy = _userContext.Username;
@@ -1082,6 +1230,29 @@ public sealed class CaptureSessionWeight2UseCase
             throw new BaggedWeightToleranceExceededException(
                 $"Khối lượng hàng {netWeight:N0} kg vượt khối lượng kế hoạch {plannedWeight:N0} kg và vượt dung sai cho phép {toleranceKg:N0} kg ({toleranceKgPerBag:##0.###} kg/bao x {plannedBagCount:N0} bao).");
         }
+    }
+
+    private async Task<bool> IsExportScaleBaggedCutOrderAsync(CutOrder registration, CancellationToken ct)
+    {
+        if (!registration.IsExportScale)
+        {
+            return false;
+        }
+
+        if (registration.BagWeightKg.HasValue && registration.BagWeightKg.Value > 0m)
+        {
+            return true;
+        }
+
+        var normalizedProductType = ProductTypes.Normalize(registration.ProductType);
+        if (string.IsNullOrWhiteSpace(normalizedProductType)
+            && !string.IsNullOrWhiteSpace(registration.ProductCode))
+        {
+            var product = await _productRepo.GetByCodeAsync(registration.ProductCode.Trim(), ct);
+            normalizedProductType = ProductTypes.Normalize(product?.ProductType);
+        }
+
+        return string.Equals(normalizedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<IReadOnlyList<string?>> ResolveProductTypesAsync(

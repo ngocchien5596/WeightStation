@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
+using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Printing;
 using StationApp.Application.Security;
@@ -605,6 +606,12 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                     return;
                 }
 
+                var bagCountConfirmation = await ConfirmExportBagCountAsync();
+                if (bagCountConfirmation == null)
+                {
+                    return;
+                }
+
                 var uc = scope.ServiceProvider.GetRequiredService<CaptureSessionWeight2UseCase>();
                 try
                 {
@@ -614,7 +621,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                             _pendingCapturedWeight2!.Value,
                             _pendingWeight2IsStable,
                             _pendingWeight2Mode,
-                            BypassTolerance: false),
+                            BypassTolerance: false,
+                            ConfirmedBagCount: bagCountConfirmation.ConfirmedBagCount,
+                            SystemCalculatedBagCount: bagCountConfirmation.SystemCalculatedBagCount,
+                            IsReturnedBrokenTrip: bagCountConfirmation.IsReturnedBrokenTrip,
+                            Note: bagCountConfirmation.Note),
                         CancellationToken.None);
                 }
                 catch (BaggedWeightToleranceExceededException ex)
@@ -635,7 +646,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                             _pendingCapturedWeight2!.Value,
                             _pendingWeight2IsStable,
                             _pendingWeight2Mode,
-                            BypassTolerance: true),
+                            BypassTolerance: true,
+                            ConfirmedBagCount: bagCountConfirmation.ConfirmedBagCount,
+                            SystemCalculatedBagCount: bagCountConfirmation.SystemCalculatedBagCount,
+                            IsReturnedBrokenTrip: bagCountConfirmation.IsReturnedBrokenTrip,
+                            Note: bagCountConfirmation.Note),
                         CancellationToken.None);
                 }
 
@@ -694,6 +709,47 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             $"Số lượng còn lại của cắt lệnh chỉ còn {remainingText} kg, nhưng NET của chuyến này là {tripNetText} kg. Nếu lưu cân lần 2, số lượng còn lại sẽ âm {exceededText} kg. Bạn vẫn muốn tiếp tục lưu?",
             "Vẫn lưu",
             "Hủy");
+    }
+
+    private async Task<ConfirmExportBagCountDialogResult?> ConfirmExportBagCountAsync()
+    {
+        if (SelectedCutOrder == null || SelectedTrip == null || !_pendingCapturedWeight2.HasValue)
+        {
+            _toastService.ShowWarning("Không đủ dữ liệu để xác nhận số bao.");
+            return null;
+        }
+
+        var weight1 = _pendingCapturedWeight1 ?? SelectedTrip.Weight1 ?? Weight1;
+        if (!weight1.HasValue)
+        {
+            _toastService.ShowWarning("Chuyến xe chưa có cân lần 1 để tính số bao.");
+            return null;
+        }
+
+        var weight2 = _pendingCapturedWeight2.Value;
+        var netWeight = CalculatePreviewNetWeight(weight1.Value, weight2);
+        var systemCalculatedBagCount = BagCountDisplayHelper.Resolve(
+            netWeight,
+            SelectedCutOrder.BagWeightKg,
+            null);
+        var initialConfirmedBagCount = systemCalculatedBagCount
+            ?? SelectedTrip.BagCountDisplay
+            ?? SelectedCutOrder.RemainingBagCountDisplay;
+
+        var dialogVm = new ConfirmExportBagCountDialogViewModel(
+            SelectedTrip.SessionNo,
+            SelectedTrip.VehiclePlate,
+            SelectedCutOrder.DisplayCutOrderCode,
+            weight1.Value,
+            weight2,
+            netWeight,
+            SelectedCutOrder.BagWeightKg,
+            systemCalculatedBagCount,
+            Math.Max(0, initialConfirmedBagCount),
+            SelectedTrip.IsReturnedBrokenTrip,
+            SelectedTrip.Note);
+
+        return await _dialogService.ShowCustomDialogAsync<ConfirmExportBagCountDialogViewModel, ConfirmExportBagCountDialogResult>(dialogVm);
     }
 
     [RelayCommand(CanExecute = nameof(CanFinalize))]
@@ -1601,7 +1657,15 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
                 : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
-            var page = deliveryComposer.Compose(registration!, ticket, relatedWeighTicket, line, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+            var page = deliveryComposer.Compose(
+                registration!,
+                ticket,
+                relatedWeighTicket,
+                line,
+                context.MasterSession.UseActualWeightForBaggedCutOrders,
+                context.Vehicle,
+                printedAtLocal,
+                _currentUserContext.DisplayName);
             if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
             {
                 page.PreviewGroupKey = "delivery-master";
@@ -2187,7 +2251,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        if (!cutOrder.BagWeightKg.HasValue || cutOrder.BagWeightKg.Value <= 0m)
+        if (!cutOrder.BagWeightKg.HasValue || cutOrder.BagWeightKg.Value < 0m)
         {
             _toastService.ShowWarning("C\u1eaft l\u1ec7nh t\u1ea1m ch\u01b0a c\u00f3 tr\u1ecdng l\u01b0\u1ee3ng bao h\u1ee3p l\u1ec7.");
             return false;
