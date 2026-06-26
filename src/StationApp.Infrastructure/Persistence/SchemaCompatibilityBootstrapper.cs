@@ -168,6 +168,11 @@ public static class SchemaCompatibilityBootstrapper
         new("UpdatedBy", "nvarchar(100) NULL")
     ];
 
+    private static readonly IReadOnlyList<ColumnPatch> AuditLogColumnPatches =
+    [
+        new("StationCode", "nvarchar(20) NULL")
+    ];
+
     public static async Task EnsureAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
     {
         await EnsureCutOrderSchemaAsync(db, logger, ct);
@@ -187,6 +192,7 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureTableColumnsAsync(db, logger, "weighing_sessions", WeighingSessionColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "weighing_session_lines", WeighingSessionLineColumnPatches, ct);
         await EnsureWeighingSessionImagesTableAsync(db, logger, ct);
+        await EnsureTableColumnsAsync(db, logger, "audit_logs", AuditLogColumnPatches, ct);
         await EnsureStationCodeBackfillAndIndexesAsync(db, logger, ct);
         await EnsureStationOperationSettingsTableAsync(db, logger, ct);
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);

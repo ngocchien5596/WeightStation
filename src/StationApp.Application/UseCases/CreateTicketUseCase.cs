@@ -41,34 +41,39 @@ public sealed class CreateTicketUseCase
 
     public async Task<OperationResult<WeighTicket>> ExecuteAsync(CreateTicketRequest request, CancellationToken ct)
     {
-        var ticket = new WeighTicket
-        {
-            Id = Guid.NewGuid(),
-            TicketNo = await _ticketNoGen.GenerateAsync(ct),
-            ErpCutOrderId = request.ErpCutOrderId,
-            VehiclePlate = request.VehiclePlate,
-            MoocNumber = request.MoocNumber,
-            DriverName = request.DriverName,
-            CustomerCode = request.CustomerCode,
-            CustomerName = request.CustomerName,
-            ProductCode = request.ProductCode,
-            ProductName = request.ProductName,
-            PlannedWeight = request.PlannedWeight,
-            BagCount = request.BagCount,
-            Notes = request.Notes,
-            TransactionType = request.TransactionType,
-            TransportMethod = request.TransportMethod,
-            IsCancelled = false,
-            Status = TicketStatus.TICKET_CREATED,
-            IdempotencyKey = Guid.NewGuid(),
-            SyncStatus = SyncStatus.SYNC_QUEUED,
-            AppVersion = _versionProvider.GetVersion(),
-            CreatedAt = _clock.NowLocal,
-            CreatedBy = _userContext.Username
-        };
+        WeighTicket ticket = null!;
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
+            var ticketNo = await _ticketNoGen.GenerateAsync(innerCt);
+            var now = _clock.NowLocal;
+
+            ticket = new WeighTicket
+            {
+                Id = Guid.NewGuid(),
+                TicketNo = ticketNo,
+                ErpCutOrderId = request.ErpCutOrderId,
+                VehiclePlate = request.VehiclePlate,
+                MoocNumber = request.MoocNumber,
+                DriverName = request.DriverName,
+                CustomerCode = request.CustomerCode,
+                CustomerName = request.CustomerName,
+                ProductCode = request.ProductCode,
+                ProductName = request.ProductName,
+                PlannedWeight = request.PlannedWeight,
+                BagCount = request.BagCount,
+                Notes = request.Notes,
+                TransactionType = request.TransactionType,
+                TransportMethod = request.TransportMethod,
+                IsCancelled = false,
+                Status = TicketStatus.TICKET_CREATED,
+                IdempotencyKey = Guid.NewGuid(),
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                AppVersion = _versionProvider.GetVersion(),
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            };
+
             await _ticketRepo.AddAsync(ticket, innerCt);
 
             var outbox = new SyncOutbox
@@ -80,7 +85,7 @@ public sealed class CreateTicketUseCase
                 IdempotencyKey = ticket.IdempotencyKey,
                 Status = OutboxStatus.PENDING,
                 RetryCount = 0,
-                CreatedAt = _clock.NowLocal
+                CreatedAt = now
             };
             await _outboxRepo.EnqueueAsync(outbox, innerCt);
         }, ct);

@@ -85,22 +85,16 @@
                                   Style="{StaticResource StandardComboBoxStyle}"
                                   Margin="0,2"/>
 
-                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Xe n&#x1ED9;i b&#x1ED9;" Style="{StaticResource FormLabel}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Số xe" Style="{StaticResource FormLabel}"/>
                         <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
                                                       State="{Binding InternalVehiclePlateInput}"
                                                       IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
                                                       TextBoxStyle="{StaticResource FormBox}"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="T&#x00E0;i x&#x1EBF;" Style="{StaticResource FormLabel}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="TL bì (kg)" Style="{StaticResource FormLabel}"/>
                         <TextBox Grid.Row="1" Grid.Column="1"
-                                 Text="{Binding SelectedDriverName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
-                                 Style="{StaticResource FormBox}"/>
-
-                        <TextBlock Grid.Row="1" Grid.Column="2" Text="TL xe chu&#x1EA9;n (kg)" Style="{StaticResource FormLabel}"/>
-                        <TextBox Grid.Row="1" Grid.Column="3"
                                  Text="{Binding StandardTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 IsReadOnly="{Binding IsVehicleDetailsReadOnly}"
+                                 IsReadOnly="True"
                                  Style="{StaticResource FormBox}"/>
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="M&#x00E3; SP" Style="{StaticResource FormLabel}"/>
@@ -128,7 +122,10 @@
                                                       TextBoxStyle="{StaticResource FormBox}"/>
                     </Grid>
                 </Border>
-                <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Margin="0,8,0,0" HorizontalAlignment="Left" Width="120"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="120" Margin="0,0,8,0"/>
+                    <Button Content="ĐỔI SỐ XE" Command="{Binding EditSessionVehicleCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="120"/>
+                </StackPanel>
             </StackPanel>
 
             <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="10">
@@ -265,14 +262,13 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="T&#x00E0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="160" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Binding="{Binding WeighingMode, Converter={StaticResource CrusherWeighingModeDisplayConverter}}" Width="180" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n 1" Binding="{Binding Weight1Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n 2" Binding="{Binding Weight2Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="TL xe chu&#x1EA9;n" Binding="{Binding StandardTareWeightSnapshot, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="KL h&#x00E0;ng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="TL bì" Binding="{Binding StandardTareWeightSnapshot, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="TL hàng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="S&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Tr&#x1EA1;ng th&#x00E1;i" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>

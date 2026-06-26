@@ -100,7 +100,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
-            <TextBlock Text="BÁO CÁO NHẬP HÀNG" 
+            <TextBlock Text="BÁO CÁO CÂN HÀNG" 
                        FontSize="18" 
                        FontWeight="SemiBold" 
                        Foreground="White" 

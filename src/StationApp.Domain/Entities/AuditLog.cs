@@ -9,4 +9,5 @@ public class AuditLog
     public Guid EntityId { get; set; }
     public string? DetailJson { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? StationCode { get; set; }
 }

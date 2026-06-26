@@ -53,8 +53,12 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
 
         var lineItems = await _sessionRepo.GetLineItemsBySessionIdAsync(request.SessionId, ct);
         var lineLookup = lineItems.ToDictionary(x => x.SessionLineId);
-        var previewLines = plan.Groups
-            .SelectMany(group => group.Lines.Select(line =>
+        var previewLines = new List<OverweightSplitPreviewLineItem>();
+        decimal currentStart = session.Weight1.GetValueOrDefault();
+
+        foreach (var group in plan.Groups.OrderBy(x => x.SplitSequence))
+        {
+            foreach (var line in group.Lines.OrderBy(x => x.SequenceNo))
             {
                 var source = lineLookup[line.SessionLineId];
                 decimal? w1 = null;
@@ -62,20 +66,15 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
 
                 if (session.Weight1.HasValue)
                 {
-                    var split1Net = plan.SplitTicket1NetWeight;
-                    if (group.SplitSequence == 1)
-                    {
-                        w1 = session.Weight1.Value;
-                        w2 = decimal.Round(session.Weight1.Value + (session.TransactionType == TransactionType.OUTBOUND ? split1Net : -split1Net), 3, MidpointRounding.AwayFromZero);
-                    }
-                    else
-                    {
-                        w1 = decimal.Round(session.Weight1.Value + (session.TransactionType == TransactionType.OUTBOUND ? split1Net : -split1Net), 3, MidpointRounding.AwayFromZero);
-                        w2 = session.Weight2;
-                    }
+                    w1 = currentStart;
+                    w2 = decimal.Round(
+                        currentStart + (session.TransactionType == TransactionType.OUTBOUND ? line.AllocatedWeight : -line.AllocatedWeight),
+                        3,
+                        MidpointRounding.AwayFromZero);
+                    currentStart = w2.Value;
                 }
 
-                return new OverweightSplitPreviewLineItem(
+                previewLines.Add(new OverweightSplitPreviewLineItem(
                     line.SessionLineId,
                     line.SequenceNo,
                     source.ErpCutOrderId,
@@ -85,9 +84,9 @@ public sealed class PreviewWeighingSessionOverweightSplitUseCase
                     line.AllocatedWeight,
                     line.AllocatedBagCount,
                     w1,
-                    w2);
-            }))
-            .ToList();
+                    w2));
+            }
+        }
 
         return new OverweightSplitPreviewDto(
             session.Id,
@@ -186,13 +185,14 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
             request.FirstSplitNetWeight,
             request.IsManualOverride);
         var now = _clock.NowLocal;
+        var totalLinesCount = plan.Groups.Sum(x => x.Lines.Count);
         var nextTicketNumbers = new Queue<string>(await AllocateSequentialNumbersAsync(
             () => _ticketNoGen.GenerateAsync(ct),
-            plan.Groups.Count,
+            totalLinesCount,
             ct));
         var nextDeliveryNumbers = new Queue<string>(await AllocateSequentialNumbersAsync(
             () => _deliveryNoGen.GenerateAsync(ct),
-            plan.Groups.Sum(x => x.Lines.Count),
+            totalLinesCount,
             ct));
 
         SoftDeleteSplitDocuments(weighTickets, deliveryTickets, now);
@@ -201,30 +201,42 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         var splitDeliveryTickets = new List<DeliveryTicket>();
         var currentStartWeight = masterTicket.Weight1.GetValueOrDefault();
 
+        var lineItems = await _sessionRepo.GetLineItemsBySessionIdAsync(request.SessionId, ct);
+        var lineLookup = lineItems.ToDictionary(x => x.SessionLineId);
+
         foreach (var group in plan.Groups.OrderBy(x => x.SplitSequence))
         {
-            var splitTicket = BuildSplitWeighTicket(
-                session,
-                masterTicket,
-                group,
-                currentStartWeight,
-                nextTicketNumbers.Dequeue(),
-                now);
-            splitWeighTickets.Add(splitTicket);
-            currentStartWeight = splitTicket.Weight2.GetValueOrDefault();
-
             foreach (var part in group.Lines.OrderBy(x => x.SequenceNo))
             {
                 var line = lines.First(x => x.Id == part.SessionLineId);
+                var lineItem = lineLookup[part.SessionLineId];
                 normalDeliveryByLineId.TryGetValue(part.SessionLineId, out var sourceDeliveryTicket);
+
+                var deliveryTicketId = Guid.NewGuid();
+
+                var splitTicket = BuildSplitWeighTicket(
+                    session,
+                    masterTicket,
+                    group,
+                    part,
+                    currentStartWeight,
+                    nextTicketNumbers.Dequeue(),
+                    now,
+                    line,
+                    lineItem);
+
+                splitTicket.DeliveryTicketId = deliveryTicketId;
+                splitWeighTickets.Add(splitTicket);
+                currentStartWeight = splitTicket.Weight2.GetValueOrDefault();
+
                 splitDeliveryTickets.Add(new DeliveryTicket
                 {
-                    Id = Guid.NewGuid(),
+                    Id = deliveryTicketId,
                     CutOrderId = line.CutOrderId,
                     WeighingSessionId = session.Id,
                     WeighingSessionLineId = line.Id,
                     DeliveryNo = nextDeliveryNumbers.Dequeue(),
-                    ErpCutOrderId = sourceDeliveryTicket?.ErpCutOrderId ?? string.Empty,
+                    ErpCutOrderId = sourceDeliveryTicket?.ErpCutOrderId ?? lineItem.ErpCutOrderId ?? string.Empty,
                     CustomerCode = sourceDeliveryTicket?.CustomerCode ?? line.CustomerCode,
                     ProductCode = sourceDeliveryTicket?.ProductCode ?? line.ProductCode,
                     Notes = sourceDeliveryTicket?.Notes,
@@ -322,9 +334,12 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         WeighingSession session,
         WeighTicket masterTicket,
         OverweightSplitGroupPlan group,
+        OverweightSplitLinePlan linePlan,
         decimal startWeight,
         string ticketNo,
-        DateTime now)
+        DateTime now,
+        WeighingSessionLine line,
+        WeighingSessionLineItem lineItem)
     {
         decimal weight1;
         decimal weight2;
@@ -332,33 +347,31 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
         if (session.TransactionType == TransactionType.OUTBOUND)
         {
             weight1 = startWeight;
-            weight2 = startWeight + group.GroupWeight;
+            weight2 = startWeight + linePlan.AllocatedWeight;
         }
         else
         {
             weight1 = startWeight;
-            weight2 = startWeight - group.GroupWeight;
+            weight2 = startWeight - linePlan.AllocatedWeight;
         }
 
         return new WeighTicket
         {
             Id = Guid.NewGuid(),
-            CutOrderId = masterTicket.CutOrderId,
+            CutOrderId = line.CutOrderId,
             WeighingSessionId = session.Id,
             TicketNo = ticketNo,
-            ErpCutOrderId = masterTicket.ErpCutOrderId,
+            ErpCutOrderId = lineItem.ErpCutOrderId,
             VehiclePlate = masterTicket.VehiclePlate,
             MoocNumber = masterTicket.MoocNumber,
             DriverName = masterTicket.DriverName,
-            CustomerCode = masterTicket.CustomerCode,
-            CustomerName = masterTicket.CustomerName,
-            ProductCode = masterTicket.ProductCode,
-            ProductName = masterTicket.ProductName,
-            PlannedWeight = group.GroupWeight,
-            BagCount = group.Lines.Sum(x => x.AllocatedBagCount ?? 0),
-            Notes = string.IsNullOrWhiteSpace(masterTicket.Notes)
-                ? $"SPLIT-{group.SplitSequence}"
-                : $"{masterTicket.Notes} | SPLIT-{group.SplitSequence}",
+            CustomerCode = line.CustomerCode ?? masterTicket.CustomerCode,
+            CustomerName = line.CustomerName ?? masterTicket.CustomerName,
+            ProductCode = line.ProductCode ?? masterTicket.ProductCode,
+            ProductName = line.ProductName ?? masterTicket.ProductName,
+            PlannedWeight = linePlan.AllocatedWeight,
+            BagCount = linePlan.AllocatedBagCount ?? 0,
+            Notes = masterTicket.Notes,
             TransactionType = masterTicket.TransactionType,
             TransportMethod = masterTicket.TransportMethod,
             Status = TicketStatus.TICKET_COMPLETED,
@@ -376,7 +389,7 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
             Weight2UpdatedAt = now,
             Weight2Mode = masterTicket.Weight2Mode,
             Weight2IsStable = masterTicket.Weight2IsStable,
-            NetWeight = group.GroupWeight,
+            NetWeight = linePlan.AllocatedWeight,
             Ttcp10WeightSnapshot = session.Ttcp10WeightSnapshot,
             VehicleRegistrationNoSnapshot = masterTicket.VehicleRegistrationNoSnapshot,
             VehicleRegistrationExpirySnapshot = masterTicket.VehicleRegistrationExpirySnapshot,

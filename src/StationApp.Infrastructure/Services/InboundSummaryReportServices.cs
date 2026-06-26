@@ -289,7 +289,7 @@ public sealed class InboundSummaryReportExcelExporter : IInboundSummaryReportExp
         }
 
         using var workbook = new XLWorkbook();
-        var sheet = workbook.Worksheets.Add("BaoCaoNhap");
+        var sheet = workbook.Worksheets.Add("BaoCaoCanHang");
 
         BuildHeader(sheet, document);
         var lastTableRow = BuildTable(sheet, document);
@@ -319,8 +319,8 @@ public sealed class InboundSummaryReportExcelExporter : IInboundSummaryReportExp
         rightHeader.Style.Font.FontSize = 12;
 
         var title = string.IsNullOrWhiteSpace(document.ProductDisplayName)
-            ? "BẢNG TỔNG HỢP HÀNG NHẬP"
-            : $"BẢNG TỔNG HỢP HÀNG NHẬP {document.ProductDisplayName}";
+            ? "BẢNG TỔNG HỢP CÂN HÀNG"
+            : $"BẢNG TỔNG HỢP CÂN HÀNG {document.ProductDisplayName}";
         sheet.Range("B5:O5").Merge().Value = title;
         var titleRange = sheet.Range("B5:O5");
         titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;

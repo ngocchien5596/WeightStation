@@ -60,6 +60,7 @@ public static class AppConfigKeys
     public const string CameraPreviewDefault = "camera_preview_default";
     public const string CameraCaptureTimeoutMs = "camera_capture_timeout_ms";
     public const string CameraCaptureJpegQuality = "camera_capture_jpeg_quality";
+    public const string CameraCaptureMaxDimension = "camera_capture_max_dimension";
     public const string CameraCaptureWarmupFrames = "camera_capture_warmup_frames";
     public const string AppUpdateSharedReleaseRoot = "app_update_shared_release_root";
 }
@@ -120,7 +121,8 @@ public static class AppConfigDefaults
     public const string DefaultCameraClay_2PreviewRtspUrl = "";
     public const string DefaultCameraPreview = "CAM1";
     public const string DefaultCameraCaptureTimeoutMs = "3000";
-    public const string DefaultCameraCaptureJpegQuality = "85";
+    public const string DefaultCameraCaptureJpegQuality = "75";
+    public const string DefaultCameraCaptureMaxDimension = "1280";
     public const string DefaultCameraCaptureWarmupFrames = "5";
     public const string DefaultAppUpdateSharedReleaseRoot = "";
 }

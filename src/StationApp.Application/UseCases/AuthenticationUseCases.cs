@@ -69,8 +69,6 @@ public sealed class LoginUseCase
         await _userRepository.UpdateAsync(user, ct);
         await _uow.SaveChangesAsync(ct);
 
-        _currentUserContext.SignIn(user.Id, user.Username, user.DisplayName, user.RoleCode);
-
         var allowedStations = await _stationAuthorizationService.GetAllowedStationsAsync(user.Id, ct);
         if (allowedStations.Count == 0)
         {
@@ -81,6 +79,7 @@ public sealed class LoginUseCase
 
         var selectedStation = allowedStations.FirstOrDefault(x => x.IsDefault) ?? allowedStations[0];
         _currentStationContext.SetStation(selectedStation.StationCode, selectedStation.StationName);
+        _currentUserContext.SignIn(user.Id, user.Username, user.DisplayName, user.RoleCode, selectedStation.StationCode);
 
         return OperationResult<CurrentUserSessionDto>.Ok(new CurrentUserSessionDto(
             user.Id,

@@ -23,6 +23,8 @@ public partial class MainViewModel : ObservableObject
     private readonly System.Windows.Threading.DispatcherTimer _clockTimer;
     private Guid? _pendingWeighingSessionId;
     private Guid? _pendingExportCutOrderId;
+    private string? _pendingEditHistoryVehiclePlate;
+    private string? _pendingEditHistorySessionNo;
     private bool _isInitialized;
     private bool _suppressStationChanged;
     private int _navigationVersion;
@@ -56,12 +58,13 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewClayWeighing => StationFeatures.ShowMenuClayWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportWeighing => StationFeatures.ShowMenuExportWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationFeatures.ShowMenuOutgoingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport;
+    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport || CanViewEditHistoryReport;
     public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportScaleReport => CanViewExportSummaryReport;
     public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewEditHistoryReport => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewTicketList => false;
     public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
@@ -264,6 +267,12 @@ public partial class MainViewModel : ObservableObject
                     break;
                 case "CrusherWeighing":
                     var crusherVm = _serviceProvider.GetRequiredService<CrusherWeighingViewModel>();
+                    crusherVm.NavigateToEditHistoryRequested += async (plate, sessionNo) =>
+                    {
+                        _pendingEditHistoryVehiclePlate = plate;
+                        _pendingEditHistorySessionNo = sessionNo;
+                        await NavigateAsync("Reports_EditHistory");
+                    };
                     CurrentView = new CrusherWeighingView { DataContext = crusherVm };
                     _ = RunViewInitializationAsync(
                         () => crusherVm.InitializeAsync(),
@@ -272,6 +281,12 @@ public partial class MainViewModel : ObservableObject
                     break;
                 case "ClayWeighing":
                     var clayVm = _serviceProvider.GetRequiredService<ClayWeighingViewModel>();
+                    clayVm.NavigateToEditHistoryRequested += async (plate, sessionNo) =>
+                    {
+                        _pendingEditHistoryVehiclePlate = plate;
+                        _pendingEditHistorySessionNo = sessionNo;
+                        await NavigateAsync("Reports_EditHistory");
+                    };
                     CurrentView = new ClayWeighingView { DataContext = clayVm };
                     _ = RunViewInitializationAsync(
                         () => clayVm.InitializeAsync(),
@@ -333,6 +348,40 @@ public partial class MainViewModel : ObservableObject
                         () => clayInboundVm.InitializeAsync(),
                         destination,
                         navigationVersion);
+                    break;
+                case "Reports_EditHistory":
+                    // QN01: Export trip transfer history
+                    // Other stations: Weighing session edit history
+                    if (_currentUserContext.StationCode == "QN01")
+                    {
+                        var transferHistoryVm = _serviceProvider.GetRequiredService<ExportTripTransferHistoryViewModel>();
+                        if (!string.IsNullOrWhiteSpace(_pendingEditHistoryVehiclePlate) || !string.IsNullOrWhiteSpace(_pendingEditHistorySessionNo))
+                        {
+                            transferHistoryVm.SetFilter(_pendingEditHistoryVehiclePlate, _pendingEditHistorySessionNo);
+                            _pendingEditHistoryVehiclePlate = null;
+                            _pendingEditHistorySessionNo = null;
+                        }
+                        CurrentView = new ExportTripTransferHistoryView { DataContext = transferHistoryVm };
+                        _ = RunViewInitializationAsync(
+                            () => transferHistoryVm.InitializeAsync(),
+                            destination,
+                            navigationVersion);
+                    }
+                    else
+                    {
+                        var editHistoryVm = _serviceProvider.GetRequiredService<WeighingSessionEditHistoryViewModel>();
+                        if (!string.IsNullOrWhiteSpace(_pendingEditHistoryVehiclePlate) || !string.IsNullOrWhiteSpace(_pendingEditHistorySessionNo))
+                        {
+                            editHistoryVm.SetFilter(_pendingEditHistoryVehiclePlate, _pendingEditHistorySessionNo);
+                            _pendingEditHistoryVehiclePlate = null;
+                            _pendingEditHistorySessionNo = null;
+                        }
+                        CurrentView = new WeighingSessionEditHistoryView { DataContext = editHistoryVm };
+                        _ = RunViewInitializationAsync(
+                            () => editHistoryVm.InitializeAsync(),
+                            destination,
+                            navigationVersion);
+                    }
                     break;
                 case "TicketList":
                     var ticketVm = _serviceProvider.GetRequiredService<TicketListViewModel>();
@@ -444,6 +493,7 @@ public partial class MainViewModel : ObservableObject
             "Reports_InboundSummary" => CanViewInboundSummaryReport,
             "Reports_CrusherInbound" => CanViewCrusherInboundReport,
             "Reports_ClayInbound" => CanViewClayInboundReport,
+            "Reports_EditHistory" => CanViewEditHistoryReport,
             "TicketList" => CanViewTicketList,
             "Diagnostics" => CanViewDiagnostics,
             "Settings" => CanViewSettingsMenu,
@@ -481,6 +531,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _currentStationContext.SetStation(station.StationCode, station.StationName);
+        _currentUserContext.UpdateStationCode(station.StationCode);
         StationFeatures = await _stationFeatureService.GetFeaturesAsync(station.StationCode, CancellationToken.None);
         OnPropertyChanged(nameof(CurrentStationDisplay));
         NotifyAuthorizationPropertiesChanged();

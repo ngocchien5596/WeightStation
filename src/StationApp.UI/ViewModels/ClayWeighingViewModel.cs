@@ -17,6 +17,7 @@ using StationApp.Device.Models;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
+using StationApp.Domain.Services;
 using StationApp.UI.Helpers;
 using StationApp.UI.Resources;
 using StationApp.UI.Services;
@@ -48,6 +49,8 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
     private CameraPreviewFrameReceivedEventArgs? _latestPendingPreviewFrame;
     private int _isPreviewUiUpdatePending;
 
+    public event Action<string?, string?>? NavigateToEditHistoryRequested;
+
     // Clay Weighing: Default Product and Customer
     private string _defaultProductCode = ClayDefaults.ProductCode;
     private string _defaultProductName = ClayDefaults.ProductName;
@@ -77,6 +80,8 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight2Command))]
     [NotifyCanExecuteChangedFor(nameof(SaveCrusherWeighingCommand))]
     [NotifyCanExecuteChangedFor(nameof(PrintWeighTicketCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditSessionVehicleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ViewSessionHistoryCommand))]
     private CrusherWeighingSessionListItem? _selectedSession;
     [ObservableProperty] private string? _searchVehicle;
     [ObservableProperty] private string? _searchSessionNo;
@@ -202,7 +207,9 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
             {
                 SelectedVehicle = null;
                 IsVehicleFormReadOnly = false;
-                VehicleSelectionStatusText = $"Xe {trimmedText} chưa có trong danh mục. Nhập trọng lượng xe chuẩn rồi bắt đầu cân.";
+                VehicleSelectionStatusText = $"Xe {trimmedText} chưa có trong danh mục. Bấm Chọn/Tạo xe để tạo xe nội bộ và bắt đầu cân 2 lần.";
+                // ✅ Xe chưa có trong hệ thống → Tự động chuyển sang chế độ Cân 2 lần
+                ApplyVehicleWeighingMode(null);
             }
 
             if (!string.IsNullOrWhiteSpace(text))
@@ -794,8 +801,9 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    // Session completed - clear all weighing state
+                    // Session completed - clear all weighing state and deselect session
                     ClearAllWeighingState();
+                    SelectedSession = null;  // Bỏ focus để nhập thông tin xe mới cho lượt cân tiếp theo
                 }
             }
             else
@@ -818,12 +826,18 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
     partial void OnSelectedVehicleChanged(Vehicle? value)
     {
         ApplyVehicleInfo(value);
+        ApplyVehicleWeighingMode(value);  // Auto chuyển chế độ cân dựa trên TL bì có hiệu lực
     }
 
     partial void OnSelectedSessionChanged(CrusherWeighingSessionListItem? value)
     {
         if (value != null)
         {
+            // Set weighing mode to match the selected session
+            SelectedWeighingMode = string.Equals(value.WeighingMode, ClayWeighingModes.SingleWithStandardTare, StringComparison.OrdinalIgnoreCase)
+                ? ClayWeighingModes.SingleWithStandardTare
+                : ClayWeighingModes.TwoWeigh;
+
             // Clear pending weights but NOT active session yet (will set it based on session status)
             _pendingWeight1 = null;
             _pendingWeight2 = null;
@@ -978,17 +992,17 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 var existingExternal = vehicles.FirstOrDefault(v => string.IsNullOrEmpty(v.MoocNumber));
                 if (existingExternal != null)
                 {
-                    if (standardTare is null or <= 0)
+                    if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập TL xe chuẩn lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
                         return null;
                     }
 
                     existingExternal.IsInternalVehicle = true;
                     existingExternal.TtcpWeight = standardTare;
                     existingExternal.StandardTareSource = null;
-                    existingExternal.StandardTareUpdatedAt = now;
-                    existingExternal.StandardTareUpdatedBy = "Operator";
+                    existingExternal.StandardTareUpdatedAt = standardTare.HasValue ? now : null;
+                    existingExternal.StandardTareUpdatedBy = standardTare.HasValue ? "Operator" : null;
                     existingExternal.IsActive = true;
                     existingExternal.UpdatedAt = now;
                     existingExternal.UpdatedBy = "Operator";
@@ -1004,9 +1018,9 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    if (standardTare is null or <= 0)
+                    if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập TL xe chuẩn lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
                         return null;
                     }
 
@@ -1018,8 +1032,8 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                         TtcpWeight = standardTare,
                         IsInternalVehicle = true,
                         StandardTareSource = null,
-                        StandardTareUpdatedAt = now,
-                        StandardTareUpdatedBy = "Operator",
+                        StandardTareUpdatedAt = standardTare.HasValue ? now : null,
+                        StandardTareUpdatedBy = standardTare.HasValue ? "Operator" : null,
                         IsActive = true,
                         CreatedAt = now,
                         CreatedBy = "Operator"
@@ -1125,10 +1139,11 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
     {
         if (vehicle != null)
         {
+            var effectiveStandardTare = GetEffectiveStandardTare(vehicle);
             SelectedDriverName = vehicle.DriverName;
-            StandardTareText = vehicle.TtcpWeight?.ToString("N0", CultureInfo.InvariantCulture);
+            StandardTareText = effectiveStandardTare?.ToString("N0", CultureInfo.InvariantCulture);
             _originalDriverName = vehicle.DriverName;
-            _originalStandardTare = vehicle.TtcpWeight;
+            _originalStandardTare = effectiveStandardTare;
             IsVehicleFormReadOnly = false;
             VehicleSelectionStatusText = $"Đã chọn xe nội bộ: {vehicle.VehiclePlate}";
         }
@@ -1143,6 +1158,36 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         }
 
         ShowUpdateButton = false;
+    }
+
+    private void ApplyVehicleWeighingMode(Vehicle? vehicle)
+    {
+        if (SelectedSession != null || _activeCrusherSessionId.HasValue)
+        {
+            return;
+        }
+
+        var targetMode = HasEffectiveStandardTare(vehicle)
+            ? ClayWeighingModes.SingleWithStandardTare
+            : ClayWeighingModes.TwoWeigh;
+
+        if (!string.Equals(SelectedWeighingMode, targetMode, StringComparison.Ordinal))
+        {
+            SelectedWeighingMode = targetMode;
+        }
+    }
+
+    private bool HasEffectiveStandardTare(Vehicle? vehicle)
+        => GetEffectiveStandardTare(vehicle).HasValue;
+
+    private decimal? GetEffectiveStandardTare(Vehicle? vehicle)
+        => StandardTarePolicy.GetEffectiveStandardTare(vehicle, GetTodayLocal());
+
+    private DateTime GetTodayLocal()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+        return clock.TodayLocal;
     }
 
     private bool HasCapturedWeight1OrLater()
@@ -1217,17 +1262,17 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 var existingExternal = vehicles.FirstOrDefault(v => string.IsNullOrEmpty(v.MoocNumber));
                 if (existingExternal != null)
                 {
-                    if (standardTare is null or <= 0)
+                    if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập trọng lượng xe chuẩn lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
                         return;
                     }
 
                     existingExternal.IsInternalVehicle = true;
                     existingExternal.TtcpWeight = standardTare;
                     existingExternal.StandardTareSource = null;
-                    existingExternal.StandardTareUpdatedAt = now;
-                    existingExternal.StandardTareUpdatedBy = "Operator";
+                    existingExternal.StandardTareUpdatedAt = standardTare.HasValue ? now : null;
+                    existingExternal.StandardTareUpdatedBy = standardTare.HasValue ? "Operator" : null;
                     existingExternal.IsActive = true;
                     existingExternal.UpdatedAt = now;
                     existingExternal.UpdatedBy = "Operator";
@@ -1247,9 +1292,9 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    if (standardTare is null or <= 0)
+                    if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Xe nội bộ mới bắt buộc nhập trọng lượng xe chuẩn lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
                         return;
                     }
 
@@ -1261,8 +1306,8 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                         TtcpWeight = standardTare,
                         IsInternalVehicle = true,
                         StandardTareSource = null,
-                        StandardTareUpdatedAt = now,
-                        StandardTareUpdatedBy = "Operator",
+                        StandardTareUpdatedAt = standardTare.HasValue ? now : null,
+                        StandardTareUpdatedBy = standardTare.HasValue ? "Operator" : null,
                         IsActive = true,
                         CreatedAt = now,
                         CreatedBy = "Operator"
@@ -1282,6 +1327,14 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
             if (!vehicle.IsActive)
             {
                 _toastService.ShowWarning("Xe nội bộ này đang ngừng sử dụng, không thể chọn để cân.");
+                SelectedVehicle = null;
+                return;
+            }
+
+            // Check nếu chế độ cân 1 lần nhưng xe chưa có TL bì hiệu lực
+            if (IsSingleWeighMode && !StandardTarePolicy.GetEffectiveStandardTare(vehicle, GetTodayLocal()).HasValue)
+            {
+                _toastService.ShowWarning("Xe nội bộ chưa có TL xe chuẩn, không thể cân 1 lần.");
                 SelectedVehicle = null;
                 return;
             }
@@ -1407,9 +1460,15 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 {
                     var hasExternal = vehicles.Any(v => string.IsNullOrEmpty(v.MoocNumber));
                     IsVehicleFormReadOnly = false;
+                    ApplyVehicleWeighingMode(null);
                     VehicleSelectionStatusText = hasExternal
-                        ? $"Xe {vehiclePlate} đã tồn tại dạng xe ngoài. Nhập TL xe chuẩn rồi bấm Chọn/Tạo xe để chuyển thành xe nội bộ."
-                        : $"Xe {vehiclePlate} chưa có trong danh mục. Nhập trọng lượng xe chuẩn rồi bấm Chọn/Tạo xe.";
+                        ? $"Xe {vehiclePlate} đã tồn tại dạng xe ngoài. Bấm Chọn/Tạo xe để chuyển thành xe nội bộ rồi bắt đầu cân."
+                        : $"Xe {vehiclePlate} chưa có trong danh mục. Bấm Chọn/Tạo xe để tạo xe nội bộ rồi bắt đầu cân.";
+                }
+                else
+                {
+                    // Xe đã tồn tại, tự động chuyển chế độ cân dựa trên TL bì có hiệu lực
+                    ApplyVehicleWeighingMode(vehicle);
                 }
             }
         }
@@ -1512,6 +1571,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         if (fieldType == AutocompleteFieldType.Vehicle)
         {
             var vehicleRepo = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
+            var clock = scope.ServiceProvider.GetRequiredService<IClock>();
             var internalVehicles = new List<Vehicle>();
 
             foreach (var item in results)
@@ -1531,13 +1591,13 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
                 .Select(v => new AutocompleteItem(
                     v.VehiclePlate,
                     $"{v.VehiclePlate}{(!string.IsNullOrWhiteSpace(v.DriverName) ? $" - {v.DriverName}" : "")}",
-                    v.TtcpWeight?.ToString("N0"),
+                    StandardTarePolicy.GetEffectiveStandardTare(v, clock.TodayLocal)?.ToString("N0"),
                     AutocompleteFieldType.Vehicle,
                     new AutocompletePayload
                     {
                         VehiclePlate = v.VehiclePlate,
                         DriverName = v.DriverName,
-                        TtcpWeight = v.TtcpWeight
+                        TtcpWeight = StandardTarePolicy.GetEffectiveStandardTare(v, clock.TodayLocal)
                     }))
                 .ToList();
         }
@@ -1779,6 +1839,84 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable
         {
             IsLoading = false;
         }
+    }
+
+    public bool CanEditSessionVehicle => SelectedSession != null;
+    public bool CanViewSessionHistory => SelectedSession != null;
+
+    [RelayCommand(CanExecute = nameof(CanEditSessionVehicle))]
+    private async Task EditSessionVehicleAsync()
+    {
+        if (SelectedSession == null)
+        {
+            _toastService.ShowWarning("Vui lòng chọn lượt cân cần sửa.");
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var autocompleteService = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
+            var vehicleRepository = scope.ServiceProvider.GetRequiredService<IVehicleRepository>();
+            var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+            var useCases = scope.ServiceProvider.GetRequiredService<ClayWeighingUseCases>();
+
+            var dialogVm = new EditWeighingSessionVehicleViewModel(
+                SelectedSession.SessionId,
+                SelectedSession.SessionNo,
+                SelectedSession.WeighingMode,
+                SelectedSession.Weight1 ?? 0,
+                SelectedSession.Weight2,
+                SelectedSession.NetWeight,
+                SelectedSession.VehiclePlate,
+                SelectedSession.StandardTareWeightSnapshot,
+                autocompleteService,
+                vehicleRepository,
+                clock
+            );
+
+            var result = await _dialogService.ShowCustomDialogAsync<EditWeighingSessionVehicleViewModel, EditWeighingSessionVehicleResult>(dialogVm);
+            if (result != null)
+            {
+                IsLoading = true;
+                await useCases.UpdateSessionVehicleAsync(
+                    dialogVm.SessionId,
+                    result.NewVehicleId,
+                    result.Reason,
+                    CancellationToken.None
+                );
+
+                _toastService.ShowSuccess("Đã cập nhật biển số xe mới.");
+                await LoadSessionsAsync();
+                
+                var updated = Sessions.FirstOrDefault(s => s.SessionId == dialogVm.SessionId);
+                if (updated != null)
+                {
+                    SelectedSession = updated;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to edit weighing session vehicle.");
+            _toastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanViewSessionHistory))]
+    private void ViewSessionHistory()
+    {
+        if (SelectedSession == null)
+        {
+            _toastService.ShowWarning("Vui lòng chọn lượt cân để xem lịch sử.");
+            return;
+        }
+
+        NavigateToEditHistoryRequested?.Invoke(SelectedSession.VehiclePlate, SelectedSession.SessionNo);
     }
 
     public void Dispose()

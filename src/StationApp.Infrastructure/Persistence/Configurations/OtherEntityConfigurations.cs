@@ -16,9 +16,11 @@ public class AuditLogEntityConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(e => e.EntityType).HasMaxLength(50).IsRequired();
         builder.Property(e => e.EntityId).IsRequired();
         builder.Property(e => e.CreatedAt).IsRequired();
+        builder.Property(e => e.StationCode).HasMaxLength(20).IsRequired(false);
 
         builder.HasIndex(e => new { e.EntityType, e.EntityId });
         builder.HasIndex(e => e.CreatedAt);
+        builder.HasIndex(e => e.StationCode);
     }
 }
 

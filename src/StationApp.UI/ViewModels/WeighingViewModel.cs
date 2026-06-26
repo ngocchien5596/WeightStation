@@ -2545,8 +2545,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
                     }
                     else if (ticket.RecordRole == WeighTicketRecordRoles.SplitDerived)
                     {
-                        page.PreviewGroupKey = "weigh-split";
-                        page.PreviewGroupName = "Phiếu tách tải";
+                        var seq = ticket.SplitSequence ?? 0;
+                        page.PreviewGroupKey = $"weigh-split-{seq}";
+                        page.PreviewGroupName = $"Phiếu tách tải {ticket.TicketNo}";
                     }
 
                     return (PrintPreviewPageModel)page;
@@ -2626,8 +2627,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable
             }
             else if (ticket.RecordRole == DeliveryTicketRecordRoles.SplitDerived)
             {
-                page.PreviewGroupKey = "delivery-split";
-                page.PreviewGroupName = "Phiếu tách tải";
+                var seq = ticket.SplitSequence ?? 0;
+                page.PreviewGroupKey = $"delivery-split-{seq}";
+                page.PreviewGroupName = $"Phiếu tách tải {ticket.DeliveryNo}";
             }
 
             pages.Add(page);

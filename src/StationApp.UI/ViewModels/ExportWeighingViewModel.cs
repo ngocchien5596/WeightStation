@@ -348,7 +348,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 .OrderBy(x => x.DisplayCutOrderCode)
                 .Select(x => new ExportTripTransferOption(
                     x.CutOrderId,
-                    x.DisplayCutOrderCode,
+                    x.ErpCutOrderId,
                     x.VehiclePlate,
                     x.CustomerName,
                     x.ProductName,
@@ -462,7 +462,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var newState = trip.IsReturnedBrokenTrip;
+        // Giá trị mới cần set là ngược lại giá trị hiện tại
+        var newState = !trip.IsReturnedBrokenTrip;
         var confirmed = await _dialogService.ShowConfirmAsync(
             newState ? "Xác nhận hàng rách vỡ" : "Bỏ đánh dấu hàng rách vỡ",
             newState
@@ -473,7 +474,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
         if (!confirmed)
         {
-            trip.IsReturnedBrokenTrip = !newState;
+            // Giữ nguyên trạng thái, không cần revert vì UI không tự toggle
             return;
         }
 
@@ -508,13 +509,13 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         }
         catch (InvalidOperationException ex)
         {
-            trip.IsReturnedBrokenTrip = !newState;
+            // UI không tự toggle nên không cần revert
             _logger?.LogWarning(ex, "Toggle returned broken trip rejected by business validation");
             _toastService.ShowWarning(ex.Message);
         }
         catch (Exception ex)
         {
-            trip.IsReturnedBrokenTrip = !newState;
+            // UI không tự toggle nên không cần revert
             _logger?.LogError(ex, "Toggle returned broken trip failed");
             _toastService.ShowError("Không thể cập nhật trạng thái hàng rách vỡ.");
         }

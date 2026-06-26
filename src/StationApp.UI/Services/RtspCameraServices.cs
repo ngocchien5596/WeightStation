@@ -10,13 +10,14 @@ public sealed class RtspCameraCaptureService : ICameraCaptureService
         IReadOnlyList<CameraEndpointSettings> cameras,
         int timeoutMs,
         int jpegQuality,
+        int maxDimension,
         int warmupFrames,
         CancellationToken ct)
     {
         var results = new List<CameraCaptureImageResult>();
         foreach (var camera in cameras.Where(x => x.IsEnabled && !string.IsNullOrWhiteSpace(x.CaptureRtspUrl)))
         {
-            results.Add(await Task.Run(() => CaptureSingle(camera, timeoutMs, jpegQuality, warmupFrames, ct), ct));
+            results.Add(await Task.Run(() => CaptureSingle(camera, timeoutMs, jpegQuality, maxDimension, warmupFrames, ct), ct));
         }
 
         return results;
@@ -26,6 +27,7 @@ public sealed class RtspCameraCaptureService : ICameraCaptureService
         CameraEndpointSettings camera,
         int timeoutMs,
         int jpegQuality,
+        int maxDimension,
         int warmupFrames,
         CancellationToken ct)
     {
@@ -61,7 +63,19 @@ public sealed class RtspCameraCaptureService : ICameraCaptureService
                 return Failed(camera, "Khong lay duoc frame hop le.");
             }
 
-            Cv2.ImEncode(".jpg", frame, out var imageBytes, [(int)ImwriteFlags.JpegQuality, jpegQuality]);
+            using var processedFrame = new Mat();
+            var finalFrame = frame;
+
+            if (maxDimension > 0 && (frame.Width > maxDimension || frame.Height > maxDimension))
+            {
+                double scale = (double)maxDimension / Math.Max(frame.Width, frame.Height);
+                int newWidth = (int)Math.Round(frame.Width * scale);
+                int newHeight = (int)Math.Round(frame.Height * scale);
+                Cv2.Resize(frame, processedFrame, new Size(newWidth, newHeight), 0, 0, InterpolationFlags.Area);
+                finalFrame = processedFrame;
+            }
+
+            Cv2.ImEncode(".jpg", finalFrame, out var imageBytes, [(int)ImwriteFlags.JpegQuality, jpegQuality]);
             return new CameraCaptureImageResult(
                 camera.CameraCode,
                 camera.DisplayName,

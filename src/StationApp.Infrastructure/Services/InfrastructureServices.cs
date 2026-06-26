@@ -203,15 +203,22 @@ public class CurrentUserContext : ICurrentUserContext
     public string Username { get; private set; } = string.Empty;
     public string DisplayName { get; private set; } = string.Empty;
     public string RoleCode { get; private set; } = string.Empty;
+    public string StationCode { get; private set; } = string.Empty;
     public bool IsAuthenticated { get; private set; }
 
-    public void SignIn(Guid userId, string username, string displayName, string roleCode)
+    public void SignIn(Guid userId, string username, string displayName, string roleCode, string stationCode)
     {
         UserId = userId;
         Username = username;
         DisplayName = displayName;
         RoleCode = roleCode;
+        StationCode = stationCode;
         IsAuthenticated = true;
+    }
+
+    public void UpdateStationCode(string stationCode)
+    {
+        StationCode = stationCode;
     }
 
     public void SignOut()
@@ -220,6 +227,7 @@ public class CurrentUserContext : ICurrentUserContext
         Username = string.Empty;
         DisplayName = string.Empty;
         RoleCode = string.Empty;
+        StationCode = string.Empty;
         IsAuthenticated = false;
     }
 }
@@ -292,6 +300,7 @@ public class CameraSettingsProvider : ICameraSettingsProvider
         var previewDefault = await _configRepo.GetValueAsync(AppConfigKeys.CameraPreviewDefault, ct) ?? AppConfigDefaults.DefaultCameraPreview;
         var timeoutMs = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureTimeoutMs, ct), AppConfigDefaults.DefaultCameraCaptureTimeoutMs);
         var jpegQuality = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureJpegQuality, ct), AppConfigDefaults.DefaultCameraCaptureJpegQuality);
+        var maxDimension = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureMaxDimension, ct), AppConfigDefaults.DefaultCameraCaptureMaxDimension);
         var warmupFrames = ParseInt(await _configRepo.GetValueAsync(AppConfigKeys.CameraCaptureWarmupFrames, ct), AppConfigDefaults.DefaultCameraCaptureWarmupFrames);
 
         return new CameraSystemSettings(
@@ -300,6 +309,7 @@ public class CameraSettingsProvider : ICameraSettingsProvider
             string.IsNullOrWhiteSpace(previewDefault) ? AppConfigDefaults.DefaultCameraPreview : previewDefault.Trim().ToUpperInvariant(),
             Math.Clamp(timeoutMs, 500, 15000),
             Math.Clamp(jpegQuality, 40, 100),
+            Math.Clamp(maxDimension, 320, 3840),
             Math.Clamp(warmupFrames, 0, 30));
     }
 
@@ -431,11 +441,12 @@ public class AuditService : IAuditService
 {
     private readonly StationDbContext _db;
     private readonly ICurrentUserContext _userContext;
+    private readonly ICurrentStationContext _currentStationContext;
     private readonly IClock _clock;
 
-    public AuditService(StationDbContext db, ICurrentUserContext userContext, IClock clock)
+    public AuditService(StationDbContext db, ICurrentUserContext userContext, ICurrentStationContext currentStationContext, IClock clock)
     {
-        _db = db; _userContext = userContext; _clock = clock;
+        _db = db; _userContext = userContext; _currentStationContext = currentStationContext; _clock = clock;
     }
 
     public async Task LogAsync(string action, string entityType, Guid entityId, object? detail, CancellationToken ct)
@@ -448,7 +459,8 @@ public class AuditService : IAuditService
             EntityType = entityType,
             EntityId = entityId,
             DetailJson = detail != null ? JsonSerializer.Serialize(detail) : null,
-            CreatedAt = _clock.NowLocal
+            CreatedAt = _clock.NowLocal,
+            StationCode = _currentStationContext.StationCode
         };
         await _db.AuditLogs.AddAsync(log, ct);
         await _db.SaveChangesAsync(ct);

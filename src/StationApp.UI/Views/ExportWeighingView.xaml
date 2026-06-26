@@ -508,10 +508,9 @@
                                     <CheckBox HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               Focusable="False"
+                                              PreviewMouseLeftButtonDown="OnBrokenTripCheckBoxPreviewMouseDown"
                                               IsEnabled="{Binding CanToggleReturnedBrokenTrip}"
-                                              IsChecked="{Binding IsReturnedBrokenTrip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              Command="{Binding DataContext.ToggleReturnedBrokenTripCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                              CommandParameter="{Binding}"/>
+                                              IsChecked="{Binding IsReturnedBrokenTrip, Mode=OneWay}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

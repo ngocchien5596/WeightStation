@@ -1,9 +1,10 @@
+using System.IO;
 using ClosedXML.Excel;
+using ClosedXML.Excel.Drawings;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
-using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 
@@ -26,9 +27,10 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
         CancellationToken ct)
     {
         var stationCode = await _stationScope.GetCurrentStationCodeAsync(ct);
-        var products = await _dbContext.Products.AsNoTracking()
-            .Where(x => x.IsActive)
-            .ToListAsync(ct);
+        var stationName = await _dbContext.Stations.AsNoTracking()
+            .Where(x => x.StationCode == stationCode)
+            .Select(x => x.StationName)
+            .FirstOrDefaultAsync(ct) ?? stationCode;
 
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
@@ -40,19 +42,18 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
             .ThenBy(x => x.SessionNo)
             .ToListAsync(ct);
 
-        var rows = await BuildRowsAsync(sessions, filter, stationCode, ct);
-        var productDisplayName = ResolveProductDisplayName(filter.ProductCode, rows, products);
-        var totalNetWeightKg = decimal.Round(rows.Sum(x => x.NetWeightKg), 3, MidpointRounding.AwayFromZero);
+        var rows = BuildRows(sessions, filter);
+        var totalNetWeightTon = decimal.Round(rows.Sum(x => x.NetWeightTon), 3, MidpointRounding.AwayFromZero);
 
         return new CrusherInboundReportDocument(
             filter.FromTime,
             filter.ToTime,
-            filter.ProductCode,
-            productDisplayName,
-            filter.CustomerCode,
+            filter.VehicleKeyword,
+            stationName,
             preparedByDisplayName,
+            null,
             rows,
-            totalNetWeightKg);
+            totalNetWeightTon);
     }
 
     public async Task<IReadOnlyList<ReportLookupOptionDto>> GetProductOptionsAsync(CancellationToken ct)
@@ -73,27 +74,10 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
             .ToListAsync(ct);
     }
 
-    private async Task<List<CrusherInboundReportRow>> BuildRowsAsync(
+    private static List<CrusherInboundReportRow> BuildRows(
         IReadOnlyList<Domain.Entities.WeighingSession> sessions,
-        CrusherInboundReportFilter filter,
-        string stationCode,
-        CancellationToken ct)
+        CrusherInboundReportFilter filter)
     {
-        if (sessions.Count == 0)
-        {
-            return [];
-        }
-
-        var sessionIds = sessions.Select(x => x.Id).ToList();
-        var weighTickets = await _dbContext.WeighTickets.AsNoTracking()
-            .Where(x => x.StationCode == stationCode && x.WeighingSessionId.HasValue && sessionIds.Contains(x.WeighingSessionId.Value) && !x.IsDeleted)
-            .ToListAsync(ct);
-
-        var masterTicketBySessionId = weighTickets
-            .Where(x => string.Equals(x.RecordRole, "MASTER_SESSION", StringComparison.OrdinalIgnoreCase))
-            .GroupBy(x => x.WeighingSessionId!.Value)
-            .ToDictionary(x => x.Key, x => x.OrderByDescending(y => y.UpdatedAt ?? y.CreatedAt).First());
-
         var rows = new List<CrusherInboundReportRow>();
         foreach (var session in sessions)
         {
@@ -102,23 +86,16 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
                 continue;
             }
 
-            var masterTicket = masterTicketBySessionId.GetValueOrDefault(session.Id);
-            var isSingleWeigh = IsSingleWeighMode(session.WeighingMode);
             rows.Add(new CrusherInboundReportRow(
-                BusinessNumberFormatter.ToDisplay(session.SessionNo),
-                session.InternalVehicleNo ?? session.VehiclePlate,
-                session.DriverName,
+                rows.Count + 1,
+                NormalizeSessionNo(BusinessNumberFormatter.ToDisplay(session.SessionNo)),
+                session.InternalVehicleNo ?? session.VehiclePlate ?? string.Empty,
                 session.CustomerName,
                 session.ProductName,
-                isSingleWeigh ? "C\u00E2n 1 l\u1EA7n" : "C\u00E2n 2 l\u1EA7n",
-                session.Weight1Time,
                 session.Weight2Time,
-                isSingleWeigh ? session.StandardTareWeightSnapshot : null,
-                session.Weight1,
-                session.Weight2,
-                decimal.Round(session.NetWeight ?? 0m, 3, MidpointRounding.AwayFromZero),
-                masterTicket?.Notes,
-                masterTicket?.Weight2User ?? masterTicket?.Weight1User ?? session.UpdatedBy ?? session.CreatedBy));
+                ToTon(session.Weight1),
+                ResolveTareWeightTon(session),
+                ToTon(session.NetWeight)));
         }
 
         return rows;
@@ -126,43 +103,47 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
 
     private static bool MatchesFilter(Domain.Entities.WeighingSession session, CrusherInboundReportFilter filter)
     {
-        if (!string.IsNullOrWhiteSpace(filter.ProductCode)
-            && !string.Equals(session.ProductCode, filter.ProductCode, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(filter.VehicleKeyword))
         {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(filter.CustomerCode)
-            && !string.Equals(session.CustomerCode, filter.CustomerCode, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
+            var keyword = filter.VehicleKeyword.Trim();
+            var internalVehicleNo = session.InternalVehicleNo ?? string.Empty;
+            var vehiclePlate = session.VehiclePlate ?? string.Empty;
+            if (!internalVehicleNo.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                && !vehiclePlate.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
         }
 
         return true;
     }
 
-    private static bool IsSingleWeighMode(string? weighingMode)
-        => string.Equals(weighingMode, CrusherWeighingModes.SingleWithStandardTare, StringComparison.OrdinalIgnoreCase);
-
-    private static string ResolveWeighingModeDisplay(string? weighingMode)
+    private static decimal ResolveTareWeightTon(Domain.Entities.WeighingSession session)
     {
-        return IsSingleWeighMode(weighingMode)
-            ? "Cân 1 lần"
-            : "Cân 2 lần";
-    }
-
-    private static string? ResolveProductDisplayName(
-        string? productCode,
-        IReadOnlyList<CrusherInboundReportRow> rows,
-        IReadOnlyList<Domain.Entities.Product> products)
-    {
-        if (string.IsNullOrWhiteSpace(productCode))
+        if (session.StandardTareWeightSnapshot.HasValue)
         {
-            return null;
+            return ToTon(session.StandardTareWeightSnapshot.Value);
         }
 
-        return products.FirstOrDefault(x => string.Equals(x.ProductCode, productCode, StringComparison.OrdinalIgnoreCase))?.ProductName
-               ?? rows.Select(x => x.ProductName).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        return ToTon(session.Weight2);
+    }
+
+    private static decimal ToTon(decimal? weightKg)
+        => decimal.Round((weightKg ?? 0m) / 1000m, 3, MidpointRounding.AwayFromZero);
+
+    private static string NormalizeSessionNo(string sessionNo)
+    {
+        if (sessionNo.StartsWith("QN02-", StringComparison.OrdinalIgnoreCase))
+        {
+            return sessionNo["QN02-".Length..];
+        }
+
+        if (sessionNo.StartsWith("QN03-", StringComparison.OrdinalIgnoreCase))
+        {
+            return sessionNo["QN03-".Length..];
+        }
+
+        return sessionNo;
     }
 }
 
@@ -179,12 +160,12 @@ public sealed class CrusherInboundReportExcelExporter : ICrusherInboundReportExp
         }
 
         using var workbook = new XLWorkbook();
-        var sheet = workbook.Worksheets.Add("BaoCaoNhapTramDap");
+        var sheet = workbook.Worksheets.Add("BaoCaoCanHangTramDap");
 
         BuildHeader(sheet, document);
         var lastTableRow = BuildTable(sheet, document);
         BuildFooter(sheet, document, lastTableRow);
-        ApplySheetLayout(sheet, lastTableRow + 6);
+        ApplySheetLayout(sheet, lastTableRow + 8);
 
         workbook.SaveAs(outputPath);
         return Task.CompletedTask;
@@ -192,197 +173,193 @@ public sealed class CrusherInboundReportExcelExporter : ICrusherInboundReportExp
 
     private static void BuildHeader(IXLWorksheet sheet, CrusherInboundReportDocument document)
     {
-        sheet.Range("B2:H3").Merge().Value = "XI MĂNG CẨM PHẢ\nPHÒNG CHIẾN LƯỢC KINH DOANH";
-        var leftHeader = sheet.Range("B2:H3");
-        leftHeader.Style.Alignment.WrapText = true;
-        leftHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-        leftHeader.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        leftHeader.Style.Font.Bold = true;
-        leftHeader.Style.Font.FontSize = 12;
+        sheet.Range("B1:D1").Merge().Value = "CÔNG TY CỔ PHẦN XI MĂNG CẨM PHẢ";
+        var companyName = sheet.Range("B1:D1");
+        companyName.Style.Font.Bold = true;
+        companyName.Style.Font.FontName = "Times New Roman";
+        companyName.Style.Font.FontSize = 12;
+        companyName.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        companyName.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        sheet.Range("K2:R3").Merge().Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc";
-        var rightHeader = sheet.Range("K2:R3");
-        rightHeader.Style.Alignment.WrapText = true;
-        rightHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        rightHeader.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        rightHeader.Style.Font.Bold = true;
-        rightHeader.Style.Font.FontSize = 12;
+        sheet.Range("B2:D2").Merge().Value = "Địa chỉ: Km6, Quốc lộ 18A, Cẩm Thạch, Cẩm Phả, Quảng Ninh";
+        sheet.Range("B3:D3").Merge().Value = "Điện thoại: (84-203) 3.721.995 - (84-203) 3.721.996";
+        sheet.Range("B2:D3").Style.Font.FontName = "Times New Roman";
+        sheet.Range("B2:D3").Style.Font.FontSize = 11;
 
-        var title = string.IsNullOrWhiteSpace(document.ProductDisplayName)
-            ? "BÁO CÁO NHẬP TRẠM ĐẬP"
-            : $"BÁO CÁO NHẬP TRẠM ĐẬP {document.ProductDisplayName}";
-        sheet.Range("B5:R5").Merge().Value = title;
-        var titleRange = sheet.Range("B5:R5");
+        if (document.LogoBytes is { Length: > 0 })
+        {
+            using var stream = new MemoryStream(document.LogoBytes);
+            var picture = sheet.AddPicture(stream);
+            picture.Placement = XLPicturePlacement.FreeFloating;
+            picture.Width = 55;
+            picture.Height = 57;
+            picture.Left = Math.Max(0, (int)Math.Round((84d - picture.Width) / 2d));
+            picture.Top = 0;
+        }
+
+        sheet.Range("G1:H2").Merge().Value = "BÁO CÁO CÂN HÀNG TRẠM ĐẬP";
+        var titleRange = sheet.Range("G1:H2");
+        titleRange.Style.Font.Bold = true;
+        titleRange.Style.Font.FontName = "Times New Roman";
+        titleRange.Style.Font.FontSize = 16;
         titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         titleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        titleRange.Style.Font.Bold = true;
-        titleRange.Style.Font.FontSize = 16;
+        titleRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
 
-        sheet.Range("B6:R6").Merge().Value = $"Từ {document.FromTime:HH:mm:ss dd/MM/yyyy} đến {document.ToTime:HH:mm:ss dd/MM/yyyy}";
-        var subtitleRange = sheet.Range("B6:R6");
-        subtitleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        subtitleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        subtitleRange.Style.Font.Bold = true;
-        subtitleRange.Style.Font.FontSize = 12;
+        sheet.Range("G3:H3").Merge().Value = BuildTimeRangeText(document.FromTime, document.ToTime);
+        var timeRange = sheet.Range("G3:H3");
+        timeRange.Style.Font.FontName = "Times New Roman";
+        timeRange.Style.Font.FontSize = 11;
+        timeRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        timeRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
     }
 
     private static int BuildTable(IXLWorksheet sheet, CrusherInboundReportDocument document)
     {
-        const int headerRow = 8;
-        const int dataStartRow = 9;
+        const int headerRow = 5;
+        const int dataStartRow = 6;
 
         var headers = new[]
         {
             "STT",
-            "SỐ LƯỢT CÂN",
-            "SỐ XE NỘI BỘ",
-            "TÀI XẾ",
-            "KHÁCH HÀNG",
-            "HÀNG HÓA",
-            "CHẾ ĐỘ CÂN",
-            "NGÀY CÂN 1",
-            "GIỜ CÂN 1",
-            "NGÀY CÂN 2",
-            "GIỜ CÂN 2",
-            "CÂN LẦN 1 (KG)",
-            "TL XE CHUẨN (KG)",
-            "CÂN LẦN 2 (KG)",
-            "TL HÀNG (KG)",
-            "GHI CHÚ",
-            "NGƯỜI CÂN"
+            "Số phiếu",
+            "Số xe",
+            "Ngày cân",
+            "Tổng (tấn)",
+            "Bì (tấn)",
+            "Hàng (tấn)",
+            "Khách hàng",
+            "Hàng hóa"
         };
 
         for (var i = 0; i < headers.Length; i++)
         {
-            sheet.Cell(headerRow, i + 2).Value = headers[i];
+            sheet.Cell(headerRow, i + 1).Value = headers[i];
         }
 
-        var headerRange = sheet.Range(headerRow, 2, headerRow, headers.Length + 1);
+        var headerRange = sheet.Range(headerRow, 1, headerRow, 9);
         headerRange.Style.Font.Bold = true;
+        headerRange.Style.Font.FontName = "Times New Roman";
+        headerRange.Style.Font.FontSize = 11;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#D9D9D9");
         headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        headerRange.Style.Alignment.WrapText = true;
-        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#D9D9D9");
         headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
         var row = dataStartRow;
-        var index = 1;
-        foreach (var item in document.Rows)
+        for (var index = 0; index < document.Rows.Count; index++)
         {
-            sheet.Cell(row, 2).Value = index++;
-            sheet.Cell(row, 3).Value = item.SessionNo;
-            sheet.Cell(row, 4).Value = item.InternalVehicleNo;
-            sheet.Cell(row, 5).Value = item.DriverName;
-            sheet.Cell(row, 6).Value = item.CustomerName;
-            sheet.Cell(row, 7).Value = item.ProductName;
-            sheet.Cell(row, 8).Value = item.WeighingModeDisplay;
-            sheet.Cell(row, 9).Value = item.Weight1Time;
-            sheet.Cell(row, 9).Style.DateFormat.Format = "dd/MM/yyyy";
-            sheet.Cell(row, 10).Value = item.Weight1Time;
-            sheet.Cell(row, 10).Style.DateFormat.Format = "HH:mm";
-            sheet.Cell(row, 11).Value = item.Weight2Time;
-            sheet.Cell(row, 11).Style.DateFormat.Format = "dd/MM/yyyy";
-            sheet.Cell(row, 12).Value = item.Weight2Time;
-            sheet.Cell(row, 12).Style.DateFormat.Format = "HH:mm";
-            sheet.Cell(row, 13).Value = item.Weight1;
-            sheet.Cell(row, 14).Value = item.StandardTareWeightKg;
-            sheet.Cell(row, 15).Value = item.Weight2;
-            sheet.Cell(row, 16).Value = item.NetWeightKg;
-            sheet.Cell(row, 17).Value = item.Notes;
-            sheet.Cell(row, 18).Value = item.WeigherName;
+            var item = document.Rows[index];
+            sheet.Cell(row, 1).Value = item.RowNo;
+            sheet.Cell(row, 2).Value = item.SessionNo;
+            sheet.Cell(row, 3).Value = item.InternalVehicleNo;
+            sheet.Cell(row, 4).Value = item.Weight2Time;
+            sheet.Cell(row, 4).Style.DateFormat.Format = "dd/MM/yyyy HH:mm";
+            sheet.Cell(row, 5).Value = item.GrossWeightTon;
+            sheet.Cell(row, 6).Value = item.TareWeightTon;
+            sheet.Cell(row, 7).Value = item.NetWeightTon;
+            sheet.Cell(row, 8).Value = item.CustomerName;
+            sheet.Cell(row, 9).Value = item.ProductName;
             row++;
         }
 
         if (document.Rows.Count > 0)
         {
-            sheet.Range(dataStartRow, 13, row - 1, 16).Style.NumberFormat.Format = "#,##0";
+            sheet.Range(dataStartRow, 5, row - 1, 7).Style.NumberFormat.Format = "#,##0.000";
         }
 
         var totalRow = row;
-        sheet.Range(totalRow, 2, totalRow, 15).Merge().Value = "TỔNG SỐ LƯỢNG";
-        sheet.Range(totalRow, 2, totalRow, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(totalRow, 2, totalRow, 15).Style.Font.Bold = true;
-        sheet.Cell(totalRow, 16).Value = document.TotalNetWeightKg;
-        sheet.Cell(totalRow, 16).Style.NumberFormat.Format = "#,##0";
+        sheet.Range(totalRow, 1, totalRow, 4).Merge().Value = "Cộng tổng:";
+        sheet.Range(totalRow, 1, totalRow, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(totalRow, 1, totalRow, 4).Style.Font.Bold = true;
+        sheet.Cell(totalRow, 7).Value = document.TotalNetWeightTon;
+        sheet.Cell(totalRow, 7).Style.NumberFormat.Format = "#,##0.000";
+        sheet.Cell(totalRow, 7).Style.Font.Bold = true;
 
-        var bodyRange = sheet.Range(headerRow, 2, totalRow, 18);
-        bodyRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-        bodyRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-        bodyRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        bodyRange.Style.Alignment.WrapText = true;
-        ApplyReportAlignment(sheet, document.Rows.Count, dataStartRow, totalRow);
+        var tableRange = sheet.Range(headerRow, 1, totalRow, 9);
+        tableRange.Style.Font.FontName = "Times New Roman";
+        tableRange.Style.Font.FontSize = 11;
+        tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        tableRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        tableRange.Style.Alignment.WrapText = true;
+
+        if (document.Rows.Count > 0)
+        {
+            sheet.Range(dataStartRow, 1, totalRow - 1, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 4, totalRow - 1, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 5, totalRow - 1, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            sheet.Range(dataStartRow, 8, totalRow - 1, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        }
 
         return totalRow;
     }
 
-    private static void ApplyReportAlignment(IXLWorksheet sheet, int rowCount, int dataStartRow, int totalRow)
-    {
-        if (rowCount > 0)
-        {
-            sheet.Range(dataStartRow, 2, totalRow - 1, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-            sheet.Range(dataStartRow, 2, totalRow - 1, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            sheet.Range(dataStartRow, 8, totalRow - 1, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            sheet.Range(dataStartRow, 13, totalRow - 1, 16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        }
-
-        sheet.Cell(totalRow, 16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-    }
-
     private static void BuildFooter(IXLWorksheet sheet, CrusherInboundReportDocument document, int lastTableRow)
     {
-        var footerTitleRow = lastTableRow + 3;
-        var footerNameRow = lastTableRow + 6;
+        var signatureTitleRow = lastTableRow + 2;
+        var signatureNameRow = lastTableRow + 6;
+        var footerRow = lastTableRow + 8;
 
-        sheet.Range(footerTitleRow, 2, footerTitleRow, 5).Merge().Value = "Tổ trưởng";
-        sheet.Range(footerTitleRow, 2, footerTitleRow, 5).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(footerTitleRow, 2, footerTitleRow, 5).Style.Font.Bold = true;
+        sheet.Range(signatureTitleRow, 2, signatureTitleRow, 4).Merge().Value = "ĐẠI DIỆN ĐƠN VỊ KHAI THÁC";
+        sheet.Range(signatureTitleRow, 2, signatureTitleRow, 4).Style.Font.Bold = true;
+        sheet.Range(signatureTitleRow, 2, signatureTitleRow, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(signatureTitleRow, 2, signatureTitleRow, 4).Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
 
-        sheet.Range(footerTitleRow, 15, footerTitleRow, 18).Merge().Value = "Người lập";
-        sheet.Range(footerTitleRow, 15, footerTitleRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(footerTitleRow, 15, footerTitleRow, 18).Style.Font.Bold = true;
+        sheet.Range(signatureTitleRow, 8, signatureTitleRow, 9).Merge().Value = "ĐẠI DIỆN PHÂN XƯỞNG KHAI THÁC";
+        sheet.Range(signatureTitleRow, 8, signatureTitleRow, 9).Style.Font.Bold = true;
+        sheet.Range(signatureTitleRow, 8, signatureTitleRow, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(signatureTitleRow, 8, signatureTitleRow, 9).Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
 
-        sheet.Range(footerNameRow, 15, footerNameRow, 18).Merge().Value = document.PreparedByDisplayName;
-        sheet.Range(footerNameRow, 15, footerNameRow, 18).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(signatureNameRow, 8, signatureNameRow, 9).Merge().Value = document.PreparedByDisplayName;
+        sheet.Range(signatureNameRow, 8, signatureNameRow, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        var footerRange = sheet.Range(footerRow, 1, footerRow, 9);
+        footerRange.Style.Border.TopBorder = XLBorderStyleValues.Medium;
+        footerRange.Style.Font.FontName = "Times New Roman";
+        footerRange.Style.Font.FontSize = 11;
+
+        sheet.Cell(footerRow, 1).Value = document.StationName;
+        sheet.Cell(footerRow, 1).Style.Font.Bold = true;
+        sheet.Cell(footerRow, 5).Value = $"Thời gian in: {DateTime.Now:dd/MM/yyyy HH:mm}";
+        sheet.Cell(footerRow, 5).Style.Font.Italic = true;
+        sheet.Cell(footerRow, 9).Value = "Trang: 1/1";
     }
 
     private static void ApplySheetLayout(IXLWorksheet sheet, int lastRelevantRow)
     {
-        sheet.Column(1).Width = 2;
-        sheet.Column(19).Width = 2;
+        sheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        sheet.PageSetup.PaperSize = XLPaperSize.A4Paper;
+        sheet.PageSetup.FitToPages(1, 0);
+        sheet.PageSetup.Margins.Top = 0.3;
+        sheet.PageSetup.Margins.Bottom = 0.3;
+        sheet.PageSetup.Margins.Left = 0.2;
+        sheet.PageSetup.Margins.Right = 0.2;
 
-        sheet.SheetView.FreezeRows(8);
-        sheet.Range(2, 2, Math.Max(8, lastRelevantRow), 18).Style.Font.FontName = "Times New Roman";
-        sheet.Columns(2, 18).AdjustToContents(2, lastRelevantRow);
-        ApplyColumnWidthLimits(sheet, new Dictionary<int, (double Min, double Max)>
-        {
-            [2] = (6, 8),
-            [3] = (13, 18),
-            [4] = (13, 18),
-            [5] = (16, 26),
-            [6] = (20, 36),
-            [7] = (18, 36),
-            [8] = (12, 16),
-            [9] = (12, 14),
-            [10] = (9, 11),
-            [11] = (12, 14),
-            [12] = (9, 11),
-            [13] = (13, 17),
-            [14] = (13, 16),
-            [15] = (13, 16),
-            [16] = (13, 16),
-            [17] = (16, 34),
-            [18] = (14, 24)
-        });
-        sheet.Rows(2, lastRelevantRow).AdjustToContents();
+        sheet.Column(1).Width = 12;
+        sheet.Column(2).Width = 15;
+        sheet.Column(3).Width = 12;
+        sheet.Column(4).Width = 27;
+        sheet.Column(5).Width = 12;
+        sheet.Column(6).Width = 12;
+        sheet.Column(7).Width = 12;
+        sheet.Column(8).Width = 37;
+        sheet.Column(9).Width = 16;
+
+        sheet.Row(1).Height = 24;
+        sheet.Row(3).Height = 20;
+        sheet.Row(lastRelevantRow).Height = 16;
+        sheet.Rows(1, lastRelevantRow).AdjustToContents();
     }
 
-    private static void ApplyColumnWidthLimits(IXLWorksheet sheet, IReadOnlyDictionary<int, (double Min, double Max)> limits)
+    private static string BuildTimeRangeText(DateTime fromTime, DateTime toTime)
     {
-        foreach (var (columnNumber, (min, max)) in limits)
+        if (fromTime.Date == toTime.Date)
         {
-            var column = sheet.Column(columnNumber);
-            column.Width = Math.Clamp(column.Width, min, max);
+            return $"Thời gian: Từ {fromTime:HH:mm} đến {toTime:HH:mm} ngày {fromTime:dd/MM/yyyy}";
         }
+
+        return $"Thời gian: Từ {fromTime:HH:mm dd/MM/yyyy} đến {toTime:HH:mm dd/MM/yyyy}";
     }
 }

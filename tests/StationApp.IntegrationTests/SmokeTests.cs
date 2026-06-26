@@ -52,6 +52,7 @@ public class SmokeTests : IDisposable
                 services.AddSingleton<IAppVersionProvider, AppVersionProvider>();
                 services.AddSingleton<IClock, SystemClock>();
                 services.AddSingleton<ICurrentUserContext, CurrentUserContext>();
+                services.AddSingleton<ICurrentStationContext, CurrentStationContext>();
                 services.AddScoped<IToleranceProvider, ToleranceProvider>();
                 services.AddScoped<IAuditService, AuditService>();
                 services.AddScoped<ISyncPayloadFactory, SyncPayloadFactory>();
@@ -407,7 +408,7 @@ public class SmokeTests : IDisposable
         var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
 
         // 1. Sign in as Admin
-        currentUser.SignIn(Guid.NewGuid(), "admin", "Test Admin", "ADMIN");
+        currentUser.SignIn(Guid.NewGuid(), "admin", "Test Admin", "ADMIN", "TEST01");
 
         // 2. Prepare database station
         var station = new Station

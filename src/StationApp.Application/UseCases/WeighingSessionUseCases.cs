@@ -93,60 +93,63 @@ public sealed class CreateWeighingSessionUseCase
             }
         }
 
-        var now = _clock.NowLocal;
-        var session = new WeighingSession
-        {
-            Id = Guid.NewGuid(),
-            SessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, ct),
-            TransactionType = primaryRegistration.TransactionType,
-            VehiclePlate = primaryRegistration.VehiclePlate,
-            MoocNumber = primaryRegistration.MoocNumber,
-            DriverName = primaryRegistration.ReceiverName,
-            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT1,
-            OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
-            OverweightAmount = 0m,
-            IsCancelled = false,
-            HasPrintedMasterWeighTicket = false,
-            CreatedAt = now,
-            CreatedBy = _userContext.Username
-        };
-
         var orderedRegistrations = registrations
             .OrderBy(x => x.CreatedAt)
             .ThenBy(x => x.ErpCutOrderId)
             .ToList();
 
-        var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
-        {
-            Id = Guid.NewGuid(),
-            WeighingSessionId = session.Id,
-            CutOrderId = registration.Id,
-            SequenceNo = index + 1,
-            CustomerCode = registration.CustomerCode,
-            CustomerName = registration.CustomerName,
-            DistributorName = registration.CustomerName,
-            ProductCode = registration.ProductCode,
-            ProductName = registration.ProductName,
-            PlannedWeight = registration.PlannedWeight,
-            PlannedBagCount = registration.BagCount,
-            LineStatus = WeighingSessionLineStatus.PENDING,
-            HasPrintedDeliveryTicket = false,
-            CreatedAt = now,
-            CreatedBy = _userContext.Username
-        }).ToList();
-
-        foreach (var registration in orderedRegistrations)
-        {
-            registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
-            registration.ProcessingStage = ProcessingStage.WEIGHING;
-            registration.WeighingSessionId = session.Id;
-            registration.SyncStatus = SyncStatus.SYNC_QUEUED;
-            registration.UpdatedAt = now;
-            registration.UpdatedBy = _userContext.Username;
-        }
+        Guid? sessionId = null;
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
+            var now = _clock.NowLocal;
+            var sessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, innerCt);
+            var session = new WeighingSession
+            {
+                Id = Guid.NewGuid(),
+                SessionNo = sessionNo,
+                TransactionType = primaryRegistration.TransactionType,
+                VehiclePlate = primaryRegistration.VehiclePlate,
+                MoocNumber = primaryRegistration.MoocNumber,
+                DriverName = primaryRegistration.ReceiverName,
+                SessionStatus = WeighingSessionStatus.PENDING_WEIGHT1,
+                OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
+                OverweightAmount = 0m,
+                IsCancelled = false,
+                HasPrintedMasterWeighTicket = false,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            };
+
+            var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
+            {
+                Id = Guid.NewGuid(),
+                WeighingSessionId = session.Id,
+                CutOrderId = registration.Id,
+                SequenceNo = index + 1,
+                CustomerCode = registration.CustomerCode,
+                CustomerName = registration.CustomerName,
+                DistributorName = registration.CustomerName,
+                ProductCode = registration.ProductCode,
+                ProductName = registration.ProductName,
+                PlannedWeight = registration.PlannedWeight,
+                PlannedBagCount = registration.BagCount,
+                LineStatus = WeighingSessionLineStatus.PENDING,
+                HasPrintedDeliveryTicket = false,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            }).ToList();
+
+            foreach (var registration in orderedRegistrations)
+            {
+                registration.CutOrderStatus = CutOrderStatus.IN_SESSION;
+                registration.ProcessingStage = ProcessingStage.WEIGHING;
+                registration.WeighingSessionId = session.Id;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+                registration.UpdatedAt = now;
+                registration.UpdatedBy = _userContext.Username;
+            }
+
             await _sessionRepo.AddAsync(session, innerCt);
             foreach (var line in lines)
             {
@@ -157,9 +160,11 @@ public sealed class CreateWeighingSessionUseCase
             {
                 await _regRepo.UpdateAsync(registration, innerCt);
             }
+
+            sessionId = session.Id;
         }, ct);
 
-        return new CreateWeighingSessionResult(session.Id);
+        return new CreateWeighingSessionResult(sessionId!.Value);
     }
 }
 
@@ -225,74 +230,77 @@ public sealed class MarkRegistrationsNoLoadUseCase
             }
         }
 
-        var now = _clock.NowLocal;
-        var session = new WeighingSession
-        {
-            Id = Guid.NewGuid(),
-            SessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, ct),
-            TransactionType = primaryRegistration.TransactionType,
-            VehiclePlate = primaryRegistration.VehiclePlate,
-            MoocNumber = primaryRegistration.MoocNumber,
-            DriverName = primaryRegistration.ReceiverName,
-            SessionStatus = WeighingSessionStatus.COMPLETED,
-            Weight1 = 0m,
-            Weight1Time = now,
-            Weight2 = 0m,
-            Weight2Time = now,
-            NetWeight = 0m,
-            IsOverweight = false,
-            OverweightAmount = 0m,
-            OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
-            IsCancelled = false,
-            HasPrintedMasterWeighTicket = false,
-            CreatedAt = now,
-            CreatedBy = _userContext.Username,
-            UpdatedAt = now,
-            UpdatedBy = _userContext.Username
-        };
-
         var orderedRegistrations = registrations
             .OrderBy(x => x.CreatedAt)
             .ThenBy(x => x.ErpCutOrderId)
             .ToList();
 
-        var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
-        {
-            Id = Guid.NewGuid(),
-            WeighingSessionId = session.Id,
-            CutOrderId = registration.Id,
-            SequenceNo = index + 1,
-            CustomerCode = registration.CustomerCode,
-            CustomerName = registration.CustomerName,
-            DistributorName = registration.CustomerName,
-            ProductCode = registration.ProductCode,
-            ProductName = registration.ProductName,
-            PlannedWeight = registration.PlannedWeight,
-            PlannedBagCount = registration.BagCount,
-            ActualAllocatedWeight = 0m,
-            ActualAllocatedBagCount = 0,
-            BagCountDisplay = 0,
-            IsReturnedBrokenTrip = false,
-            LineStatus = WeighingSessionLineStatus.ALLOCATED,
-            HasPrintedDeliveryTicket = false,
-            CreatedAt = now,
-            CreatedBy = _userContext.Username,
-            UpdatedAt = now,
-            UpdatedBy = _userContext.Username
-        }).ToList();
-
-        foreach (var registration in orderedRegistrations)
-        {
-            registration.CutOrderStatus = CutOrderStatus.COMPLETED;
-            registration.ProcessingStage = ProcessingStage.OUT_YARD;
-            registration.WeighingSessionId = session.Id;
-            registration.SyncStatus = SyncStatus.SYNC_QUEUED;
-            registration.UpdatedAt = now;
-            registration.UpdatedBy = _userContext.Username;
-        }
+        Guid? sessionId = null;
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
+            var now = _clock.NowLocal;
+            var sessionNo = await _sessionNoGen.GenerateAsync(primaryRegistration.TransactionType, innerCt);
+            var session = new WeighingSession
+            {
+                Id = Guid.NewGuid(),
+                SessionNo = sessionNo,
+                TransactionType = primaryRegistration.TransactionType,
+                VehiclePlate = primaryRegistration.VehiclePlate,
+                MoocNumber = primaryRegistration.MoocNumber,
+                DriverName = primaryRegistration.ReceiverName,
+                SessionStatus = WeighingSessionStatus.COMPLETED,
+                Weight1 = 0m,
+                Weight1Time = now,
+                Weight2 = 0m,
+                Weight2Time = now,
+                NetWeight = 0m,
+                IsOverweight = false,
+                OverweightAmount = 0m,
+                OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
+                IsCancelled = false,
+                HasPrintedMasterWeighTicket = false,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username,
+                UpdatedAt = now,
+                UpdatedBy = _userContext.Username
+            };
+
+            var lines = orderedRegistrations.Select((registration, index) => new WeighingSessionLine
+            {
+                Id = Guid.NewGuid(),
+                WeighingSessionId = session.Id,
+                CutOrderId = registration.Id,
+                SequenceNo = index + 1,
+                CustomerCode = registration.CustomerCode,
+                CustomerName = registration.CustomerName,
+                DistributorName = registration.CustomerName,
+                ProductCode = registration.ProductCode,
+                ProductName = registration.ProductName,
+                PlannedWeight = registration.PlannedWeight,
+                PlannedBagCount = registration.BagCount,
+                ActualAllocatedWeight = 0m,
+                ActualAllocatedBagCount = 0,
+                BagCountDisplay = 0,
+                IsReturnedBrokenTrip = false,
+                LineStatus = WeighingSessionLineStatus.ALLOCATED,
+                HasPrintedDeliveryTicket = false,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username,
+                UpdatedAt = now,
+                UpdatedBy = _userContext.Username
+            }).ToList();
+
+            foreach (var registration in orderedRegistrations)
+            {
+                registration.CutOrderStatus = CutOrderStatus.COMPLETED;
+                registration.ProcessingStage = ProcessingStage.OUT_YARD;
+                registration.WeighingSessionId = session.Id;
+                registration.SyncStatus = SyncStatus.SYNC_QUEUED;
+                registration.UpdatedAt = now;
+                registration.UpdatedBy = _userContext.Username;
+            }
+
             await _sessionRepo.AddAsync(session, innerCt);
             foreach (var line in lines)
             {
@@ -303,9 +311,11 @@ public sealed class MarkRegistrationsNoLoadUseCase
             {
                 await _regRepo.UpdateAsync(registration, innerCt);
             }
+
+            sessionId = session.Id;
         }, ct);
 
-        return session.Id;
+        return sessionId!.Value;
     }
 }
 
@@ -763,66 +773,68 @@ public sealed class CaptureSessionWeight1UseCase
 
         var ticket = await _weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, ct);
         var isNewTicket = ticket == null;
-        var now = _clock.NowLocal;
-
-        if (isNewTicket)
-        {
-            ticket = new WeighTicket
-            {
-                Id = Guid.NewGuid(),
-                CutOrderId = primaryRegistration.Id,
-                WeighingSessionId = session.Id,
-                TicketNo = await _ticketNoGen.GenerateAsync(ct),
-                ErpCutOrderId = primaryRegistration.ErpCutOrderId,
-                VehiclePlate = session.VehiclePlate,
-                MoocNumber = session.MoocNumber,
-                DriverName = session.DriverName,
-                CustomerCode = primaryRegistration.CustomerCode,
-                CustomerName = primaryRegistration.CustomerName,
-                ProductCode = primaryRegistration.ProductCode,
-                ProductName = primaryRegistration.ProductName,
-                PlannedWeight = registrations.Sum(x => x.PlannedWeight ?? 0m),
-                BagCount = registrations.Sum(x => x.BagCount ?? 0),
-                Notes = registrations.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Notes))?.Notes,
-                TransactionType = session.TransactionType,
-                TransportMethod = primaryRegistration.TransportMethod,
-                Status = TicketStatus.LOADING_STARTED,
-                RecordRole = WeighTicketRecordRoles.MasterSession,
-                IsPrimaryDisplay = true,
-                Ttcp10WeightSnapshot = ttcp10Threshold,
-                IdempotencyKey = Guid.NewGuid(),
-                SyncStatus = SyncStatus.SYNC_QUEUED,
-                CreatedAt = now,
-                CreatedBy = _userContext.Username
-            };
-        }
-
-        session.Weight1 = request.Weight;
-        session.Weight1Time = now;
-        session.Ttcp10WeightSnapshot = ttcp10Threshold;
-        session.SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2;
-        session.IsOverweight = false;
-        session.OverweightAmount = 0m;
-        session.OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE;
-        session.OverweightResolvedAt = null;
-        session.OverweightResolvedBy = null;
-        session.UpdatedAt = now;
-        session.UpdatedBy = _userContext.Username;
-
-        var masterTicket = ticket ?? throw new InvalidOperationException("Không thể khởi tạo phiếu cân tổng.");
-        masterTicket.VehicleRegistrationNoSnapshot = vehicle?.VehicleRegistrationNo;
-        masterTicket.VehicleRegistrationExpirySnapshot = vehicle?.VehicleRegistrationExpiryDate;
-        masterTicket.MoocRegistrationNoSnapshot = vehicle?.MoocRegistrationNo;
-        masterTicket.MoocRegistrationExpirySnapshot = vehicle?.MoocRegistrationExpiryDate;
-        _ticketSyncService.SyncMasterTicketFromSession(
-            session,
-            masterTicket,
-            now,
-            _userContext.Username,
-            new WeightCaptureSnapshot(_userContext.Username, request.Mode, request.IsStable));
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
+            var now = _clock.NowLocal;
+
+            if (isNewTicket)
+            {
+                var ticketNo = await _ticketNoGen.GenerateAsync(innerCt);
+                ticket = new WeighTicket
+                {
+                    Id = Guid.NewGuid(),
+                    CutOrderId = primaryRegistration.Id,
+                    WeighingSessionId = session.Id,
+                    TicketNo = ticketNo,
+                    ErpCutOrderId = primaryRegistration.ErpCutOrderId,
+                    VehiclePlate = session.VehiclePlate,
+                    MoocNumber = session.MoocNumber,
+                    DriverName = session.DriverName,
+                    CustomerCode = primaryRegistration.CustomerCode,
+                    CustomerName = primaryRegistration.CustomerName,
+                    ProductCode = primaryRegistration.ProductCode,
+                    ProductName = primaryRegistration.ProductName,
+                    PlannedWeight = registrations.Sum(x => x.PlannedWeight ?? 0m),
+                    BagCount = registrations.Sum(x => x.BagCount ?? 0),
+                    Notes = registrations.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Notes))?.Notes,
+                    TransactionType = session.TransactionType,
+                    TransportMethod = primaryRegistration.TransportMethod,
+                    Status = TicketStatus.LOADING_STARTED,
+                    RecordRole = WeighTicketRecordRoles.MasterSession,
+                    IsPrimaryDisplay = true,
+                    Ttcp10WeightSnapshot = ttcp10Threshold,
+                    IdempotencyKey = Guid.NewGuid(),
+                    SyncStatus = SyncStatus.SYNC_QUEUED,
+                    CreatedAt = now,
+                    CreatedBy = _userContext.Username
+                };
+            }
+
+            session.Weight1 = request.Weight;
+            session.Weight1Time = now;
+            session.Ttcp10WeightSnapshot = ttcp10Threshold;
+            session.SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2;
+            session.IsOverweight = false;
+            session.OverweightAmount = 0m;
+            session.OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE;
+            session.OverweightResolvedAt = null;
+            session.OverweightResolvedBy = null;
+            session.UpdatedAt = now;
+            session.UpdatedBy = _userContext.Username;
+
+            var masterTicket = ticket ?? throw new InvalidOperationException("Không thể khởi tạo phiếu cân tổng.");
+            masterTicket.VehicleRegistrationNoSnapshot = vehicle?.VehicleRegistrationNo;
+            masterTicket.VehicleRegistrationExpirySnapshot = vehicle?.VehicleRegistrationExpiryDate;
+            masterTicket.MoocRegistrationNoSnapshot = vehicle?.MoocRegistrationNo;
+            masterTicket.MoocRegistrationExpirySnapshot = vehicle?.MoocRegistrationExpiryDate;
+            _ticketSyncService.SyncMasterTicketFromSession(
+                session,
+                masterTicket,
+                now,
+                _userContext.Username,
+                new WeightCaptureSnapshot(_userContext.Username, request.Mode, request.IsStable));
+
             await _sessionRepo.UpdateAsync(session, innerCt);
             if (isNewTicket)
             {
@@ -861,6 +873,7 @@ public sealed class CaptureSessionWeight1UseCase
                 settings.EnabledCameras,
                 settings.CaptureTimeoutMs,
                 settings.CaptureJpegQuality,
+                settings.CaptureMaxDimension,
                 settings.CaptureWarmupFrames,
                 ct);
 
@@ -1089,13 +1102,14 @@ public sealed class CaptureSessionWeight2UseCase
                 .FirstOrDefault(x => x.WeighingSessionLineId == lineToAutoAllocate.Id);
             if (deliveryTicket == null)
             {
+                // Tạo delivery ticket tạm thời chưa có DeliveryNo, sẽ sinh trong transaction
                 deliveryTicket = new DeliveryTicket
                 {
                     Id = Guid.NewGuid(),
                     CutOrderId = registration.Id,
                     WeighingSessionId = session.Id,
                     WeighingSessionLineId = lineToAutoAllocate.Id,
-                    DeliveryNo = await _deliveryNoGen.GenerateAsync(ct),
+                    DeliveryNo = null, // Sẽ sinh trong transaction
                     ErpCutOrderId = registration.ErpCutOrderId ?? string.Empty,
                     CustomerCode = registration.CustomerCode,
                     ProductCode = registration.ProductCode,
@@ -1165,6 +1179,12 @@ public sealed class CaptureSessionWeight2UseCase
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
+            // Sinh DeliveryNo trong transaction nếu là ticket mới
+            if (deliveryTicketToCreate != null && string.IsNullOrEmpty(deliveryTicketToCreate.DeliveryNo))
+            {
+                deliveryTicketToCreate.DeliveryNo = await _deliveryNoGen.GenerateAsync(innerCt);
+            }
+
             await _sessionRepo.UpdateAsync(session, innerCt);
             if (lineToAutoAllocate != null)
             {
@@ -1313,6 +1333,7 @@ public sealed class CaptureSessionWeight2UseCase
                 settings.EnabledCameras,
                 settings.CaptureTimeoutMs,
                 settings.CaptureJpegQuality,
+                settings.CaptureMaxDimension,
                 settings.CaptureWarmupFrames,
                 ct);
 

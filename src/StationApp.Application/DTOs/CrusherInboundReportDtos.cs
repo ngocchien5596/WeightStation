@@ -3,34 +3,28 @@ namespace StationApp.Application.DTOs;
 public sealed record CrusherInboundReportFilter(
     DateTime FromTime,
     DateTime ToTime,
-    string? ProductCode,
-    string? CustomerCode
+    string? VehicleKeyword
 );
 
 public sealed record CrusherInboundReportRow(
+    int RowNo,
     string SessionNo,
     string InternalVehicleNo,
-    string? DriverName,
     string? CustomerName,
     string? ProductName,
-    string WeighingModeDisplay,
-    DateTime? Weight1Time,
     DateTime? Weight2Time,
-    decimal? StandardTareWeightKg,
-    decimal? Weight1,
-    decimal? Weight2,
-    decimal NetWeightKg,
-    string? Notes,
-    string? WeigherName
+    decimal GrossWeightTon,
+    decimal TareWeightTon,
+    decimal NetWeightTon
 );
 
 public sealed record CrusherInboundReportDocument(
     DateTime FromTime,
     DateTime ToTime,
-    string? ProductCode,
-    string? ProductDisplayName,
-    string? CustomerCode,
+    string? VehicleKeyword,
+    string StationName,
     string PreparedByDisplayName,
+    byte[]? LogoBytes,
     IReadOnlyList<CrusherInboundReportRow> Rows,
-    decimal TotalNetWeightKg
+    decimal TotalNetWeightTon
 );

@@ -137,30 +137,30 @@
                             </Button>
 
                             <StackPanel Visibility="{Binding IsReportsSubmenuVisible, Converter={StaticResource BoolToVis}}">
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewExportSummaryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_ExportSummary">
                                     <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t - N&#x110;" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewExportScaleReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_ExportScale">
                                     <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t - XK" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewInboundSummaryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_InboundSummary">
-                                    <TextBlock Text="Báo cáo nhập" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Báo cáo cân hàng" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewCrusherInboundReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_CrusherInbound">
-                                    <TextBlock Text="B&#xE1;o c&#xE1;o nh&#x1EAD;p (tr&#x1EA1;m &#x111;&#x1EAD;p)" VerticalAlignment="Center"/>
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o c&#xE2;n h&#xE0;ng (tr&#x1EA1;m &#x111;&#x1EAD;p)" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewClayInboundReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_ClayInbound">
-                                    <TextBlock Text="B&#xE1;o c&#xE1;o nh&#x1EAD;p (m&#x1ECF; s&#xE9;t)" VerticalAlignment="Center"/>
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o c&#xE2;n h&#xE0;ng (m&#x1ECF; s&#xE9;t)" VerticalAlignment="Center"/>
                                 </Button>
                             </StackPanel>
                             <Button Style="{StaticResource SidebarMenuItemStyle}"
@@ -192,65 +192,70 @@
                             </Button>
 
                             <StackPanel Visibility="{Binding IsSettingsSubmenuVisible, Converter={StaticResource BoolToVis}}">
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewAppUpdate, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="AppUpdate">
-                                    <TextBlock Text="C&#x1EAD;p nh&#x1EAD;t &#x1EE9;ng d&#x1EE5;ng" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Cập nhật ứng dụng" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsParams, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Params">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsParams}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsParams, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Camera">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsCamera}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsDevice, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Device">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsDevice}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsPrint, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Print">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsPrint}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsVehicles, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Vehicles">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsVehicles}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsCustomers, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Customers">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsCustomers}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsProducts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Products">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsProducts}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsSync, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Sync">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsSync}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsExternalDatacan, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_ExternalDatacan">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsExternalDatacan}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsStations, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Stations">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsStations}" VerticalAlignment="Center"/>
                                 </Button>
-                                <Button Style="{StaticResource SidebarMenuItemStyle}" Padding="30,0,12,0"
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsAccounts, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Accounts">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsAccounts}" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewEditHistoryReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_EditHistory">
+                                    <TextBlock Text="Lịch sử sửa số liệu" VerticalAlignment="Center"/>
                                 </Button>
                             </StackPanel>
                         </StackPanel>

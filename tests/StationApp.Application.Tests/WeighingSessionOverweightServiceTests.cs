@@ -161,6 +161,7 @@ public class WeighingSessionOverweightServiceTests
         Assert.NotNull(plan.RandomSplitFactor);
         Assert.InRange(plan.RandomSplitFactor!.Value, 0.0001m, 0.0025m);
         Assert.Equal(plan.NetWeight, plan.SplitTicket1NetWeight + plan.SplitTicket2NetWeight);
+        Assert.True(plan.SplitTicket1NetWeight % 10m == 0m);
         Assert.True(plan.SplitTicket1NetWeight < plan.Ttcp10WeightSnapshot);
         Assert.True(plan.SplitTicket2NetWeight <= plan.Ttcp10WeightSnapshot);
     }
@@ -331,7 +332,7 @@ public class WeighingSessionOverweightServiceTests
         weighRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns([masterTicket]);
         deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns([normalDelivery1, normalDelivery2]);
         configRepo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, Arg.Any<CancellationToken>()).Returns("0.0025");
-        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN26050010", "QN26050011");
+        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN26050010", "QN26050011", "QN26050012");
         deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DN26050020", "DN26050021", "DN26050022");
         userContext.Username.Returns("supervisor");
         clock.NowLocal.Returns(new DateTime(2026, 5, 1, 11, 30, 0));
@@ -357,7 +358,7 @@ public class WeighingSessionOverweightServiceTests
 
         await useCase.ExecuteAsync(session.Id, CancellationToken.None);
 
-        Assert.Equal(["QN26050010", "QN26050011"], addedWeighTickets.Select(x => x.TicketNo).ToArray());
+        Assert.Equal(["QN26050010", "QN26050011", "QN26050012"], addedWeighTickets.Select(x => x.TicketNo).ToArray());
         Assert.Equal(addedDeliveryTickets.Count, addedDeliveryTickets.Select(x => x.DeliveryNo).Distinct().Count());
         Assert.Equal(
             Enumerable.Range(0, addedDeliveryTickets.Count).Select(offset => $"DN260500{20 + offset:D2}").ToArray(),

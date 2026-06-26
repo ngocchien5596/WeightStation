@@ -1,0 +1,119 @@
+<UserControl x:Class="StationApp.UI.Views.WeighingSessionEditHistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/StationApp.UI;component/Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/ButtonStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/InputStyles.xaml"/>
+                <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="ReportDatePickerStyle" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}">
+                <Setter Property="Width" Value="140"/>
+                <Setter Property="Height" Value="34"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource BackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
+            <TextBlock Text="{Binding Title}" 
+                       FontSize="18" 
+                       FontWeight="SemiBold" 
+                       Foreground="White" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"/>
+        </Border>
+
+        <!-- Filters -->
+        <Border Grid.Row="1" Margin="12,12,12,8" Padding="12" Background="{DynamicResource CardBrush}" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="Từ ngày" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Text="Đến ngày" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                    <TextBlock Text="Biển số xe" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Width="140"
+                             Height="34"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             Text="{Binding SearchVehiclePlate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                    <TextBlock Text="Số lượt cân" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Width="160"
+                             Height="34"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             Text="{Binding SearchSessionNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Command="{Binding SearchCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="90" Margin="0,0,8,0">
+                        <TextBlock Text="TÌM KIẾM" FontWeight="SemiBold"/>
+                    </Button>
+                    <Button Command="{Binding ClearFiltersCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="90">
+                        <TextBlock Text="XÓA LỌC" FontWeight="SemiBold"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Grid Results -->
+        <Border Grid.Row="2" Margin="12,0,12,12" Padding="10" Background="{DynamicResource CardBrush}" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DataGrid Grid.Row="0" ItemsSource="{Binding HistoryItems}" AutoGenerateColumns="False" IsReadOnly="True"
+                          Language="vi-VN"
+                          Style="{StaticResource SystemDataGridStyle}"
+                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                          RowStyle="{StaticResource SystemDataGridRowStyle}"
+                          CellStyle="{StaticResource SystemDataGridCellStyle}"
+                          HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="STT" Binding="{Binding Index}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Thời gian sửa" Binding="{Binding CreatedAt, StringFormat=dd/MM/yyyy HH:mm:ss}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Người sửa" Binding="{Binding Actor}" Width="110" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="Số lượt cân" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Số xe cũ" Binding="{Binding OldVehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="Số xe mới" Binding="{Binding NewVehiclePlate}" Width="110" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="TL tổng (kg)" Binding="{Binding NetWeight, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="TL bì cũ (kg)" Binding="{Binding OldStandardTare, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="TL bì mới (kg)" Binding="{Binding NewStandardTare, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="TL hàng cũ (kg)" Binding="{Binding OldNetWeight, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="TL hàng mới (kg)" Binding="{Binding NewNetWeight, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="Lý do sửa đổi" Binding="{Binding Reason}" Width="*" ElementStyle="{StaticResource GridTextLeft}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

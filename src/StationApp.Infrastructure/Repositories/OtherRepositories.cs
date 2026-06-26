@@ -17,6 +17,51 @@ public class AuditLogRepository : IAuditLogRepository
     public async Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, Guid entityId, CancellationToken ct)
         => await _db.AuditLogs.Where(l => l.EntityType == entityType && l.EntityId == entityId)
             .OrderByDescending(l => l.CreatedAt).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<AuditLog>> SearchEditLogsAsync(
+        string? vehiclePlate,
+        string? sessionNo,
+        DateTime fromDate,
+        DateTime toDate,
+        string? stationCode,
+        CancellationToken ct)
+    {
+        var startDateTime = fromDate.Date;
+        var endDateTime = toDate.Date.AddDays(1).AddTicks(-1);
+
+        // Determine which actions to include based on station
+        // QN01 (Export Weighing): only TRANSFER_EXPORT_TRIP
+        // Other stations (QN02, QN03): only EDIT_WEIGHING_SESSION
+        var validActions = stationCode == "QN01"
+            ? new[] { "TRANSFER_EXPORT_TRIP" }
+            : new[] { "EDIT_WEIGHING_SESSION" };
+
+        var query = _db.AuditLogs
+            .AsNoTracking()
+            .Where(l => validActions.Contains(l.Action) && l.CreatedAt >= startDateTime && l.CreatedAt <= endDateTime);
+
+        // Filter by station code if provided
+        if (!string.IsNullOrWhiteSpace(stationCode))
+        {
+            query = query.Where(l => l.StationCode == stationCode);
+        }
+
+        var logs = await query.OrderByDescending(l => l.CreatedAt).ToListAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(vehiclePlate))
+        {
+            var cleanPlate = vehiclePlate.Trim();
+            logs = logs.Where(l => l.DetailJson != null && l.DetailJson.Contains(cleanPlate, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(sessionNo))
+        {
+            var cleanNo = sessionNo.Trim();
+            logs = logs.Where(l => l.DetailJson != null && l.DetailJson.Contains(cleanNo, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        return logs;
+    }
 }
 
 public class AppConfigRepository : IAppConfigRepository

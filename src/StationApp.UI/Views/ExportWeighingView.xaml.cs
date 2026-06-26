@@ -24,6 +24,19 @@ public partial class ExportWeighingView : UserControl
         Unloaded += OnUnloaded;
     }
 
+    private void OnBrokenTripCheckBoxPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // Ngăn CheckBox tự toggle visual khi click
+        e.Handled = true;
+
+        // Lấy trip item từ DataContext của CheckBox
+        if (sender is CheckBox checkBox && checkBox.DataContext is ExportVehicleTripListItem trip)
+        {
+            // Gọi Command trong ViewModel để hiển thị dialog xác nhận
+            _viewModel?.ToggleReturnedBrokenTripCommand.ExecuteAsync(trip);
+        }
+    }
+
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (_viewModel != null)

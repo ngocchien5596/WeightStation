@@ -339,6 +339,8 @@ public partial class App : System.Windows.Application
                     services.AddTransient<InboundSummaryReportViewModel>();
                     services.AddTransient<CrusherInboundReportViewModel>();
                     services.AddTransient<ClayInboundReportViewModel>();
+                    services.AddTransient<WeighingSessionEditHistoryViewModel>();
+                    services.AddTransient<ExportTripTransferHistoryViewModel>();
                     services.AddTransient<TicketListViewModel>();
                     services.AddTransient<DiagnosticsViewModel>();
                     services.AddTransient<SettingsViewModel>();
@@ -416,6 +418,7 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.CameraPreviewDefault] = AppConfigDefaults.DefaultCameraPreview,
             [AppConfigKeys.CameraCaptureTimeoutMs] = AppConfigDefaults.DefaultCameraCaptureTimeoutMs,
             [AppConfigKeys.CameraCaptureJpegQuality] = AppConfigDefaults.DefaultCameraCaptureJpegQuality,
+            [AppConfigKeys.CameraCaptureMaxDimension] = AppConfigDefaults.DefaultCameraCaptureMaxDimension,
             [AppConfigKeys.CameraCaptureWarmupFrames] = AppConfigDefaults.DefaultCameraCaptureWarmupFrames,
             [AppConfigKeys.AppUpdateSharedReleaseRoot] = AppConfigDefaults.DefaultAppUpdateSharedReleaseRoot,
             [AppConfigKeys.CentralApiUrl] = AppConfigDefaults.DefaultCentralApiUrl,

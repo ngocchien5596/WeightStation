@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
-using System.Windows.Data;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -14,11 +17,13 @@ namespace StationApp.UI.ViewModels;
 
 public partial class ClayInboundReportViewModel : ObservableObject
 {
+    private const string LogoResourceUri = "pack://application:,,,/StationApp.UI;component/Assets/logo.jpg";
+
     private readonly BuildClayInboundReportUseCase _buildUseCase;
     private readonly ExportClayInboundReportUseCase _exportUseCase;
-    private readonly GetClayInboundReportLookupOptionsUseCase _lookupOptionsUseCase;
     private readonly IClock _clock;
     private readonly IToastService _toastService;
+    private ClayInboundReportDocument? _currentDocument;
 
     [ObservableProperty] private DateTime? _fromDate;
     [ObservableProperty] private string? _fromHour;
@@ -28,17 +33,10 @@ public partial class ClayInboundReportViewModel : ObservableObject
     [ObservableProperty] private string? _toHour;
     [ObservableProperty] private string? _toMinute;
     [ObservableProperty] private string? _toSecond;
+    [ObservableProperty] private string? _vehicleSearchText;
     [ObservableProperty] private ObservableCollection<string> _hourOptions = [];
     [ObservableProperty] private ObservableCollection<string> _minuteOptions = [];
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
-    [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _productOptions = [];
-    [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _customerOptions = [];
-    [ObservableProperty] private ICollectionView? _productOptionsView;
-    [ObservableProperty] private ICollectionView? _customerOptionsView;
-    [ObservableProperty] private string? _productSearchText;
-    [ObservableProperty] private string? _customerSearchText;
-    [ObservableProperty] private ReportLookupOptionDto? _selectedProduct;
-    [ObservableProperty] private ReportLookupOptionDto? _selectedCustomer;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<ClayInboundReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
@@ -46,40 +44,24 @@ public partial class ClayInboundReportViewModel : ObservableObject
     public ClayInboundReportViewModel(
         BuildClayInboundReportUseCase buildUseCase,
         ExportClayInboundReportUseCase exportUseCase,
-        GetClayInboundReportLookupOptionsUseCase lookupOptionsUseCase,
         IClock clock,
         IToastService toastService)
     {
         _buildUseCase = buildUseCase;
         _exportUseCase = exportUseCase;
-        _lookupOptionsUseCase = lookupOptionsUseCase;
         _clock = clock;
         _toastService = toastService;
     }
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
-
         ApplyCurrentShift();
-
-        var productOptions = await _lookupOptionsUseCase.GetProductsAsync(CancellationToken.None);
-        var customerOptions = await _lookupOptionsUseCase.GetCustomersAsync(CancellationToken.None);
-
-        ProductOptions = new ObservableCollection<ReportLookupOptionDto>(
-            [new ReportLookupOptionDto(string.Empty, "-- Tất cả sản phẩm --"), .. productOptions]);
-        CustomerOptions = new ObservableCollection<ReportLookupOptionDto>(
-            [new ReportLookupOptionDto(string.Empty, "-- Tất cả khách hàng --"), .. customerOptions]);
-
-        ProductOptionsView = CollectionViewSource.GetDefaultView(ProductOptions);
-        ProductOptionsView.Filter = item => MatchesLookupFilter(item, ProductSearchText);
-        CustomerOptionsView = CollectionViewSource.GetDefaultView(CustomerOptions);
-        CustomerOptionsView.Filter = item => MatchesLookupFilter(item, CustomerSearchText);
-
-        SelectedProduct = null;
-        SelectedCustomer = null;
+        VehicleSearchText = null;
+        _currentDocument = null;
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -129,12 +111,12 @@ public partial class ClayInboundReportViewModel : ObservableObject
 
         var saveDialog = new SaveFileDialog
         {
-            Title = "Xuất báo cáo nhập mỏ sét",
+            Title = "Xuất báo cáo cân hàng mỏ sét",
             Filter = "Excel Workbook (*.xlsx)|*.xlsx",
             DefaultExt = ".xlsx",
             AddExtension = true,
             InitialDirectory = GetDefaultReportFolder(),
-            FileName = $"BaoCaoNhapMoSet_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
+            FileName = $"BaoCaoCanHangMoSet_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
         };
 
         if (saveDialog.ShowDialog() != true)
@@ -148,7 +130,6 @@ public partial class ClayInboundReportViewModel : ObservableObject
             var document = await BuildDocumentFromCurrentFilterAsync();
             ApplyPreview(document);
             await _exportUseCase.ExecuteAsync(document, saveDialog.FileName, CancellationToken.None);
-
             _toastService.ShowSuccess($"Đã xuất báo cáo thành công:\n{saveDialog.FileName}");
         }
         catch (Exception ex)
@@ -161,6 +142,39 @@ public partial class ClayInboundReportViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void Print()
+    {
+        if (_currentDocument == null || _currentDocument.Rows.Count == 0)
+        {
+            _toastService.ShowWarning("Chưa có dữ liệu trên grid để in.");
+            return;
+        }
+
+        try
+        {
+            var printDialog = new PrintDialog();
+            if (printDialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var document = BuildPrintDocument(_currentDocument);
+            document.PageWidth = printDialog.PrintableAreaWidth;
+            document.PageHeight = printDialog.PrintableAreaHeight;
+            document.ColumnWidth = printDialog.PrintableAreaWidth;
+            document.PagePadding = new Thickness(18);
+            document.Name = $"BaoCaoCanHangMoSet_{DateTime.Now:yyyyMMddHHmmss}";
+
+            printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator, document.Name);
+            _toastService.ShowSuccess("Đã gửi lệnh in báo cáo cân hàng mỏ sét.");
+        }
+        catch (Exception ex)
+        {
+            _toastService.ShowError($"Không thể in báo cáo: {ex.Message}");
+        }
+    }
+
     private async Task<ClayInboundReportDocument> BuildDocumentFromCurrentFilterAsync()
     {
         if (!TryBuildDateRange(out var fromTime, out var toTime, out var errorMessage))
@@ -168,21 +182,21 @@ public partial class ClayInboundReportViewModel : ObservableObject
             throw new InvalidOperationException(errorMessage);
         }
 
-        var selectedProduct = SelectedProduct ?? ResolveSelectedLookup(ProductOptions, ProductSearchText);
-        var selectedCustomer = SelectedCustomer ?? ResolveSelectedLookup(CustomerOptions, CustomerSearchText);
         var filter = new ClayInboundReportFilter(
             fromTime,
             toTime,
-            NormalizeCode(selectedProduct),
-            NormalizeCode(selectedCustomer));
+            string.IsNullOrWhiteSpace(VehicleSearchText) ? null : VehicleSearchText.Trim());
 
-        return await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
+        var document = await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
+        var enrichedDocument = document with { LogoBytes = LoadCompanyLogoBytes() };
+        _currentDocument = enrichedDocument;
+        return enrichedDocument;
     }
 
     private void ApplyPreview(ClayInboundReportDocument document)
     {
         PreviewRows = new ObservableCollection<ClayInboundReportRow>(document.Rows);
-        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Tổng KL hàng: {document.TotalNetWeightKg:N0} kg";
+        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Tổng hàng: {document.TotalNetWeightTon:N3} tấn";
     }
 
     private void ApplyCurrentShift()
@@ -311,79 +325,255 @@ public partial class ClayInboundReportViewModel : ObservableObject
         return true;
     }
 
-    partial void OnProductSearchTextChanged(string? value)
+    private static byte[]? LoadCompanyLogoBytes()
     {
-        ProductOptionsView?.Refresh();
-    }
-
-    partial void OnCustomerSearchTextChanged(string? value)
-    {
-        CustomerOptionsView?.Refresh();
-    }
-
-    partial void OnSelectedProductChanged(ReportLookupOptionDto? value)
-    {
-        if (value != null)
+        try
         {
-            var displayText = string.IsNullOrWhiteSpace(value.Code) ? string.Empty : value.DisplayName;
-            if (!string.Equals(ProductSearchText, displayText, StringComparison.Ordinal))
+            var resourceInfo = System.Windows.Application.GetResourceStream(new Uri(LogoResourceUri, UriKind.Absolute));
+            if (resourceInfo?.Stream == null)
             {
-                ProductSearchText = displayText;
+                return null;
             }
+
+            using var stream = resourceInfo.Stream;
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            return memoryStream.ToArray();
+        }
+        catch
+        {
+            return null;
         }
     }
 
-    partial void OnSelectedCustomerChanged(ReportLookupOptionDto? value)
+    private static ImageSource? BuildLogoImageSource(byte[]? logoBytes)
     {
-        if (value != null)
-        {
-            var displayText = string.IsNullOrWhiteSpace(value.Code) ? string.Empty : value.DisplayName;
-            if (!string.Equals(CustomerSearchText, displayText, StringComparison.Ordinal))
-            {
-                CustomerSearchText = displayText;
-            }
-        }
-    }
-
-    private static string? NormalizeCode(ReportLookupOptionDto? option)
-        => option == null || string.IsNullOrWhiteSpace(option.Code) ? null : option.Code.Trim();
-
-    private static bool MatchesLookupFilter(object item, string? keyword)
-    {
-        if (item is not ReportLookupOptionDto option)
-        {
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(option.Code) || string.IsNullOrWhiteSpace(keyword))
-        {
-            return true;
-        }
-
-        var normalized = keyword.Trim();
-        return option.Code.Contains(normalized, StringComparison.OrdinalIgnoreCase)
-               || option.DisplayName.Contains(normalized, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static ReportLookupOptionDto? ResolveSelectedLookup(
-        IEnumerable<ReportLookupOptionDto> options,
-        string? keyword)
-    {
-        if (string.IsNullOrWhiteSpace(keyword))
+        if (logoBytes is not { Length: > 0 })
         {
             return null;
         }
 
-        var normalized = keyword.Trim();
-        return options.FirstOrDefault(x =>
-            string.Equals(x.Code, normalized, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(x.DisplayName, normalized, StringComparison.OrdinalIgnoreCase));
+        var image = new BitmapImage();
+        using var stream = new MemoryStream(logoBytes);
+        image.BeginInit();
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.StreamSource = stream;
+        image.EndInit();
+        image.Freeze();
+        return image;
+    }
+
+    private static FlowDocument BuildPrintDocument(ClayInboundReportDocument document)
+    {
+        var flowDocument = new FlowDocument
+        {
+            FontFamily = new FontFamily("Times New Roman"),
+            FontSize = 11
+        };
+
+        var headerTable = new Table();
+        headerTable.Columns.Add(new TableColumn { Width = new GridLength(76) });
+        headerTable.Columns.Add(new TableColumn { Width = new GridLength(264) });
+        headerTable.Columns.Add(new TableColumn { Width = new GridLength(270) });
+
+        var headerGroup = new TableRowGroup();
+        headerTable.RowGroups.Add(headerGroup);
+        var headerRow = new TableRow();
+        headerGroup.Rows.Add(headerRow);
+
+        var logoSource = BuildLogoImageSource(document.LogoBytes);
+        var logoElement = new Image
+        {
+            Source = logoSource,
+            Width = 68,
+            Height = 60,
+            Stretch = Stretch.Uniform
+        };
+        headerRow.Cells.Add(new TableCell(new BlockUIContainer(logoElement))
+        {
+            BorderThickness = new Thickness(0),
+            TextAlignment = TextAlignment.Center
+        });
+
+        var leftHeaderPanel = new StackPanel();
+        leftHeaderPanel.Children.Add(new TextBlock
+        {
+            Text = "CÔNG TY CỔ PHẦN XI MĂNG CẨM PHẢ",
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center
+        });
+        leftHeaderPanel.Children.Add(new TextBlock { Text = "Địa chỉ: Km6, Quốc lộ 18A, Cẩm Thạch, Cẩm Phả, Quảng Ninh" });
+        leftHeaderPanel.Children.Add(new TextBlock { Text = "Điện thoại: (84-203) 3.721.995 - (84-203) 3.721.996" });
+        headerRow.Cells.Add(new TableCell(new BlockUIContainer(leftHeaderPanel)) { BorderThickness = new Thickness(0) });
+
+        var rightHeaderPanel = new StackPanel();
+        rightHeaderPanel.Children.Add(new TextBlock
+        {
+            Text = "BÁO CÁO CÂN HÀNG MỎ SÉT",
+            FontSize = 16,
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center
+        });
+        rightHeaderPanel.Children.Add(new TextBlock
+        {
+            Text = BuildTimeRangeText(document.FromTime, document.ToTime),
+            Margin = new Thickness(0, 8, 0, 0)
+        });
+        headerRow.Cells.Add(new TableCell(new BlockUIContainer(rightHeaderPanel)) { BorderThickness = new Thickness(0) });
+
+        flowDocument.Blocks.Add(headerTable);
+        flowDocument.Blocks.Add(new Paragraph { Margin = new Thickness(0, 0, 0, 10) });
+
+        var dataTable = new Table();
+        dataTable.CellSpacing = 0;
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(44) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(90) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(74) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(104) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(132) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(96) });
+
+        var dataGroup = new TableRowGroup();
+        dataTable.RowGroups.Add(dataGroup);
+
+        var reportHeaderRow = new TableRow();
+        dataGroup.Rows.Add(reportHeaderRow);
+        AddCell(reportHeaderRow, "STT", true);
+        AddCell(reportHeaderRow, "Số phiếu", true);
+        AddCell(reportHeaderRow, "Số xe", true);
+        AddCell(reportHeaderRow, "Ngày cân", true);
+        AddCell(reportHeaderRow, "Tổng (tấn)", true);
+        AddCell(reportHeaderRow, "Bì (tấn)", true);
+        AddCell(reportHeaderRow, "Hàng (tấn)", true);
+        AddCell(reportHeaderRow, "Khách hàng", true);
+        AddCell(reportHeaderRow, "Hàng hóa", true);
+
+        for (var index = 0; index < document.Rows.Count; index++)
+        {
+            var row = document.Rows[index];
+            var dataRow = new TableRow();
+            dataGroup.Rows.Add(dataRow);
+            AddCell(dataRow, row.RowNo.ToString());
+            AddCell(dataRow, row.SessionNo);
+            AddCell(dataRow, row.InternalVehicleNo);
+            AddCell(dataRow, row.Weight2Time?.ToString("dd/MM/yyyy HH:mm"));
+            AddCell(dataRow, row.GrossWeightTon.ToString("N3"));
+            AddCell(dataRow, row.TareWeightTon.ToString("N3"));
+            AddCell(dataRow, row.NetWeightTon.ToString("N3"));
+            AddCell(dataRow, row.CustomerName);
+            AddCell(dataRow, row.ProductName);
+        }
+
+        var totalRow = new TableRow();
+        dataGroup.Rows.Add(totalRow);
+        var totalCell = new TableCell(new Paragraph(new Run("Cộng tổng:")))
+        {
+            ColumnSpan = 4,
+            BorderBrush = Brushes.Black,
+            BorderThickness = new Thickness(0.5),
+            Padding = new Thickness(4),
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center
+        };
+        totalRow.Cells.Add(totalCell);
+        AddCell(totalRow, string.Empty);
+        AddCell(totalRow, string.Empty);
+        AddCell(totalRow, document.TotalNetWeightTon.ToString("N3"), false, TextAlignment.Right);
+        AddCell(totalRow, string.Empty);
+        AddCell(totalRow, string.Empty);
+
+        flowDocument.Blocks.Add(dataTable);
+        flowDocument.Blocks.Add(new Paragraph { Margin = new Thickness(0, 6, 0, 0) });
+
+        var signatureTable = new Table();
+        signatureTable.Columns.Add(new TableColumn());
+        signatureTable.Columns.Add(new TableColumn());
+        var signatureGroup = new TableRowGroup();
+        signatureTable.RowGroups.Add(signatureGroup);
+
+        var signatureTitleRow = new TableRow();
+        signatureGroup.Rows.Add(signatureTitleRow);
+        signatureTitleRow.Cells.Add(new TableCell(new Paragraph(new Run("ĐẠI DIỆN ĐƠN VỊ KHAI THÁC")))
+        {
+            BorderThickness = new Thickness(0),
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center
+        });
+        signatureTitleRow.Cells.Add(new TableCell(new Paragraph(new Run("ĐẠI DIỆN PHÂN XƯỞNG KHAI THÁC")))
+        {
+            BorderThickness = new Thickness(0),
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center
+        });
+
+        var signatureSpacerRow = new TableRow();
+        signatureGroup.Rows.Add(signatureSpacerRow);
+        signatureSpacerRow.Cells.Add(new TableCell(new Paragraph(new Run(" "))) { BorderThickness = new Thickness(0), Padding = new Thickness(0, 28, 0, 28) });
+        signatureSpacerRow.Cells.Add(new TableCell(new Paragraph(new Run(" "))) { BorderThickness = new Thickness(0), Padding = new Thickness(0, 28, 0, 28) });
+
+        var signatureNameRow = new TableRow();
+        signatureGroup.Rows.Add(signatureNameRow);
+        signatureNameRow.Cells.Add(new TableCell(new Paragraph(new Run(string.Empty))) { BorderThickness = new Thickness(0) });
+        signatureNameRow.Cells.Add(new TableCell(new Paragraph(new Run(document.PreparedByDisplayName)))
+        {
+            BorderThickness = new Thickness(0),
+            TextAlignment = TextAlignment.Center
+        });
+
+        flowDocument.Blocks.Add(signatureTable);
+
+        var footerTable = new Table();
+        footerTable.Columns.Add(new TableColumn());
+        footerTable.Columns.Add(new TableColumn());
+        footerTable.Columns.Add(new TableColumn());
+        var footerGroup = new TableRowGroup();
+        footerTable.RowGroups.Add(footerGroup);
+        var footerRow = new TableRow();
+        footerGroup.Rows.Add(footerRow);
+        footerRow.Cells.Add(CreateFooterCell(document.StationName, true, TextAlignment.Left));
+        footerRow.Cells.Add(CreateFooterCell($"Thời gian in: {DateTime.Now:dd/MM/yyyy HH:mm}", false, TextAlignment.Center, true));
+        footerRow.Cells.Add(CreateFooterCell("Trang: 1/1", false, TextAlignment.Right));
+        flowDocument.Blocks.Add(footerTable);
+
+        return flowDocument;
+    }
+
+    private static TableCell CreateFooterCell(string text, bool bold, TextAlignment alignment, bool italic = false)
+    {
+        return new TableCell(new Paragraph(new Run(text)))
+        {
+            BorderBrush = Brushes.Black,
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Padding = new Thickness(0, 8, 0, 0),
+            FontWeight = bold ? FontWeights.Bold : FontWeights.Regular,
+            FontStyle = italic ? FontStyles.Italic : FontStyles.Normal,
+            TextAlignment = alignment
+        };
+    }
+
+    private static void AddCell(TableRow row, string? text, bool isHeader = false, TextAlignment textAlignment = TextAlignment.Center)
+    {
+        row.Cells.Add(new TableCell(new Paragraph(new Run(text ?? string.Empty)))
+        {
+            BorderBrush = Brushes.Black,
+            BorderThickness = new Thickness(0.5),
+            Padding = new Thickness(4),
+            FontWeight = isHeader ? FontWeights.Bold : FontWeights.Regular,
+            TextAlignment = textAlignment,
+            Background = isHeader ? new SolidColorBrush(Color.FromRgb(0xD9, 0xD9, 0xD9)) : null
+        });
+    }
+
+    private static string BuildTimeRangeText(DateTime fromTime, DateTime toTime)
+    {
+        if (fromTime.Date == toTime.Date)
+        {
+            return $"Thời gian: Từ {fromTime:HH:mm} đến {toTime:HH:mm} ngày {fromTime:dd/MM/yyyy}";
+        }
+
+        return $"Thời gian: Từ {fromTime:HH:mm dd/MM/yyyy} đến {toTime:HH:mm dd/MM/yyyy}";
     }
 }
-
-
-
-
-
-
-

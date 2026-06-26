@@ -77,18 +77,6 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-            <Style x:Key="ReportLookupComboStyle" TargetType="ComboBox">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-                <Setter Property="FontSize" Value="13"/>
-                <Setter Property="Foreground" Value="#111827"/>
-                <Setter Property="Background" Value="#FFFFFF"/>
-                <Setter Property="BorderBrush" Value="#9AA4AA"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="6,2"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                <Setter Property="MaxDropDownHeight" Value="260"/>
-            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -100,7 +88,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
-            <TextBlock Text="BÁO CÁO NHẬP (MỎ SÉT)" 
+            <TextBlock Text="BÁO CÁO CÂN HÀNG (MỎ SÉT)" 
                        FontSize="18" 
                        FontWeight="SemiBold" 
                        Foreground="White" 
@@ -111,7 +99,6 @@
         <Border Grid.Row="1" Margin="12,12,12,8" Padding="12" Background="{DynamicResource CardBrush}" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -144,36 +131,19 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Margin="0,0,12,0">
-                    <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
-                              Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
-                              Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              ItemsSource="{Binding ProductOptionsView}" SelectedItem="{Binding SelectedProduct, Mode=TwoWay}" SelectedValuePath="Code">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
+                    <TextBlock Text="S&#x1ED1; xe" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Width="220"
+                             Height="34"
+                             Style="{StaticResource StandardTextBoxStyle}"
+                             Text="{Binding VehicleSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="3" Margin="0,0,12,0">
-                    <TextBlock Text="Kh&#xE1;ch h&#xE0;ng" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
-                              Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
-                              Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              ItemsSource="{Binding CustomerOptionsView}" SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}" SelectedValuePath="Code">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </StackPanel>
-
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
                         <TextBlock Text="XEM" FontWeight="SemiBold"/>
+                    </Button>
+                    <Button Command="{Binding PrintCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
+                        <TextBlock Text="IN" FontWeight="SemiBold"/>
                     </Button>
                     <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="64">
                         <TextBlock Text="T&#x1EA2;I" FontWeight="SemiBold"/>
@@ -195,22 +165,15 @@
                           EnableRowVirtualization="True" EnableColumnVirtualization="True"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="S&#x1ED1; l&#x1B0;&#x1EE3;t c&#xE2;n" Binding="{Binding SessionNo}" Width="120"/>
-                        <DataGridTextColumn Header="S&#x1ED1; xe n&#x1ED9;i b&#x1ED9;" Binding="{Binding InternalVehicleNo}" Width="120"/>
-                        <DataGridTextColumn Header="T&#xE0;i x&#x1EBF;" Binding="{Binding DriverName}" Width="140"/>
+                        <DataGridTextColumn Header="STT" Binding="{Binding RowNo}" Width="60"/>
+                        <DataGridTextColumn Header="S&#x1ED1; phi&#x1EBF;u" Binding="{Binding SessionNo}" Width="110"/>
+                        <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding InternalVehicleNo}" Width="100"/>
+                        <DataGridTextColumn Header="Ng&#xE0;y c&#xE2;n" Binding="{Binding Weight2Time, StringFormat=dd/MM/yyyy HH:mm}" Width="130"/>
+                        <DataGridTextColumn Header="T&#x1ED5;ng (t&#x1EA5;n)" Binding="{Binding GrossWeightTon, StringFormat=N3}" Width="100"/>
+                        <DataGridTextColumn Header="B&#xEC; (t&#x1EA5;n)" Binding="{Binding TareWeightTon, StringFormat=N3}" Width="100"/>
+                        <DataGridTextColumn Header="H&#xE0;ng (t&#x1EA5;n)" Binding="{Binding NetWeightTon, StringFormat=N3}" Width="110"/>
                         <DataGridTextColumn Header="Kh&#xE1;ch h&#xE0;ng" Binding="{Binding CustomerName}" Width="220"/>
-                        <DataGridTextColumn Header="H&#xE0;ng h&#xF3;a" Binding="{Binding ProductName}" Width="220"/>
-                        <DataGridTextColumn Header="Ch&#x1EBF; &#x111;&#x1ED9; c&#xE2;n" Binding="{Binding WeighingModeDisplay}" Width="110"/>
-                        <DataGridTextColumn Header="Ng&#xE0;y c&#xE2;n 1" Binding="{Binding Weight1Time, StringFormat=dd/MM/yyyy}" Width="100"/>
-                        <DataGridTextColumn Header="Gi&#x1EDD; c&#xE2;n 1" Binding="{Binding Weight1Time, StringFormat=HH:mm}" Width="90"/>
-                        <DataGridTextColumn Header="Ng&#xE0;y c&#xE2;n 2" Binding="{Binding Weight2Time, StringFormat=dd/MM/yyyy}" Width="100"/>
-                        <DataGridTextColumn Header="Gi&#x1EDD; c&#xE2;n 2" Binding="{Binding Weight2Time, StringFormat=HH:mm}" Width="90"/>
-                        <DataGridTextColumn Header="C&#xE2;n l&#x1EA7;n 1" Binding="{Binding Weight1, StringFormat=N0}" Width="100"/>
-                        <DataGridTextColumn Header="TL xe chu&#x1EA9;n" Binding="{Binding StandardTareWeightKg, StringFormat=N0}" Width="110"/>
-                        <DataGridTextColumn Header="C&#xE2;n l&#x1EA7;n 2" Binding="{Binding Weight2, StringFormat=N0}" Width="100"/>
-                        <DataGridTextColumn Header="TL h&#xE0;ng (kg)" Binding="{Binding NetWeightKg, StringFormat=N0}" Width="120"/>
-                        <DataGridTextColumn Header="Ghi ch&#xFA;" Binding="{Binding Notes}" Width="180"/>
-                        <DataGridTextColumn Header="Ng&#x1B0;&#x1EDD;i c&#xE2;n" Binding="{Binding WeigherName}" Width="140"/>
+                        <DataGridTextColumn Header="H&#xE0;ng h&#xF3;a" Binding="{Binding ProductName}" Width="140"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

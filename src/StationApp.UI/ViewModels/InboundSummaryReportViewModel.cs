@@ -131,12 +131,12 @@ public partial class InboundSummaryReportViewModel : ObservableObject
 
         var saveDialog = new SaveFileDialog
         {
-            Title = "Xuất báo cáo nhập hàng",
+            Title = "Xuất báo cáo cân hàng",
             Filter = "Excel Workbook (*.xlsx)|*.xlsx",
             DefaultExt = ".xlsx",
             AddExtension = true,
             InitialDirectory = GetDefaultReportFolder(),
-            FileName = $"BaoCaoNhapHang_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
+            FileName = $"BaoCaoCanHang_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
         };
 
         if (saveDialog.ShowDialog() != true)

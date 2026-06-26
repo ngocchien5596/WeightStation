@@ -25,6 +25,7 @@ public class WeighingSessionTicketSyncTests
                 "CAM1",
                 3000,
                 85,
+                1280,
                 5));
         return provider;
     }
@@ -34,6 +35,7 @@ public class WeighingSessionTicketSyncTests
         var service = Substitute.For<ICameraCaptureService>();
         service.CaptureAsync(
                 Arg.Any<IReadOnlyList<CameraEndpointSettings>>(),
+                Arg.Any<int>(),
                 Arg.Any<int>(),
                 Arg.Any<int>(),
                 Arg.Any<int>(),

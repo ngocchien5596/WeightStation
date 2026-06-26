@@ -179,6 +179,7 @@ public sealed record CameraSystemSettings(
     string PreviewDefaultCameraCode,
     int CaptureTimeoutMs,
     int CaptureJpegQuality,
+    int CaptureMaxDimension,
     int CaptureWarmupFrames
 )
 {

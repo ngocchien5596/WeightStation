@@ -665,57 +665,63 @@ public sealed class CreateExportVehicleSessionUseCase
         NormalizeRecoverableExportCutOrderState(cutOrder);
         ValidateOpenExportCutOrder(cutOrder);
 
-        var plannedWeightForTrip = await ResolveRemainingPlannedWeightAsync(cutOrder, ct);
-        var now = _clock.NowLocal;
-        var session = new WeighingSession
-        {
-            Id = Guid.NewGuid(),
-            SessionNo = await _sessionNoGen.GenerateAsync(TransactionType.OUTBOUND, ct),
-            TransactionType = TransactionType.OUTBOUND,
-            VehiclePlate = vehiclePlate,
-            MoocNumber = NormalizeOptional(request.MoocNumber),
-            DriverName = NormalizeOptional(request.DriverName),
-            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT1,
-            OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
-            OverweightAmount = 0m,
-            IsCancelled = false,
-            HasPrintedMasterWeighTicket = false,
-            CreatedAt = now,
-            CreatedBy = _userContext.Username
-        };
-
-        var line = new WeighingSessionLine
-        {
-            Id = Guid.NewGuid(),
-            WeighingSessionId = session.Id,
-            CutOrderId = cutOrder.Id,
-            SequenceNo = 1,
-            CustomerCode = cutOrder.CustomerCode,
-            CustomerName = cutOrder.CustomerName,
-            DistributorName = cutOrder.CustomerName,
-            ProductCode = cutOrder.ProductCode,
-            ProductName = cutOrder.ProductName,
-            PlannedWeight = plannedWeightForTrip,
-            PlannedBagCount = cutOrder.BagCount,
-            LineStatus = WeighingSessionLineStatus.PENDING,
-            HasPrintedDeliveryTicket = false,
-            CreatedAt = now,
-            CreatedBy = _userContext.Username
-        };
-
-        cutOrder.WeighingSessionId = null;
-        cutOrder.UpdatedAt = now;
-        cutOrder.UpdatedBy = _userContext.Username;
+        CreateExportVehicleSessionResult? result = null;
 
         await _uow.ExecuteInTransactionAsync(async innerCt =>
         {
+            var now = _clock.NowLocal;
+            var sessionNo = await _sessionNoGen.GenerateAsync(TransactionType.OUTBOUND, innerCt);
+            var plannedWeightForTrip = await ResolveRemainingPlannedWeightAsync(cutOrder, innerCt);
+
+            var session = new WeighingSession
+            {
+                Id = Guid.NewGuid(),
+                SessionNo = sessionNo,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = vehiclePlate,
+                MoocNumber = NormalizeOptional(request.MoocNumber),
+                DriverName = NormalizeOptional(request.DriverName),
+                SessionStatus = WeighingSessionStatus.PENDING_WEIGHT1,
+                OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
+                OverweightAmount = 0m,
+                IsCancelled = false,
+                HasPrintedMasterWeighTicket = false,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            };
+
+            var line = new WeighingSessionLine
+            {
+                Id = Guid.NewGuid(),
+                WeighingSessionId = session.Id,
+                CutOrderId = cutOrder.Id,
+                SequenceNo = 1,
+                CustomerCode = cutOrder.CustomerCode,
+                CustomerName = cutOrder.CustomerName,
+                DistributorName = cutOrder.CustomerName,
+                ProductCode = cutOrder.ProductCode,
+                ProductName = cutOrder.ProductName,
+                PlannedWeight = plannedWeightForTrip,
+                PlannedBagCount = cutOrder.BagCount,
+                LineStatus = WeighingSessionLineStatus.PENDING,
+                HasPrintedDeliveryTicket = false,
+                CreatedAt = now,
+                CreatedBy = _userContext.Username
+            };
+
+            cutOrder.WeighingSessionId = null;
+            cutOrder.UpdatedAt = now;
+            cutOrder.UpdatedBy = _userContext.Username;
+
             await UpsertVehicleMasterAsync(request, vehiclePlate, now, innerCt);
             await _sessionRepo.AddAsync(session, innerCt);
             await _sessionRepo.AddLineAsync(line, innerCt);
             await _cutOrderRepo.UpdateAsync(cutOrder, innerCt);
+
+            result = new CreateExportVehicleSessionResult(session.Id, session.SessionNo);
         }, ct);
 
-        return new CreateExportVehicleSessionResult(session.Id, session.SessionNo);
+        return result!;
     }
 
     private async Task UpsertVehicleMasterAsync(
@@ -855,6 +861,7 @@ public sealed class TransferExportVehicleTripUseCase
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
+    private readonly IAuditLogRepository _auditLogRepository;
 
     public TransferExportVehicleTripUseCase(
         ICutOrderRepository cutOrderRepo,
@@ -863,7 +870,8 @@ public sealed class TransferExportVehicleTripUseCase
         IDeliveryTicketRepository deliveryRepo,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
-        IClock clock)
+        IClock clock,
+        IAuditLogRepository auditLogRepository)
     {
         _cutOrderRepo = cutOrderRepo;
         _sessionRepo = sessionRepo;
@@ -872,6 +880,7 @@ public sealed class TransferExportVehicleTripUseCase
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
+        _auditLogRepository = auditLogRepository;
     }
 
     public async Task ExecuteAsync(TransferExportVehicleTripRequest request, CancellationToken ct)
@@ -1000,6 +1009,49 @@ public sealed class TransferExportVehicleTripUseCase
             await _cutOrderRepo.UpdateAsync(sourceCutOrder, innerCt);
             await _cutOrderRepo.UpdateAsync(targetCutOrder, innerCt);
         }, ct);
+
+        // Log the transfer
+        var sourceErpId = sourceCutOrder.ErpCutOrderId;
+        var targetErpId = targetCutOrder.ErpCutOrderId;
+
+        // Với temporary cut order, dùng TemporaryExportDisplayCode làm display code thay thế
+        var sourceDisplayCode = sourceCutOrder.IsTemporaryExport
+            ? sourceCutOrder.TemporaryExportDisplayCode ?? sourceErpId
+            : sourceErpId;
+        var targetDisplayCode = targetCutOrder.IsTemporaryExport
+            ? targetCutOrder.TemporaryExportDisplayCode ?? targetErpId
+            : targetErpId;
+
+        var auditDetail = new
+        {
+            SessionNo = session.SessionNo,
+            SourceCutOrderId = sourceCutOrder.Id,
+            SourceErpCutOrderId = sourceErpId,
+            SourceDisplayCode = sourceDisplayCode,
+            TargetCutOrderId = targetCutOrder.Id,
+            TargetErpCutOrderId = targetErpId,
+            TargetDisplayCode = targetDisplayCode,
+            VehiclePlate = session.VehiclePlate,
+            Weight1 = session.Weight1,
+            Weight2 = session.Weight2,
+            NetWeight = session.NetWeight,
+            Reason = $"Chuyển chuyến từ cắt lệnh {sourceDisplayCode ?? sourceCutOrder.Id.ToString()} sang {targetDisplayCode ?? targetCutOrder.Id.ToString()}"
+        };
+
+        var auditLog = new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            Actor = _userContext.Username,
+            Action = "TRANSFER_EXPORT_TRIP",
+            EntityType = "WeighingSession",
+            EntityId = session.Id,
+            DetailJson = System.Text.Json.JsonSerializer.Serialize(auditDetail, new System.Text.Json.JsonSerializerOptions { WriteIndented = false, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+            CreatedAt = _clock.NowLocal,
+            StationCode = _userContext.StationCode
+        };
+
+        await _auditLogRepository.AddAsync(auditLog, ct);
+        await _uow.SaveChangesAsync(ct);
     }
 
     private async Task<decimal?> ResolveRemainingPlannedWeightAsync(CutOrder cutOrder, CancellationToken ct)

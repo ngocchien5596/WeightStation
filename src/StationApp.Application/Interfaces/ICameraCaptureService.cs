@@ -8,6 +8,7 @@ public interface ICameraCaptureService
         IReadOnlyList<CameraEndpointSettings> cameras,
         int timeoutMs,
         int jpegQuality,
+        int maxDimension,
         int warmupFrames,
         CancellationToken ct);
 }

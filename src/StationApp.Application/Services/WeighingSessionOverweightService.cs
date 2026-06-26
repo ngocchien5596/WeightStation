@@ -261,6 +261,10 @@ public sealed class WeighingSessionOverweightService
                 ttcp10WeightSnapshot * (1m - factor),
                 3,
                 MidpointRounding.AwayFromZero);
+
+            // Làm tròn về bội số của 10 để chữ số hàng đơn vị bằng 0
+            candidate = decimal.Round(candidate / 10m, 0, MidpointRounding.AwayFromZero) * 10m;
+
             var secondGroupTarget = decimal.Round(netWeight - candidate, 3, MidpointRounding.AwayFromZero);
 
             if (candidate >= lowerBound
@@ -272,14 +276,26 @@ public sealed class WeighingSessionOverweightService
             }
         }
 
-        var integerLowerBound = (int)Math.Ceiling(lowerBound);
-        var integerUpperBound = (int)Math.Floor(upperBound);
-        if (integerLowerBound > integerUpperBound)
+        var integerLowerBound10 = (int)Math.Ceiling(lowerBound / 10m) * 10;
+        var integerUpperBound10 = (int)Math.Floor(upperBound / 10m) * 10;
+
+        int fallbackWeight;
+        if (integerLowerBound10 <= integerUpperBound10)
         {
-            throw new InvalidOperationException(InvalidSplitMessage);
+            var stepCount = (integerUpperBound10 - integerLowerBound10) / 10;
+            fallbackWeight = integerLowerBound10 + random.Next(0, stepCount + 1) * 10;
+        }
+        else
+        {
+            var integerLowerBound = (int)Math.Ceiling(lowerBound);
+            var integerUpperBound = (int)Math.Floor(upperBound);
+            if (integerLowerBound > integerUpperBound)
+            {
+                throw new InvalidOperationException(InvalidSplitMessage);
+            }
+            fallbackWeight = random.Next(integerLowerBound, integerUpperBound + 1);
         }
 
-        var fallbackWeight = random.Next(integerLowerBound, integerUpperBound + 1);
         var fallbackFactor = decimal.Round(
             (ttcp10WeightSnapshot - fallbackWeight) / ttcp10WeightSnapshot,
             4,
