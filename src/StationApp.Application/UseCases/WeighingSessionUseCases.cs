@@ -1109,7 +1109,7 @@ public sealed class CaptureSessionWeight2UseCase
                     CutOrderId = registration.Id,
                     WeighingSessionId = session.Id,
                     WeighingSessionLineId = lineToAutoAllocate.Id,
-                    DeliveryNo = null, // Sẽ sinh trong transaction
+                    DeliveryNo = string.Empty, // Sẽ sinh trong transaction
                     ErpCutOrderId = registration.ErpCutOrderId ?? string.Empty,
                     CustomerCode = registration.CustomerCode,
                     ProductCode = registration.ProductCode,

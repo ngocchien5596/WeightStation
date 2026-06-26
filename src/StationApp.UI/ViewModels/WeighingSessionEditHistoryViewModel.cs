@@ -34,7 +34,7 @@ public sealed partial class WeighingSessionEditHistoryViewModel : ObservableObje
     private readonly IToastService _toastService;
     private readonly ICurrentUserContext _currentUserContext;
 
-    [ObservableProperty] private string _title = "Lịch sử sửa số liệu cân";
+    [ObservableProperty] private string _title = "Lịch sử chỉnh sửa";
     [ObservableProperty] private string? _searchVehiclePlate;
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private DateTime _fromDate = DateTime.Today.AddDays(-7);
@@ -248,7 +248,7 @@ public sealed partial class WeighingSessionEditHistoryViewModel : ObservableObje
         {
             System.Diagnostics.Debug.WriteLine($"[EditHistory] Error: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"[EditHistory] StackTrace: {ex.StackTrace}");
-            _toastService.ShowError($"Không thể tải lịch sử sửa số liệu: {ex.Message}");
+            _toastService.ShowError($"Không thể tải lịch sử chỉnh sửa: {ex.Message}");
         }
         finally
         {

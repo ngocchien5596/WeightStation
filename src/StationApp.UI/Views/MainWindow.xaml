@@ -255,7 +255,7 @@
                                 <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewEditHistoryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_EditHistory">
-                                    <TextBlock Text="Lịch sử sửa số liệu" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Lịch sử chỉnh sửa" VerticalAlignment="Center"/>
                                 </Button>
                             </StackPanel>
                         </StackPanel>

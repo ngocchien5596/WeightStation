@@ -121,8 +121,8 @@ public static class AppConfigDefaults
     public const string DefaultCameraClay_2PreviewRtspUrl = "";
     public const string DefaultCameraPreview = "CAM1";
     public const string DefaultCameraCaptureTimeoutMs = "3000";
-    public const string DefaultCameraCaptureJpegQuality = "75";
-    public const string DefaultCameraCaptureMaxDimension = "1280";
+    public const string DefaultCameraCaptureJpegQuality = "60";
+    public const string DefaultCameraCaptureMaxDimension = "800";
     public const string DefaultCameraCaptureWarmupFrames = "5";
     public const string DefaultAppUpdateSharedReleaseRoot = "";
 }
