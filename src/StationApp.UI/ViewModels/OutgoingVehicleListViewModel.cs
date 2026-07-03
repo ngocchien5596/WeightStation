@@ -469,6 +469,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
             var printService = scope.ServiceProvider.GetRequiredService<IPrintService>();
             var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+            var printDocumentExporter = scope.ServiceProvider.GetRequiredService<IPrintDocumentExporter>();
             var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
             var template = await templateProvider.GetTemplateAsync(kind, CancellationToken.None);
             var profiles = await templateProvider.GetProfilesAsync(kind, CancellationToken.None);
@@ -495,6 +496,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 printers,
                 renderer,
                 templateProvider,
+                printDocumentExporter,
                 false,
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
@@ -589,8 +591,8 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             var useCase = scope.ServiceProvider.GetRequiredService<SetCutOrderPortTransferUseCase>();
             await useCase.ExecuteAsync(currentCutOrderId, value, CancellationToken.None);
             _toastService.ShowSuccess(value
-                ? "Da danh dau cat lenh la chuyen tai hang ra cang."
-                : "Da bo danh dau chuyen tai hang ra cang.");
+                ? "Đã đánh dấu cắt lệnh là chuyển tải hàng ra cảng."
+                : "Đã bỏ đánh dấu chuyển tải hàng ra cảng.");
             await LoadVehiclesInternalAsync(false);
             SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == currentCutOrderId);
         }
@@ -602,7 +604,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Update port transfer flag from outgoing list failed");
-            _toastService.ShowError("Khong the cap nhat trang thai CHUYEN TAI. Vui long thu lai.");
+            _toastService.ShowError("Không thể cập nhật trạng thái chuyển tải. Vui lòng thử lại.");
             RevertPortTransfer(previousValue);
         }
     }
@@ -814,8 +816,27 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
         var deliveryComposer = scope.ServiceProvider.GetRequiredService<IDeliveryTicketPrintComposer>();
         var pages = new List<PrintPreviewPageModel>();
+        var deliveryMasterTicketId = context.DeliveryTickets
+            .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Master && !x.IsDeleted)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefault();
+        var normalTicketAsMasterId = splitConfirmed && !deliveryMasterTicketId.HasValue
+            ? context.DeliveryTickets
+                .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted)
+                .OrderBy(x => context.Lines.FirstOrDefault(line => line.Id == x.WeighingSessionLineId)?.SequenceNo ?? int.MaxValue)
+                .ThenBy(x => x.CreatedAt)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefault()
+            : null;
         var deliveryTicketsToPrint = splitConfirmed
-            ? context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.SplitDerived && !x.IsDeleted).OrderBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
+            ? context.DeliveryTickets
+                .Where(x =>
+                    (x.RecordRole == DeliveryTicketRecordRoles.Master
+                     || x.RecordRole == DeliveryTicketRecordRoles.SplitDerived
+                     || (normalTicketAsMasterId.HasValue && x.Id == normalTicketAsMasterId.Value))
+                    && !x.IsDeleted)
+                .OrderBy(x => x.RecordRole == DeliveryTicketRecordRoles.Master || x.Id == normalTicketAsMasterId ? 0 : 1)
+                .ThenBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
             : context.DeliveryTickets.Where(x =>
                     (x.RecordRole == DeliveryTicketRecordRoles.Master || x.RecordRole == DeliveryTicketRecordRoles.Normal)
                     && !x.IsDeleted)
@@ -824,9 +845,11 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
         foreach (var ticket in deliveryTicketsToPrint)
         {
+            var isDeliveryMasterTicket = ticket.RecordRole == DeliveryTicketRecordRoles.Master
+                || ticket.Id == normalTicketAsMasterId;
             CutOrder? registration;
             WeighingSessionLine? line;
-            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
+            if (isDeliveryMasterTicket)
             {
                 var primaryLine = context.Lines.OrderBy(x => x.SequenceNo).FirstOrDefault();
                 if (primaryLine == null || !context.RegistrationsById.TryGetValue(primaryLine.CutOrderId, out var primaryRegistration))
@@ -851,9 +874,11 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 }
             }
 
-            var relatedWeighTicket = splitConfirmed
-                ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
-                : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
+            var relatedWeighTicket = isDeliveryMasterTicket
+                ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted)
+                : splitConfirmed
+                    ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
+                    : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
             var page = deliveryComposer.Compose(
                 registration!,
@@ -864,7 +889,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                 context.Vehicle,
                 printedAtLocal,
                 _currentUserContext.DisplayName);
-            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
+            if (isDeliveryMasterTicket)
             {
                 page.PreviewGroupKey = "delivery-master";
                 page.PreviewGroupName = "Phiếu tổng";

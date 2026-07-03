@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using StationApp.Application.Printing;
 using StationApp.UI.Printing;
 
@@ -13,6 +15,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
 {
     private readonly PrintOverlayRenderer _renderer;
     private readonly IPrintTemplateProvider _templateProvider;
+    private readonly IPrintDocumentExporter _printDocumentExporter;
     private PrintTemplateDefinition _template;
     private PrintBatchPreviewModel _batch;
     private readonly EditablePrintDataContext? _editablePrintDataContext;
@@ -45,6 +48,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     [ObservableProperty] private bool _isSavingEditableSealNo;
     [ObservableProperty] private string? _editableMoocNumber;
     [ObservableProperty] private bool _isSavingEditableMoocNumber;
+    [ObservableProperty] private bool _isExportingFile;
 
     public PrintOptionsModel? DialogResultValue { get; private set; }
     public PrintBatchPreviewModel CurrentBatch => _batch;
@@ -105,6 +109,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         IReadOnlyList<PrinterDescriptor> printers,
         PrintOverlayRenderer renderer,
         IPrintTemplateProvider templateProvider,
+        IPrintDocumentExporter printDocumentExporter,
         bool canManageLayout,
         int defaultCopyCount = 1,
         EditablePrintDataContext? editablePrintDataContext = null)
@@ -114,6 +119,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         _batch = batch;
         _renderer = renderer;
         _templateProvider = templateProvider;
+        _printDocumentExporter = printDocumentExporter;
         _editablePrintDataContext = editablePrintDataContext;
         _fieldDefaults = template.Fields.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
         CanManageLayout = canManageLayout;
@@ -245,6 +251,18 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         };
 
         CloseRequested?.Invoke(this, true);
+    }
+
+    [RelayCommand]
+    private async Task ExportExcelAsync()
+    {
+        await ExportFileAsync(PrintExportFormat.Excel);
+    }
+
+    [RelayCommand]
+    private async Task ExportWordAsync()
+    {
+        await ExportFileAsync(PrintExportFormat.Word);
     }
 
     [RelayCommand]
@@ -510,6 +528,70 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             previewMode: true);
     }
 
+    private async Task ExportFileAsync(PrintExportFormat format)
+    {
+        if (IsExportingFile)
+        {
+            return;
+        }
+
+        var selectedPages = GetSelectedPages();
+        if (selectedPages.Count == 0)
+        {
+            ValidationMessage = "Không có phiếu để tải file.";
+            return;
+        }
+
+        var extension = format == PrintExportFormat.Excel ? ".xlsx" : ".docx";
+        var saveDialog = new SaveFileDialog
+        {
+            Title = format == PrintExportFormat.Excel ? "Tải phiếu in Excel" : "Tải phiếu in Word",
+            Filter = format == PrintExportFormat.Excel
+                ? "Excel Workbook (*.xlsx)|*.xlsx"
+                : "Word Document (*.docx)|*.docx",
+            DefaultExt = extension,
+            AddExtension = true,
+            FileName = BuildDefaultExportFileName(extension)
+        };
+
+        if (saveDialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        IsExportingFile = true;
+        try
+        {
+            var exportBatch = new PrintBatchPreviewModel
+            {
+                Kind = _batch.Kind,
+                Title = _batch.Title,
+                Pages = selectedPages
+            };
+            var exportTemplate = BuildPreviewTemplate();
+
+            if (format == PrintExportFormat.Excel)
+            {
+                await _printDocumentExporter.ExportExcelAsync(exportTemplate, exportBatch, saveDialog.FileName, CancellationToken.None);
+            }
+            else
+            {
+                await _printDocumentExporter.ExportWordAsync(exportTemplate, exportBatch, saveDialog.FileName, CancellationToken.None);
+            }
+
+            LayoutMessage = $"Đã tải file: {saveDialog.FileName}";
+            ValidationMessage = null;
+        }
+        catch (Exception ex)
+        {
+            ValidationMessage = ex.Message;
+        }
+        finally
+        {
+            IsExportingFile = false;
+        }
+    }
+
     private IReadOnlyList<PrintPreviewPageModel> GetSelectedPages()
     {
         if (SelectedPreviewItem == null || SelectedPreviewItem.IsAll)
@@ -525,6 +607,22 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         }
 
         return _batch.Pages;
+    }
+
+    private string BuildDefaultExportFileName(string extension)
+    {
+        var prefix = _batch.Kind == PrintDocumentKind.WeighTicket ? "PhieuCan" : "PhieuGiaoNhan";
+        var selection = SelectedPreviewItem?.DisplayName;
+        var selectionPart = string.IsNullOrWhiteSpace(selection) || SelectedPreviewItem?.IsAll == true
+            ? "TatCa"
+            : selection;
+        var rawName = $"{prefix}_{selectionPart}_{DateTime.Now:yyyyMMdd_HHmmss}{extension}";
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+        {
+            rawName = rawName.Replace(invalid, '_');
+        }
+
+        return rawName;
     }
 
     private async Task LoadSelectedProfileAsync(PrintTemplateProfileDescriptor? profile)
@@ -571,7 +669,9 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     }
 
     private PrintTemplateDefinition BuildPreviewTemplate()
-        => new()
+    {
+        var positionsByKey = BuildFieldPositions().ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
+        return new()
         {
             Kind = _template.Kind,
             TemplateName = _template.TemplateName,
@@ -582,7 +682,18 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             ActiveProfileKey = _template.ActiveProfileKey,
             ActiveProfileName = _template.ActiveProfileName,
             Fields = _template.Fields
+                .Select(field => positionsByKey.TryGetValue(field.FieldKey, out var position)
+                    ? field with
+                    {
+                        X = position.X,
+                        Y = position.Y,
+                        Width = position.Width ?? field.Width,
+                        IsEnabled = position.IsEnabled
+                    }
+                    : field)
+                .ToList()
         };
+    }
 
     private IReadOnlyList<PrintFieldPosition> BuildFieldPositions()
         => Fields
@@ -788,6 +899,12 @@ public sealed class PrintPreviewSelectionItem
     public bool IsAll { get; init; }
     public bool IsGroup { get; init; }
     public string? GroupKey { get; init; }
+}
+
+internal enum PrintExportFormat
+{
+    Excel,
+    Word
 }
 
 public partial class PrintFieldEditorItem : ObservableObject

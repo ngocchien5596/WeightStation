@@ -607,14 +607,17 @@ public class CutOrderRepository : ICutOrderRepository
             var end = start.AddDays(1);
             query = query.Where(x =>
                 x.Session != null
-                && x.Session.Weight2Time.HasValue
-                && x.Session.Weight2Time.Value >= start
-                && x.Session.Weight2Time.Value < end);
+                && ((x.Session.Weight2Time.HasValue
+                        && x.Session.Weight2Time.Value >= start
+                        && x.Session.Weight2Time.Value < end)
+                    || (x.Session.IsNoLoad
+                        && (x.Session.UpdatedAt ?? x.Session.CreatedAt) >= start
+                        && (x.Session.UpdatedAt ?? x.Session.CreatedAt) < end)));
         }
 
         var registrations = await query
             .OrderByDescending(x => x.Session != null
-                ? (x.Session.Weight2Time ?? DateTime.MinValue)
+                ? (x.Session.Weight2Time ?? (x.Session.IsNoLoad ? (x.Session.UpdatedAt ?? x.Session.CreatedAt) : DateTime.MinValue))
                 : DateTime.MinValue)
             .Take(200)
             .ToListAsync(ct);
@@ -977,7 +980,13 @@ public class CutOrderRepository : ICutOrderRepository
 
     private static DateTime? ResolveOutgoingCompletedAt(CutOrder registration, WeighingSession? session)
     {
-        return session?.Weight2Time;
+        if (session == null)
+        {
+            return null;
+        }
+
+        return session.Weight2Time
+            ?? (session.IsNoLoad ? session.UpdatedAt ?? session.CreatedAt : null);
     }
 
     public async Task<IReadOnlyList<ExportScaleCutOrderListItem>> GetActiveExportScaleCutOrdersAsync(ExportScaleCutOrderFilter filter, CancellationToken ct)

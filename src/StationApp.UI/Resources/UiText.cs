@@ -11,6 +11,7 @@ public static class UiText
         public const string RequiredDriverName = "Vui lòng nhập Tên tài xế.";
         public const string RequiredTtcp = "Vui lòng nhập TTCP.";
         public const string RequiredCustomer = "Vui lòng nhập Khách hàng.";
+        public const string RequiredCustomerCode = "Vui l\u00f2ng nh\u1eadp M\u00e3 KH.";
         public const string RequiredProductCode = "Vui lòng nhập Mã sản phẩm.";
         public const string RequiredProductName = "Vui lòng nhập sản phẩm.";
         public const string RequiredPlannedWeight = "Vui lòng nhập SL đặt.";

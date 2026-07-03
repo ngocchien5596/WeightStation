@@ -150,7 +150,7 @@
                                 <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewInboundSummaryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_InboundSummary">
-                                    <TextBlock Text="Báo cáo cân hàng" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding InboundSummaryReportMenuText}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewCrusherInboundReport, Converter={StaticResource BoolToVis}}"

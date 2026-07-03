@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -30,6 +31,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     private readonly ILogger<IncomingVehicleListViewModel>? _logger;
     private CancellationTokenSource? _customerCodeLookupCts;
     private IAsyncRelayCommand? _markNoLoadCommand;
+    private IncomingDetailFormSnapshot? _loadedDetailSnapshot;
+    private bool _isApplyingLoadedDetail;
 
     public event Action<Guid>? NavigateToWeighingRequested;
     public event Action? NavigateToOutgoingRequested;
@@ -68,6 +71,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     [ObservableProperty] private string? _formAttachSessionNo;
     [ObservableProperty] private string? _formConsumptionPlace;
     [ObservableProperty] private string? _formMarket;
+    [ObservableProperty] private bool _hasUnsavedCutOrderChanges;
 
     public AutocompleteInputViewModel SearchVehiclePlateInput { get; }
     public AutocompleteInputViewModel FormVehiclePlateInput { get; }
@@ -78,9 +82,10 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public AutocompleteInputViewModel FormProductCodeInput { get; }
     public AutocompleteInputViewModel FormProductNameInput { get; }
 
-    public string SaveButtonText => "LƯU THAY ĐỔI";
+    public string SaveButtonText => IsCreateMode ? "T\u1ea0O XE NH\u1eacP" : "L\u01afU THAY \u0110\u1ed4I";
     public bool IsDetailSelectionMode => !IsCreateMode && SelectedVehicle != null;
-    public bool CanConfirmEnterWeighing => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null) || (IsCreateMode && !string.IsNullOrWhiteSpace(FormVehiclePlate));
+    public bool CanConfirmEnterWeighing => !HasUnsavedCutOrderChanges
+        && (Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null) || (IsCreateMode && !string.IsNullOrWhiteSpace(FormVehiclePlate)));
     public bool CanMarkNoLoad => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
     public bool CanTransitionToExportScale
     {
@@ -131,6 +136,14 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         WireTextState(FormProductCodeInput, value => FormProductCode = value);
         WireTextState(FormProductNameInput, value => FormProductName = value);
 
+        PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is not null && IncomingDetailFormSnapshot.PropertyNames.Contains(args.PropertyName))
+            {
+                RefreshUnsavedCutOrderChanges();
+            }
+        };
+
         BeginCreateMode();
     }
 
@@ -165,6 +178,11 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         RefreshCreateSessionState();
     }
 
+    partial void OnHasUnsavedCutOrderChangesChanged(bool value)
+    {
+        RefreshCreateSessionState();
+    }
+
     partial void OnVehicleRegistrationExpiryChanged(DateTime? value)
     {
         RefreshRegistrationExpiryState();
@@ -177,6 +195,11 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     partial void OnFormCustomerCodeChanged(string? value)
     {
+        if (_isApplyingLoadedDetail)
+        {
+            return;
+        }
+
         _ = SyncCustomerByCodeAsync(value);
     }
 
@@ -274,15 +297,10 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     return;
                 }
 
+                var createdId = result.Data?.Id;
                 _toastService.ShowSuccess(UiText.Incoming.CreateInboundSuccess);
-                await ReloadVehiclesAsync(result.Data?.Id);
-
-                if (result.Data != null)
-                {
-                    SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == result.Data.Id);
-                }
-
-                IsCreateMode = false;
+                await ReloadVehiclesAsync(createdId);
+                BeginCreateMode();
                 return;
             }
 
@@ -331,6 +349,10 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             {
                 await LoadSelectedVehicleDetailsAsync(SelectedVehicle);
             }
+            else
+            {
+                CaptureLoadedDetailSnapshot();
+            }
         }
         catch (Exception ex)
         {
@@ -347,6 +369,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             ClearForm();
             FormTransactionType = TransactionType.INBOUND;
             FormTransportMethod = TransportMethod.ROAD;
+            CaptureLoadedDetailSnapshot();
             return;
         }
 
@@ -749,6 +772,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 return;
             }
 
+            _isApplyingLoadedDetail = true;
             IsCreateMode = false;
             EditingCutOrderId = registration.Id;
             FormErpCutOrderId = registration.ErpCutOrderId;
@@ -773,10 +797,13 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             FormAttachSessionNo = selected.SuggestedSessionNo;
 
             await LoadVehicleMasterInfoAsync(vehicleRepo, registration.VehiclePlate, registration.MoocNumber);
+            _isApplyingLoadedDetail = false;
+            CaptureLoadedDetailSnapshot();
             OnPropertyChanged(nameof(IsDetailSelectionMode));
         }
         catch (Exception ex)
         {
+            _isApplyingLoadedDetail = false;
             _logger?.LogError(ex, "Load selected incoming vehicle detail failed");
             _toastService.ShowError(UiText.Incoming.DetailLoadError);
         }
@@ -832,6 +859,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         ClearForm();
         FormTransactionType = TransactionType.INBOUND;
         FormTransportMethod = TransportMethod.ROAD;
+        CaptureLoadedDetailSnapshot();
     }
 
     private void ClearForm()
@@ -860,6 +888,22 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         MoocRegistrationNo = null;
         MoocRegistrationExpiry = null;
         OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
+    }
+
+    private void CaptureLoadedDetailSnapshot()
+    {
+        _loadedDetailSnapshot = !IsCreateMode && EditingCutOrderId.HasValue
+            ? IncomingDetailFormSnapshot.Capture(this)
+            : null;
+        RefreshUnsavedCutOrderChanges();
+    }
+
+    private void RefreshUnsavedCutOrderChanges()
+    {
+        HasUnsavedCutOrderChanges = !IsCreateMode
+            && EditingCutOrderId.HasValue
+            && _loadedDetailSnapshot != null
+            && !IncomingDetailFormSnapshot.Capture(this).Equals(_loadedDetailSnapshot);
     }
 
     private void RefreshCreateSessionState()
@@ -1296,6 +1340,12 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return false;
         }
 
+        if (string.IsNullOrWhiteSpace(FormCustomerCode))
+        {
+            _toastService.ShowWarning(UiText.Common.RequiredCustomerCode);
+            return false;
+        }
+
         if (string.IsNullOrWhiteSpace(FormProductCode))
         {
             _toastService.ShowWarning(UiText.Common.RequiredProductCode);
@@ -1398,6 +1448,73 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                 registration.ConsumptionPlace,
                 registration.Market));
     }
+
+    private sealed record IncomingDetailFormSnapshot(
+        string? VehiclePlate,
+        TransactionType TransactionType,
+        TransportMethod? TransportMethod,
+        string? MoocNumber,
+        string? ReceiverName,
+        string? CustomerCode,
+        string? CustomerName,
+        string? ProductCode,
+        string? ProductName,
+        decimal? PlannedWeight,
+        int? BagCount,
+        string? Notes,
+        bool IsCancelled,
+        decimal? TtcpWeight,
+        string? VehicleRegistrationNo,
+        DateTime? VehicleRegistrationExpiry,
+        string? MoocRegistrationNo,
+        DateTime? MoocRegistrationExpiry)
+    {
+        public static readonly HashSet<string> PropertyNames =
+        [
+            nameof(IncomingVehicleListViewModel.FormVehiclePlate),
+            nameof(IncomingVehicleListViewModel.FormTransactionType),
+            nameof(IncomingVehicleListViewModel.FormTransportMethod),
+            nameof(IncomingVehicleListViewModel.FormMoocNumber),
+            nameof(IncomingVehicleListViewModel.FormDriverName),
+            nameof(IncomingVehicleListViewModel.FormCustomerCode),
+            nameof(IncomingVehicleListViewModel.FormCustomerName),
+            nameof(IncomingVehicleListViewModel.FormProductCode),
+            nameof(IncomingVehicleListViewModel.FormProductName),
+            nameof(IncomingVehicleListViewModel.FormPlannedWeight),
+            nameof(IncomingVehicleListViewModel.FormBagCount),
+            nameof(IncomingVehicleListViewModel.FormNotes),
+            nameof(IncomingVehicleListViewModel.FormIsCancelled),
+            nameof(IncomingVehicleListViewModel.TtcpWeight),
+            nameof(IncomingVehicleListViewModel.VehicleRegistrationNo),
+            nameof(IncomingVehicleListViewModel.VehicleRegistrationExpiry),
+            nameof(IncomingVehicleListViewModel.MoocRegistrationNo),
+            nameof(IncomingVehicleListViewModel.MoocRegistrationExpiry)
+        ];
+
+        public static IncomingDetailFormSnapshot Capture(IncomingVehicleListViewModel viewModel)
+        {
+            return new IncomingDetailFormSnapshot(
+                viewModel.FormVehiclePlate,
+                viewModel.FormTransactionType,
+                viewModel.FormTransportMethod,
+                viewModel.FormMoocNumber,
+                viewModel.FormDriverName,
+                viewModel.FormCustomerCode,
+                viewModel.FormCustomerName,
+                viewModel.FormProductCode,
+                viewModel.FormProductName,
+                viewModel.FormPlannedWeight,
+                viewModel.FormBagCount,
+                viewModel.FormNotes,
+                viewModel.FormIsCancelled,
+                viewModel.TtcpWeight,
+                viewModel.VehicleRegistrationNo,
+                viewModel.VehicleRegistrationExpiry,
+                viewModel.MoocRegistrationNo,
+                viewModel.MoocRegistrationExpiry);
+        }
+    }
+
     private bool ShouldUseCurrentFormRegistrationDataForCreateSession(IReadOnlyCollection<Guid> selectedIds)
     {
         return !IsCreateMode
@@ -1543,5 +1660,3 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
     public decimal? ExportRemainingWeight { get; }
     public int ExportTripCount { get; }
 }
-
-

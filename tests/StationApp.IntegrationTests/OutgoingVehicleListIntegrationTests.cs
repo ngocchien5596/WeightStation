@@ -203,6 +203,96 @@ public class OutgoingVehicleListIntegrationTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task GetOutgoingListAsync_DomesticNoLoad_UsesSessionUpdatedAtAsCompletedDate()
+    {
+        var selectedDate = new DateTime(2026, 7, 2);
+        var sessionId = Guid.NewGuid();
+        var cutOrderId = Guid.NewGuid();
+        var erpCutOrderId = $"{ErpCutOrderPrefix}NOLOAD";
+
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = cutOrderId,
+                StationCode = StationCode,
+                ErpCutOrderId = erpCutOrderId,
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.COMPLETED,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-12523",
+                ProductCode = "XM-B",
+                ProductName = "Xi mang bao",
+                ProductType = "Bao",
+                ProcessingStage = ProcessingStage.OUT_YARD,
+                WeighingSessionId = sessionId,
+                IsExportScale = false,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                IdempotencyKey = Guid.NewGuid(),
+                CreatedAt = selectedDate.AddHours(17),
+                UpdatedAt = selectedDate.AddHours(17).AddMinutes(9),
+                CreatedBy = "tester"
+            });
+
+            db.WeighingSessions.Add(new WeighingSession
+            {
+                Id = sessionId,
+                StationCode = StationCode,
+                SessionNo = $"{SessionPrefix}NOLOAD",
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-12523",
+                SessionStatus = WeighingSessionStatus.COMPLETED,
+                IsNoLoad = true,
+                CreatedAt = selectedDate.AddHours(17),
+                UpdatedAt = selectedDate.AddHours(17).AddMinutes(9),
+                CreatedBy = "tester"
+            });
+
+            db.WeighingSessionLines.Add(new WeighingSessionLine
+            {
+                Id = Guid.NewGuid(),
+                StationCode = StationCode,
+                WeighingSessionId = sessionId,
+                CutOrderId = cutOrderId,
+                SequenceNo = 1,
+                ProductCode = "XM-B",
+                ProductName = "Xi mang bao",
+                ActualAllocatedWeight = 0m,
+                ActualAllocatedBagCount = 0,
+                LineStatus = WeighingSessionLineStatus.ALLOCATED,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = selectedDate.AddHours(17),
+                CreatedBy = "tester"
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _services.CreateScope())
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+
+            var items = await repo.GetOutgoingListAsync(
+                new OutgoingVehicleListFilter(
+                    SessionNo: null,
+                    ErpCutOrderId: null,
+                    VehiclePlate: null,
+                    MoocNumber: null,
+                    ReceiverName: null,
+                    CustomerName: null,
+                    CompletedDate: selectedDate,
+                    FlowType: OutgoingFlowType.Domestic),
+                CancellationToken.None);
+
+            var item = Assert.Single(items.Where(x => x.ErpCutOrderId == erpCutOrderId));
+            Assert.True(item.IsNoLoad);
+            Assert.Equal(selectedDate.Date, item.CompletedAt?.Date);
+        }
+    }
+
     public void Dispose()
     {
         CleanupTestData();

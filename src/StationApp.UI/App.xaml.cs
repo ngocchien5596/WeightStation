@@ -200,6 +200,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IWeighTicketPrintComposer, WeighTicketPrintComposer>();
                     services.AddScoped<IDeliveryTicketPrintComposer, DeliveryTicketPrintComposer>();
                     services.AddScoped<IPrintTemplateProvider, PrintTemplateProvider>();
+                    services.AddScoped<IPrintDocumentExporter, PrintDocumentExporter>();
                     services.AddSingleton<IPrinterDiscoveryService, PrinterDiscoveryService>();
                     services.AddScoped<IPrintService, WpfPrintService>();
                     services.AddSingleton<IToastService, WpfToastService>();

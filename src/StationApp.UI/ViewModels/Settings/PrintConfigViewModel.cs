@@ -109,6 +109,7 @@ public partial class PrintConfigViewModel : ObservableObject
         var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
         var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
         var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+        var printDocumentExporter = scope.ServiceProvider.GetRequiredService<IPrintDocumentExporter>();
         var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
 
         var template = await templateProvider.GetTemplateAsync(kind, CancellationToken.None);
@@ -129,6 +130,7 @@ public partial class PrintConfigViewModel : ObservableObject
             printers,
             renderer,
             templateProvider,
+            printDocumentExporter,
             true);
 
         await dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(vm);

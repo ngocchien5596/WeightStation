@@ -50,6 +50,9 @@ public partial class MainViewModel : ObservableObject
         ? $"{_currentStationContext.StationCode} - {_currentStationContext.StationName}"
         : "Chưa chọn trạm";
     public string AppVersionText => $"v{_appVersionProvider.GetVersion()}";
+    public string InboundSummaryReportMenuText => string.Equals(_currentStationContext.StationCode, "QN01", StringComparison.OrdinalIgnoreCase)
+        ? "B\u00e1o c\u00e1o nh\u1eadp h\u00e0ng"
+        : "B\u00e1o c\u00e1o c\u00e2n h\u00e0ng";
 
     public bool CanViewDashboard => StationFeatures.ShowMenuDashboard;
     public bool CanViewIncomingVehicles => StationFeatures.ShowMenuIncomingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
@@ -635,6 +638,7 @@ public partial class MainViewModel : ObservableObject
     private void NotifyAuthorizationPropertiesChanged()
     {
         OnPropertyChanged(nameof(CurrentStationDisplay));
+        OnPropertyChanged(nameof(InboundSummaryReportMenuText));
         OnPropertyChanged(nameof(CanViewDashboard));
         OnPropertyChanged(nameof(CanViewIncomingVehicles));
         OnPropertyChanged(nameof(CanViewWeighing));

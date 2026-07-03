@@ -47,15 +47,20 @@
                         <TextBlock Text="{Binding ValidationMessage}" Foreground="#9A3412" TextWrapping="Wrap"/>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="L&#x1B0;u layout" Width="120" Height="36" Margin="0,0,10,0"
-                                Command="{Binding SaveLayoutCommand}"
-                                Visibility="{Binding CanManageLayout, Converter={StaticResource BoolToVis}}"
-                                Background="#0F766E" Foreground="White" BorderThickness="0"/>
-                        <Button Content="H&#x1EE7;y" Width="110" Height="36" Margin="0,0,10,0" Command="{Binding CancelCommand}"
-                                Background="#CBD5E1" Foreground="#0F172A" BorderThickness="0"/>
-                        <Button Content="In" Width="110" Height="36" Command="{Binding PrintCommand}"
-                                Background="#1D4ED8" Foreground="White" BorderThickness="0"/>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="T&#x1EA3;i" Width="90" Height="36" Margin="0,0,10,0"
+                                    Command="{Binding ExportExcelCommand}"
+                                    Background="#047857" Foreground="White" BorderThickness="0"/>
+                            <Button Content="L&#x1B0;u layout" Width="120" Height="36" Margin="0,0,10,0"
+                                    Command="{Binding SaveLayoutCommand}"
+                                    Visibility="{Binding CanManageLayout, Converter={StaticResource BoolToVis}}"
+                                    Background="#0F766E" Foreground="White" BorderThickness="0"/>
+                            <Button Content="H&#x1EE7;y" Width="110" Height="36" Margin="0,0,10,0" Command="{Binding CancelCommand}"
+                                    Background="#CBD5E1" Foreground="#0F172A" BorderThickness="0"/>
+                            <Button Content="In" Width="110" Height="36" Command="{Binding PrintCommand}"
+                                    Background="#1D4ED8" Foreground="White" BorderThickness="0"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
 

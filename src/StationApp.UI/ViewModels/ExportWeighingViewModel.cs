@@ -25,7 +25,7 @@ using StationApp.UI.ViewModels.Dialogs;
 
 namespace StationApp.UI.ViewModels;
 
-public partial class ExportWeighingViewModel : ObservableObject, IDisposable
+public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IWeighingDeviceHost
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IScaleDevice _scaleDevice;
@@ -36,15 +36,6 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     private readonly ILogger<ExportWeighingViewModel>? _logger;
     private readonly Dispatcher _uiDispatcher;
     private readonly object _scaleReadingLock = new();
-    private readonly DispatcherTimer _scaleUiTimer;
-    private CameraSystemSettings? _cameraSettings;
-    private Guid? _currentPreviewSessionId;
-    private long _lastRenderedPreviewSequence;
-    private CameraPreviewFrameReceivedEventArgs? _latestPendingPreviewFrame;
-    private int _isPreviewUiUpdatePending;
-    private bool _hasStartedDeviceAttach;
-    private LatestScaleReadingSnapshot? _pendingScaleReading;
-    private bool _pendingScaleDeviceConnected;
     private decimal? _pendingCapturedWeight1;
     private decimal? _pendingCapturedWeight2;
     private bool _pendingWeight1IsStable;
@@ -55,6 +46,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     private int _tripLoadVersion;
     private bool _suppressSelectedCutOrderTripLoad;
     private bool _isTripSelectionResetting;
+    private readonly WeighingDeviceConnector _deviceConnector;
 
     private const string AutoModeText = "TỰ ĐỘNG";
     private const string ManualModeText = "CÂN TAY";
@@ -88,7 +80,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private decimal _currentWeight;
     [ObservableProperty] private bool _isStable;
     [ObservableProperty] private string _stabilityText = "CHƯA ỔN ĐỊNH";
-    [ObservableProperty] private SolidColorBrush _stabilityBrush = UnstableBrush;
+    [ObservableProperty] private Brush _stabilityBrush = UnstableBrush;
     [ObservableProperty] private string _currentCaptureMode = AutoModeText;
     [ObservableProperty] private decimal? _weight1;
     [ObservableProperty] private decimal? _weight2;
@@ -200,15 +192,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         _currentUserContext = currentUserContext;
         _logger = logger;
         _uiDispatcher = Dispatcher.CurrentDispatcher;
-        _scaleUiTimer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromMilliseconds(120)
-        };
-        _scaleUiTimer.Tick += OnScaleUiTimerTick;
-
-        _scaleDevice.WeightReceived += OnWeightReceived;
-        _cameraPreviewService.StatusChanged += OnCameraPreviewStatusChanged;
-        _cameraPreviewService.FrameReceived += OnCameraPreviewFrameReceived;
+        _deviceConnector = new WeighingDeviceConnector(this, scaleDevice, cameraPreviewService, logger);
 
         TripVehiclePlateInput = CreateAutocompleteField(AutocompleteFieldType.Vehicle, 1, ApplyVehicleSelection);
         TripMoocInput = CreateAutocompleteField(AutocompleteFieldType.Mooc, 1, ApplyMoocSelection);
@@ -222,7 +206,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
     public async Task InitializeAsync()
     {
-        EnsureDeviceAttachStarted();
+        _deviceConnector.StartDeviceAttachIfNeeded();
         await LoadCutOrdersAsync();
         await LoadCameraPreviewAsync();
     }
@@ -969,6 +953,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
             var printService = scope.ServiceProvider.GetRequiredService<IPrintService>();
             var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+            var printDocumentExporter = scope.ServiceProvider.GetRequiredService<IPrintDocumentExporter>();
             var appConfig = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
             var template = await templateProvider.GetTemplateAsync(kind, CancellationToken.None);
             var profiles = await templateProvider.GetProfilesAsync(kind, CancellationToken.None);
@@ -995,6 +980,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 printers,
                 renderer,
                 templateProvider,
+                printDocumentExporter,
                 false,
                 kind == PrintDocumentKind.WeighTicket
                     ? PrintCopyCountHelper.ResolveDefaultWeighTicketCopyCount(context.RegistrationsById.Values)
@@ -1102,99 +1088,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task AttachDeviceAsync()
-    {
-        if (_scaleDevice.IsConnected)
-        {
-            DeviceStatusText = UiText.Weighing.ActiveConnection;
-            IsDeviceConnected = true;
-            return;
-        }
 
-        await _scaleDevice.ConnectAsync(CancellationToken.None);
-        await _scaleDevice.StartAsync(CancellationToken.None);
-        DeviceStatusText = _scaleDevice.IsConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
-        IsDeviceConnected = _scaleDevice.IsConnected;
-    }
-
-    private void EnsureDeviceAttachStarted()
-    {
-        if (_hasStartedDeviceAttach)
-        {
-            return;
-        }
-
-        _hasStartedDeviceAttach = true;
-        _ = AttachDeviceInBackgroundAsync();
-    }
-
-    private async Task AttachDeviceInBackgroundAsync()
-    {
-        try
-        {
-            await AttachDeviceAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Background export weighing device attach failed");
-            DeviceStatusText = UiText.Weighing.LostConnection;
-            IsDeviceConnected = false;
-        }
-    }
-
-    private void OnWeightReceived(object? sender, ScaleReading reading)
-    {
-        lock (_scaleReadingLock)
-        {
-            _pendingScaleReading = new LatestScaleReadingSnapshot
-            {
-                Weight = reading.Weight,
-                IsStable = reading.IsStable,
-                ReceivedAt = reading.CapturedAt
-            };
-            _pendingScaleDeviceConnected = _scaleDevice.IsConnected;
-        }
-
-        if (!_scaleUiTimer.IsEnabled)
-        {
-            _scaleUiTimer.Start();
-        }
-    }
-
-    private void OnScaleUiTimerTick(object? sender, EventArgs e)
-    {
-        LatestScaleReadingSnapshot? latestReading;
-        bool deviceConnected;
-
-        lock (_scaleReadingLock)
-        {
-            latestReading = _pendingScaleReading;
-            deviceConnected = _pendingScaleDeviceConnected;
-            _pendingScaleReading = null;
-        }
-
-        if (latestReading == null)
-        {
-            return;
-        }
-
-        if (IsAutoMode)
-        {
-            CurrentWeight = latestReading.Weight;
-            IsStable = latestReading.IsStable;
-            StabilityText = latestReading.IsStable ? "ỔN ĐỊNH" : "CHƯA ỔN ĐỊNH";
-            StabilityBrush = latestReading.IsStable ? StableBrush : UnstableBrush;
-        }
-        else
-        {
-            IsStable = true;
-            StabilityText = "CÂN TAY";
-            StabilityBrush = StableBrush;
-        }
-
-        IsDeviceConnected = deviceConnected;
-        DeviceStatusText = deviceConnected ? UiText.Weighing.ActiveConnection : UiText.Weighing.LostConnection;
-    }
 
     private async Task LoadCameraPreviewAsync()
     {
@@ -1203,8 +1097,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
             using var scope = _scopeFactory.CreateScope();
             var provider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
             var settings = await provider.GetForStationAsync("C6", CancellationToken.None);
-            ApplyCameraPreviewSettings(settings);
-            _ = StartCameraPreviewAsync(SelectedPreviewCameraCode);
+            _deviceConnector.InitializeCameraPreview(settings);
+            _ = _deviceConnector.StartCameraPreviewAsync(SelectedPreviewCameraCode);
         }
         catch (Exception ex)
         {
@@ -1219,171 +1113,9 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void ApplyCameraPreviewSettings(CameraSystemSettings settings)
+    public void RaisePropertyChanged(string propertyName)
     {
-        _cameraSettings = settings;
-        Camera1PreviewName = settings.Camera1.DisplayName;
-        Camera2PreviewName = settings.Camera2.DisplayName;
-        IsCamera1PreviewAvailable = settings.Camera1.IsEnabled && !string.IsNullOrWhiteSpace(settings.Camera1.EffectivePreviewRtspUrl);
-        IsCamera2PreviewAvailable = settings.Camera2.IsEnabled && !string.IsNullOrWhiteSpace(settings.Camera2.EffectivePreviewRtspUrl);
-        IsCameraPreviewAvailable = IsCamera1PreviewAvailable || IsCamera2PreviewAvailable;
-
-        var preferred = string.IsNullOrWhiteSpace(settings.PreviewDefaultCameraCode)
-            ? AppConfigDefaults.DefaultCameraPreview
-            : settings.PreviewDefaultCameraCode.Trim().ToUpperInvariant();
-
-        var targetCameraCode =
-            preferred == "CAM2" && IsCamera2PreviewAvailable ? "CAM2" :
-            IsCamera1PreviewAvailable ? "CAM1" :
-            IsCamera2PreviewAvailable ? "CAM2" :
-            preferred;
-
-        OnPropertyChanged(nameof(ShowCamera1Selector));
-        OnPropertyChanged(nameof(ShowCamera2Selector));
-
-        if (!string.Equals(SelectedPreviewCameraCode, targetCameraCode, StringComparison.OrdinalIgnoreCase))
-        {
-            SelectedPreviewCameraCode = targetCameraCode;
-        }
-        else if (!IsCameraPreviewAvailable)
-        {
-            CameraPreviewStatusText = "Chưa cấu hình camera";
-            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
-        }
-    }
-
-    private async Task StartCameraPreviewAsync(string cameraCode)
-    {
-        if (_cameraSettings == null)
-        {
-            return;
-        }
-
-        var camera = ResolvePreviewCamera(cameraCode);
-        if (camera == null)
-        {
-            CameraPreviewStatusText = IsCameraPreviewAvailable ? "Camera chưa sẵn sàng" : "Chưa cấu hình camera";
-            ResetPreviewRenderState();
-            _ = _cameraPreviewService.StopPreviewAsync();
-            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
-            return;
-        }
-
-        ResetPreviewRenderState();
-        CameraPreviewStatusText = "Đang kết nối";
-        try
-        {
-            await _cameraPreviewService.StartPreviewAsync(camera, CancellationToken.None);
-            _currentPreviewSessionId = _cameraPreviewService.ActivePreviewSessionId;
-            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Start export preview for camera {CameraCode} failed", camera.CameraCode);
-            ResetPreviewRenderState();
-            CameraPreviewStatusText = "Không kết nối được camera";
-            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
-        }
-    }
-
-    private CameraEndpointSettings? ResolvePreviewCamera(string? cameraCode)
-    {
-        if (_cameraSettings == null || string.IsNullOrWhiteSpace(cameraCode))
-        {
-            return null;
-        }
-
-        return cameraCode.Trim().ToUpperInvariant() switch
-        {
-            "CAM1" when IsCamera1PreviewAvailable => _cameraSettings.Camera1,
-            "CAM2" when IsCamera2PreviewAvailable => _cameraSettings.Camera2,
-            _ => null
-        };
-    }
-
-    private void OnCameraPreviewStatusChanged(object? sender, CameraPreviewStatusChangedEventArgs e)
-    {
-        if (!string.IsNullOrWhiteSpace(e.CameraCode)
-            && !string.Equals(e.CameraCode, SelectedPreviewCameraCode, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        _uiDispatcher.BeginInvoke(() =>
-        {
-            if (!string.Equals(CameraPreviewStatusText, e.StatusText, StringComparison.Ordinal))
-            {
-                CameraPreviewStatusText = e.StatusText;
-            }
-
-            OnPropertyChanged(nameof(ShowCameraPreviewPlaceholder));
-        });
-    }
-
-    private void OnCameraPreviewFrameReceived(object? sender, CameraPreviewFrameReceivedEventArgs e)
-    {
-        if (!_currentPreviewSessionId.HasValue)
-        {
-            return;
-        }
-
-        if (e.PreviewSessionId != _currentPreviewSessionId.Value)
-        {
-            return;
-        }
-
-        if (e.Sequence <= Interlocked.Read(ref _lastRenderedPreviewSequence))
-        {
-            return;
-        }
-
-        _latestPendingPreviewFrame = e;
-        if (Interlocked.Exchange(ref _isPreviewUiUpdatePending, 1) == 1)
-        {
-            return;
-        }
-
-        _uiDispatcher.BeginInvoke(() =>
-        {
-            try
-            {
-                var latest = _latestPendingPreviewFrame;
-                if (latest == null)
-                {
-                    return;
-                }
-
-                if (!_currentPreviewSessionId.HasValue || latest.PreviewSessionId != _currentPreviewSessionId.Value)
-                {
-                    return;
-                }
-
-                if (latest.Sequence <= Interlocked.Read(ref _lastRenderedPreviewSequence))
-                {
-                    return;
-                }
-
-                CameraPreviewSource = latest.Frame;
-                Interlocked.Exchange(ref _lastRenderedPreviewSequence, latest.Sequence);
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _isPreviewUiUpdatePending, 0);
-                if (_latestPendingPreviewFrame != null && _latestPendingPreviewFrame.Sequence > Interlocked.Read(ref _lastRenderedPreviewSequence))
-                {
-                    OnCameraPreviewFrameReceived(this, _latestPendingPreviewFrame);
-                }
-            }
-        }, DispatcherPriority.Render);
-    }
-
-    private void ResetPreviewRenderState()
-    {
-        _currentPreviewSessionId = null;
-        _latestPendingPreviewFrame = null;
-        Interlocked.Exchange(ref _lastRenderedPreviewSequence, 0);
-        Interlocked.Exchange(ref _isPreviewUiUpdatePending, 0);
-        CameraPreviewSource = null;
+        OnPropertyChanged(propertyName);
     }
 
     private async Task RefreshVehicleMasterInfoAsync()
@@ -1617,8 +1349,27 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
         var deliveryComposer = scope.ServiceProvider.GetRequiredService<IDeliveryTicketPrintComposer>();
         var pages = new List<PrintPreviewPageModel>();
+        var deliveryMasterTicketId = context.DeliveryTickets
+            .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Master && !x.IsDeleted)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefault();
+        var normalTicketAsMasterId = splitConfirmed && !deliveryMasterTicketId.HasValue
+            ? context.DeliveryTickets
+                .Where(x => x.RecordRole == DeliveryTicketRecordRoles.Normal && !x.IsDeleted)
+                .OrderBy(x => context.Lines.FirstOrDefault(line => line.Id == x.WeighingSessionLineId)?.SequenceNo ?? int.MaxValue)
+                .ThenBy(x => x.CreatedAt)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefault()
+            : null;
         var deliveryTicketsToPrint = splitConfirmed
-            ? context.DeliveryTickets.Where(x => x.RecordRole == DeliveryTicketRecordRoles.SplitDerived && !x.IsDeleted).OrderBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
+            ? context.DeliveryTickets
+                .Where(x =>
+                    (x.RecordRole == DeliveryTicketRecordRoles.Master
+                     || x.RecordRole == DeliveryTicketRecordRoles.SplitDerived
+                     || (normalTicketAsMasterId.HasValue && x.Id == normalTicketAsMasterId.Value))
+                    && !x.IsDeleted)
+                .OrderBy(x => x.RecordRole == DeliveryTicketRecordRoles.Master || x.Id == normalTicketAsMasterId ? 0 : 1)
+                .ThenBy(x => x.SplitSequence).ThenBy(x => x.CreatedAt)
             : context.DeliveryTickets.Where(x =>
                     (x.RecordRole == DeliveryTicketRecordRoles.Master || x.RecordRole == DeliveryTicketRecordRoles.Normal)
                     && !x.IsDeleted)
@@ -1627,9 +1378,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
         foreach (var ticket in deliveryTicketsToPrint)
         {
+            var isDeliveryMasterTicket = ticket.RecordRole == DeliveryTicketRecordRoles.Master
+                || ticket.Id == normalTicketAsMasterId;
             CutOrder? registration;
             WeighingSessionLine? line;
-            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
+            if (isDeliveryMasterTicket)
             {
                 var primaryLine = context.Lines.OrderBy(x => x.SequenceNo).FirstOrDefault();
                 if (primaryLine == null || !context.RegistrationsById.TryGetValue(primaryLine.CutOrderId, out var primaryRegistration))
@@ -1654,9 +1407,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 }
             }
 
-            var relatedWeighTicket = splitConfirmed
-                ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
-                : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
+            var relatedWeighTicket = isDeliveryMasterTicket
+                ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted)
+                : splitConfirmed
+                    ? context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.SplitDerived && x.SplitGroupId == ticket.SplitGroupId && !x.IsDeleted)
+                    : context.WeighTickets.FirstOrDefault(x => x.RecordRole == WeighTicketRecordRoles.MasterSession && !x.IsDeleted);
 
             var page = deliveryComposer.Compose(
                 registration!,
@@ -1667,7 +1422,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
                 context.Vehicle,
                 printedAtLocal,
                 _currentUserContext.DisplayName);
-            if (ticket.RecordRole == DeliveryTicketRecordRoles.Master)
+            if (isDeliveryMasterTicket)
             {
                 page.PreviewGroupKey = "delivery-master";
                 page.PreviewGroupName = "Phiếu tổng";
@@ -2195,12 +1950,12 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedPreviewCameraCodeChanged(string value)
     {
-        if (_cameraSettings == null)
+        if (string.IsNullOrWhiteSpace(value))
         {
             return;
         }
 
-        _ = StartCameraPreviewAsync(value);
+        _ = _deviceConnector.StartCameraPreviewAsync(value);
     }
 
     private bool ValidateCreateTripForm()
@@ -2289,16 +2044,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _scaleUiTimer.Stop();
-        _scaleUiTimer.Tick -= OnScaleUiTimerTick;
-        _scaleDevice.WeightReceived -= OnWeightReceived;
-        _cameraPreviewService.StatusChanged -= OnCameraPreviewStatusChanged;
-        _cameraPreviewService.FrameReceived -= OnCameraPreviewFrameReceived;
+        _deviceConnector.Dispose();
         TripVehiclePlateInput.Dispose();
         TripMoocInput.Dispose();
         TripDriverInput.Dispose();
-        ResetPreviewRenderState();
-        _ = _cameraPreviewService.StopPreviewAsync();
     }
 
     private sealed record SessionPrintContext(

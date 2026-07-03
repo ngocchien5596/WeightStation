@@ -185,6 +185,21 @@ public interface IPrintService
         CancellationToken ct);
 }
 
+public interface IPrintDocumentExporter
+{
+    Task ExportExcelAsync(
+        PrintTemplateDefinition template,
+        PrintBatchPreviewModel batch,
+        string outputPath,
+        CancellationToken ct);
+
+    Task ExportWordAsync(
+        PrintTemplateDefinition template,
+        PrintBatchPreviewModel batch,
+        string outputPath,
+        CancellationToken ct);
+}
+
 public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
 {
     public WeighTicketPrintModel Compose(
