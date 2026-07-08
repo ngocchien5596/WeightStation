@@ -1,13 +1,38 @@
+using System;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Configuration;
 using StationApp.Application.Printing;
 
 namespace StationApp.Infrastructure.Services;
 
 public sealed class PrintDocumentExporter : IPrintDocumentExporter
 {
+    private readonly string _printingStationName;
+
+    public PrintDocumentExporter(IConfiguration configuration)
+    {
+        var station = configuration["PrintingStationName"];
+        if (string.IsNullOrWhiteSpace(station))
+        {
+            var machineName = Environment.MachineName.ToUpperInvariant();
+            if (machineName.Contains("C6"))
+            {
+                station = "C6";
+            }
+            else if (machineName.Contains("C2"))
+            {
+                station = "C2";
+            }
+            else
+            {
+                station = "C2";
+            }
+        }
+        _printingStationName = station.Trim();
+    }
     private const double ExcelGridColumnMm = 2.5d;
     private const double ExcelGridRowMm = 3.8d;
     private const double WordGridColumnMm = 3d;
@@ -81,7 +106,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return Task.CompletedTask;
     }
 
-    private static void BuildExcelPage(IXLWorksheet sheet, PrintTemplateDefinition template, PrintPreviewPageModel page)
+    private void BuildExcelPage(IXLWorksheet sheet, PrintTemplateDefinition template, PrintPreviewPageModel page)
     {
         if (template.Kind == PrintDocumentKind.WeighTicket)
         {
@@ -185,7 +210,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         }
     }
 
-    private static void BuildWeighTicketExcelPage(IXLWorksheet sheet, PrintTemplateDefinition template, PrintPreviewPageModel page)
+    private void BuildWeighTicketExcelPage(IXLWorksheet sheet, PrintTemplateDefinition template, PrintPreviewPageModel page)
     {
         var valuesByKey = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
         var fieldsByKey = template.Fields.ToDictionary(x => x.FieldKey, StringComparer.OrdinalIgnoreCase);
@@ -423,7 +448,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return Math.Max(1, (int)Math.Ceiling(longestLine / (double)charsPerLine));
     }
 
-    private static Table BuildWordPageTable(PrintTemplateDefinition template, PrintPreviewPageModel page)
+    private Table BuildWordPageTable(PrintTemplateDefinition template, PrintPreviewPageModel page)
     {
         var columnCount = Math.Max(1, (int)Math.Ceiling(template.PageWidthMm / WordGridColumnMm));
         var rowCount = Math.Max(1, (int)Math.Ceiling(template.PageHeightMm / WordGridRowMm));
@@ -481,7 +506,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return table;
     }
 
-    private static Dictionary<int, List<WordPlacement>> BuildWordPlacements(
+    private Dictionary<int, List<WordPlacement>> BuildWordPlacements(
         PrintTemplateDefinition template,
         IReadOnlyDictionary<string, string> valuesByKey,
         int columnCount,
@@ -579,10 +604,14 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return new Paragraph(paragraphProperties, new Run(runProperties, new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
     }
 
-    private static string ResolveFieldValue(PrintFieldDefinition field, IReadOnlyDictionary<string, string> valuesByKey)
+    private string ResolveFieldValue(PrintFieldDefinition field, IReadOnlyDictionary<string, string> valuesByKey)
     {
         if (!string.IsNullOrWhiteSpace(field.LiteralValue))
         {
+            if (field.FieldKey == "StaticFooterLeft" && field.LiteralValue.Contains("- C2"))
+            {
+                return field.LiteralValue.Replace("C2", _printingStationName);
+            }
             return field.LiteralValue;
         }
 

@@ -17,7 +17,7 @@ public partial class ExternalDatacanViewModel : ObservableObject
         _scopeFactory = scopeFactory;
     }
 
-    public List<string> Sources { get; } = new() { "Trạm cân NMC", "Trạm đập" };
+    public List<string> Sources { get; } = new() { "Trạm cân NMC", "Mỏ đá" };
     [ObservableProperty] private string _selectedSource = "Trạm cân NMC";
 
     [ObservableProperty] private ObservableCollection<ExternalDatacanRecordDto> _records = new();

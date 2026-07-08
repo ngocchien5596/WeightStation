@@ -4,6 +4,7 @@ using System.Windows.Documents;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Extensions.Configuration;
 using StationApp.Application.Printing;
 
 namespace StationApp.UI.Printing;
@@ -13,6 +14,18 @@ public sealed class PrintOverlayRenderer
     private static readonly FontFamily PrintFontFamily = new("Times New Roman");
     private static readonly Brush ShadedFieldBrush = new SolidColorBrush(Color.FromRgb(217, 217, 217));
     private const double PrintFontSizeBoost = 4d;
+    private readonly string _printingStationName;
+
+    public PrintOverlayRenderer(IConfiguration configuration)
+    {
+        var station = configuration["PrintingStationName"];
+        if (string.IsNullOrWhiteSpace(station))
+        {
+            var machineName = Environment.MachineName.ToUpperInvariant();
+            station = machineName.Contains("C6") ? "C6" : "C2";
+        }
+        _printingStationName = station.Trim();
+    }
 
     public FixedDocument CreateDocument(
         PrintTemplateDefinition template,
@@ -64,7 +77,9 @@ public sealed class PrintOverlayRenderer
                 var value = values.GetValueOrDefault(field.FieldKey);
                 if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(field.LiteralValue))
                 {
-                    value = field.LiteralValue;
+                    value = field.FieldKey == "StaticFooterLeft" && field.LiteralValue.Contains("- C2")
+                        ? field.LiteralValue.Replace("C2", _printingStationName)
+                        : field.LiteralValue;
                 }
                 var isSelected = string.Equals(field.FieldKey, options.SelectedFieldKey, StringComparison.OrdinalIgnoreCase);
                 var isDisabled = !field.IsEnabled;

@@ -561,7 +561,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         {
             using var scope = _scopeFactory.CreateScope();
             var provider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
-            var settings = await provider.GetForStationAsync("C2", CancellationToken.None);
+            var settings = await provider.GetForStationAsync(null, CancellationToken.None);
             _deviceConnector.InitializeCameraPreview(settings);
             _ = _deviceConnector.StartCameraPreviewAsync(SelectedPreviewCameraCode);
         }
@@ -1201,7 +1201,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         var warnings = new List<string>();
         if (hasVehicleMismatch)
         {
-            warnings.Add("khác số PTVC");
+            warnings.Add("khác biển số xe");
         }
         if (hasMoocMismatch)
         {
@@ -1861,7 +1861,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
             return;
         }
 
-        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedSession.SessionId, "phiáº¿u giao nháº­n");
+        await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedSession.SessionId, "phiếu giao nhận");
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveToOutYard))]

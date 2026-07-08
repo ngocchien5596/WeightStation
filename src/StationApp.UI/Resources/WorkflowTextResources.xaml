@@ -11,7 +11,7 @@
     <sys:String x:Key="Workflow.RefreshButton">L&#x00C0;M M&#x1EDA;I</sys:String>
     <sys:String x:Key="Workflow.CloseButton">&#x0110;&#x00D3;NG</sys:String>
     <sys:String x:Key="Workflow.Label.CutOrderId">M&#x00E3; c&#x1EAF;t l&#x1EC7;nh</sys:String>
-    <sys:String x:Key="Workflow.Label.VehiclePlate">S&#x1ED1; PTVC</sys:String>
+    <sys:String x:Key="Workflow.Label.VehiclePlate">Bi&#x1EC3;n s&#x1ED1; xe</sys:String>
     <sys:String x:Key="Workflow.Label.Mooc">Mooc</sys:String>
     <sys:String x:Key="Workflow.Label.DriverName">T&#x00EA;n t&#x00E0;i x&#x1EBF;</sys:String>
     <sys:String x:Key="Workflow.Label.CustomerName">Kh&#x00E1;ch h&#x00E0;ng</sys:String>
@@ -40,7 +40,7 @@
     <sys:String x:Key="Incoming.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Incoming.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Incoming.Column.TransportMethod">HTVC</sys:String>
-    <sys:String x:Key="Incoming.Column.VehiclePlate">S&#x1ED0; PTVC</sys:String>
+    <sys:String x:Key="Incoming.Column.VehiclePlate">BI&#x1EC2;N S&#x1ED0; XE</sys:String>
     <sys:String x:Key="Incoming.Column.Mooc">MOOC</sys:String>
     <sys:String x:Key="Incoming.Column.DriverName">T&#x00CA;N T&#x00C0;I X&#x1EBE;</sys:String>
     <sys:String x:Key="Incoming.Column.CustomerName">KH&#x00C1;CH H&#x00C0;NG</sys:String>
@@ -52,10 +52,10 @@
 
     <sys:String x:Key="Weighing.Title">C&#x00C2;N N&#x1ED8;I &#x0110;&#x1ECA;A</sys:String>
     <sys:String x:Key="Weighing.Search.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
-    <sys:String x:Key="Weighing.Search.VehiclePlate">S&#x1ED1; PTVC:</sys:String>
+    <sys:String x:Key="Weighing.Search.VehiclePlate">Bi&#x1EC3;n s&#x1ED1; xe:</sys:String>
     <sys:String x:Key="Weighing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n</sys:String>
     <sys:String x:Key="Weighing.Label.TransactionType">Lo&#x1EA1;i</sys:String>
-    <sys:String x:Key="Weighing.Label.VehiclePlate">S&#x1ED1; PTVC</sys:String>
+    <sys:String x:Key="Weighing.Label.VehiclePlate">Bi&#x1EC3;n s&#x1ED1; xe</sys:String>
     <sys:String x:Key="Weighing.Label.DriverName">T&#x00E0;i x&#x1EBF;</sys:String>
     <sys:String x:Key="Weighing.Label.Status">Tr&#x1EA1;ng th&#x00E1;i</sys:String>
     <sys:String x:Key="Weighing.Label.Customer">Kh&#x00E1;ch h&#x00E0;ng</sys:String>
@@ -94,7 +94,7 @@
     <sys:String x:Key="Weighing.Dialog.Overweight.NoSplit">KH&#x00D4;NG T&#x00C1;CH T&#x1EA2;I</sys:String>
     <sys:String x:Key="Weighing.Dialog.RelatedTitle">DANH S&#x00C1;CH PHI&#x1EBE;U LI&#x00CA;N QUAN</sys:String>
     <sys:String x:Key="Weighing.Column.SessionNo">S&#x1ED0; L&#x01AF;&#x1EE2;T C&#x00C2;N</sys:String>
-    <sys:String x:Key="Weighing.Column.VehiclePlate">PTVC</sys:String>
+    <sys:String x:Key="Weighing.Column.VehiclePlate">Bi&#x1EC3;n s&#x1ED1; xe</sys:String>
     <sys:String x:Key="Weighing.Column.Status">TR&#x1EA0;NG TH&#x00C1;I</sys:String>
     <sys:String x:Key="Weighing.Column.Net">NET</sys:String>
     <sys:String x:Key="Weighing.Column.SequenceNo">STT</sys:String>
@@ -129,7 +129,7 @@
     <sys:String x:Key="Outgoing.Column.CutOrderId">M&#x00C3; C&#x1EAE;T L&#x1EC6;NH</sys:String>
     <sys:String x:Key="Outgoing.Column.TransactionType">LO&#x1EA0;I</sys:String>
     <sys:String x:Key="Outgoing.Column.TransportMethod">HTVC</sys:String>
-    <sys:String x:Key="Outgoing.Column.VehiclePlate">S&#x1ED0; PTVC</sys:String>
+    <sys:String x:Key="Outgoing.Column.VehiclePlate">BI&#x1EC2;N S&#x1ED0; XE</sys:String>
     <sys:String x:Key="Outgoing.Column.Mooc">MOOC</sys:String>
     <sys:String x:Key="Outgoing.Column.DriverName">T&#x00CA;N T&#x00C0;I X&#x1EBE;</sys:String>
     <sys:String x:Key="Outgoing.Column.RegistrationList">DANH S&#x00C1;CH C&#x1EAE;T L&#x1EC6;NH</sys:String>

@@ -370,6 +370,8 @@
                         <DataGridTextColumn Header="{StaticResource Weighing.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

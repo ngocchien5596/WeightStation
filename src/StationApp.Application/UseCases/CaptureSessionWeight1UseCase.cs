@@ -217,7 +217,7 @@ public sealed class CaptureSessionWeight1UseCase
         {
             var registrations = await _regRepo.GetByWeighingSessionIdAsync(sessionId, ct);
             var isExport = registrations.Any(x => x.IsExportScale);
-            var settings = await _cameraSettingsProvider.GetForStationAsync(isExport ? "C6" : "C2", ct);
+            var settings = await _cameraSettingsProvider.GetForStationAsync(null, ct);
             if (settings.EnabledCameras.Count == 0)
             {
                 return;

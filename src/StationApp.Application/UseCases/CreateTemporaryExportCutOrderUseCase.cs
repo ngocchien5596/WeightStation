@@ -47,9 +47,15 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         var customerName = RequireText(request.CustomerName, "Khách hàng");
         var productCode = RequireText(request.ProductCode, "Mã sản phẩm");
         var productName = RequireText(request.ProductName, "Sản phẩm");
+        var exportPackageType = RequireExportPackageType(request.ExportPackageType);
         var plannedWeightKg = RequirePositive(request.PlannedWeight, "Số lượng đặt (kg)");
-        var tareWeightKg = RequireNonNegative(request.TareWeightKg, "Trọng lượng vỏ (kg)");
-        var bagWeightKg = RequireNonNegative(request.BagWeightKg, "Trọng lượng bao (kg)");
+        var isBagged = exportPackageType == ExportPackageTypes.Bagged;
+        var tareWeightKg = isBagged
+            ? RequireNonNegative(request.TareWeightKg, "Trọng lượng vỏ (kg)")
+            : 0m;
+        var bagWeightKg = isBagged
+            ? RequirePositive(request.BagWeightKg, "Trọng lượng bao (kg)")
+            : 0m;
 
         var now = _clock.NowLocal;
         var displayCode = await _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(ct);
@@ -72,6 +78,7 @@ public sealed class CreateTemporaryExportCutOrderUseCase
             BagCount = bagCount,
             TareWeightKg = tareWeightKg,
             BagWeightKg = bagWeightKg,
+            ExportPackageType = exportPackageType,
             Notes = NormalizeOptional(request.Notes),
             ProcessingStage = ProcessingStage.WEIGHING,
             IsExportScale = true,
@@ -128,6 +135,17 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         }
 
         return decimal.Round(value.Value, 3, MidpointRounding.AwayFromZero);
+    }
+
+    private static string RequireExportPackageType(string? value)
+    {
+        var normalized = ExportPackageTypes.Normalize(value);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Lo\u1ea1i l\u00e0 b\u1eaft bu\u1ed9c.");
+        }
+
+        return normalized;
     }
 
     private static int CalculateBagCount(decimal plannedWeightKg, decimal bagWeightKg)

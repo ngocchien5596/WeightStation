@@ -110,6 +110,7 @@
                         <DataGridTextColumn Header="TL bì mới (kg)" Binding="{Binding NewStandardTare, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="TL hàng cũ (kg)" Binding="{Binding OldNetWeight, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="TL hàng mới (kg)" Binding="{Binding NewNetWeight, StringFormat=N0, TargetNullValue=--}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="Ghi chú audit" Binding="{Binding AuditNote}" Width="230" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="Lý do sửa đổi" Binding="{Binding Reason}" Width="*" ElementStyle="{StaticResource GridTextLeft}"/>
                     </DataGrid.Columns>
                 </DataGrid>

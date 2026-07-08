@@ -1060,9 +1060,9 @@ public class CutOrderRepository : ICutOrderRepository
                 line.CutOrderId,
                 line.WeighingSessionId,
                 line.ActualAllocatedWeight,
+                line.IsReturnedBrokenTrip,
                 line.ActualAllocatedBagCount,
                 line.BagCountDisplay,
-                line.IsReturnedBrokenTrip,
                 cutOrder.BagWeightKg,
                 session.Weight2Time,
                 session.UpdatedAt,
@@ -1093,12 +1093,16 @@ public class CutOrderRepository : ICutOrderRepository
         {
             progressByCutOrder.TryGetValue(co.Id, out var progress);
             var accumulatedWeight = progress?.AccumulatedWeight ?? 0m;
+            var exportUnweighedWeight = co.ExportUnweighedWeight;
             var plannedWeight = co.PlannedWeight ?? 0m;
             var plannedBagCountDisplay = BagCountDisplayHelper.Resolve(co.PlannedWeight, co.BagWeightKg, co.BagCount);
             var accumulatedBagCountDisplay = progress?.AccumulatedBagCountDisplay
                 ?? BagCountDisplayHelper.Resolve(accumulatedWeight, co.BagWeightKg, null)
                 ?? 0;
-            var remainingWeight = plannedWeight - accumulatedWeight;
+            var finalizationWeighedWeight = ExportPackageTypes.IsBagged(co.ExportPackageType, co.BagWeightKg)
+                ? decimal.Round(accumulatedBagCountDisplay * co.BagWeightKg.GetValueOrDefault(), 3, MidpointRounding.AwayFromZero)
+                : accumulatedWeight;
+            var remainingWeight = plannedWeight - (finalizationWeighedWeight + exportUnweighedWeight);
             var remainingBagCountDisplay = Math.Max(0, (plannedBagCountDisplay ?? 0) - accumulatedBagCountDisplay);
 
             return new ExportScaleCutOrderListItem(
@@ -1106,12 +1110,16 @@ public class CutOrderRepository : ICutOrderRepository
                 co.ErpCutOrderId,
                 co.VehiclePlate,
                 co.MoocNumber,
+                co.CustomerCode,
                 co.CustomerName,
                 co.ProductCode,
                 co.ProductName,
+                co.ProductType,
+                co.ExportPackageType,
                 co.PlannedWeight,
                 plannedBagCountDisplay,
                 accumulatedWeight,
+                exportUnweighedWeight,
                 accumulatedBagCountDisplay,
                 remainingWeight,
                 remainingBagCountDisplay,
@@ -1335,6 +1343,23 @@ public class CutOrderRepository : ICutOrderRepository
                 && sessionIds.Contains(dt.WeighingSessionId.Value)
                 && !dt.IsDeleted)
             .ToListAsync(ct);
+        var userDisplayByUsername = await LoadUserDisplayNameByUsernameAsync(
+            tripRows.SelectMany(x =>
+            {
+                var ticket = weighTickets
+                    .Where(wt => wt.WeighingSessionId == x.Session.Id)
+                    .OrderBy(wt => wt.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+                    .ThenByDescending(wt => wt.UpdatedAt ?? wt.CreatedAt)
+                    .FirstOrDefault();
+                return new[]
+                {
+                    x.Session.CreatedBy,
+                    x.Session.UpdatedBy,
+                    ticket?.Weight1User,
+                    ticket?.Weight2User
+                };
+            }),
+            ct);
 
         return tripRows.Select(row =>
         {
@@ -1376,7 +1401,9 @@ public class CutOrderRepository : ICutOrderRepository
                 deliveryTicket is null ? null : BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
                 weighTicket?.IsPrinted ?? session.HasPrintedMasterWeighTicket,
                 deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket,
-                line.Note)
+                line.Note,
+                ResolveUserDisplayName(userDisplayByUsername, weighTicket?.Weight1User ?? session.CreatedBy),
+                ResolveUserDisplayName(userDisplayByUsername, weighTicket?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)))
             {
                 IsReturnedBrokenTrip = line.IsReturnedBrokenTrip,
                 CanToggleReturnedBrokenTrip =
@@ -1386,6 +1413,253 @@ public class CutOrderRepository : ICutOrderRepository
                     && session.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED
             };
         }).ToList().AsReadOnly();
+    }
+
+    public async Task<IReadOnlyList<ClayVesselListItem>> GetClayVesselsAsync(ClayVesselFilter filter, CancellationToken ct)
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var query = _db.CutOrders.AsNoTracking()
+            .Where(co => co.StationCode == stationCode
+                && !co.IsDeleted
+                && !co.IsCancelled
+                && !co.IsExportScale
+                && co.CutOrderSource == CutOrderSource.MANUAL
+                && co.TransactionType == TransactionType.INBOUND
+                && co.TransportMethod == TransportMethod.WATERWAY);
+
+        if (!filter.IncludeFinalized)
+        {
+            query = query.Where(co => !co.ExportFinalizedAt.HasValue && co.CutOrderStatus != CutOrderStatus.COMPLETED);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.VesselName))
+        {
+            query = query.Where(co => co.VehiclePlate.Contains(filter.VesselName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.CustomerName))
+        {
+            query = query.Where(co => co.CustomerName != null && co.CustomerName.Contains(filter.CustomerName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ProductName))
+        {
+            query = query.Where(co => co.ProductName != null && co.ProductName.Contains(filter.ProductName));
+        }
+
+        var vessels = await query
+            .OrderBy(co => co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED ? 1 : 0)
+            .ThenByDescending(co => co.UpdatedAt ?? co.CreatedAt)
+            .Take(200)
+            .ToListAsync(ct);
+
+        var cutOrderIds = vessels.Select(co => co.Id).ToList();
+        var tripRows = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where cutOrderIds.Contains(line.CutOrderId)
+                && line.StationCode == stationCode
+                && session.StationCode == stationCode
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+                && line.LineStatus == WeighingSessionLineStatus.ALLOCATED
+                && (session.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
+                    || session.SessionStatus == WeighingSessionStatus.COMPLETED)
+            select new
+            {
+                line.CutOrderId,
+                line.WeighingSessionId,
+                line.ActualAllocatedWeight,
+                line.IsReturnedBrokenTrip,
+                session.Weight2Time,
+                session.UpdatedAt,
+                session.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        var progressByCutOrder = tripRows
+            .GroupBy(x => x.CutOrderId)
+            .ToDictionary(
+                x => x.Key,
+                x => new
+                {
+                    AccumulatedWeight = x.Sum(item => ExportReturnedBrokenTripHelper.ResolveSignedWeight(item.ActualAllocatedWeight, item.IsReturnedBrokenTrip)),
+                    TripCount = x.Where(item => !item.IsReturnedBrokenTrip).Select(item => item.WeighingSessionId).Distinct().Count(),
+                    LastTripAt = x.Max(item => item.Weight2Time ?? item.UpdatedAt ?? item.CreatedAt)
+                });
+
+        return vessels.Select(co =>
+        {
+            progressByCutOrder.TryGetValue(co.Id, out var progress);
+            return new ClayVesselListItem(
+                co.Id,
+                co.VehiclePlate,
+                co.CustomerCode,
+                co.CustomerName,
+                co.ProductCode,
+                co.ProductName,
+                progress?.AccumulatedWeight ?? 0m,
+                progress?.TripCount ?? 0,
+                progress?.LastTripAt,
+                co.ExportFinalizedAt.HasValue || co.CutOrderStatus == CutOrderStatus.COMPLETED,
+                co.CutOrderStatus,
+                co.ProcessingStage,
+                co.Notes);
+        }).ToList().AsReadOnly();
+    }
+
+    public async Task<string> GenerateClayVesselDisplayCodeAsync(CancellationToken ct)
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        const string prefix = "TAU-SET-";
+        var codes = await _db.CutOrders.AsNoTracking()
+            .Where(x => x.StationCode == stationCode
+                && x.TransactionType == TransactionType.INBOUND
+                && x.TransportMethod == TransportMethod.WATERWAY
+                && x.VehiclePlate.StartsWith(prefix))
+            .Select(x => x.VehiclePlate)
+            .ToListAsync(ct);
+
+        var next = codes
+            .Select(code => int.TryParse(code[prefix.Length..], out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
+        return $"{prefix}{next:0000}";
+    }
+
+    public async Task<IReadOnlyList<ClayVehicleTripListItem>> GetClayVehicleTripsAsync(Guid cutOrderId, CancellationToken ct)
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var rows = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join cutOrder in _db.CutOrders.AsNoTracking()
+                on line.CutOrderId equals cutOrder.Id
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where line.CutOrderId == cutOrderId
+                && line.StationCode == stationCode
+                && cutOrder.StationCode == stationCode
+                && session.StationCode == stationCode
+                && !cutOrder.IsDeleted
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+                && !cutOrder.IsExportScale
+                && cutOrder.TransactionType == TransactionType.INBOUND
+                && cutOrder.TransportMethod == TransportMethod.WATERWAY
+            orderby session.CreatedAt descending
+            select new
+            {
+                Line = line,
+                CutOrder = cutOrder,
+                Session = session
+            })
+            .ToListAsync(ct);
+        var sessionIds = rows.Select(x => x.Session.Id).Distinct().ToList();
+        var ticketBySessionId = await _db.WeighTickets.AsNoTracking()
+            .Where(x => x.WeighingSessionId.HasValue
+                && sessionIds.Contains(x.WeighingSessionId.Value)
+                && !x.IsDeleted)
+            .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+            .ThenByDescending(x => x.IsPrimaryDisplay)
+            .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .ToListAsync(ct);
+        var ticketLookup = ticketBySessionId
+            .GroupBy(x => x.WeighingSessionId!.Value)
+            .ToDictionary(x => x.Key, x => x.First());
+        var userDisplayByUsername = await LoadUserDisplayNameByUsernameAsync(
+            rows.SelectMany(x =>
+            {
+                ticketLookup.TryGetValue(x.Session.Id, out var ticket);
+                return new[]
+                {
+                    x.Session.CreatedBy,
+                    x.Session.UpdatedBy,
+                    ticket?.Weight1User,
+                    ticket?.Weight2User
+                };
+            }),
+            ct);
+
+        return rows.Select(row =>
+        {
+            var session = row.Session;
+            var line = row.Line;
+            ticketLookup.TryGetValue(session.Id, out var ticket);
+            return new ClayVehicleTripListItem(
+                session.Id,
+                line.Id,
+                BusinessNumberFormatter.ToDisplay(session.SessionNo),
+                session.VehiclePlate,
+                session.DriverName,
+                session.Weight1,
+                session.Weight1Time,
+                session.Weight2,
+                session.Weight2Time,
+                session.NetWeight,
+                line.ActualAllocatedWeight,
+                session.WeighingMode,
+                session.StandardTareWeightSnapshot,
+                session.StandardTareSourceSnapshot,
+                session.SessionStatus,
+                session.CreatedAt,
+                session.UpdatedAt,
+                line.Note,
+                ResolveUserDisplayName(userDisplayByUsername, ticket?.Weight1User ?? session.CreatedBy),
+                ResolveUserDisplayName(userDisplayByUsername, ticket?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)))
+            {
+                IsReturnedBrokenTrip = line.IsReturnedBrokenTrip,
+                CanToggleReturnedBrokenTrip =
+                    !row.CutOrder.ExportFinalizedAt.HasValue
+                    && row.CutOrder.CutOrderStatus != CutOrderStatus.COMPLETED
+                    && (line.ActualAllocatedWeight ?? 0m) > 0m
+                    && session.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED
+            };
+        }).ToList().AsReadOnly();
+    }
+
+    private async Task<Dictionary<string, string>> LoadUserDisplayNameByUsernameAsync(
+        IEnumerable<string?> usernames,
+        CancellationToken ct)
+    {
+        var normalized = usernames
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var users = await _db.Users.AsNoTracking()
+            .Where(x => normalized.Contains(x.Username))
+            .Select(x => new { x.Username, x.DisplayName })
+            .ToListAsync(ct);
+
+        return users
+            .GroupBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => string.IsNullOrWhiteSpace(x.First().DisplayName) ? x.Key : x.First().DisplayName,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? ResolveUserDisplayName(IReadOnlyDictionary<string, string> userDisplayByUsername, string? username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return null;
+        }
+
+        var normalized = username.Trim();
+        return userDisplayByUsername.TryGetValue(normalized, out var displayName)
+            ? displayName
+            : normalized;
     }
 
     public async Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleHistorySourcesAsync(string keyword, int limit, CancellationToken ct)

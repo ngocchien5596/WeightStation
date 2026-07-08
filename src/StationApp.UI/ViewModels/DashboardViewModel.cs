@@ -1,4 +1,4 @@
-﻿using System.Windows.Media;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +38,10 @@ public partial class DashboardViewModel : ObservableObject
     [ObservableProperty] private int _crusherCompletedCount;
     [ObservableProperty] private int _crusherActiveCount;
     [ObservableProperty] private decimal _crusherCompletedTonnage;
-    [ObservableProperty] private string _specialStationCompletedTonnageLabel = "Số tấn nhập trạm đập";
+    [ObservableProperty] private decimal _crusherReturnedTonnage;
+    [ObservableProperty] private decimal _crusherActualInboundTonnage;
+    [ObservableProperty] private string _specialStationCompletedTonnageLabel = "Qua cân";
+    [ObservableProperty] private string _specialStationActualInboundTonnageLabel = "Thực nhập";
 
     [ObservableProperty] private bool _showInboundKpi = true;
     [ObservableProperty] private bool _showOutboundKpi = true;
@@ -103,7 +106,10 @@ public partial class DashboardViewModel : ObservableObject
         CrusherCompletedCount = 0;
         CrusherActiveCount = 0;
         CrusherCompletedTonnage = 0m;
-        SpecialStationCompletedTonnageLabel = "Số tấn nhập trạm đập";
+        CrusherReturnedTonnage = 0m;
+        CrusherActualInboundTonnage = 0m;
+        SpecialStationCompletedTonnageLabel = "Qua cân";
+        SpecialStationActualInboundTonnageLabel = "Thực nhập";
         ShowInboundKpi = true;
         ShowOutboundKpi = true;
         ShowCrusherKpi = false;
@@ -134,9 +140,10 @@ public partial class DashboardViewModel : ObservableObject
         ShowInboundKpi = stationFeatures.ShowDashboardInboundKpi && !ShowCrusherKpi;
         ShowOutboundKpi = stationFeatures.ShowDashboardOutboundKpi && !ShowCrusherKpi;
         DashboardKpiTitle = ShowCrusherKpi && !ShowInboundKpi && !ShowOutboundKpi
-            ? (isClayStation ? "KPI cân mỏ sét theo ngày" : "KPI cân trạm đập theo ngày")
+            ? (isClayStation ? "KPI cân mỏ sét theo ngày" : "KPI cân mỏ đá theo ngày")
             : "KPI theo ngày";
-        SpecialStationCompletedTonnageLabel = isClayStation ? "Số tấn nhập mỏ sét" : "Số tấn nhập trạm đập";
+        SpecialStationCompletedTonnageLabel = isClayStation ? "Số tấn nhập mỏ sét" : "Qua cân";
+        SpecialStationActualInboundTonnageLabel = isClayStation ? "Số tấn thực nhập mỏ sét" : "Thực nhập";
 
         var sessionCandidates = await dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == currentStationCode && !x.IsDeleted && !x.IsCancelled)
@@ -281,9 +288,21 @@ public partial class DashboardViewModel : ObservableObject
             .Where(x => !x.IsNoLoad)
             .ToList();
 
-        CrusherCompletedCount = completed.Count;
+        var inboundTrips = completed.Where(x => !x.IsReturnedBrokenTrip).ToList();
+
+        CrusherCompletedCount = inboundTrips.Count;
         CrusherCompletedTonnage = decimal.Round(
-            completed.Sum(x => (x.NetWeight ?? 0m) / 1000m),
+            inboundTrips.Sum(x => (x.NetWeight ?? 0m) / 1000m),
+            3,
+            MidpointRounding.AwayFromZero);
+        CrusherReturnedTonnage = decimal.Round(
+            completed
+                .Where(x => x.IsReturnedBrokenTrip)
+                .Sum(x => (x.NetWeight ?? 0m) / 1000m),
+            3,
+            MidpointRounding.AwayFromZero);
+        CrusherActualInboundTonnage = decimal.Round(
+            CrusherCompletedTonnage - CrusherReturnedTonnage,
             3,
             MidpointRounding.AwayFromZero);
     }

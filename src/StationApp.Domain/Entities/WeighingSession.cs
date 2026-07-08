@@ -46,6 +46,7 @@ public class WeighingSession
     public bool HasPrintedMasterWeighTicket { get; set; }
     public bool UseActualWeightForBaggedCutOrders { get; set; }
     public bool IsNoLoad { get; set; }
+    public bool IsReturnedBrokenTrip { get; set; }
     public SyncStatus SyncStatus { get; set; } = SyncStatus.SYNC_QUEUED;
     public DateTime? LastSyncAttemptAt { get; set; }
     public string? LastSyncError { get; set; }

@@ -63,6 +63,11 @@ public sealed class GetClayInboundReportLookupOptionsUseCase
     public Task<IReadOnlyList<ReportLookupOptionDto>> GetProductsAsync(CancellationToken ct)
         => _service.GetProductOptionsAsync(ct);
 
-    public Task<IReadOnlyList<ReportLookupOptionDto>> GetCustomersAsync(CancellationToken ct)
-        => _service.GetCustomersAsync(ct);
+    public Task<IReadOnlyList<ReportLookupOptionDto>> GetCarriersAsync(CancellationToken ct)
+        => _service.GetCarrierOptionsAsync(ct);
+
+    public Task<IReadOnlyList<ReportLookupOptionDto>> GetVesselsAsync(
+        ClayInboundVesselLookupFilter filter,
+        CancellationToken ct)
+        => _service.GetVesselOptionsAsync(filter, ct);
 }

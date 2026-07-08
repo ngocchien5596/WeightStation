@@ -45,6 +45,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.PlannedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.TareWeightKg).HasColumnType("decimal(18,3)");
         builder.Property(e => e.BagWeightKg).HasColumnType("decimal(18,3)");
+        builder.Property(e => e.ExportPackageType).HasMaxLength(30);
         builder.Property(e => e.Notes).HasMaxLength(500);
 
         builder.Property(e => e.IsCancelled).IsRequired().HasDefaultValue(false);
@@ -63,6 +64,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.CarryForwardWeight1Time);
         builder.Property(e => e.IsExportScale).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.IsPortTransfer).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.ExportUnweighedWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
         builder.Property(e => e.ExportFinalizedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.ExportFinalizedBy).HasMaxLength(100);
         builder.Property(e => e.ExportStartedBy).HasMaxLength(100);

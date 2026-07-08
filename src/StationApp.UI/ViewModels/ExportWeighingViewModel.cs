@@ -132,6 +132,13 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         && !IsLoading
         && Trips.Any(x => x.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED);
 
+    public bool IsTemporaryCutOrderSelected => SelectedCutOrder?.IsTemporaryExport == true;
+
+    public bool CanEditTemporaryCutOrder =>
+        SelectedCutOrder?.IsTemporaryExport == true
+        && !SelectedCutOrder.IsFinalized
+        && !IsLoading;
+
     public bool ShowCamera1Selector => IsCameraPreviewAvailable && IsCamera1PreviewAvailable;
     public bool ShowCamera2Selector => IsCameraPreviewAvailable && IsCamera2PreviewAvailable;
     public bool ShowCameraPreviewPlaceholder =>
@@ -245,6 +252,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                     ProductCode: dialogResult.ProductCode,
                     ProductName: dialogResult.ProductName,
                     ProductType: dialogResult.ProductType,
+                    ExportPackageType: dialogResult.ExportPackageType,
                     PlannedWeight: dialogResult.PlannedWeightKg,
                     TareWeightKg: dialogResult.TareWeightKg,
                     BagWeightKg: dialogResult.BagWeightKg,
@@ -257,6 +265,60 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Create temporary export cut order failed");
+            _toastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditTemporaryCutOrder))]
+    private async Task EditTemporaryCutOrderAsync()
+    {
+        if (SelectedCutOrder == null)
+        {
+            return;
+        }
+
+        var cutOrderId = SelectedCutOrder.CutOrderId;
+        var dialogVm = new CreateTemporaryExportCutOrderDialogViewModel(_scopeFactory, SelectedCutOrder);
+        var dialogResult = await _dialogService.ShowCustomDialogAsync<CreateTemporaryExportCutOrderDialogViewModel, CreateTemporaryExportCutOrderDialogResult>(dialogVm);
+        if (dialogResult == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            using var scope = _scopeFactory.CreateScope();
+            var uc = scope.ServiceProvider.GetRequiredService<UpdateTemporaryExportCutOrderUseCase>();
+            await uc.ExecuteAsync(
+                new UpdateTemporaryExportCutOrderRequest(
+                    cutOrderId,
+                    CustomerCode: dialogResult.CustomerCode,
+                    CustomerName: dialogResult.CustomerName,
+                    ProductCode: dialogResult.ProductCode,
+                    ProductName: dialogResult.ProductName,
+                    ProductType: dialogResult.ProductType,
+                    ExportPackageType: dialogResult.ExportPackageType,
+                    PlannedWeight: dialogResult.PlannedWeightKg,
+                    TareWeightKg: dialogResult.TareWeightKg,
+                    BagWeightKg: dialogResult.BagWeightKg,
+                    Notes: dialogResult.Notes),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã cập nhật cắt lệnh xuất khẩu tạm.");
+            await LoadCutOrdersAsync(cutOrderId, loadTripsForSelectedCutOrder: false);
+            if (SelectedCutOrder != null)
+            {
+                await LoadTripsAsync(SelectedCutOrder.CutOrderId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Edit temporary export cut order failed. CutOrderId={CutOrderId}", cutOrderId);
             _toastService.ShowError(ex.Message);
         }
         finally
@@ -333,6 +395,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                 .Select(x => new ExportTripTransferOption(
                     x.CutOrderId,
                     x.ErpCutOrderId,
+                    x.DisplayCutOrderCode,
                     x.VehiclePlate,
                     x.CustomerName,
                     x.ProductName,
@@ -356,9 +419,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
             }
 
             var targetOption = options.First(x => x.CutOrderId == selection.CutOrderId);
+            var sourceCutOrderCode = SelectedCutOrder.DisplayCutOrderCode;
+            var targetCutOrderCode = targetOption.DisplayCutOrderCode;
             var confirmed = await _dialogService.ShowConfirmAsync(
                 "Xác nhận chuyển chuyến",
-                $"Chuyển chuyến {SelectedTrip.SessionNo} từ cắt lệnh {SelectedCutOrder.ErpCutOrderId} sang cắt lệnh {targetOption.ErpCutOrderId}?",
+                $"Chuyển chuyến {SelectedTrip.SessionNo} từ cắt lệnh {sourceCutOrderCode} sang cắt lệnh {targetCutOrderCode}?",
                 "Chuyển",
                 "Hủy");
             if (!confirmed)
@@ -591,8 +656,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                     return;
                 }
 
-                var bagCountConfirmation = await ConfirmExportBagCountAsync();
-                if (bagCountConfirmation == null)
+                var bagCountConfirmation = SelectedCutOrder?.IsExportBagged == true
+                    ? await ConfirmExportBagCountAsync()
+                    : null;
+                if (SelectedCutOrder?.IsExportBagged == true && bagCountConfirmation == null)
                 {
                     return;
                 }
@@ -607,10 +674,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                             _pendingWeight2IsStable,
                             _pendingWeight2Mode,
                             BypassTolerance: false,
-                            ConfirmedBagCount: bagCountConfirmation.ConfirmedBagCount,
-                            SystemCalculatedBagCount: bagCountConfirmation.SystemCalculatedBagCount,
-                            IsReturnedBrokenTrip: bagCountConfirmation.IsReturnedBrokenTrip,
-                            Note: bagCountConfirmation.Note),
+                            ConfirmedBagCount: bagCountConfirmation?.ConfirmedBagCount,
+                            SystemCalculatedBagCount: bagCountConfirmation?.SystemCalculatedBagCount,
+                            IsReturnedBrokenTrip: bagCountConfirmation?.IsReturnedBrokenTrip ?? false,
+                            Note: bagCountConfirmation?.Note),
                         CancellationToken.None);
                 }
                 catch (BaggedWeightToleranceExceededException ex)
@@ -632,10 +699,10 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                             _pendingWeight2IsStable,
                             _pendingWeight2Mode,
                             BypassTolerance: true,
-                            ConfirmedBagCount: bagCountConfirmation.ConfirmedBagCount,
-                            SystemCalculatedBagCount: bagCountConfirmation.SystemCalculatedBagCount,
-                            IsReturnedBrokenTrip: bagCountConfirmation.IsReturnedBrokenTrip,
-                            Note: bagCountConfirmation.Note),
+                            ConfirmedBagCount: bagCountConfirmation?.ConfirmedBagCount,
+                            SystemCalculatedBagCount: bagCountConfirmation?.SystemCalculatedBagCount,
+                            IsReturnedBrokenTrip: bagCountConfirmation?.IsReturnedBrokenTrip ?? false,
+                            Note: bagCountConfirmation?.Note),
                         CancellationToken.None);
                 }
 
@@ -751,12 +818,15 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
             return;
         }
 
-        var confirmed = await _dialogService.ShowConfirmAsync(
-            "Ch\u1ed1t c\u1eaft l\u1ec7nh xu\u1ea5t kh\u1ea9u",
-            "Sau khi ch\u1ed1t, c\u1eaft l\u1ec7nh s\u1ebd kh\u00f4ng t\u1ea1o th\u00eam chuy\u1ebfn xe. Ti\u1ebfp t\u1ee5c?",
-            "Ch\u1ed1t",
-            "Kh\u00f4ng");
-        if (!confirmed)
+        var dialogVm = new FinalizeExportCutOrderDialogViewModel(
+            SelectedCutOrder.DisplayCutOrderCode,
+            SelectedCutOrder.CustomerName,
+            SelectedCutOrder.ProductName,
+            SelectedCutOrder.ExportPackageTypeDisplayName,
+            SelectedCutOrder.FinalizationWeighedWeight,
+            SelectedCutOrder.ExportUnweighedWeight);
+        var dialogResult = await _dialogService.ShowCustomDialogAsync<FinalizeExportCutOrderDialogViewModel, FinalizeExportCutOrderDialogResult>(dialogVm);
+        if (dialogResult == null)
         {
             return;
         }
@@ -765,7 +835,11 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         {
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<FinalizeExportCutOrderUseCase>();
-            await uc.ExecuteAsync(new FinalizeExportCutOrderRequest(SelectedCutOrder.CutOrderId), CancellationToken.None);
+            await uc.ExecuteAsync(
+                new FinalizeExportCutOrderRequest(
+                    SelectedCutOrder.CutOrderId,
+                    dialogResult.ExportUnweighedWeightKg),
+                CancellationToken.None);
             _toastService.ShowSuccess("\u0110\u00e3 ch\u1ed1t c\u1eaft l\u1ec7nh xu\u1ea5t kh\u1ea9u.");
             await LoadCutOrdersAsync();
         }
@@ -1096,7 +1170,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         {
             using var scope = _scopeFactory.CreateScope();
             var provider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
-            var settings = await provider.GetForStationAsync("C6", CancellationToken.None);
+            var settings = await provider.GetForStationAsync(null, CancellationToken.None);
             _deviceConnector.InitializeCameraPreview(settings);
             _ = _deviceConnector.StartCameraPreviewAsync(SelectedPreviewCameraCode);
         }
@@ -1740,6 +1814,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         OnPropertyChanged(nameof(CanDeleteTrip));
         OnPropertyChanged(nameof(CanToggleReturnedBrokenTrip));
         OnPropertyChanged(nameof(CanFinalize));
+        OnPropertyChanged(nameof(IsTemporaryCutOrderSelected));
+        OnPropertyChanged(nameof(CanEditTemporaryCutOrder));
         OnPropertyChanged(nameof(CanPrintWeighTicket));
         OnPropertyChanged(nameof(CanPrintDeliveryTicket));
         OnPropertyChanged(nameof(CanViewImageHistory));
@@ -1754,6 +1830,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         DeleteTripCommand.NotifyCanExecuteChanged();
         ToggleReturnedBrokenTripCommand.NotifyCanExecuteChanged();
         FinalizeCommand.NotifyCanExecuteChanged();
+        EditTemporaryCutOrderCommand.NotifyCanExecuteChanged();
         PrintWeighTicketCommand.NotifyCanExecuteChanged();
         PrintDeliveryTicketCommand.NotifyCanExecuteChanged();
         ViewImageHistoryCommand.NotifyCanExecuteChanged();

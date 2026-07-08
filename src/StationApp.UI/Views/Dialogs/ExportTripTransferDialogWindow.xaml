@@ -55,8 +55,8 @@
                           CellStyle="{StaticResource SystemDataGridCellStyle}"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="MÃ CẮT LỆNH" Binding="{Binding ErpCutOrderId}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="SỐ PTVC GỐC" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="MÃ CẮT LỆNH" Binding="{Binding DisplayCutOrderCode}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="BIỂN SỐ XE GỐC" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="KHÁCH HÀNG" Binding="{Binding CustomerName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="SẢN PHẨM" Binding="{Binding ProductName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="SL ĐẶT (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>

@@ -10,7 +10,7 @@ public interface IExportSummaryReportService
         CancellationToken ct);
 
     Task<ExportScaleSummaryReportDocument> BuildExportScaleReportAsync(
-        Guid cutOrderId,
+        Guid? cutOrderId,
         DateTime? targetDateForShiftReport,
         string preparedByDisplayName,
         CancellationToken ct);

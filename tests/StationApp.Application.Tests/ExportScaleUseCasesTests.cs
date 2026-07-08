@@ -72,6 +72,7 @@ public class ExportScaleUseCasesTests
                 && x.ProductCode == "PCB40"
                 && x.ProductName == "Xi mang bao"
                 && x.ProductType == ProductTypes.Bagged
+                && x.ExportPackageType == ExportPackageTypes.Bagged
                 && x.PlannedWeight == 4550m
                 && x.TareWeightKg == 1200m
                 && x.BagWeightKg == 50m
@@ -325,7 +326,7 @@ public class ExportScaleUseCasesTests
     }
 
     [Fact]
-    public async Task CreateTemporaryExportCutOrder_AcceptsZeroBagWeight()
+    public async Task CreateTemporaryExportCutOrder_Bulk_AllowsZeroBagFields()
     {
         _cutOrderRepo.GenerateTemporaryExportDisplayCodeAsync(Arg.Any<CancellationToken>())
             .Returns("XK-TAM-0007");
@@ -341,6 +342,7 @@ public class ExportScaleUseCasesTests
                 ProductCode: "P001",
                 ProductName: "Xi mang bao",
                 ProductType: ProductTypes.Bagged,
+                ExportPackageType: ExportPackageTypes.Bulk,
                 PlannedWeight: 4550m,
                 TareWeightKg: 1000m,
                 BagWeightKg: 0m),
@@ -349,6 +351,8 @@ public class ExportScaleUseCasesTests
         await _cutOrderRepo.Received(1).AddAsync(
             Arg.Is<CutOrder>(x =>
                 x.Id == cutOrderId
+                && x.ExportPackageType == ExportPackageTypes.Bulk
+                && x.TareWeightKg == 0m
                 && x.BagWeightKg == 0m
                 && x.BagCount == 0),
             Arg.Any<CancellationToken>());
@@ -374,7 +378,7 @@ public class ExportScaleUseCasesTests
                     BagWeightKg: -1m),
                 CancellationToken.None));
 
-        Assert.Equal("Trọng lượng bao (kg) phải lớn hơn hoặc bằng 0.", ex.Message);
+        Assert.Equal("Trọng lượng bao (kg) phải lớn hơn 0.", ex.Message);
     }
 
     [Fact]
@@ -688,6 +692,138 @@ public class ExportScaleUseCasesTests
                 && x.CutOrderStatus == CutOrderStatus.COMPLETED
                 && x.ProcessingStage == ProcessingStage.OUT_YARD),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FinalizeExportCutOrder_AddsUnweighedWeight_ToFinalizedWeight()
+    {
+        var cutOrderId = Guid.NewGuid();
+        var cutOrder = new CutOrder
+        {
+            Id = cutOrderId,
+            StationCode = "QN01",
+            IsExportScale = true,
+            TransactionType = TransactionType.OUTBOUND,
+            ProcessingStage = ProcessingStage.WEIGHING,
+            CutOrderStatus = CutOrderStatus.IN_SESSION,
+            PlannedWeight = 5000m
+        };
+
+        _cutOrderRepo.GetByIdAsync(cutOrderId, Arg.Any<CancellationToken>()).Returns(cutOrder);
+        _cutOrderRepo.GetExportVehicleTripsAsync(cutOrderId, Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new ExportVehicleTripListItem(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "QN01-LC26060003",
+                "14C-12345",
+                null,
+                null,
+                null,
+                null,
+                2500m,
+                2500m,
+                50,
+                null,
+                null,
+                WeighingSessionStatus.COMPLETED,
+                null,
+                null,
+                false,
+                false)
+        });
+
+        var sut = new FinalizeExportCutOrderUseCase(_cutOrderRepo, _uow, _userContext, _clock);
+
+        await sut.ExecuteAsync(new FinalizeExportCutOrderRequest(cutOrderId, 700m), CancellationToken.None);
+
+        await _cutOrderRepo.Received(1).UpdateAsync(
+            Arg.Is<CutOrder>(x =>
+                x.Id == cutOrderId
+                && x.ExportUnweighedWeight == 700m
+                && x.ExportFinalizedWeight == 3200m
+                && x.SyncStatus == SyncStatus.SYNC_QUEUED),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FinalizeExportCutOrder_Bagged_UsesBagCountTimesBagWeight()
+    {
+        var cutOrderId = Guid.NewGuid();
+        var cutOrder = new CutOrder
+        {
+            Id = cutOrderId,
+            StationCode = "QN01",
+            IsExportScale = true,
+            TransactionType = TransactionType.OUTBOUND,
+            ProcessingStage = ProcessingStage.WEIGHING,
+            CutOrderStatus = CutOrderStatus.IN_SESSION,
+            PlannedWeight = 5000m,
+            BagWeightKg = 50m,
+            ExportPackageType = ExportPackageTypes.Bagged
+        };
+
+        _cutOrderRepo.GetByIdAsync(cutOrderId, Arg.Any<CancellationToken>()).Returns(cutOrder);
+        _cutOrderRepo.GetExportVehicleTripsAsync(cutOrderId, Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new ExportVehicleTripListItem(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "QN01-LC26060004",
+                "14C-12345",
+                null,
+                null,
+                null,
+                null,
+                2600m,
+                2600m,
+                50,
+                null,
+                null,
+                WeighingSessionStatus.COMPLETED,
+                null,
+                null,
+                false,
+                false)
+        });
+
+        var sut = new FinalizeExportCutOrderUseCase(_cutOrderRepo, _uow, _userContext, _clock);
+
+        await sut.ExecuteAsync(new FinalizeExportCutOrderRequest(cutOrderId, 700m), CancellationToken.None);
+
+        await _cutOrderRepo.Received(1).UpdateAsync(
+            Arg.Is<CutOrder>(x =>
+                x.Id == cutOrderId
+                && x.ExportUnweighedWeight == 700m
+                && x.ExportFinalizedWeight == 3200m
+                && x.SyncStatus == SyncStatus.SYNC_QUEUED),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FinalizeExportCutOrder_RejectsNegativeUnweighedWeight()
+    {
+        var cutOrderId = Guid.NewGuid();
+        var cutOrder = new CutOrder
+        {
+            Id = cutOrderId,
+            StationCode = "QN01",
+            IsExportScale = true,
+            TransactionType = TransactionType.OUTBOUND,
+            ProcessingStage = ProcessingStage.WEIGHING,
+            CutOrderStatus = CutOrderStatus.IN_SESSION,
+            PlannedWeight = 5000m
+        };
+
+        _cutOrderRepo.GetByIdAsync(cutOrderId, Arg.Any<CancellationToken>()).Returns(cutOrder);
+
+        var sut = new FinalizeExportCutOrderUseCase(_cutOrderRepo, _uow, _userContext, _clock);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            sut.ExecuteAsync(new FinalizeExportCutOrderRequest(cutOrderId, -1m), CancellationToken.None));
+
+        Assert.Equal("S\u1ed1 l\u01b0\u1ee3ng kh\u00e1c kh\u00f4ng \u0111\u01b0\u1ee3c \u00e2m.", ex.Message);
+        await _cutOrderRepo.DidNotReceive().UpdateAsync(Arg.Any<CutOrder>(), Arg.Any<CancellationToken>());
     }
 
     private CreateTemporaryExportCutOrderUseCase CreateTemporaryExportCutOrderUseCase()

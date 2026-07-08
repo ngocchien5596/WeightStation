@@ -238,7 +238,7 @@ public partial class StationMasterViewModel : ObservableObject
         IsOperationSettingsVisible = ActiveConfigMode != "NONE";
         OperationSettingsHeader = ActiveConfigMode switch
         {
-            "CRUSHER" => "Cấu hình vận hành (Cân trạm đập)",
+            "CRUSHER" => "Cấu hình vận hành (Cân mỏ đá)",
             "CLAY" => "Cấu hình vận hành (Cân mỏ sét)",
             _ => string.Empty
         };

@@ -230,7 +230,7 @@ public sealed class EnsureInboundMasterDataUseCase
             ct);
     }
 
-    private async Task EnsureCustomerAsync(string? customerCode, string? customerName, CancellationToken ct)
+    public async Task EnsureCustomerAsync(string? customerCode, string? customerName, CancellationToken ct)
     {
         var normalizedCode = NormalizeOptional(customerCode);
         var normalizedName = NormalizeOptional(customerName);
@@ -286,7 +286,7 @@ public sealed class EnsureInboundMasterDataUseCase
         await EnqueueMasterSyncAsync(existing.Id, SyncAggregateTypes.Customer, _syncPayloadFactory.CreatePayload(existing), now, ct);
     }
 
-    private async Task EnsureProductAsync(
+    public async Task EnsureProductAsync(
         string? productCode,
         string? productName,
         string? productType,

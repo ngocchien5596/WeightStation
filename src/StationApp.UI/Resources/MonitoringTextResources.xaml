@@ -39,8 +39,8 @@
     <sys:String x:Key="Incoming.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh</sys:String>
     <sys:String x:Key="Incoming.ColProductCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; SP</sys:String>
     <sys:String x:Key="Incoming.SearchRegistrationCodeLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh:</sys:String>
-    <sys:String x:Key="Incoming.SearchVehiclePlateLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1ED1; PTVC:</sys:String>
-    <sys:String x:Key="Incoming.VehiclePlateLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1ED1; PTVC</sys:String>
+    <sys:String x:Key="Incoming.SearchVehiclePlateLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">Bi&#x1EC3;n s&#x1ED1; xe:</sys:String>
+    <sys:String x:Key="Incoming.VehiclePlateLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">Bi&#x1EC3;n s&#x1ED1; xe</sys:String>
     <sys:String x:Key="Incoming.DriverLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#xEA;n t&#xE0;i x&#x1EBF;</sys:String>
     <sys:String x:Key="Incoming.CustomerLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">Kh&#xE1;ch h&#xE0;ng</sys:String>
     <sys:String x:Key="Incoming.ProductLabel" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1EA3;n ph&#x1EA9;m</sys:String>
@@ -49,7 +49,7 @@
     <sys:String x:Key="Incoming.NoLoad" xmlns:sys="clr-namespace:System;assembly=mscorlib">KH&#xD4;NG L&#x1EA4;Y H&#xC0;NG</sys:String>
 
     <sys:String x:Key="VehicleRep.ColRegistrationCode" xmlns:sys="clr-namespace:System;assembly=mscorlib">M&#xE3; c&#x1EAF;t l&#x1EC7;nh</sys:String>
-    <sys:String x:Key="VehicleRep.ColVehiclePlate" xmlns:sys="clr-namespace:System;assembly=mscorlib">S&#x1ED0; PTVC</sys:String>
+    <sys:String x:Key="VehicleRep.ColVehiclePlate" xmlns:sys="clr-namespace:System;assembly=mscorlib">BI&#x1EC2;N S&#x1ED0; XE</sys:String>
     <sys:String x:Key="VehicleRep.ColDriver" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#xC0;I X&#x1EBE;</sys:String>
     <sys:String x:Key="VehicleRep.ColCreatedAt" xmlns:sys="clr-namespace:System;assembly=mscorlib">T&#x1EA0;O L&#xDA;C</sys:String>
     <sys:String x:Key="VehicleRep.Cancel" xmlns:sys="clr-namespace:System;assembly=mscorlib">H&#x1EE7;y</sys:String>

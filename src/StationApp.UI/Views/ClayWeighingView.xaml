@@ -26,27 +26,14 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="190"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <Border Style="{StaticResource HeaderBorder}">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Ng&#x00E0;y th&#x1ED1;ng k&#x00EA;" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
-                    <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                Width="168"
-                                SelectedDateFormat="Short"
-                                VerticalAlignment="Center"
-                                Style="{StaticResource StandardDatePickerStyle}"/>
-
-                    <TextBlock Text="S&#x1ED1; xe" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
-                    <TextBox x:Name="InternalVehicleSearchBox"
-                             Width="180"
-                             Style="{StaticResource StandardTextBoxStyle}"
-                             Text="{Binding SearchVehicle, UpdateSourceTrigger=PropertyChanged}"
-                             KeyDown="SessionSearchBox_KeyDown"/>
-
-                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
+                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}">
                         <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
@@ -61,6 +48,65 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
+                <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="30"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4"
+                                   Text="TH&#x00D4;NG TIN T&#x00C0;U"
+                                   FontWeight="SemiBold"
+                                   Foreground="#2C3E50"
+                                   Margin="0,0,0,8"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="T&#x00E0;u/S&#x00E0; lan" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1"
+                                 Text="{Binding SelectedVessel.VesselName, TargetNullValue=''}"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource FormBox}"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="Chuy&#x1EBF;n cu&#x1ED1;i" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="1" Grid.Column="3"
+                                 Text="{Binding SelectedVessel.LastTripAt, StringFormat={}{0:dd/MM/yyyy HH:mm}, TargetNullValue=''}"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource FormBox}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="H&#x00E0;ng h&#x00F3;a" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="2" Grid.Column="1"
+                                 Text="{Binding SelectedVessel.ProductName, TargetNullValue=''}"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource FormBox}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="Kh&#x00E1;ch h&#x00E0;ng" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="2" Grid.Column="3"
+                                 Text="{Binding SelectedVessel.CustomerName, TargetNullValue=''}"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource FormBox}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="T&#x1ED5;ng nh&#x1EAD;p (kg)" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="3" Grid.Column="1"
+                                 Text="{Binding SelectedVessel.AccumulatedWeight, StringFormat={}{0:N0}, TargetNullValue=''}"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource FormBox}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="S&#x1ED1; chuy&#x1EBF;n" Style="{StaticResource FormLabel}"/>
+                        <TextBox Grid.Row="3" Grid.Column="3"
+                                 Text="{Binding SelectedVessel.TripCount, TargetNullValue=''}"
+                                 IsReadOnly="True"
+                                 Style="{StaticResource FormBox}"/>
+                    </Grid>
+                </Border>
+
                 <Border BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Padding="12" Background="White">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -70,62 +116,25 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="30"/>
-                            <RowDefinition Height="30"/>
-                            <RowDefinition Height="30"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="30"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Style="{StaticResource FormLabel}"/>
-                        <ComboBox Grid.Row="0" Grid.Column="1"
-                                  ItemsSource="{Binding WeighingModeOptions}"
-                                  SelectedValue="{Binding SelectedWeighingMode, Mode=TwoWay}"
-                                  SelectedValuePath="Value"
-                                  IsEnabled="{Binding CanEditCrusherInfoForm}"
-                                  Style="{StaticResource StandardComboBoxStyle}"
-                                  Margin="0,2"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4"
+                                   Text="TH&#x00D4;NG TIN XE N&#x1ED8;I B&#x1ED8;"
+                                   FontWeight="SemiBold"
+                                   Foreground="#2C3E50"
+                                   Margin="0,0,0,8"/>
 
-                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Số xe" Style="{StaticResource FormLabel}"/>
-                        <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="3"
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="S&#x1ED1; xe" Style="{StaticResource FormLabel}"/>
+                        <controls:AutocompleteTextBox Grid.Row="1" Grid.Column="1"
                                                       State="{Binding InternalVehiclePlateInput}"
                                                       IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                      TextBoxStyle="{StaticResource FormBox}"/>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="TL bì (kg)" Style="{StaticResource FormLabel}"/>
-                        <TextBox Grid.Row="1" Grid.Column="1"
-                                 Text="{Binding StandardTareText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 IsReadOnly="True"
-                                 Style="{StaticResource FormBox}"/>
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="M&#x00E3; SP" Style="{StaticResource FormLabel}"/>
-                        <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="1"
-                                                      State="{Binding ProductCodeInput}"
-                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                      TextBoxStyle="{StaticResource FormBox}"/>
-
-                        <TextBlock Grid.Row="2" Grid.Column="2" Text="S&#x1EA3;n ph&#x1EA9;m" Style="{StaticResource FormLabel}"/>
-                        <controls:AutocompleteTextBox Grid.Row="2" Grid.Column="3"
-                                                      State="{Binding ProductNameInput}"
-                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                      TextBoxStyle="{StaticResource FormBox}"/>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="M&#x00E3; KH" Style="{StaticResource FormLabel}"/>
-                        <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="1"
-                                                      State="{Binding CustomerCodeInput}"
-                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                      TextBoxStyle="{StaticResource FormBox}"/>
-
-                        <TextBlock Grid.Row="3" Grid.Column="2" Text="Kh&#x00E1;ch h&#x00E0;ng" Style="{StaticResource FormLabel}"/>
-                        <controls:AutocompleteTextBox Grid.Row="3" Grid.Column="3"
-                                                      State="{Binding CustomerNameInput}"
-                                                      IsReadOnly="{Binding IsCrusherInfoFormReadOnly}"
-                                                      TextBoxStyle="{StaticResource FormBox}"/>
+                                                      TextBoxStyle="{StaticResource FormBox}"
+                                                      Width="220"
+                                                      HorizontalAlignment="Left"/>
                     </Grid>
                 </Border>
-                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="120" Margin="0,0,8,0"/>
-                    <Button Content="ĐỔI SỐ XE" Command="{Binding EditSessionVehicleCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="120"/>
-                </StackPanel>
             </StackPanel>
 
             <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="10">
@@ -252,30 +261,106 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Margin="12,0,12,12">
-            <DataGrid ItemsSource="{Binding Sessions}"
-                      SelectedItem="{Binding SelectedSession, Mode=TwoWay}"
-                      Style="{StaticResource SystemDataGridStyle}"
-                      ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                      RowStyle="{StaticResource SystemDataGridRowStyle}"
-                      CellStyle="{StaticResource SystemDataGridCellStyle}">
+        <Border Grid.Row="2" Margin="12,0,12,8" BorderBrush="#D0D3D4" BorderThickness="1" CornerRadius="4" Background="White" Padding="8">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="T&#x1EA0;O T&#x00C0;U" Command="{Binding CreateClayVesselCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="S&#x1EEC;A T&#x00C0;U" Command="{Binding EditClayVesselCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="T&#x1EA0;O CHUY&#x1EBE;N XE" Command="{Binding CreateTripCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="CHUY&#x1EC2;N CHUY&#x1EBE;N" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="X&#x00D3;A CHUY&#x1EBE;N XE" Command="{Binding DeleteTripCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="XEM &#x1EA2;NH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,8,0"/>
+                        <Button Content="CH&#x1ED0;T T&#x1ED4;NG" Command="{Binding FinalizeClayVesselCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,8,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="T&#x00E0;u/S&#x00E0; lan" Style="{StaticResource HeaderLabel}" Margin="0,0,8,0"/>
+                        <TextBox Width="180" Style="{StaticResource StandardTextBoxStyle}" Text="{Binding SearchVessel, UpdateSourceTrigger=PropertyChanged}"/>
+                        <CheckBox Content="Hi&#x1EC3;n th&#x1ECB; &#x0111;&#x00E3; ch&#x1ED1;t"
+                                  IsChecked="{Binding ShowFinalizedVessels, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  VerticalAlignment="Center"
+                                  Margin="16,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+                <DataGrid ItemsSource="{Binding Vessels}"
+                          SelectedItem="{Binding SelectedVessel, Mode=TwoWay}"
+                          IsSynchronizedWithCurrentItem="False"
+                          Style="{StaticResource SystemDataGridStyle}"
+                          ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
+                          RowStyle="{StaticResource SystemDataGridRowStyle}"
+                          CellStyle="{StaticResource SystemDataGridCellStyle}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="T&#x00E0;u/S&#x00E0; lan" Binding="{Binding VesselName}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="&#x0110;&#x01A1;n v&#x1ECB; v&#x1EAD;n chuy&#x1EC3;n" Binding="{Binding CustomerName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="H&#x00E0;ng h&#x00F3;a" Binding="{Binding ProductName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="T&#x1ED5;ng nh&#x1EAD;p (kg)" Binding="{Binding AccumulatedWeight, StringFormat={}{0:N0}}" Width="140" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="S&#x1ED1; chuy&#x1EBF;n" Binding="{Binding TripCount}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Chuy&#x1EBF;n cu&#x1ED1;i" Binding="{Binding LastTripAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="3" Margin="12,0,12,12" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4">
+            <DataGrid x:Name="TripsDataGrid"
+                      ItemsSource="{Binding Trips}"
+                      SelectedItem="{Binding SelectedTrip, Mode=TwoWay}"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      IsSynchronizedWithCurrentItem="False"
+                      SelectionChanged="OnTripsGridSelectionChanged"
+                      PreviewMouseLeftButtonDown="OnTripsGridPreviewMouseLeftButtonDown"
+                      Style="{StaticResource DetailDataGridStyle}"
+                      ColumnHeaderStyle="{StaticResource DetailDataGridColumnHeaderStyle}"
+                      CellStyle="{StaticResource DetailDataGridCellStyle}"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      FrozenColumnCount="2">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource DetailDataGridRowStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsReturnedBrokenTrip}" Value="True">
+                                <Setter Property="Foreground" Value="#C0392B"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
                 <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="HO&#x00C0;N" Width="75">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Focusable="False"
+                                          PreviewMouseLeftButtonDown="OnReturnedBrokenTripCheckBoxPreviewMouseDown"
+                                          IsEnabled="{Binding CanToggleReturnedBrokenTrip}"
+                                          IsChecked="{Binding IsReturnedBrokenTrip, Mode=OneWay}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n" Binding="{Binding SessionNo}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="120" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Binding="{Binding WeighingMode, Converter={StaticResource CrusherWeighingModeDisplayConverter}}" Width="180" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="80" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Ch&#x1EBF; &#x0111;&#x1ED9; c&#x00E2;n" Binding="{Binding WeighingMode, Converter={StaticResource CrusherWeighingModeDisplayConverter}}" Width="140" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1, StringFormat={}{0:N0}}" Width="80" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n 1" Binding="{Binding Weight1Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="C&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2, StringFormat={}{0:N0}}" Width="80" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n 2" Binding="{Binding Weight2Time, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="TL bì" Binding="{Binding StandardTareWeightSnapshot, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
-                    <DataGridTextColumn Header="TL hàng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                    <DataGridTextColumn Header="TL h&#x00E0;ng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="80" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="S&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Tr&#x1EA1;ng th&#x00E1;i" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="GHI CH&#x00DA;" Binding="{Binding Note}" Width="110" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
     </Grid>
 </UserControl>
+
 
 

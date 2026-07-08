@@ -261,6 +261,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "cut_orders", "BagWeightKg", "decimal(18,3) NULL");
     await EnsureColumnAsync(db, "cut_orders", "IsExportScale", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_export_scale_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "cut_orders", "IsPortTransfer", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_port_transfer_bootstrap] DEFAULT ((0))");
+    await EnsureColumnAsync(db, "cut_orders", "ExportUnweighedWeight", "decimal(18,3) NOT NULL CONSTRAINT [DF_cut_orders_export_unweighed_weight_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "cut_orders", "ExportFinalizedWeight", "decimal(18,3) NULL");
     await EnsureColumnAsync(db, "cut_orders", "ExportFinalizedAt", "datetime2 NULL");
     await EnsureColumnAsync(db, "cut_orders", "ExportFinalizedBy", "nvarchar(100) NULL");

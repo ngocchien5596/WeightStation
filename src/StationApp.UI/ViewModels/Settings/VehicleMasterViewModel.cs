@@ -46,7 +46,7 @@ public partial class VehicleMasterViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<Vehicle> _vehicles = new();
     [ObservableProperty] private Vehicle? _selectedVehicle;
 
-    public string TtcpWeightLabel => IsInternalVehicleStation ? "TL xe chuẩn (kg)" : "TTCP (kg)";
+    public string TtcpWeightLabel => IsInternalVehicleStation ? "TL bì (kg)" : "TTCP (kg)";
     public bool ShowTtcp10Weight => !IsInternalVehicleStation;
 
     partial void OnSelectedVehicleChanged(Vehicle? value)
@@ -141,13 +141,13 @@ public partial class VehicleMasterViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(EditVehiclePlate))
         {
-            await dialogService.ShowErrorAsync("Lỗi", "Số PTVC không được rỗng!");
+            await dialogService.ShowErrorAsync("Lỗi", "Biển số xe không được rỗng!");
             return;
         }
 
-        if (EditIsInternalVehicle && (!EditTtcpWeight.HasValue || EditTtcpWeight.Value <= 0))
+        if (EditTtcpWeight.HasValue && EditTtcpWeight.Value <= 0)
         {
-            await dialogService.ShowWarningAsync("Lỗi", $"Xe nội bộ bắt buộc nhập {TtcpWeightLabel.ToLowerInvariant()}.");
+            await dialogService.ShowWarningAsync("Lỗi", $"{TtcpWeightLabel} nếu nhập phải lớn hơn 0.");
             return;
         }
 
@@ -172,8 +172,8 @@ public partial class VehicleMasterViewModel : ObservableObject
                     TtcpWeight = EditTtcpWeight,
                     IsInternalVehicle = EditIsInternalVehicle,
                     StandardTareSource = null,
-                    StandardTareUpdatedAt = EditIsInternalVehicle ? clock.NowLocal : null,
-                    StandardTareUpdatedBy = EditIsInternalVehicle ? "Operator" : null,
+                    StandardTareUpdatedAt = EditIsInternalVehicle && EditTtcpWeight is > 0 ? clock.NowLocal : null,
+                    StandardTareUpdatedBy = EditIsInternalVehicle && EditTtcpWeight is > 0 ? "Operator" : null,
                     VehicleRegistrationNo = EditVehicleRegistrationNo.Trim(),
                     VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate,
                     MoocRegistrationNo = EditMoocRegistrationNo.Trim(),
@@ -262,8 +262,8 @@ public partial class VehicleMasterViewModel : ObservableObject
         vehicle.TtcpWeight = EditTtcpWeight;
         vehicle.IsInternalVehicle = EditIsInternalVehicle;
         vehicle.StandardTareSource = null;
-        vehicle.StandardTareUpdatedAt = EditIsInternalVehicle ? now : null;
-        vehicle.StandardTareUpdatedBy = EditIsInternalVehicle ? "Operator" : null;
+        vehicle.StandardTareUpdatedAt = EditIsInternalVehicle && EditTtcpWeight is > 0 ? now : null;
+        vehicle.StandardTareUpdatedBy = EditIsInternalVehicle && EditTtcpWeight is > 0 ? "Operator" : null;
         vehicle.VehicleRegistrationNo = EditVehicleRegistrationNo.Trim();
         vehicle.VehicleRegistrationExpiryDate = EditVehicleRegistrationExpiryDate;
         vehicle.MoocRegistrationNo = EditMoocRegistrationNo.Trim();

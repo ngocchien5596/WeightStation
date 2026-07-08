@@ -13,13 +13,13 @@
     </UserControl.Resources>
 
     <Grid Margin="8">
-        <!-- Thiết kế dạng Thẻ Đơn tâm nhỏ gọn ở chính giữa màn hình -->
         <Border Background="#FFFFFF"
                 BorderBrush="#D7E3F0"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="24"
                 Width="560"
+                Height="560"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center">
             <Border.Effect>
@@ -27,19 +27,19 @@
                                   ShadowDepth="3"
                                   Color="#55000000"/>
             </Border.Effect>
+
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Tiêu đề Card -->
-                    <RowDefinition Height="Auto"/> <!-- Thông tin Version song song -->
-                    <RowDefinition Height="Auto"/> <!-- Trạng thái/Thông báo -->
-                    <RowDefinition Height="Auto"/> <!-- Ghi chú phát hành (Scrollable) -->
-                    <RowDefinition Height="Auto"/> <!-- Cấu hình shared folder -->
-                    <RowDefinition Height="Auto"/> <!-- Nút bấm hành động nằm dưới -->
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Tiêu đề Card -->
                 <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                    <TextBlock Text="CẬP NHẬT ỨNG DỤNG"
+                    <TextBlock Text="C&#x1EAC;P NH&#x1EAC;T &#x1EE8;NG D&#x1EE4;NG"
                                FontSize="18"
                                FontWeight="Bold"
                                Foreground="#123B6B"
@@ -47,52 +47,84 @@
                     <Border Height="1" Background="#E2E8F0" Margin="0,12,0,0"/>
                 </StackPanel>
 
-                <!-- Thông tin Version song song -->
                 <Grid Grid.Row="1" Margin="0,4,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    
-                    <!-- Phiên bản Hiện tại -->
+
                     <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                        <TextBlock Text="Phiên bản hiện tại" Foreground="#64748B" FontSize="13" Margin="0,0,0,4" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding CurrentVersion}" FontWeight="Bold" Foreground="#1E293B" FontSize="18" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Phi&#x00EA;n b&#x1EA3;n hi&#x1EC7;n t&#x1EA1;i"
+                                   Foreground="#64748B"
+                                   FontSize="13"
+                                   Margin="0,0,0,4"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding CurrentVersion}"
+                                   FontWeight="Bold"
+                                   Foreground="#1E293B"
+                                   FontSize="18"
+                                   HorizontalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Vách ngăn đứng -->
                     <Border Grid.Column="1" Width="1" Background="#E2E8F0" Margin="24,4"/>
 
-                    <!-- Phiên bản Mới nhất -->
                     <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                        <TextBlock Text="Phiên bản mới nhất" Foreground="#64748B" FontSize="13" Margin="0,0,0,4" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding LatestVersion}" FontWeight="Bold" Foreground="#10B981" FontSize="18" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Phi&#x00EA;n b&#x1EA3;n m&#x1EDB;i nh&#x1EA5;t"
+                                   Foreground="#64748B"
+                                   FontSize="13"
+                                   Margin="0,0,0,4"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding LatestVersion}"
+                                   FontWeight="Bold"
+                                   Foreground="#10B981"
+                                   FontSize="18"
+                                   HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- Hộp cảnh báo trạng thái hệ thống -->
-                <Border Grid.Row="2" CornerRadius="6" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Padding="12" Margin="0,0,0,16">
+                <Border Grid.Row="2"
+                        CornerRadius="6"
+                        Background="#F8FAFC"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        Padding="12"
+                        Margin="0,0,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#3B82F6" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="#334155" TextWrapping="Wrap" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock Text="&#xE946;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="16"
+                                   Foreground="#3B82F6"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StatusText}"
+                                   Foreground="#334155"
+                                   TextWrapping="Wrap"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 
-                <!-- Ghi chú phát hành giới hạn chiều cao tối đa -->
-                <StackPanel Grid.Row="3" Margin="0,0,0,20">
-                    <TextBlock Text="Ghi chú phát hành:" FontSize="13" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,6"/>
+                <StackPanel Grid.Row="3" Margin="0,0,0,16">
+                    <TextBlock Text="Ghi ch&#x00FA; ph&#x00E1;t h&#x00E0;nh:"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="#475569"
+                               Margin="0,0,0,6"/>
                     <Border Background="#F8FAFC"
                             BorderBrush="#E2E8F0"
                             BorderThickness="1"
                             CornerRadius="6"
-                            Padding="12"
-                            MaxHeight="160">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            Padding="10"
+                            Height="150">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      CanContentScroll="True">
                             <TextBlock Text="{Binding ReleaseNotes}"
                                        TextWrapping="Wrap"
                                        Foreground="#475569"
@@ -102,8 +134,12 @@
                     </Border>
                 </StackPanel>
 
-                <StackPanel Grid.Row="4" Margin="0,0,0,20">
-                    <TextBlock Text="Shared folder phát hành:" FontSize="13" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,6"/>
+                <StackPanel Grid.Row="4" Margin="0,0,0,16" VerticalAlignment="Top">
+                    <TextBlock Text="Shared folder ph&#x00E1;t h&#x00E0;nh:"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="#475569"
+                               Margin="0,0,0,6"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -124,7 +160,7 @@
                                 Height="36"
                                 Margin="10,0,0,0"
                                 Padding="18,0">
-                            <TextBlock Text="LƯU" FontWeight="SemiBold"/>
+                            <TextBlock Text="L&#x01AF;U" FontWeight="SemiBold"/>
                         </Button>
                     </Grid>
 
@@ -135,27 +171,26 @@
                                TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <!-- Nút bấm hành động nằm dưới -->
                 <Grid Grid.Row="5" Margin="0,4,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    
-                    <Button Grid.Column="0" 
+
+                    <Button Grid.Column="0"
                             Command="{Binding CheckForUpdatesCommand}"
                             Style="{StaticResource UtilityButtonStyle}"
                             Height="38"
                             Margin="0,0,8,0">
-                        <TextBlock Text="KIỂM TRA CẬP NHẬT" FontWeight="SemiBold"/>
+                        <TextBlock Text="KI&#x1EC2;M TRA C&#x1EAC;P NH&#x1EAC;T" FontWeight="SemiBold"/>
                     </Button>
 
-                    <Button Grid.Column="1" 
+                    <Button Grid.Column="1"
                             Command="{Binding UpdateCommand}"
                             Style="{StaticResource WorkflowButtonStyle}"
                             Height="38"
                             Margin="8,0,0,0">
-                        <TextBlock Text="CẬP NHẬT NGAY" FontWeight="SemiBold"/>
+                        <TextBlock Text="C&#x1EAC;P NH&#x1EAC;T NGAY" FontWeight="SemiBold"/>
                     </Button>
                 </Grid>
             </Grid>

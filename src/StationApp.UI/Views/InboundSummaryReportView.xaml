@@ -120,7 +120,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                    <TextBlock Text="T&#x1EEB; gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Từ giờ" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
                         <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
@@ -132,7 +132,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                    <TextBlock Text="&#x110;&#x1EBF;n gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Đến giờ" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
                         <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
@@ -144,7 +144,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Margin="0,0,12,0">
-                    <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Sản phẩm" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
                               Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
                               Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -158,7 +158,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="3" Margin="0,0,12,0">
-                    <TextBlock Text="Kh&#xE1;ch h&#xE0;ng" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Khách hàng" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
                               Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
                               Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -176,7 +176,7 @@
                         <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>
                     <Button Command="{Binding ExportCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Width="64">
-                        <TextBlock Text="T&#x1EA2;I" FontWeight="SemiBold"/>
+                        <TextBlock Text="TẢI" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -189,26 +189,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="{Binding PreviewSummaryText}" FontWeight="SemiBold" Foreground="#0F3B66" Margin="0,0,0,8"/>
-                <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewRows}" AutoGenerateColumns="False" IsReadOnly="True"
-                          Language="vi-VN"
-                          HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
-                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Kh&#xE1;ch h&#xE0;ng" Binding="{Binding CustomerName}" Width="240"/>
-                        <DataGridTextColumn Header="H&#xE0;ng h&#xF3;a" Binding="{Binding ProductName}" Width="240"/>
-                        <DataGridTextColumn Header="S&#x1ED1; PTVC" Binding="{Binding VehiclePlate}" Width="110"/>
-                        <DataGridTextColumn Header="Ng&#xE0;y v&#xE0;o" Binding="{Binding Weight1Time, StringFormat=dd/MM/yyyy}" Width="95"/>
-                        <DataGridTextColumn Header="Gi&#x1EDD; v&#xE0;o" Binding="{Binding Weight1Time, StringFormat=HH:mm}" Width="80"/>
-                        <DataGridTextColumn Header="Ng&#xE0;y ra" Binding="{Binding Weight2Time, StringFormat=dd/MM/yyyy}" Width="95"/>
-                        <DataGridTextColumn Header="Gi&#x1EDD; ra" Binding="{Binding Weight2Time, StringFormat=HH:mm}" Width="80"/>
-                        <DataGridTextColumn Header="KL c&#xE2;n 1" Binding="{Binding Weight1, StringFormat=N0}" Width="100"/>
-                        <DataGridTextColumn Header="KL c&#xE2;n 2" Binding="{Binding Weight2, StringFormat=N0}" Width="100"/>
-                        <DataGridTextColumn Header="KL h&#xE0;ng (kg)" Binding="{Binding NetWeightKg, StringFormat=N0}" Width="120"/>
-                        <DataGridTextColumn Header="Ghi ch&#xFA;" Binding="{Binding Notes}" Width="180"/>
-                        <DataGridTextColumn Header="Ng&#x1B0;&#x1EDD;i c&#xE2;n" Binding="{Binding WeigherName}" Width="140"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <DocumentViewer Grid.Row="1" Document="{Binding PreviewDocument}" Zoom="120" Focusable="False"/>
             </Grid>
         </Border>
     </Grid>

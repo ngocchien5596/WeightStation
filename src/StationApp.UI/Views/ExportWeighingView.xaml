@@ -1,4 +1,4 @@
-<UserControl x:Class="StationApp.UI.Views.ExportWeighingView"
+﻿<UserControl x:Class="StationApp.UI.Views.ExportWeighingView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:StationApp.UI.Controls"
@@ -93,7 +93,7 @@
                         </TextBox.InputBindings>
                     </TextBox>
 
-                    <TextBlock Text="S&#x1ED1; PTVC" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
+                    <TextBlock Text="Bi&#x1EC3;n s&#x1ED1; xe" Style="{StaticResource HeaderLabel}" Margin="20,0,8,0"/>
                     <TextBox Width="160"
                              Style="{StaticResource StandardTextBoxStyle}"
                              Text="{Binding SearchVehiclePlate, UpdateSourceTrigger=PropertyChanged}">
@@ -184,8 +184,14 @@
                     <TextBox Grid.Row="3" Grid.Column="7" HorizontalAlignment="Right" Width="80" Text="{Binding SelectedCutOrder.RemainingBagCountDisplay, Mode=OneWay, StringFormat='{}{0:N0}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
                     <!-- Row 4: Ghi chú -->
-                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="7" HorizontalAlignment="Stretch" Text="{Binding SelectedCutOrder.Notes, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="SL kh&#xE1;c (t&#x1EA5;n)" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.ExportUnweighedWeight, Mode=OneWay, Converter={StaticResource WeightToTonConverter}, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="SL ch&#x1ED1;t t&#x1ED5;ng (t&#x1EA5;n)" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="3" HorizontalAlignment="Left" Width="80" Text="{Binding SelectedCutOrder.ActualExportWeight, Mode=OneWay, Converter={StaticResource WeightToTonConverter}, StringFormat='{}{0:#,##0.###}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="Ghi ch&#xFA;" Grid.Row="4" Grid.Column="4" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="4" Grid.Column="5" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Text="{Binding SelectedCutOrder.Notes, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
                 </Grid>
             </Border>
@@ -206,7 +212,7 @@
                         <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="S&#x1ED1; PTVC" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
+                    <TextBlock Text="Bi&#x1EC3;n s&#x1ED1; xe" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <controls:AutocompleteTextBox Grid.Row="0" Grid.Column="1"
                                                    State="{Binding TripVehiclePlateInput}"
                                                    TextBoxStyle="{StaticResource FormBox}"
@@ -391,13 +397,18 @@
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <Button Content="T&#x1EA0;O C&#x1EAE;T L&#x1EC6;NH T&#x1EA0;M" Command="{Binding CreateTemporaryCutOrderCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="TẠO CHUYẾN XE" Command="{Binding CreateTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
-            <Button Content="CHUYỂN CHUYẾN" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="S&#x1EEC;A C&#x1EAE;T L&#x1EC6;NH T&#x1EA0;M"
+                    Command="{Binding EditTemporaryCutOrderCommand}"
+                    Style="{StaticResource UtilityButtonStyle}"
+                    Margin="0,0,4,4"
+                    Visibility="{Binding IsTemporaryCutOrderSelected, Converter={StaticResource BoolToVis}}"/>
+            <Button Content="T&#x1EA0;O CHUY&#x1EBE;N XE" Command="{Binding CreateTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="CHUY&#x1EC2;N CHUY&#x1EBE;N" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="X&#xD3;A CHUY&#x1EBE;N XE" Command="{Binding DeleteTripCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="XEM &#x1EA2;NH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
-            <Button Command="{Binding FinalizeCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4" Content="CHỐT TỔNG"/>
+            <Button Command="{Binding FinalizeCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4" Content="CH&#x1ED0;T T&#x1ED4;NG"/>
         </ItemsControl>
 
         <Grid Grid.Row="3" Margin="12,0,12,12">
@@ -434,7 +445,7 @@
                     <DataGrid.Columns>
                         <DataGridCheckBoxColumn Header="ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="70" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                         <DataGridTextColumn Header="M&#xC3; C&#x1EAE;T L&#x1EC6;NH" Binding="{Binding DisplayCutOrderCode, Mode=OneWay}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="S&#x1ED0; PTVC G&#x1ED0;C" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="BI&#x1EC2;N S&#x1ED0; XE G&#x1ED0;C" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="M&#xC3; SP" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
@@ -443,6 +454,7 @@
                         <DataGridTextColumn Header="SL &#x111;&#x1EB7;t (BAO)" Binding="{Binding PlannedBagCountDisplay, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="L&#x0168;Y K&#x1EBE; (KG)" Binding="{Binding AccumulatedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="L&#x0168;Y K&#x1EBE; (BAO)" Binding="{Binding AccumulatedBagCountDisplay, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="SL KH&#xC1;C (KG)" Binding="{Binding ExportUnweighedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="C&#xD2;N L&#x1EA0;I (KG)" Binding="{Binding RemainingWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="C&#xD2;N L&#x1EA0;I (BAO)" Binding="{Binding RemainingBagCountDisplay, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="TL V&#x1ECE; (KG)" Binding="{Binding TareWeightKg, StringFormat='{}{0:#,##0.###}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
@@ -490,19 +502,7 @@
                         </Style>
                     </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="S&#x1ED1; L&#x1AF;&#x1EE2;T C&#xC2;N" Binding="{Binding SessionNo}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="S&#x1ED1; PTVC" Binding="{Binding VehiclePlate}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="T&#xC0;I X&#x1EBE;" Binding="{Binding DriverName}" Width="140" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 1" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 2" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="NET" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
-                        <DataGridTextColumn Header="BAO" Binding="{Binding BagCountDisplay, StringFormat='{}{0:N0}'}" Width="70" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="TR&#x1EA0;NG TH&#xC1;I" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplayConverter}}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="PC" Binding="{Binding WeighTicketNo}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="105" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="GHI CHÚ" Binding="{Binding Note}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTemplateColumn Header="HOÀN" Width="75">
+                        <DataGridTemplateColumn Header="HO&#x00C0;N" Width="75">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <CheckBox HorizontalAlignment="Center"
@@ -514,6 +514,20 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="S&#x1ED1; L&#x1AF;&#x1EE2;T C&#xC2;N" Binding="{Binding SessionNo}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="Bi&#x1EC3;n s&#x1ED1; xe" Binding="{Binding VehiclePlate}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="T&#xC0;I X&#x1EBE;" Binding="{Binding DriverName}" Width="140" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 1" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="C&#xC2;N L&#x1EA6;N 2" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="NET" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="90" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="BAO" Binding="{Binding BagCountDisplay, StringFormat='{}{0:N0}'}" Width="70" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="TR&#x1EA0;NG TH&#xC1;I" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplayConverter}}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="PC" Binding="{Binding WeighTicketNo}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="PGN" Binding="{Binding DeliveryNo}" Width="105" ElementStyle="{StaticResource GridTextCenter}"/>
+                        <DataGridTextColumn Header="GHI CH&#x00DA;" Binding="{Binding Note}" Width="150" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>

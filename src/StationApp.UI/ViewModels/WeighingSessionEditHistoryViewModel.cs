@@ -25,6 +25,7 @@ public sealed class EditHistoryItemRow
     public decimal? OldNetWeight { get; set; }
     public decimal? NewNetWeight { get; set; }
     public string Reason { get; set; } = string.Empty;
+    public string AuditNote { get; set; } = string.Empty;
 }
 
 public sealed partial class WeighingSessionEditHistoryViewModel : ObservableObject
@@ -151,6 +152,23 @@ public sealed partial class WeighingSessionEditHistoryViewModel : ObservableObje
                                     }
                                 }
                             }
+
+                            var auditNotes = new List<string>();
+                            if (root.TryGetProperty("InvalidatedOldVehicleStandardTare", out var invalidatedProp)
+                                && invalidatedProp.ValueKind == JsonValueKind.Object)
+                            {
+                                var plate = invalidatedProp.TryGetProperty("VehiclePlate", out var plateProp)
+                                    ? plateProp.GetString()
+                                    : null;
+                                var weight = invalidatedProp.TryGetProperty("InvalidatedWeight", out var weightProp)
+                                    && weightProp.ValueKind != JsonValueKind.Null
+                                    ? weightProp.GetDecimal().ToString("N0")
+                                    : "--";
+
+                                auditNotes.Add($"Vô hiệu TL bì xe cũ {plate ?? "--"}: {weight} kg");
+                            }
+
+                            row.AuditNote = string.Join("; ", auditNotes);
                         }
                         else if (log.Action == "TRANSFER_EXPORT_TRIP")
                         {
@@ -197,6 +215,117 @@ public sealed partial class WeighingSessionEditHistoryViewModel : ObservableObje
                             {
                                 row.GrossWeight = grossWeightProp.GetDecimal();
                             }
+                        }
+                        else if (log.Action == "UPDATE_TEMPORARY_EXPORT_CUT_ORDER")
+                        {
+                            var displayCode = root.TryGetProperty("DisplayCode", out var displayCodeProp)
+                                ? displayCodeProp.GetString()
+                                : null;
+                            row.SessionNo = displayCode ?? log.EntityId.ToString()[..8];
+                            row.Reason = "Sửa cắt lệnh tạm xuất khẩu";
+
+                            if (root.TryGetProperty("Old", out var oldProp))
+                            {
+                                row.OldVehiclePlate = oldProp.TryGetProperty("CustomerName", out var oldCustomerProp)
+                                    ? oldCustomerProp.GetString() ?? string.Empty
+                                    : string.Empty;
+                                if (oldProp.TryGetProperty("PlannedWeight", out var oldPlannedProp)
+                                    && oldPlannedProp.ValueKind != JsonValueKind.Null)
+                                {
+                                    row.OldNetWeight = oldPlannedProp.GetDecimal();
+                                }
+                            }
+
+                            if (root.TryGetProperty("New", out var newProp))
+                            {
+                                row.NewVehiclePlate = newProp.TryGetProperty("CustomerName", out var newCustomerProp)
+                                    ? newCustomerProp.GetString() ?? string.Empty
+                                    : string.Empty;
+                                if (newProp.TryGetProperty("PlannedWeight", out var newPlannedProp)
+                                    && newPlannedProp.ValueKind != JsonValueKind.Null)
+                                {
+                                    row.NewNetWeight = newPlannedProp.GetDecimal();
+                                    row.NetWeight = row.NewNetWeight;
+                                }
+                            }
+
+                            var updatedLineCount = root.TryGetProperty("UpdatedLineCount", out var lineCountProp)
+                                && lineCountProp.ValueKind == JsonValueKind.Number
+                                ? lineCountProp.GetInt32()
+                                : 0;
+                            row.AuditNote = $"Đã cập nhật snapshot {updatedLineCount:N0} dòng chuyến xe.";
+                        }
+                        else if (log.Action == "UPDATE_CLAY_VESSEL")
+                        {
+                            var vesselName = root.TryGetProperty("VesselName", out var vesselNameProp)
+                                ? vesselNameProp.GetString()
+                                : null;
+                            row.SessionNo = vesselName ?? log.EntityId.ToString()[..8];
+                            row.Reason = "Sửa tàu mỏ sét";
+
+                            if (root.TryGetProperty("Old", out var oldProp))
+                            {
+                                row.OldVehiclePlate = oldProp.TryGetProperty("CustomerName", out var oldCustomerProp)
+                                    ? oldCustomerProp.GetString() ?? string.Empty
+                                    : string.Empty;
+                            }
+
+                            if (root.TryGetProperty("New", out var newProp))
+                            {
+                                row.NewVehiclePlate = newProp.TryGetProperty("CustomerName", out var newCustomerProp)
+                                    ? newCustomerProp.GetString() ?? string.Empty
+                                    : string.Empty;
+                            }
+
+                            var updatedLineCount = root.TryGetProperty("UpdatedLineCount", out var lineCountProp)
+                                && lineCountProp.ValueKind == JsonValueKind.Number
+                                ? lineCountProp.GetInt32()
+                                : 0;
+                            var updatedSessionCount = root.TryGetProperty("UpdatedSessionCount", out var sessionCountProp)
+                                && sessionCountProp.ValueKind == JsonValueKind.Number
+                                ? sessionCountProp.GetInt32()
+                                : 0;
+                            row.AuditNote = $"Đã cập nhật snapshot {updatedSessionCount:N0} chuyến xe, {updatedLineCount:N0} dòng chuyến.";
+                        }
+                        else if (log.Action == "TOGGLE_CRUSHER_RETURNED_BROKEN_TRIP")
+                        {
+                            if (root.TryGetProperty("SessionNo", out var sessionNoProp))
+                            {
+                                row.SessionNo = sessionNoProp.GetString() ?? string.Empty;
+                            }
+
+                            if (root.TryGetProperty("VehiclePlate", out var vehiclePlateProp))
+                            {
+                                row.OldVehiclePlate = vehiclePlateProp.GetString() ?? string.Empty;
+                                row.NewVehiclePlate = vehiclePlateProp.GetString() ?? string.Empty;
+                            }
+
+                            if (root.TryGetProperty("GrossWeight", out var grossWeightProp)
+                                && grossWeightProp.ValueKind != JsonValueKind.Null)
+                            {
+                                row.GrossWeight = grossWeightProp.GetDecimal();
+                            }
+
+                            if (root.TryGetProperty("NetWeight", out var netWeightProp)
+                                && netWeightProp.ValueKind != JsonValueKind.Null)
+                            {
+                                row.NetWeight = netWeightProp.GetDecimal();
+                                row.OldNetWeight = row.NetWeight;
+                                row.NewNetWeight = row.NetWeight;
+                            }
+
+                            var isReturned = root.TryGetProperty("NewIsReturnedBrokenTrip", out var returnedProp)
+                                && returnedProp.ValueKind is JsonValueKind.True or JsonValueKind.False
+                                && returnedProp.GetBoolean();
+
+                            row.Reason = isReturned
+                                ? "Đánh dấu hàng hoàn mỏ đá"
+                                : "Bỏ đánh dấu hàng hoàn mỏ đá";
+
+                            var netWeightText = row.NetWeight.HasValue
+                                ? $"{row.NetWeight.Value / 1000m:N3} tấn"
+                                : "--";
+                            row.AuditNote = $"{row.Reason}; TL hàng: {netWeightText}";
                         }
                     }
                     catch (Exception ex)

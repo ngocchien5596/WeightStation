@@ -88,7 +88,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource HeaderBorder}">
-            <TextBlock Text="BÁO CÁO CÂN HÀNG (TRẠM ĐẬP)" 
+            <TextBlock Text="BÁO CÁO CÂN HÀNG (MỎ ĐÁ)" 
                        FontSize="18" 
                        FontWeight="SemiBold" 
                        Foreground="White" 
@@ -107,27 +107,13 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                    <TextBlock Text="T&#x1EEB; gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
-                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
-                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding FromMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
-                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
-                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding FromSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
-                        <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
-                    </StackPanel>
+                    <TextBlock Text="T&#x1EEB; ng&#xE0;y" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                    <TextBlock Text="&#x110;&#x1EBF;n gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
-                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
-                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding ToMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
-                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
-                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding ToSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
-                        <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
-                    </StackPanel>
+                    <TextBlock Text="&#x110;&#x1EBF;n ng&#xE0;y" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Margin="0,0,12,0">
@@ -159,23 +145,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="{Binding PreviewSummaryText}" FontWeight="SemiBold" Foreground="#0F3B66" Margin="0,0,0,8"/>
-                <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewRows}" AutoGenerateColumns="False" IsReadOnly="True"
-                          Language="vi-VN"
-                          HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
-                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="STT" Binding="{Binding RowNo}" Width="60"/>
-                        <DataGridTextColumn Header="S&#x1ED1; phi&#x1EBF;u" Binding="{Binding SessionNo}" Width="110"/>
-                        <DataGridTextColumn Header="S&#x1ED1; xe" Binding="{Binding InternalVehicleNo}" Width="100"/>
-                        <DataGridTextColumn Header="Ng&#xE0;y c&#xE2;n" Binding="{Binding Weight2Time, StringFormat=dd/MM/yyyy HH:mm}" Width="130"/>
-                        <DataGridTextColumn Header="T&#x1ED5;ng (t&#x1EA5;n)" Binding="{Binding GrossWeightTon, StringFormat=N3}" Width="100"/>
-                        <DataGridTextColumn Header="B&#xEC; (t&#x1EA5;n)" Binding="{Binding TareWeightTon, StringFormat=N3}" Width="100"/>
-                        <DataGridTextColumn Header="H&#xE0;ng (t&#x1EA5;n)" Binding="{Binding NetWeightTon, StringFormat=N3}" Width="110"/>
-                        <DataGridTextColumn Header="Kh&#xE1;ch h&#xE0;ng" Binding="{Binding CustomerName}" Width="220"/>
-                        <DataGridTextColumn Header="H&#xE0;ng h&#xF3;a" Binding="{Binding ProductName}" Width="140"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <DocumentViewer Grid.Row="1" Document="{Binding PreviewDocument}" Zoom="120" Focusable="False"/>
             </Grid>
         </Border>
     </Grid>

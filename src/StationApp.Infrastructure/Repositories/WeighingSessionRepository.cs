@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
@@ -159,6 +160,7 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .ToListAsync(ct);
 
         var sessionIds = sessions.Select(x => x.Id).ToList();
+        var ticketBySessionId = await LoadPrimaryTicketBySessionIdAsync(sessionIds, ct);
         var lines = await _db.WeighingSessionLines.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && sessionIds.Contains(x.WeighingSessionId))
             .ToListAsync(ct);
@@ -168,6 +170,19 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             : await _db.CutOrders.AsNoTracking()
                 .Where(x => x.StationCode == stationCode && cutOrderIds.Contains(x.Id) && !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Id, x => x.IsPortTransfer, ct);
+        var userDisplayByUsername = await LoadUserDisplayNameByUsernameAsync(
+            sessions.SelectMany(x =>
+            {
+                ticketBySessionId.TryGetValue(x.Id, out var ticket);
+                return new[]
+                {
+                    x.CreatedBy,
+                    x.UpdatedBy,
+                    ticket?.Weight1User,
+                    ticket?.Weight2User
+                };
+            }),
+            ct);
 
         return sessions.Select(session =>
         {
@@ -224,7 +239,13 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.CreatedAt,
                 session.UpdatedAt,
                 customerSummary,
-                productSummary);
+                productSummary,
+                ResolveUserDisplayName(
+                    userDisplayByUsername,
+                    ticketBySessionId.GetValueOrDefault(session.Id)?.Weight1User ?? session.CreatedBy),
+                ResolveUserDisplayName(
+                    userDisplayByUsername,
+                    ticketBySessionId.GetValueOrDefault(session.Id)?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)));
         }).ToList();
     }
 
@@ -257,6 +278,20 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(200)
             .ToListAsync(ct);
+        var ticketBySessionId = await LoadPrimaryTicketBySessionIdAsync(sessions.Select(x => x.Id).ToList(), ct);
+        var userDisplayByUsername = await LoadUserDisplayNameByUsernameAsync(
+            sessions.SelectMany(x =>
+            {
+                ticketBySessionId.TryGetValue(x.Id, out var ticket);
+                return new[]
+                {
+                    x.CreatedBy,
+                    x.UpdatedBy,
+                    ticket?.Weight1User,
+                    ticket?.Weight2User
+                };
+            }),
+            ct);
 
         return sessions
             .Select(x => new CrusherWeighingSessionListItem(
@@ -278,7 +313,14 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 x.ProductCode,
                 x.ProductName,
                 x.CustomerCode,
-                x.CustomerName))
+                x.CustomerName,
+                x.IsReturnedBrokenTrip,
+                ResolveUserDisplayName(
+                    userDisplayByUsername,
+                    ticketBySessionId.GetValueOrDefault(x.Id)?.Weight1User ?? x.CreatedBy),
+                ResolveUserDisplayName(
+                    userDisplayByUsername,
+                    ticketBySessionId.GetValueOrDefault(x.Id)?.Weight2User ?? (x.Weight2Time.HasValue ? x.UpdatedBy ?? x.CreatedBy : null))))
             .ToList();
     }
 
@@ -311,6 +353,20 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
             .Take(200)
             .ToListAsync(ct);
+        var ticketBySessionId = await LoadPrimaryTicketBySessionIdAsync(sessions.Select(x => x.Id).ToList(), ct);
+        var userDisplayByUsername = await LoadUserDisplayNameByUsernameAsync(
+            sessions.SelectMany(x =>
+            {
+                ticketBySessionId.TryGetValue(x.Id, out var ticket);
+                return new[]
+                {
+                    x.CreatedBy,
+                    x.UpdatedBy,
+                    ticket?.Weight1User,
+                    ticket?.Weight2User
+                };
+            }),
+            ct);
 
         return sessions
             .Select(x => new CrusherWeighingSessionListItem(
@@ -332,8 +388,79 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 x.ProductCode,
                 x.ProductName,
                 x.CustomerCode,
-                x.CustomerName))
+                x.CustomerName,
+                x.IsReturnedBrokenTrip,
+                ResolveUserDisplayName(
+                    userDisplayByUsername,
+                    ticketBySessionId.GetValueOrDefault(x.Id)?.Weight1User ?? x.CreatedBy),
+                ResolveUserDisplayName(
+                    userDisplayByUsername,
+                    ticketBySessionId.GetValueOrDefault(x.Id)?.Weight2User ?? (x.Weight2Time.HasValue ? x.UpdatedBy ?? x.CreatedBy : null))))
             .ToList();
+    }
+
+    private async Task<Dictionary<Guid, WeighTicket>> LoadPrimaryTicketBySessionIdAsync(
+        IReadOnlyCollection<Guid> sessionIds,
+        CancellationToken ct)
+    {
+        if (sessionIds.Count == 0)
+        {
+            return new Dictionary<Guid, WeighTicket>();
+        }
+
+        var tickets = await _db.WeighTickets.AsNoTracking()
+            .Where(x => x.WeighingSessionId.HasValue
+                && sessionIds.Contains(x.WeighingSessionId.Value)
+                && !x.IsDeleted)
+            .OrderBy(x => x.RecordRole == WeighTicketRecordRoles.MasterSession ? 0 : 1)
+            .ThenByDescending(x => x.IsPrimaryDisplay)
+            .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .ToListAsync(ct);
+
+        return tickets
+            .GroupBy(x => x.WeighingSessionId!.Value)
+            .ToDictionary(x => x.Key, x => x.First());
+    }
+
+    private async Task<Dictionary<string, string>> LoadUserDisplayNameByUsernameAsync(
+        IEnumerable<string?> usernames,
+        CancellationToken ct)
+    {
+        var normalized = usernames
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var users = await _db.Users.AsNoTracking()
+            .Where(x => normalized.Contains(x.Username))
+            .Select(x => new { x.Username, x.DisplayName })
+            .ToListAsync(ct);
+
+        return users
+            .GroupBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => string.IsNullOrWhiteSpace(x.First().DisplayName) ? x.Key : x.First().DisplayName,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? ResolveUserDisplayName(IReadOnlyDictionary<string, string> userDisplayByUsername, string? username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return null;
+        }
+
+        var normalized = username.Trim();
+        return userDisplayByUsername.TryGetValue(normalized, out var displayName)
+            ? displayName
+            : normalized;
     }
 
     public async Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct)
@@ -406,6 +533,24 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 sessionLines.Count > 0 && sessionLines.All(x => x.HasPrintedDeliveryTicket),
                 session.Weight2Time ?? session.Weight1Time ?? session.CreatedAt);
         }).ToList();
+    }
+
+    public async Task<int> CountCompletedStandardTareSessionsForVehicleOnDateAsync(Guid vehicleId, DateTime date, CancellationToken ct)
+    {
+        var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_db, ct);
+        var start = date.Date;
+        var end = start.AddDays(1);
+
+        return await _db.WeighingSessions.AsNoTracking()
+            .CountAsync(x => x.StationCode == stationCode
+                && !x.IsDeleted
+                && !x.IsCancelled
+                && x.StandardTareVehicleId == vehicleId
+                && x.SessionStatus == WeighingSessionStatus.COMPLETED
+                && x.Weight2.HasValue
+                && (x.Weight2Time ?? x.UpdatedAt ?? x.CreatedAt) >= start
+                && (x.Weight2Time ?? x.UpdatedAt ?? x.CreatedAt) < end,
+                ct);
     }
 
     public async Task AddLineAsync(WeighingSessionLine line, CancellationToken ct)

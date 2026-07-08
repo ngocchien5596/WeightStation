@@ -29,6 +29,27 @@ public partial class ExportScaleReportViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<ExportScaleSummaryReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
     [ObservableProperty] private ExportScaleSummaryReportDocument? _currentDocument;
+    [ObservableProperty] private System.Windows.Documents.IDocumentPaginatorSource? _previewDocument;
+    private System.Windows.Xps.Packaging.XpsDocument? _currentXpsDocument;
+    private string? _currentTempXpsPath;
+    private string? _currentTempExcelPath;
+
+    private void CleanupOldPreview()
+    {
+        if (_currentXpsDocument != null)
+        {
+            Helpers.ReportPreviewHelper.CleanupPreview(_currentXpsDocument, _currentTempExcelPath, _currentTempXpsPath);
+            _currentXpsDocument = null;
+            _currentTempXpsPath = null;
+            _currentTempExcelPath = null;
+        }
+        PreviewDocument = null;
+    }
+
+    ~ExportScaleReportViewModel()
+    {
+        CleanupOldPreview();
+    }
 
     public ExportScaleReportViewModel(
         BuildExportScaleSummaryReportUseCase buildUseCase,
@@ -70,18 +91,39 @@ public partial class ExportScaleReportViewModel : ObservableObject
             return;
         }
 
-        if (!TryResolveSelectedCutOrderId(out var cutOrderId, out var errorMessage))
-        {
-            _toastService.ShowWarning(errorMessage);
-            return;
-        }
+        var cutOrderId = ResolveSelectedCutOrderId();
+
 
         try
         {
             IsBusy = true;
+            CleanupOldPreview();
+
             var document = await _buildUseCase.ExecuteAsync(cutOrderId, TargetDate, CancellationToken.None);
             ApplyPreview(document);
-            _toastService.ShowSuccess($"Đã tải xem trước {document.Rows.Count:N0} chuyến xe.");
+
+            if (document.Rows.Count == 0)
+            {
+                _toastService.ShowWarning("Không có dữ liệu để xem trước.");
+                return;
+            }
+
+            var result = await Helpers.ReportPreviewHelper.GeneratePreviewAsync(
+                "BaoCaoXuatXK",
+                async (tempPath) => await _exportUseCase.ExecuteAsync(document, tempPath, CancellationToken.None)
+            );
+
+            if (result.Success && result.XpsDocument != null)
+            {
+                _currentXpsDocument = result.XpsDocument;
+                _currentTempExcelPath = result.ExcelPath;
+                _currentTempXpsPath = result.XpsPath;
+                PreviewDocument = _currentXpsDocument.GetFixedDocumentSequence();
+            }
+            else
+            {
+                _toastService.ShowWarning(result.ErrorMessage ?? "Lỗi không xác định khi tạo bản xem trước.");
+            }
         }
         catch (Exception ex)
         {
@@ -101,11 +143,8 @@ public partial class ExportScaleReportViewModel : ObservableObject
             return;
         }
 
-        if (!TryResolveSelectedCutOrderId(out var cutOrderId, out var errorMessage))
-        {
-            _toastService.ShowWarning(errorMessage);
-            return;
-        }
+        var cutOrderId = ResolveSelectedCutOrderId();
+
 
         var cutOrderCode = ResolveSelectedCutOrderCode();
         var saveDialog = new SaveFileDialog
@@ -168,14 +207,12 @@ public partial class ExportScaleReportViewModel : ObservableObject
         PreviewSummaryText = $"Số chuyến: {document.Rows.Count:N0} | Thực xuất: {totalActualTon:N3} tấn | Hồi về: {totalReturnedTon:N3} tấn";
     }
 
-    private bool TryResolveSelectedCutOrderId(out Guid cutOrderId, out string errorMessage)
+    private Guid? ResolveSelectedCutOrderId()
     {
         var selectedCutOrder = SelectedCutOrder ?? ResolveSelectedLookup(CutOrderOptions, CutOrderSearchText);
-        if (selectedCutOrder == null || !Guid.TryParse(selectedCutOrder.Code, out cutOrderId))
+        if (selectedCutOrder == null || !Guid.TryParse(selectedCutOrder.Code, out var cutOrderId))
         {
-            cutOrderId = Guid.Empty;
-            errorMessage = "Vui lòng chọn 1 cắt lệnh xuất khẩu.";
-            return false;
+            return null;
         }
 
         if (!ReferenceEquals(SelectedCutOrder, selectedCutOrder))
@@ -183,20 +220,18 @@ public partial class ExportScaleReportViewModel : ObservableObject
             SelectedCutOrder = selectedCutOrder;
         }
 
-        errorMessage = string.Empty;
-        return true;
+        return cutOrderId;
     }
-
     private string ResolveSelectedCutOrderCode()
     {
         var selectedCutOrder = SelectedCutOrder ?? ResolveSelectedLookup(CutOrderOptions, CutOrderSearchText);
         if (selectedCutOrder == null || string.IsNullOrWhiteSpace(selectedCutOrder.DisplayName))
         {
-            return "CutOrder";
+            return "TatCa";
         }
 
         var raw = selectedCutOrder.DisplayName.Split(" - ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-        return string.IsNullOrWhiteSpace(raw) ? "CutOrder" : raw.Replace('/', '-');
+        return string.IsNullOrWhiteSpace(raw) ? "TatCa" : raw.Replace('/', '-');
     }
 
     private static bool MatchesLookupFilter(object item, string? keyword)

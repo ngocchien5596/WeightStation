@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -41,7 +41,7 @@ public sealed class CreateInboundRegistrationUseCase
     public async Task<OperationResult<CutOrder>> ExecuteAsync(CreateInboundRegistrationRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.VehiclePlate))
-            return OperationResult<CutOrder>.Fail("Số PTVC không được để trống.");
+            return OperationResult<CutOrder>.Fail("Biển số xe không được để trống.");
 
         var now = _clock.NowLocal;
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -8,8 +8,8 @@ namespace StationApp.UI.ViewModels.Dialogs;
 
 public sealed partial class VehicleRepresentativeSelectionDialogViewModel : ObservableObject
 {
-    [ObservableProperty] private string _title = "Chọn số PTVC đại diện";
-    [ObservableProperty] private string _message = "Các cắt lệnh đang chọn có nhiều số PTVC khác nhau. Hãy chọn cắt lệnh đại diện để lấy Số PTVC/Mooc/Tài xế cho lượt cân.";
+    [ObservableProperty] private string _title = "Chọn biển số xe đại diện";
+    [ObservableProperty] private string _message = "Các cắt lệnh đang chọn có nhiều biển số xe khác nhau. Hãy chọn cắt lệnh đại diện để lấy Biển số xe/Mooc/Tài xế cho lượt cân.";
     [ObservableProperty] private ObservableCollection<VehicleRepresentativeOption> _options = new();
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]

@@ -7,7 +7,7 @@ public static class UiText
         public const string NoMatchingData = "Không tìm thấy dữ liệu phù hợp.";
         public const string SearchIncomingLoadError = "Không thể tải danh sách xe vào. Vui lòng thử lại.";
         public const string SearchOutgoingLoadError = "Không thể tải danh sách xe ra. Vui lòng thử lại.";
-        public const string RequiredVehiclePlate = "Vui lòng nhập Số PTVC.";
+        public const string RequiredVehiclePlate = "Vui lòng nhập Biển số xe.";
         public const string RequiredDriverName = "Vui lòng nhập Tên tài xế.";
         public const string RequiredTtcp = "Vui lòng nhập TTCP.";
         public const string RequiredCustomer = "Vui lòng nhập Khách hàng.";

@@ -44,6 +44,27 @@ public partial class InboundSummaryReportViewModel : ObservableObject
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<InboundSummaryReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
+    [ObservableProperty] private System.Windows.Documents.IDocumentPaginatorSource? _previewDocument;
+    private System.Windows.Xps.Packaging.XpsDocument? _currentXpsDocument;
+    private string? _currentTempXpsPath;
+    private string? _currentTempExcelPath;
+
+    private void CleanupOldPreview()
+    {
+        if (_currentXpsDocument != null)
+        {
+            Helpers.ReportPreviewHelper.CleanupPreview(_currentXpsDocument, _currentTempExcelPath, _currentTempXpsPath);
+            _currentXpsDocument = null;
+            _currentTempXpsPath = null;
+            _currentTempExcelPath = null;
+        }
+        PreviewDocument = null;
+    }
+
+    ~InboundSummaryReportViewModel()
+    {
+        CleanupOldPreview();
+    }
 
     public InboundSummaryReportViewModel(
         BuildInboundSummaryReportUseCase buildUseCase,
@@ -101,9 +122,33 @@ public partial class InboundSummaryReportViewModel : ObservableObject
         try
         {
             IsBusy = true;
+            CleanupOldPreview();
+
             var document = await BuildDocumentFromCurrentFilterAsync();
             ApplyPreview(document);
-            _toastService.ShowSuccess($"Đã tải xem trước {document.Rows.Count:N0} dòng.");
+            
+            if (document.Rows.Count == 0)
+            {
+                _toastService.ShowWarning("Không có dữ liệu để xem trước.");
+                return;
+            }
+
+            var result = await Helpers.ReportPreviewHelper.GeneratePreviewAsync(
+                "BaoCaoCanHang",
+                async (tempPath) => await _exportUseCase.ExecuteAsync(document, tempPath, CancellationToken.None)
+            );
+
+            if (result.Success && result.XpsDocument != null)
+            {
+                _currentXpsDocument = result.XpsDocument;
+                _currentTempExcelPath = result.ExcelPath;
+                _currentTempXpsPath = result.XpsPath;
+                PreviewDocument = _currentXpsDocument.GetFixedDocumentSequence();
+            }
+            else
+            {
+                _toastService.ShowWarning(result.ErrorMessage ?? "Lỗi không xác định khi tạo bản xem trước.");
+            }
         }
         catch (Exception ex)
         {

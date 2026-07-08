@@ -17,15 +17,10 @@ public sealed class BuildExportScaleSummaryReportUseCase
     }
 
     public Task<ExportScaleSummaryReportDocument> ExecuteAsync(
-        Guid cutOrderId,
+        Guid? cutOrderId,
         DateTime? targetDateForShiftReport,
         CancellationToken ct)
     {
-        if (cutOrderId == Guid.Empty)
-        {
-            throw new InvalidOperationException("Vui lòng chọn cắt lệnh xuất khẩu.");
-        }
-
         var preparedBy = string.IsNullOrWhiteSpace(_currentUserContext.DisplayName)
             ? _currentUserContext.Username
             : _currentUserContext.DisplayName;

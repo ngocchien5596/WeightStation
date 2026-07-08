@@ -1,3 +1,4 @@
+using StationApp.Domain.Constants;
 using StationApp.Domain.Enums;
 
 namespace StationApp.Application.DTOs;
@@ -449,12 +450,16 @@ public sealed record ExportScaleCutOrderListItem(
     string? ErpCutOrderId,
     string VehiclePlate,
     string? MoocNumber,
+    string? CustomerCode,
     string? CustomerName,
     string? ProductCode,
     string? ProductName,
+    string? ProductType,
+    string? ExportPackageType,
     decimal? PlannedWeight,
     int? PlannedBagCountDisplay,
     decimal AccumulatedWeight,
+    decimal ExportUnweighedWeight,
     int AccumulatedBagCountDisplay,
     decimal RemainingWeight,
     int RemainingBagCountDisplay,
@@ -470,6 +475,13 @@ public sealed record ExportScaleCutOrderListItem(
     bool IsTemporaryExport = false,
     string? TemporaryExportDisplayCode = null)
 {
+    public bool IsExportBagged => ExportPackageTypes.IsBagged(ExportPackageType, BagWeightKg);
+    public string ExportPackageTypeDisplayName => ExportPackageTypes.ToDisplayName(ExportPackageType, BagWeightKg);
+    public decimal FinalizationWeighedWeight => IsExportBagged
+        ? decimal.Round(AccumulatedBagCountDisplay * BagWeightKg.GetValueOrDefault(), 3, MidpointRounding.AwayFromZero)
+        : AccumulatedWeight;
+    public decimal ActualExportWeight => FinalizationWeighedWeight + ExportUnweighedWeight;
+
     public string DisplayCutOrderCode => IsTemporaryExport
         ? TemporaryExportDisplayCode ?? ErpCutOrderId ?? string.Empty
         : ErpCutOrderId ?? string.Empty;
@@ -509,11 +521,125 @@ public sealed record ExportVehicleTripListItem(
     string? DeliveryNo,
     bool HasPrintedWeighTicket,
     bool HasPrintedDeliveryTicket,
-    string? Note = null)
+    string? Note = null,
+    string? Weight1User = null,
+    string? Weight2User = null)
 {
     public bool IsReturnedBrokenTrip { get; set; }
     public bool CanToggleReturnedBrokenTrip { get; set; }
 }
+
+public sealed record ClayVesselFilter(
+    string? VesselName,
+    string? CustomerName,
+    string? ProductName,
+    bool IncludeFinalized = false
+);
+
+public sealed record ClayVesselListItem(
+    Guid CutOrderId,
+    string VesselName,
+    string? CustomerCode,
+    string? CustomerName,
+    string? ProductCode,
+    string? ProductName,
+    decimal AccumulatedWeight,
+    int TripCount,
+    DateTime? LastTripAt,
+    bool IsFinalized,
+    CutOrderStatus CutOrderStatus,
+    ProcessingStage ProcessingStage,
+    string? Notes
+);
+
+public sealed record ClayVehicleTripListItem(
+    Guid SessionId,
+    Guid SessionLineId,
+    string SessionNo,
+    string VehiclePlate,
+    string? DriverName,
+    decimal? Weight1,
+    DateTime? Weight1Time,
+    decimal? Weight2,
+    DateTime? Weight2Time,
+    decimal? NetWeight,
+    decimal? ActualAllocatedWeight,
+    string WeighingMode,
+    decimal? StandardTareWeightSnapshot,
+    string? StandardTareSourceSnapshot,
+    WeighingSessionStatus SessionStatus,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    string? Note = null,
+    string? Weight1User = null,
+    string? Weight2User = null)
+{
+    public bool IsReturnedBrokenTrip { get; set; }
+    public bool CanToggleReturnedBrokenTrip { get; set; }
+}
+
+public sealed record ClayVehicleTripOption(
+    Guid CutOrderId,
+    string VesselName,
+    string? CustomerName,
+    string? ProductName,
+    decimal AccumulatedWeight,
+    int TripCount,
+    DateTime? LastTripAt
+);
+
+public sealed record CreateClayVesselRequest(
+    string VesselName,
+    string? CustomerCode,
+    string? CustomerName,
+    string? ProductCode,
+    string? ProductName,
+    string? Notes = null
+);
+
+public sealed record UpdateClayVesselRequest(
+    Guid CutOrderId,
+    string VesselName,
+    string? CustomerCode,
+    string? CustomerName,
+    string? ProductCode,
+    string? ProductName,
+    string? Notes = null
+);
+
+public sealed record CreateClayVehicleSessionRequest(
+    Guid CutOrderId,
+    Guid VehicleId,
+    string WeighingMode,
+    decimal Weight1,
+    bool Weight1IsStable,
+    WeightMode Weight1Mode
+);
+
+public sealed record CreateClayPendingVehicleTripRequest(
+    Guid CutOrderId,
+    Guid VehicleId,
+    string WeighingMode
+);
+
+public sealed record CreateClayVehicleSessionResult(
+    Guid SessionId,
+    string SessionNo
+);
+
+public sealed record CaptureClayWeight1ForTripRequest(
+    Guid SessionId,
+    decimal Weight1,
+    bool Weight1IsStable,
+    WeightMode Weight1Mode
+);
+
+public sealed record FinalizeClayCutOrderRequest(Guid CutOrderId);
+
+public sealed record TransferClayVehicleTripRequest(
+    Guid SessionId,
+    Guid TargetCutOrderId
+);
 
 public sealed record TransitionToExportScaleRequest(Guid CutOrderId);
 
@@ -523,8 +649,23 @@ public sealed record CreateTemporaryExportCutOrderRequest(
     string? ProductCode = null,
     string? ProductName = null,
     string? ProductType = null,
+    string? ExportPackageType = ExportPackageTypes.Bagged,
     decimal? PlannedWeight = null,
     int? BagCount = null,
+    decimal? TareWeightKg = null,
+    decimal? BagWeightKg = null,
+    string? Notes = null
+);
+
+public sealed record UpdateTemporaryExportCutOrderRequest(
+    Guid CutOrderId,
+    string? CustomerCode = null,
+    string? CustomerName = null,
+    string? ProductCode = null,
+    string? ProductName = null,
+    string? ProductType = null,
+    string? ExportPackageType = ExportPackageTypes.Bagged,
+    decimal? PlannedWeight = null,
     decimal? TareWeightKg = null,
     decimal? BagWeightKg = null,
     string? Notes = null
@@ -557,7 +698,7 @@ public sealed record TransferExportVehicleTripRequest(
     Guid TargetCutOrderId
 );
 
-public sealed record FinalizeExportCutOrderRequest(Guid CutOrderId);
+public sealed record FinalizeExportCutOrderRequest(Guid CutOrderId, decimal ExportUnweighedWeight = 0m);
 
 public sealed record ConfirmEnterWeighingRequest(
     Guid CutOrderId
@@ -683,7 +824,9 @@ public sealed record WeighingSessionListItem(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     string? CustomerSummary = null,
-    string? ProductSummary = null
+    string? ProductSummary = null,
+    string? Weight1User = null,
+    string? Weight2User = null
 );
 
 public sealed record InternalVehicleOptionDto(
@@ -714,7 +857,10 @@ public sealed record CrusherWeighingSessionListItem(
     string? ProductCode,
     string? ProductName,
     string? CustomerCode,
-    string? CustomerName
+    string? CustomerName,
+    bool IsReturnedBrokenTrip = false,
+    string? Weight1User = null,
+    string? Weight2User = null
 );
 
 public sealed record WeighingSessionLineItem(

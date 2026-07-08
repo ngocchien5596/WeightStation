@@ -46,6 +46,7 @@ public class WeighingSessionEntityConfiguration : IEntityTypeConfiguration<Weigh
         builder.Property(e => e.HasPrintedMasterWeighTicket).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.UseActualWeightForBaggedCutOrders).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.IsNoLoad).IsRequired().HasDefaultValue(false);
+        builder.Property(e => e.IsReturnedBrokenTrip).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.SyncStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(e => e.LastSyncError).HasMaxLength(1000);
 

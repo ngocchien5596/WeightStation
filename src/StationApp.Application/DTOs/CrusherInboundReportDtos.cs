@@ -15,7 +15,10 @@ public sealed record CrusherInboundReportRow(
     DateTime? Weight2Time,
     decimal GrossWeightTon,
     decimal TareWeightTon,
-    decimal NetWeightTon
+    decimal NetWeightTon,
+    decimal ReturnedBrokenWeightTon,
+    decimal ActualInboundWeightTon,
+    bool IsReturnedBrokenTrip = false
 );
 
 public sealed record CrusherInboundReportDocument(
@@ -26,5 +29,7 @@ public sealed record CrusherInboundReportDocument(
     string PreparedByDisplayName,
     byte[]? LogoBytes,
     IReadOnlyList<CrusherInboundReportRow> Rows,
-    decimal TotalNetWeightTon
+    decimal TotalNetWeightTon,
+    decimal ReturnedBrokenWeightTon = 0m,
+    decimal ActualInboundWeightTon = 0m
 );

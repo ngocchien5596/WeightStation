@@ -218,8 +218,10 @@ public sealed class WeighingSessionOverweightService
 
     public bool TryGetFeasibleWeightRange(decimal netWeight, decimal ttcp10WeightSnapshot, out decimal lowerBound, out decimal upperBound)
     {
-        lowerBound = decimal.Round(Math.Max(netWeight - ttcp10WeightSnapshot, MinPositiveWeight), 3, MidpointRounding.AwayFromZero);
-        upperBound = decimal.Round(Math.Min(ttcp10WeightSnapshot - MinPositiveWeight, netWeight - MinPositiveWeight), 3, MidpointRounding.AwayFromZero);
+        lowerBound = netWeight <= ttcp10WeightSnapshot * 2m
+            ? decimal.Round(Math.Max(netWeight - ttcp10WeightSnapshot, MinPositiveWeight), 3, MidpointRounding.AwayFromZero)
+            : MinPositiveWeight;
+        upperBound = decimal.Round(Math.Min(ttcp10WeightSnapshot, netWeight - MinPositiveWeight), 3, MidpointRounding.AwayFromZero);
         return lowerBound <= upperBound;
     }
 
@@ -233,9 +235,9 @@ public sealed class WeighingSessionOverweightService
         if (firstGroupTarget < lowerBound
             || firstGroupTarget > upperBound
             || firstGroupTarget <= 0m
-            || firstGroupTarget >= ttcp10WeightSnapshot
+            || firstGroupTarget > ttcp10WeightSnapshot
             || secondGroupTarget <= 0m
-            || secondGroupTarget > ttcp10WeightSnapshot)
+            || (secondGroupTarget > ttcp10WeightSnapshot && firstGroupTarget < ttcp10WeightSnapshot))
         {
             throw new InvalidOperationException(InvalidSplitMessage);
         }
@@ -249,6 +251,11 @@ public sealed class WeighingSessionOverweightService
         decimal upperBound)
     {
         var random = Random.Shared;
+        var splitCanKeepBothTicketsWithinThreshold = netWeight <= ttcp10WeightSnapshot * 2m;
+        if (!splitCanKeepBothTicketsWithinThreshold)
+        {
+            return (upperBound, null);
+        }
 
         for (var attempt = 0; attempt < MaxRandomSuggestionAttempts; attempt++)
         {

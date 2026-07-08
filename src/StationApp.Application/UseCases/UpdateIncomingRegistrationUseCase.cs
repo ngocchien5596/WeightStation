@@ -1,4 +1,4 @@
-﻿using StationApp.Application.DTOs;
+using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Domain.Constants;
@@ -39,7 +39,7 @@ public sealed class UpdateIncomingRegistrationUseCase
     {
         if (string.IsNullOrWhiteSpace(request.VehiclePlate))
         {
-            return OperationResult<CutOrder>.Fail("Số PTVC không được để trống.");
+            return OperationResult<CutOrder>.Fail("Biển số xe không được để trống.");
         }
 
         var reg = await _regRepo.GetByIdAsync(request.CutOrderId, ct);
@@ -74,7 +74,7 @@ public sealed class UpdateIncomingRegistrationUseCase
         {
             if (string.IsNullOrWhiteSpace(reg.ErpCutOrderId))
             {
-                return OperationResult<CutOrder>.Fail("Không tìm thấy mã cắt lệnh ERP để cập nhật Số PTVC/Mooc.");
+                return OperationResult<CutOrder>.Fail("Không tìm thấy mã cắt lệnh ERP để cập nhật Biển số xe/Mooc.");
             }
 
             try

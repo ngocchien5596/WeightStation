@@ -48,12 +48,6 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     private string _defaultCustomerCode = ClayDefaults.CustomerCode;
     private string _defaultCustomerName = ClayDefaults.CustomerName;
 
-    public ObservableCollection<ClayWeighingModeOption> WeighingModeOptions { get; } = new()
-    {
-        new(ClayWeighingModes.TwoWeigh, "C\u00e2n 2 l\u1ea7n"),
-        new(ClayWeighingModes.SingleWithStandardTare, "C\u00e2n 1 l\u1ea7n")
-    };
-
     public AutocompleteInputViewModel InternalVehiclePlateInput { get; }
 
     // Crusher Weighing: Product and Customer Inputs
@@ -65,8 +59,27 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
     [NotifyCanExecuteChangedFor(nameof(SaveCrusherWeighingCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CreateTripCommand))]
     private Vehicle? _selectedVehicle;
     [ObservableProperty] private ObservableCollection<CrusherWeighingSessionListItem> _sessions = new();
+    [ObservableProperty] private ObservableCollection<ClayVesselListItem> _vessels = new();
+    [ObservableProperty] private ObservableCollection<ClayVehicleTripListItem> _trips = new();
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(FinalizeClayVesselCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CreateTripCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCrusherWeighingCommand))]
+    private ClayVesselListItem? _selectedVessel;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TransferTripCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteTripCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ViewImageHistoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleReturnedBrokenTripCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
+    [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight2Command))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCrusherWeighingCommand))]
+    private ClayVehicleTripListItem? _selectedTrip;
+    [ObservableProperty] private int _selectedTripIndex = -1;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight2Command))]
     [NotifyCanExecuteChangedFor(nameof(SaveCrusherWeighingCommand))]
@@ -74,8 +87,11 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     [NotifyCanExecuteChangedFor(nameof(EditSessionVehicleCommand))]
     [NotifyCanExecuteChangedFor(nameof(ViewSessionHistoryCommand))]
     private CrusherWeighingSessionListItem? _selectedSession;
+    [ObservableProperty] private string? _searchVessel;
+    [ObservableProperty] private bool _showFinalizedVessels;
     [ObservableProperty] private string? _searchVehicle;
     [ObservableProperty] private string? _searchSessionNo;
+    [ObservableProperty] private int _clearTripSelectionRequest;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight2Command))]
@@ -98,7 +114,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
     private string? _standardTareText;
-    [ObservableProperty] private string _vehicleSelectionStatusText = "Nhập số xe nội bộ để bắt đầu cân.";
+    [ObservableProperty] private string _vehicleSelectionStatusText = string.Empty;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TakeCrusherWeight1Command))]
     private bool _showUpdateButton;
@@ -122,6 +138,10 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     private WeightMode _pendingWeight1Mode = WeightMode.AUTO;
     private WeightMode _pendingWeight2Mode = WeightMode.AUTO;
     private int _vehicleMasterLookupVersion;
+    private int _tripLoadVersion;
+    private bool _suppressSelectedVesselTripLoad;
+    private bool _suppressVesselFilterLoad;
+    private bool _isTripSelectionResetting;
     private const string AutoModeText = "T\u1ef0 \u0110\u1ed8NG";
     private const string ManualModeText = "C\u00c2N TAY";
 
@@ -150,6 +170,30 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     public bool IsAutoMode => CurrentCaptureMode == AutoModeText;
     public bool IsManualMode => CurrentCaptureMode == ManualModeText;
     public bool CanUseManualMode => StationAuthorization.CanUseManualWeighing(_currentUserContext.RoleCode);
+    public bool CanCreateClayVessel => !IsLoading;
+    public bool CanEditClayVessel => SelectedVessel != null
+        && !SelectedVessel.IsFinalized
+        && !IsLoading;
+    public bool CanFinalizeClayVessel => SelectedVessel != null
+        && !SelectedVessel.IsFinalized
+        && Sessions.Any(x => x.SessionStatus is WeighingSessionStatus.COMPLETED or WeighingSessionStatus.READY_TO_COMPLETE);
+    public bool CanCreateTrip =>
+        SelectedVessel != null
+        && !SelectedVessel.IsFinalized
+        && !string.IsNullOrWhiteSpace(InternalVehiclePlateInput.Text)
+        && !IsLoading;
+    public bool CanTransferTrip => SelectedVessel != null && !SelectedVessel.IsFinalized && SelectedTrip != null && !IsLoading;
+    public bool CanDeleteTrip => SelectedVessel != null
+        && !SelectedVessel.IsFinalized
+        && SelectedTrip != null
+        && !SelectedTrip.Weight2.HasValue
+        && !SelectedTrip.Weight2Time.HasValue
+        && !IsLoading;
+    public bool CanViewImageHistory => SelectedTrip?.Weight1.HasValue == true && !IsLoading;
+    public bool CanToggleReturnedBrokenTrip => SelectedVessel != null
+        && !SelectedVessel.IsFinalized
+        && SelectedTrip?.CanToggleReturnedBrokenTrip == true
+        && !IsLoading;
     public bool ShowCamera1Selector => IsCameraPreviewAvailable && IsCamera1PreviewAvailable;
     public bool ShowCamera2Selector => IsCameraPreviewAvailable && IsCamera2PreviewAvailable;
     public bool ShowCameraPreviewPlaceholder =>
@@ -194,9 +238,8 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             {
                 SelectedVehicle = null;
                 IsVehicleFormReadOnly = false;
-                VehicleSelectionStatusText = $"Xe {trimmedText} chưa có trong danh mục. Bấm Chọn/Tạo xe để tạo xe nội bộ và bắt đầu cân 2 lần.";
-                // ✅ Xe chưa có trong hệ thống → Tự động chuyển sang chế độ Cân 2 lần
-                ApplyVehicleWeighingMode(null);
+                VehicleSelectionStatusText = string.Empty;
+                EnsureTwoWeighMode();
             }
 
             if (!string.IsNullOrWhiteSpace(text))
@@ -205,6 +248,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             }
 
             TakeCrusherWeight1Command.NotifyCanExecuteChanged();
+            CreateTripCommand.NotifyCanExecuteChanged();
         });
 
         // Crusher Weighing: Product and Customer input fields
@@ -221,21 +265,9 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     {
         await LoadDefaultSettingsAsync();
 
-        using (var scope = _scopeFactory.CreateScope())
-        {
-            var useCases = scope.ServiceProvider.GetRequiredService<ClayWeighingUseCases>();
-            try
-            {
-                SelectedWeighingMode = await useCases.GetDefaultWeighingModeAsync(CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to get default weighing mode, using default TWO_WEIGH");
-                SelectedWeighingMode = ClayWeighingModes.TwoWeigh;
-            }
-        }
+        EnsureTwoWeighMode();
 
-        await LoadSessionsAsync();
+        await LoadVesselsAsync();
         _deviceConnector.StartDeviceAttachIfNeeded();
         await LoadCameraPreviewAsync();
     }
@@ -296,19 +328,138 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         }
     }
 
-    [RelayCommand]
-    private async Task LoadSessionsAsync()
+    private async Task LoadVesselsAsync(Guid? preserveCutOrderId = null, bool loadTripsForSelectedVessel = true)
     {
         try
         {
             IsLoading = true;
+            var selectedId = preserveCutOrderId ?? SelectedVessel?.CutOrderId;
             using var scope = _scopeFactory.CreateScope();
-            var useCases = scope.ServiceProvider.GetRequiredService<ClayWeighingUseCases>();
-            var keyword = !string.IsNullOrWhiteSpace(SearchSessionNo)
-                ? SearchSessionNo
-                : SearchVehicle;
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var vessels = await repo.GetClayVesselsAsync(
+                new ClayVesselFilter(SearchVessel, null, null, ShowFinalizedVessels),
+                CancellationToken.None);
+
+            Vessels = new ObservableCollection<ClayVesselListItem>(vessels);
+            var nextSelectedVessel = selectedId.HasValue
+                ? Vessels.FirstOrDefault(x => x.CutOrderId == selectedId.Value)
+                : null;
+            _suppressSelectedVesselTripLoad = !loadTripsForSelectedVessel;
+            try
+            {
+                SelectedVessel = nextSelectedVessel;
+            }
+            finally
+            {
+                _suppressSelectedVesselTripLoad = false;
+            }
+
+            if (SelectedVessel == null)
+            {
+                Sessions.Clear();
+                Trips.Clear();
+                ClearSelectedTrip();
+                ClearAllWeighingState();
+                ApplyVehicleInfo(null);
+                InternalVehiclePlateInput.Clear();
+                SetDefaultProductAndCustomer();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load clay vessels.");
+            _toastService.ShowError("Không thể tải danh sách tàu mỏ sét.");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadSessionsAsync()
+        => await LoadSessionsForSelectedVesselAsync();
+
+    private async Task ReloadVesselAndTripsAsync(Guid? cutOrderId, Guid? selectedTripId = null)
+    {
+        await LoadVesselsAsync(cutOrderId, loadTripsForSelectedVessel: false);
+        if (SelectedVessel != null)
+        {
+            await LoadSessionsForSelectedVesselAsync(selectedTripId);
+        }
+    }
+
+    private async Task LoadSessionsForSelectedVesselAsync(Guid? selectedTripId = null)
+    {
+        var cutOrderId = SelectedVessel?.CutOrderId;
+        var loadVersion = ++_tripLoadVersion;
+        try
+        {
+            IsLoading = true;
+            if (!cutOrderId.HasValue)
+            {
+                Sessions.Clear();
+                Trips.Clear();
+                ClearSelectedTrip();
+                return;
+            }
+
+            using var scope = _scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            IReadOnlyList<ClayVehicleTripListItem> trips = await repo.GetClayVehicleTripsAsync(cutOrderId.Value, CancellationToken.None);
+
+            if (loadVersion != _tripLoadVersion || SelectedVessel?.CutOrderId != cutOrderId.Value)
+            {
+                _logger?.LogDebug(
+                    "Ignored stale clay trip load. CutOrderId={CutOrderId}, LoadVersion={LoadVersion}, CurrentVersion={CurrentVersion}, SelectedVesselId={SelectedVesselId}",
+                    cutOrderId.Value,
+                    loadVersion,
+                    _tripLoadVersion,
+                    SelectedVessel?.CutOrderId);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SearchSessionNo))
+            {
+                trips = trips
+                    .Where(x => x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            Trips = new ObservableCollection<ClayVehicleTripListItem>(trips);
             Sessions = new ObservableCollection<CrusherWeighingSessionListItem>(
-                await useCases.SearchSessionsAsync(keyword, SelectedDate, CancellationToken.None));
+                trips.Select(x => new CrusherWeighingSessionListItem(
+                    x.SessionId,
+                    x.SessionNo,
+                    x.VehiclePlate,
+                    x.DriverName,
+                    x.Weight1,
+                    x.Weight1Time,
+                    x.Weight2,
+                    x.Weight2Time,
+                    x.NetWeight,
+                    x.WeighingMode,
+                    x.StandardTareWeightSnapshot,
+                    x.StandardTareSourceSnapshot,
+                    x.SessionStatus,
+                    x.CreatedAt,
+                    x.UpdatedAt,
+                    SelectedVessel?.ProductCode,
+                    SelectedVessel?.ProductName,
+                    SelectedVessel?.CustomerCode,
+                    SelectedVessel?.CustomerName,
+                    x.IsReturnedBrokenTrip,
+                    x.Weight1User,
+                    x.Weight2User)));
+
+            SelectedTrip = selectedTripId.HasValue
+                ? Trips.FirstOrDefault(x => x.SessionId == selectedTripId.Value)
+                : null;
+            SelectedTripIndex = SelectedTrip is null ? -1 : Trips.IndexOf(SelectedTrip);
+            if (!selectedTripId.HasValue || SelectedTrip == null)
+            {
+                ClearSelectedTrip();
+            }
         }
         catch (Exception ex)
         {
@@ -321,50 +472,455 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanCreateClayVessel))]
+    private async Task CreateClayVesselAsync()
+    {
+        var dialogVm = new CreateClayVesselDialogViewModel(_scopeFactory);
+        var dialogResult = await _dialogService.ShowCustomDialogAsync<CreateClayVesselDialogViewModel, CreateClayVesselDialogResult>(dialogVm);
+        if (dialogResult == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<CreateClayTemporaryCutOrderUseCase>();
+            var cutOrderId = await useCase.ExecuteAsync(
+                new CreateClayVesselRequest(
+                    dialogResult.VesselName ?? string.Empty,
+                    dialogResult.CustomerCode,
+                    dialogResult.CustomerName,
+                    dialogResult.ProductCode,
+                    dialogResult.ProductName,
+                    dialogResult.Notes),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã tạo tàu mỏ sét.");
+            await LoadVesselsAsync(cutOrderId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Create clay vessel failed");
+            _toastService.ShowError("Không thể tạo tàu mỏ sét.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditClayVessel))]
+    private async Task EditClayVesselAsync()
+    {
+        if (SelectedVessel == null)
+        {
+            return;
+        }
+
+        var cutOrderId = SelectedVessel.CutOrderId;
+        var dialogVm = new CreateClayVesselDialogViewModel(_scopeFactory, SelectedVessel);
+        var dialogResult = await _dialogService.ShowCustomDialogAsync<CreateClayVesselDialogViewModel, CreateClayVesselDialogResult>(dialogVm);
+        if (dialogResult == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<UpdateClayVesselUseCase>();
+            await useCase.ExecuteAsync(
+                new UpdateClayVesselRequest(
+                    cutOrderId,
+                    dialogResult.VesselName,
+                    dialogResult.CustomerCode,
+                    dialogResult.CustomerName,
+                    dialogResult.ProductCode,
+                    dialogResult.ProductName,
+                    dialogResult.Notes),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã cập nhật tàu mỏ sét.");
+            await LoadVesselsAsync(cutOrderId, loadTripsForSelectedVessel: false);
+            if (SelectedVessel != null)
+            {
+                await LoadSessionsForSelectedVesselAsync();
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Edit clay vessel failed. CutOrderId={CutOrderId}", cutOrderId);
+            _toastService.ShowError("Không thể cập nhật tàu mỏ sét.");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanFinalizeClayVessel))]
+    private async Task FinalizeClayVesselAsync()
+    {
+        if (SelectedVessel == null)
+        {
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "Chốt tổng tàu",
+            $"Chốt tổng tàu {SelectedVessel.VesselName}?",
+            "Chốt",
+            "Hủy");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<FinalizeClayCutOrderUseCase>();
+            await useCase.ExecuteAsync(new FinalizeClayCutOrderRequest(SelectedVessel.CutOrderId), CancellationToken.None);
+            _toastService.ShowSuccess("Đã chốt tổng tàu mỏ sét.");
+            await LoadVesselsAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Finalize clay vessel failed");
+            _toastService.ShowError("Không thể chốt tổng tàu mỏ sét.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCreateTrip))]
+    private async Task CreateTripAsync()
+    {
+        if (SelectedVessel == null)
+        {
+            _toastService.ShowWarning("Vui lòng chọn tàu trước khi tạo chuyến xe.");
+            return;
+        }
+
+        var vehicle = await EnsureInternalVehicleForWeighingAsync();
+        if (vehicle == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<CreateClayPendingVehicleTripUseCase>();
+            var result = await useCase.ExecuteAsync(
+                new CreateClayPendingVehicleTripRequest(
+                    SelectedVessel.CutOrderId,
+                    vehicle.Id,
+                    SelectedWeighingMode),
+                CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã tạo chuyến xe mỏ sét.");
+            await ReloadVesselAndTripsAsync(SelectedVessel.CutOrderId, result.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Create clay vehicle trip failed");
+            _toastService.ShowError("Không thể tạo chuyến xe mỏ sét.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanTransferTrip))]
+    private async Task TransferTripAsync()
+    {
+        if (SelectedVessel == null || SelectedTrip == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var vessels = await repo.GetClayVesselsAsync(
+                new ClayVesselFilter(null, null, null, false),
+                CancellationToken.None);
+            var options = vessels
+                .Where(x => x.CutOrderId != SelectedVessel.CutOrderId)
+                .Where(x => !x.IsFinalized)
+                .Select(x => new ExportTripTransferOption(
+                    x.CutOrderId,
+                    null,
+                    x.VesselName,
+                    x.VesselName,
+                    x.CustomerName,
+                    x.ProductName,
+                    null,
+                    x.AccumulatedWeight,
+                    x.TripCount,
+                    x.LastTripAt))
+                .ToList();
+
+            if (options.Count == 0)
+            {
+                _toastService.ShowWarning("Không có tàu mỏ sét chưa chốt để chuyển chuyến.");
+                return;
+            }
+
+            var dialogVm = new ExportTripTransferDialogViewModel(options)
+            {
+                Title = "Chuyển chuyến xe sang tàu khác",
+                Message = $"Chọn tàu đích để chuyển chuyến {SelectedTrip.SessionNo} từ tàu {SelectedVessel.VesselName}."
+            };
+            var selection = await _dialogService.ShowCustomDialogAsync<ExportTripTransferDialogViewModel, ExportTripTransferDialogResult>(dialogVm);
+            if (selection == null)
+            {
+                return;
+            }
+
+            var confirmed = await _dialogService.ShowConfirmAsync(
+                "Xác nhận chuyển chuyến",
+                $"Chuyển chuyến {SelectedTrip.SessionNo} sang tàu {options.First(x => x.CutOrderId == selection.CutOrderId).DisplayCutOrderCode}?",
+                "Chuyển",
+                "Hủy");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var useCase = scope.ServiceProvider.GetRequiredService<TransferClayVehicleTripUseCase>();
+            var sessionId = SelectedTrip.SessionId;
+            await useCase.ExecuteAsync(new TransferClayVehicleTripRequest(sessionId, selection.CutOrderId), CancellationToken.None);
+            _toastService.ShowSuccess("Đã chuyển chuyến xe.");
+            await ReloadVesselAndTripsAsync(selection.CutOrderId, sessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Transfer clay trip failed");
+            _toastService.ShowError("Không thể chuyển chuyến xe mỏ sét.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteTrip))]
+    private async Task DeleteTripAsync()
+    {
+        if (SelectedTrip == null)
+        {
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            "Xóa chuyến xe",
+            $"Xóa chuyến xe {SelectedTrip.SessionNo}? Chỉ chuyến chưa cân lần 2 mới được xóa.",
+            "Xóa",
+            "Hủy");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<DeleteClayVehicleTripUseCase>();
+            await useCase.ExecuteAsync(SelectedTrip.SessionId, CancellationToken.None);
+            _toastService.ShowSuccess("Đã xóa chuyến xe.");
+            await ReloadVesselAndTripsAsync(SelectedVessel?.CutOrderId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Delete clay trip failed");
+            _toastService.ShowError("Không thể xóa chuyến xe mỏ sét.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanToggleReturnedBrokenTrip))]
+    private async Task ToggleReturnedBrokenTripAsync(ClayVehicleTripListItem? trip)
+    {
+        trip ??= SelectedTrip;
+        if (trip == null || !trip.CanToggleReturnedBrokenTrip)
+        {
+            return;
+        }
+
+        var newState = !trip.IsReturnedBrokenTrip;
+        var confirmed = await _dialogService.ShowConfirmAsync(
+            newState ? "Đánh dấu Hoàn" : "Bỏ đánh dấu Hoàn",
+            $"{(newState ? "Đánh dấu" : "Bỏ đánh dấu")} chuyến {trip.SessionNo} là hàng hoàn?",
+            "Đồng ý",
+            "Hủy");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<ToggleClayReturnedBrokenTripUseCase>();
+            await useCase.ExecuteAsync(trip.SessionLineId, newState, CancellationToken.None);
+            _toastService.ShowSuccess(newState ? "Đã đánh dấu Hoàn." : "Đã bỏ đánh dấu Hoàn.");
+            var sessionId = trip.SessionId;
+            await ReloadVesselAndTripsAsync(SelectedVessel?.CutOrderId, sessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Toggle clay returned trip failed");
+            _toastService.ShowError("Không thể cập nhật trạng thái Hoàn.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanViewImageHistory))]
+    private async Task ViewImageHistoryAsync()
+    {
+        if (SelectedTrip == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var imageRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionImageRepository>();
+            var images = await imageRepo.GetByWeighingSessionIdAsync(SelectedTrip.SessionId, CancellationToken.None);
+            await _dialogService.ShowCustomDialogAsync<CameraImageHistoryViewModel, bool>(
+                new CameraImageHistoryViewModel(images, SelectedTrip.VehiclePlate ?? string.Empty, _toastService));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "View clay trip image history failed");
+            _toastService.ShowError("Không thể xem ảnh chuyến xe.");
+        }
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        // Reset statistics date to today
-        SelectedDate = DateTime.Today;
-
-        // Clear search fields
-        SearchSessionNo = null;
-        SearchVehicle = null;
-
-        // Clear selected session and vehicle explicitly
-        SelectedSession = null;
-        SelectedVehicle = null;
-
-        // Force clear all weighing state and vehicle details
-        ClearAllWeighingState();
-        ApplyVehicleInfo(null);
-
-        // Clear autocomplete input text
-        InternalVehiclePlateInput.Clear();
-
-        // Crusher Weighing: Reset product and customer to defaults
-        SetDefaultProductAndCustomer();
-
-        // Ensure ShowUpdateButton is cleared
-        ShowUpdateButton = false;
-
-        // Reset weighing mode to default
-        using (var scope = _scopeFactory.CreateScope())
+        _suppressVesselFilterLoad = true;
+        try
         {
-            var useCases = scope.ServiceProvider.GetRequiredService<ClayWeighingUseCases>();
-            try
-            {
-                SelectedWeighingMode = await useCases.GetDefaultWeighingModeAsync(CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to get default weighing mode during refresh, using default TWO_WEIGH");
-                SelectedWeighingMode = ClayWeighingModes.TwoWeigh;
-            }
+            SearchSessionNo = null;
+            SearchVessel = null;
+
+            SelectedVessel = null;
+            SelectedSession = null;
+            SelectedVehicle = null;
+            Sessions.Clear();
+            Trips.Clear();
+            ClearSelectedTrip();
+
+            ClearAllWeighingState();
+            ApplyVehicleInfo(null);
+            InternalVehiclePlateInput.Clear();
+            SetDefaultProductAndCustomer();
+            ShowUpdateButton = false;
+        }
+        finally
+        {
+            _suppressVesselFilterLoad = false;
         }
 
-        // Reload sessions list
-        await LoadSessionsAsync();
+        EnsureTwoWeighMode();
+
+        // Reload vessel and session list
+        await LoadVesselsAsync(loadTripsForSelectedVessel: false);
+    }
+
+    private async Task RefreshAfterSaveAsync(Guid sessionId)
+    {
+        var cutOrderId = SelectedVessel?.CutOrderId;
+        ClearAllWeighingState();
+        ApplyVehicleInfo(null);
+        InternalVehiclePlateInput.Clear();
+
+        if (cutOrderId.HasValue)
+        {
+            await ReloadVesselAndTripsAsync(cutOrderId.Value, sessionId);
+        }
+        else
+        {
+            await LoadVesselsAsync(loadTripsForSelectedVessel: false);
+        }
+    }
+
+    private void ClearSelectedTrip()
+    {
+        SelectedTrip = null;
+        SelectedTripIndex = -1;
+        SelectedSession = null;
+        ClearTripSelectionRequest++;
+        NotifyTripSelectionCommandStates();
+    }
+
+    public void BeginTripSelectionReset()
+    {
+        _isTripSelectionResetting = true;
+    }
+
+    public void CompleteTripSelectionReset()
+    {
+        _isTripSelectionResetting = false;
+        NotifyTripSelectionCommandStates();
+    }
+
+    public void LogTripGridSelectionState(
+        string source,
+        ClayVehicleTripListItem? gridSelectedTrip,
+        int gridSelectedIndex,
+        ClayVehicleTripListItem? gridCurrentTrip,
+        bool isResettingSelection)
+    {
+        _logger?.LogDebug(
+            "Clay trip grid selection state. Source={Source}, GridSelectedIndex={GridSelectedIndex}, GridSelectedSessionNo={GridSelectedSessionNo}, GridSelectedStatus={GridSelectedStatus}, GridCurrentSessionNo={GridCurrentSessionNo}, VmSelectedSessionNo={VmSelectedSessionNo}, VmSelectedStatus={VmSelectedStatus}, IsLoading={IsLoading}, IsResettingSelection={IsResettingSelection}",
+            source,
+            gridSelectedIndex,
+            gridSelectedTrip?.SessionNo,
+            gridSelectedTrip?.SessionStatus,
+            gridCurrentTrip?.SessionNo,
+            SelectedTrip?.SessionNo,
+            SelectedTrip?.SessionStatus,
+            IsLoading,
+            isResettingSelection);
+    }
+
+    private void NotifyTripSelectionCommandStates()
+    {
+        OnPropertyChanged(nameof(CanTransferTrip));
+        OnPropertyChanged(nameof(CanDeleteTrip));
+        OnPropertyChanged(nameof(CanViewImageHistory));
+        OnPropertyChanged(nameof(CanToggleReturnedBrokenTrip));
+        TransferTripCommand.NotifyCanExecuteChanged();
+        DeleteTripCommand.NotifyCanExecuteChanged();
+        ViewImageHistoryCommand.NotifyCanExecuteChanged();
+        ToggleReturnedBrokenTripCommand.NotifyCanExecuteChanged();
+        TakeCrusherWeight1Command.NotifyCanExecuteChanged();
+        TakeCrusherWeight2Command.NotifyCanExecuteChanged();
+        SaveCrusherWeighingCommand.NotifyCanExecuteChanged();
+        EditSessionVehicleCommand.NotifyCanExecuteChanged();
+        ViewSessionHistoryCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedPreviewCameraCodeChanged(string value)
@@ -400,14 +956,164 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         }
     }
 
+    private async Task TryCaptureClayTripImagesAsync(Guid sessionId, CameraCaptureStage stage, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var cameraSettingsProvider = scope.ServiceProvider.GetRequiredService<ICameraSettingsProvider>();
+            var cameraCaptureService = scope.ServiceProvider.GetRequiredService<ICameraCaptureService>();
+            var imageRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionImageRepository>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var clock = scope.ServiceProvider.GetRequiredService<IClock>();
+
+            var settings = await cameraSettingsProvider.GetForStationAsync("CLAY", ct);
+            if (settings.EnabledCameras.Count == 0)
+            {
+                return;
+            }
+
+            var captures = await cameraCaptureService.CaptureAsync(
+                settings.EnabledCameras,
+                settings.CaptureTimeoutMs,
+                settings.CaptureJpegQuality,
+                settings.CaptureMaxDimension,
+                settings.CaptureWarmupFrames,
+                ct);
+
+            var successfulCaptures = captures
+                .Where(x => x.Success && x.ImageBytes.Length > 0)
+                .ToList();
+            if (successfulCaptures.Count == 0)
+            {
+                return;
+            }
+
+            var now = clock.NowLocal;
+            await uow.ExecuteInTransactionAsync(async innerCt =>
+            {
+                foreach (var capture in successfulCaptures)
+                {
+                    await imageRepo.AddAsync(
+                        new WeighingSessionImage
+                        {
+                            Id = Guid.NewGuid(),
+                            WeighingSessionId = sessionId,
+                            CaptureStage = stage,
+                            CameraCode = capture.CameraCode,
+                            CameraName = capture.CameraName,
+                            RtspUrlSnapshot = capture.RtspUrlSnapshot,
+                            ImageFormat = capture.ImageFormat,
+                            ImageBytes = capture.ImageBytes,
+                            FileSizeBytes = capture.ImageBytes.LongLength,
+                            CapturedAt = capture.CapturedAt,
+                            CapturedBy = _currentUserContext.Username,
+                            CreatedAt = now,
+                            CreatedBy = _currentUserContext.Username,
+                            UpdatedAt = now,
+                            UpdatedBy = _currentUserContext.Username
+                        },
+                        innerCt);
+                }
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to capture clay trip images for session {SessionId}.", sessionId);
+        }
+    }
+
     public void RaisePropertyChanged(string propertyName)
     {
         OnPropertyChanged(propertyName);
     }
 
-    partial void OnSelectedDateChanged(DateTime? value)
+    partial void OnSessionsChanged(ObservableCollection<CrusherWeighingSessionListItem> value)
     {
-        _ = LoadSessionsAsync();
+        OnPropertyChanged(nameof(CanFinalizeClayVessel));
+        OnPropertyChanged(nameof(CanTransferTrip));
+        OnPropertyChanged(nameof(CanDeleteTrip));
+        OnPropertyChanged(nameof(CanViewImageHistory));
+        OnPropertyChanged(nameof(CanToggleReturnedBrokenTrip));
+        FinalizeClayVesselCommand.NotifyCanExecuteChanged();
+        TransferTripCommand.NotifyCanExecuteChanged();
+        DeleteTripCommand.NotifyCanExecuteChanged();
+        ViewImageHistoryCommand.NotifyCanExecuteChanged();
+        ToggleReturnedBrokenTripCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSearchVesselChanged(string? value)
+    {
+        if (_suppressVesselFilterLoad)
+        {
+            return;
+        }
+
+        _ = LoadVesselsAsync();
+    }
+
+    partial void OnShowFinalizedVesselsChanged(bool value)
+    {
+        if (_suppressVesselFilterLoad)
+        {
+            return;
+        }
+
+        _ = LoadVesselsAsync();
+    }
+
+    partial void OnSelectedVesselChanged(ClayVesselListItem? value)
+    {
+        Trips.Clear();
+        Sessions.Clear();
+        ClearSelectedTrip();
+        ClearAllWeighingState();
+        if (value != null)
+        {
+            ProductCodeInput.SetText(value.ProductCode);
+            ProductNameInput.SetText(value.ProductName);
+            CustomerCodeInput.SetText(value.CustomerCode);
+            CustomerNameInput.SetText(value.CustomerName);
+        }
+        else
+        {
+            SetDefaultProductAndCustomer();
+        }
+
+        OnPropertyChanged(nameof(CanFinalizeClayVessel));
+        OnPropertyChanged(nameof(CanCreateTrip));
+        OnPropertyChanged(nameof(CanEditClayVessel));
+        TakeCrusherWeight1Command.NotifyCanExecuteChanged();
+        SaveCrusherWeighingCommand.NotifyCanExecuteChanged();
+        CreateTripCommand.NotifyCanExecuteChanged();
+        EditClayVesselCommand.NotifyCanExecuteChanged();
+        FinalizeClayVesselCommand.NotifyCanExecuteChanged();
+        if (!_suppressSelectedVesselTripLoad && value != null)
+        {
+            _ = LoadSessionsForSelectedVesselAsync();
+        }
+    }
+
+    partial void OnSelectedTripChanged(ClayVehicleTripListItem? value)
+    {
+        if (_isTripSelectionResetting && value != null)
+        {
+            _logger?.LogDebug(
+                "Ignored clay trip selection while reset is active. SessionNo={SessionNo}, SessionId={SessionId}, Status={Status}",
+                value.SessionNo,
+                value.SessionId,
+                value.SessionStatus);
+            SelectedTrip = null;
+            SelectedTripIndex = -1;
+            NotifyTripSelectionCommandStates();
+            return;
+        }
+
+        SelectedTripIndex = value is null ? -1 : Trips.IndexOf(value);
+        SelectedSession = value is null
+            ? null
+            : Sessions.FirstOrDefault(x => x.SessionId == value.SessionId);
+        NotifyTripSelectionCommandStates();
     }
 
     partial void OnSelectedWeighingModeChanged(string value)
@@ -440,12 +1146,16 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
 
     private bool CanTakeCrusherWeight1()
     {
-        if (IsLoading || string.IsNullOrWhiteSpace(InternalVehiclePlateInput.Text))
+        if (IsLoading
+            || SelectedVessel == null
+            || SelectedVessel.IsFinalized
+            || SelectedTrip?.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT1
+            || string.IsNullOrWhiteSpace(InternalVehiclePlateInput.Text))
             return false;
 
-        // KhÃƒÂ´ng cho phÃƒÂ©p bÃ¡ÂºÂ¯t Ã„â€˜Ã¡ÂºÂ§u cÃƒÂ¢n lÃ¡ÂºÂ§n 1 nÃ¡ÂºÂ¿u:
-        // - Ã„Âang cÃƒÂ³ active session (Ã„â€˜ÃƒÂ£ cÃƒÂ¢n lÃ¡ÂºÂ§n 1 nhÃ†Â°ng chÃ†Â°a hoÃƒÂ n thÃƒÂ nh session Ã„â€˜ang cÃƒÂ¢n)
-        // - Session Ã„â€˜ÃƒÂ£ hoÃƒÂ n thÃƒÂ nh hoÃ¡ÂºÂ·c Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y (ngÃ†Â°Ã¡Â»Âi dÃƒÂ¹ng cÃ¡ÂºÂ§n deselect Ã„â€˜Ã¡Â»Æ’ cÃƒÂ¢n xe khÃƒÂ¡c)
+        // Không cho phép bắt đầu cân lần 1 nếu:
+        // - Đang có active session (đã cân lần 1 nhưng chưa hoàn thành session đang cân)
+        // - Session đã hoàn thành hoặc đã hủy (người dùng cần deselect để cân xe khác)
         var sessionStatus = SelectedSession?.SessionStatus;
         if (_activeCrusherSessionId.HasValue
             || sessionStatus == WeighingSessionStatus.COMPLETED
@@ -479,7 +1189,10 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
 
         // Clear all state when starting a new weighing
         ClearAllWeighingState();
-        SelectedSession = null;
+        if (SelectedTrip == null)
+        {
+            SelectedSession = null;
+        }
 
         _pendingWeight1 = CurrentWeight;
         _pendingWeight1IsStable = IsStable;
@@ -494,7 +1207,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         if (IsLoading || !IsTwoWeighMode)
             return false;
 
-        // ChÃ¡Â»â€° cho phÃƒÂ©p cÃƒÂ¢n lÃ¡ÂºÂ§n 2 khi Ã„â€˜ÃƒÂ£ lÃ†Â°u lÃ¡ÂºÂ§n 1 vÃƒÂ o DB (cÃƒÂ³ active session vÃƒÂ  trÃ¡ÂºÂ¡ng thÃƒÂ¡i lÃƒÂ  PENDING_WEIGHT2)
+        // Chỉ cho phép cân lần 2 khi đã lưu lần 1 vào DB (có active session và trạng thái là PENDING_WEIGHT2)
         if (_activeCrusherSessionId.HasValue
             && SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
             return true;
@@ -507,13 +1220,13 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     {
         if (_pendingWeight1 is null && !_activeCrusherSessionId.HasValue)
         {
-            _toastService.ShowWarning("Vui lòng cân lần 1 trước khi cân lần 2.");
+            _toastService.ShowWarning("Vui l\u00f2ng c\u00e2n l\u1ea7n 1 tr\u01b0\u1edbc khi c\u00e2n l\u1ea7n 2.");
             return;
         }
 
         if (CurrentWeight <= 0)
         {
-            _toastService.ShowWarning("Số cân lần 2 phải lớn hơn 0.");
+            _toastService.ShowWarning("S\u1ed1 c\u00e2n l\u1ea7n 2 ph\u1ea3i l\u1edbn h\u01a1n 0.");
             return;
         }
 
@@ -522,7 +1235,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         _pendingWeight2Mode = IsManualMode ? WeightMode.MANUAL : WeightMode.AUTO;
 
         RefreshCapturedWeightState();
-        _toastService.ShowSuccess("Đã lấy số cân lần 2.");
+        _toastService.ShowSuccess("\u0110\u00e3 l\u1ea5y s\u1ed1 c\u00e2n l\u1ea7n 2.");
     }
 
     private bool CanSaveCrusherWeighing()
@@ -530,7 +1243,10 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         if (IsLoading)
             return false;
 
-        // KhÃƒÂ´ng cho phÃƒÂ©p lÃ†Â°u nÃ¡ÂºÂ¿u session Ã„â€˜ÃƒÂ£ hoÃƒÂ n thÃƒÂ nh hoÃ¡ÂºÂ·c Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y
+        if (SelectedVessel == null || SelectedVessel.IsFinalized)
+            return false;
+
+        // Không cho phép lưu nếu session đã hoàn thành hoặc đã hủy
         var sessionStatus = SelectedSession?.SessionStatus;
         if (sessionStatus == WeighingSessionStatus.COMPLETED
             || sessionStatus == WeighingSessionStatus.CANCELLED)
@@ -538,17 +1254,14 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             return false;
         }
 
-        // CÃƒÂ¢n 1 lÃ¡ÂºÂ§n: cÃ¡ÂºÂ§n cÃƒÂ³ pending weight 1 vÃƒÂ  selected vehicle
-        if (IsSingleWeighMode && _pendingWeight1.HasValue && SelectedVehicle != null)
+        // Cân 1 lần: cần có pending weight 1 và selected vehicle
+        if (SelectedTrip?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1 && _pendingWeight1.HasValue && SelectedVehicle != null)
             return true;
 
-        // CÃƒÂ¢n 2 lÃ¡ÂºÂ§n - trÃ†Â°Ã¡Â»Âng hÃ¡Â»Â£p mÃ¡Â»â€ºi (chÃ†Â°a cÃƒÂ³ active session):
-        //   - CÃ¡ÂºÂ§n cÃƒÂ³ pending weight 1 vÃƒÂ  selected vehicle (Ã„â€˜Ã¡Â»Æ’ tÃ¡ÂºÂ¡o session mÃ¡Â»â€ºi vÃ¡Â»â€ºi weight1)
-        if (IsTwoWeighMode && _pendingWeight1.HasValue && SelectedVehicle != null && !_activeCrusherSessionId.HasValue)
-            return true;
-
-        // CÃƒÂ¢n 2 lÃ¡ÂºÂ§n - trÃ†Â°Ã¡Â»Âng hÃ¡Â»Â£p tiÃ¡ÂºÂ¿p tÃ¡Â»Â¥c (cÃƒÂ³ active session):
-        //   - CÃ¡ÂºÂ§n cÃƒÂ³ pending weight 2 vÃƒÂ  session Ã„â€˜ang Ã¡Â»Å¸ trÃ¡ÂºÂ¡ng thÃƒÂ¡i PENDING_WEIGHT2
+        // Cân 2 lần - trường hợp mới (chưa có active session):
+        //   - Cần có pending weight 1 và selected vehicle (để tạo session mới với weight1)
+        // Cân 2 lần - trường hợp tiếp tục (có active session):
+        //   - Cần có pending weight 2 và session đang ở trạng thái PENDING_WEIGHT2
         if (IsTwoWeighMode && _activeCrusherSessionId.HasValue && _pendingWeight2.HasValue
             && SelectedSession?.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
             return true;
@@ -574,27 +1287,36 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         try
         {
             using var scope = _scopeFactory.CreateScope();
-            var useCases = scope.ServiceProvider.GetRequiredService<ClayWeighingUseCases>();
             var sessionId = _activeCrusherSessionId;
             if (sessionId is null)
             {
-                sessionId = await useCases.CreateSessionAsync(
-                    new CreateClaySessionRequest(
-                        SelectedVehicle!.Id,
-                        SelectedWeighingMode,
+                if (SelectedTrip == null || SelectedTrip.SessionStatus != WeighingSessionStatus.PENDING_WEIGHT1)
+                {
+                    _toastService.ShowWarning("Vui lòng chọn tàu mỏ sét trước khi lưu chuyến xe.");
+                    return;
+                }
+
+                var captureWeight1UseCase = scope.ServiceProvider.GetRequiredService<CaptureClayWeight1ForTripUseCase>();
+                await captureWeight1UseCase.ExecuteAsync(
+                    new CaptureClayWeight1ForTripRequest(
+                        SelectedTrip.SessionId,
                         _pendingWeight1!.Value,
                         _pendingWeight1IsStable,
-                        _pendingWeight1Mode,
-                        // Crusher Weighing: Product and Customer Information
-                        ProductCodeInput.Text?.Trim(),
-                        ProductNameInput.Text?.Trim(),
-                        CustomerCodeInput.Text?.Trim(),
-                        CustomerNameInput.Text?.Trim()),
+                        _pendingWeight1Mode),
                     CancellationToken.None);
+                sessionId = SelectedTrip.SessionId;
+                await TryCaptureClayTripImagesAsync(sessionId.Value, CameraCaptureStage.WEIGHT1, CancellationToken.None);
+
+                if (IsSingleWeighMode)
+                {
+                    var completeLineUseCase = scope.ServiceProvider.GetRequiredService<CompleteClayVehicleSessionLineUseCase>();
+                    await completeLineUseCase.ExecuteAsync(sessionId.Value, CancellationToken.None);
+                }
             }
 
             if (IsTwoWeighMode && _pendingWeight2.HasValue)
             {
+                var useCases = scope.ServiceProvider.GetRequiredService<ClayWeighingUseCases>();
                 await useCases.CaptureWeight2Async(
                     new CaptureClayWeight2Request(
                         sessionId.Value,
@@ -602,41 +1324,13 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
                         _pendingWeight2IsStable,
                         _pendingWeight2Mode),
                     CancellationToken.None);
+                await TryCaptureClayTripImagesAsync(sessionId.Value, CameraCaptureStage.WEIGHT2, CancellationToken.None);
+                var completeLineUseCase = scope.ServiceProvider.GetRequiredService<CompleteClayVehicleSessionLineUseCase>();
+                await completeLineUseCase.ExecuteAsync(sessionId.Value, CancellationToken.None);
             }
 
             _toastService.ShowSuccess("Đã lưu lượt cân mỏ sét.");
-
-            // Reload sessions and auto-select the saved session
-            await LoadSessionsAsync();
-            var savedSession = Sessions.FirstOrDefault(x => x.SessionId == sessionId.Value);
-            if (savedSession != null)
-            {
-                SelectedSession = savedSession;
-
-                // Keep active session if it's still pending weight 2
-                if (savedSession.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2)
-                {
-                    // Clear only pending weights, keep active session
-                    _pendingWeight1 = null;
-                    _pendingWeight2 = null;
-                    _pendingWeight1IsStable = false;
-                    _pendingWeight2IsStable = false;
-                    _pendingWeight1Mode = WeightMode.AUTO;
-                    _pendingWeight2Mode = WeightMode.AUTO;
-                    RefreshCapturedWeightState();
-                }
-                else
-                {
-                    // Session completed - clear all weighing state and deselect session
-                    ClearAllWeighingState();
-                    SelectedSession = null;  // Bỏ focus để nhập thông tin xe mới cho lượt cân tiếp theo
-                }
-            }
-            else
-            {
-                // Should not happen, but clear state if session not found
-                ClearAllWeighingState();
-            }
+            await RefreshAfterSaveAsync(sessionId.Value);
         }
         catch (InvalidOperationException ex)
         {
@@ -652,17 +1346,14 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     partial void OnSelectedVehicleChanged(Vehicle? value)
     {
         ApplyVehicleInfo(value);
-        ApplyVehicleWeighingMode(value);  // Auto chuyển chế độ cân dựa trên TL bì có hiệu lực
+        EnsureTwoWeighMode();
     }
 
     partial void OnSelectedSessionChanged(CrusherWeighingSessionListItem? value)
     {
         if (value != null)
         {
-            // Set weighing mode to match the selected session
-            SelectedWeighingMode = string.Equals(value.WeighingMode, ClayWeighingModes.SingleWithStandardTare, StringComparison.OrdinalIgnoreCase)
-                ? ClayWeighingModes.SingleWithStandardTare
-                : ClayWeighingModes.TwoWeigh;
+            EnsureTwoWeighMode();
 
             // Clear pending weights but NOT active session yet (will set it based on session status)
             _pendingWeight1 = null;
@@ -694,7 +1385,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             else if (value.SessionStatus == WeighingSessionStatus.COMPLETED
                 || value.SessionStatus == WeighingSessionStatus.CANCELLED)
             {
-                // session hoÃƒÂ n tÃ¡ÂºÂ¥t hoÃ¡ÂºÂ·c Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y - chÃ¡Â»â€° hiÃ¡Â»Æ’n thÃ¡Â»â€¹ thÃƒÂ´ng tin, khÃƒÂ´ng cho sÃ¡Â»Â­a
+                // session hoàn tất hoặc đã hủy - chỉ hiển thị thông tin, không cho sửa
                 _activeCrusherSessionId = null;
                 InternalVehiclePlateInput.SetText(value.VehiclePlate);
                 SelectedDriverName = value.DriverName;
@@ -707,7 +1398,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             }
             else if (value.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT1)
             {
-                // Session Ã„â€˜ang chÃ¡Â»Â cÃƒÂ¢n lÃ¡ÂºÂ§n 1 - khÃƒÂ´ng set active session (cÃ¡ÂºÂ§n cÃƒÂ¢n lÃ¡ÂºÂ¡i)
+                // Session đang chờ cân lần 1 - không set active session (cần cân lại)
                 _activeCrusherSessionId = null;
                 InternalVehiclePlateInput.SetText(value.VehiclePlate);
                 SelectedDriverName = value.DriverName;
@@ -757,6 +1448,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         PrintWeighTicketCommand.NotifyCanExecuteChanged();
     }
 
+
     partial void OnSelectedDriverNameChanged(string? value)
     {
         CheckForChanges();
@@ -770,6 +1462,26 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     partial void OnIsVehicleFormReadOnlyChanged(bool value)
     {
         OnPropertyChanged(nameof(IsVehicleDetailsReadOnly));
+    }
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanCreateClayVessel));
+        OnPropertyChanged(nameof(CanEditClayVessel));
+        OnPropertyChanged(nameof(CanFinalizeClayVessel));
+        OnPropertyChanged(nameof(CanCreateTrip));
+        OnPropertyChanged(nameof(CanTransferTrip));
+        OnPropertyChanged(nameof(CanDeleteTrip));
+        OnPropertyChanged(nameof(CanViewImageHistory));
+        OnPropertyChanged(nameof(CanToggleReturnedBrokenTrip));
+        CreateClayVesselCommand.NotifyCanExecuteChanged();
+        EditClayVesselCommand.NotifyCanExecuteChanged();
+        FinalizeClayVesselCommand.NotifyCanExecuteChanged();
+        CreateTripCommand.NotifyCanExecuteChanged();
+        TransferTripCommand.NotifyCanExecuteChanged();
+        DeleteTripCommand.NotifyCanExecuteChanged();
+        ViewImageHistoryCommand.NotifyCanExecuteChanged();
+        ToggleReturnedBrokenTripCommand.NotifyCanExecuteChanged();
     }
 
     private decimal? CalculateDisplayNetWeight()
@@ -799,7 +1511,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         var standardTare = ParseStandardTare(StandardTareText);
         if (standardTare == null && !string.IsNullOrWhiteSpace(StandardTareText))
         {
-            _toastService.ShowWarning("Trọng lượng xe chuẩn không đúng định dạng.");
+            _toastService.ShowWarning("Trọng lượng bì không đúng định dạng.");
             return null;
         }
 
@@ -815,12 +1527,18 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
 
             if (vehicle == null)
             {
+                _toastService.ShowWarning("Xe chưa có trong danh mục xe nội bộ. Vui lòng thêm xe tại màn Danh mục xe trước khi cân mỏ sét.");
+                return null;
+            }
+
+            if (vehicle == null)
+            {
                 var existingExternal = vehicles.FirstOrDefault(v => string.IsNullOrEmpty(v.MoocNumber));
                 if (existingExternal != null)
                 {
                     if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng bì (nếu nhập) phải lớn hơn 0.");
                         return null;
                     }
 
@@ -846,7 +1564,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
                 {
                     if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng bì (nếu nhập) phải lớn hơn 0.");
                         return null;
                     }
 
@@ -904,7 +1622,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
 
             if (IsSingleWeighMode && (!vehicle.TtcpWeight.HasValue || vehicle.TtcpWeight.Value <= 0))
             {
-                _toastService.ShowWarning("Xe nội bộ chưa có TL xe chuẩn, không thể cân 1 lần.");
+                _toastService.ShowWarning("Xe nội bộ chưa có TL bì, không thể cân 1 lần.");
                 return null;
             }
 
@@ -971,7 +1689,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             _originalDriverName = vehicle.DriverName;
             _originalStandardTare = effectiveStandardTare;
             IsVehicleFormReadOnly = false;
-            VehicleSelectionStatusText = $"Đã chọn xe nội bộ: {vehicle.VehiclePlate}";
+            VehicleSelectionStatusText = string.Empty;
         }
         else
         {
@@ -980,26 +1698,17 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             _originalDriverName = null;
             _originalStandardTare = null;
             IsVehicleFormReadOnly = true;
-            VehicleSelectionStatusText = "Chưa chọn xe nội bộ.";
+            VehicleSelectionStatusText = string.Empty;
         }
 
         ShowUpdateButton = false;
     }
 
-    private void ApplyVehicleWeighingMode(Vehicle? vehicle)
+    private void EnsureTwoWeighMode()
     {
-        if (SelectedSession != null || _activeCrusherSessionId.HasValue)
+        if (!string.Equals(SelectedWeighingMode, ClayWeighingModes.TwoWeigh, StringComparison.Ordinal))
         {
-            return;
-        }
-
-        var targetMode = HasEffectiveStandardTare(vehicle)
-            ? ClayWeighingModes.SingleWithStandardTare
-            : ClayWeighingModes.TwoWeigh;
-
-        if (!string.Equals(SelectedWeighingMode, targetMode, StringComparison.Ordinal))
-        {
-            SelectedWeighingMode = targetMode;
+            SelectedWeighingMode = ClayWeighingModes.TwoWeigh;
         }
     }
 
@@ -1090,7 +1799,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
                 {
                     if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng bì (nếu nhập) phải lớn hơn 0.");
                         return;
                     }
 
@@ -1120,7 +1829,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
                 {
                     if (standardTare is <= 0)
                     {
-                        _toastService.ShowWarning("Trọng lượng xe chuẩn (nếu nhập) phải lớn hơn 0.");
+                        _toastService.ShowWarning("Trọng lượng bì (nếu nhập) phải lớn hơn 0.");
                         return;
                     }
 
@@ -1160,7 +1869,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             // Check nếu chế độ cân 1 lần nhưng xe chưa có TL bì hiệu lực
             if (IsSingleWeighMode && !StandardTarePolicy.GetEffectiveStandardTare(vehicle, GetTodayLocal()).HasValue)
             {
-                _toastService.ShowWarning("Xe nội bộ chưa có TL xe chuẩn, không thể cân 1 lần.");
+                _toastService.ShowWarning("Xe nội bộ chưa có TL bì, không thể cân 1 lần.");
                 SelectedVehicle = null;
                 return;
             }
@@ -1206,7 +1915,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             var newTareWeight = ParseStandardTare(StandardTareText);
             if (newTareWeight == null && !string.IsNullOrWhiteSpace(StandardTareText))
             {
-                _toastService.ShowWarning("Trọng lượng xe chuẩn không đúng định dạng.");
+                _toastService.ShowWarning("Trọng lượng bì không đúng định dạng.");
                 return;
             }
 
@@ -1222,7 +1931,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             _originalDriverName = vehicle.DriverName;
             _originalStandardTare = vehicle.TtcpWeight;
             ShowUpdateButton = false;
-            VehicleSelectionStatusText = $"Đã chọn xe nội bộ: {vehicle.VehiclePlate}";
+            VehicleSelectionStatusText = string.Empty;
         }
         catch (Exception ex)
         {
@@ -1286,15 +1995,13 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
                 {
                     var hasExternal = vehicles.Any(v => string.IsNullOrEmpty(v.MoocNumber));
                     IsVehicleFormReadOnly = false;
-                    ApplyVehicleWeighingMode(null);
-                    VehicleSelectionStatusText = hasExternal
-                        ? $"Xe {vehiclePlate} đã tồn tại dạng xe ngoài. Bấm Chọn/Tạo xe để chuyển thành xe nội bộ rồi bắt đầu cân."
-                        : $"Xe {vehiclePlate} chưa có trong danh mục. Bấm Chọn/Tạo xe để tạo xe nội bộ rồi bắt đầu cân.";
+                    EnsureTwoWeighMode();
+                    VehicleSelectionStatusText = string.Empty;
                 }
                 else
                 {
                     // Xe đã tồn tại, tự động chuyển chế độ cân dựa trên TL bì có hiệu lực
-                    ApplyVehicleWeighingMode(vehicle);
+                    EnsureTwoWeighMode();
                 }
             }
         }
@@ -1633,12 +2340,14 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
                 );
 
                 _toastService.ShowSuccess("Đã cập nhật biển số xe mới.");
-                await LoadSessionsAsync();
-                
-                var updated = Sessions.FirstOrDefault(s => s.SessionId == dialogVm.SessionId);
-                if (updated != null)
+                var cutOrderId = SelectedVessel?.CutOrderId;
+                if (cutOrderId.HasValue)
                 {
-                    SelectedSession = updated;
+                    await ReloadVesselAndTripsAsync(cutOrderId.Value, dialogVm.SessionId);
+                }
+                else
+                {
+                    await LoadVesselsAsync(loadTripsForSelectedVessel: false);
                 }
             }
         }

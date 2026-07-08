@@ -102,13 +102,13 @@
                         <CheckBox Content="Trang chủ" IsChecked="{Binding ShowMenuDashboard}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Danh sách xe vào" IsChecked="{Binding ShowMenuIncomingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Cân nội địa" IsChecked="{Binding ShowMenuWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="Cân trạm đập" IsChecked="{Binding ShowMenuCrusherWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Cân mỏ đá" IsChecked="{Binding ShowMenuCrusherWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Cân mỏ sét" IsChecked="{Binding ShowMenuClayWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Cân xuất khẩu" IsChecked="{Binding ShowMenuExportWeighing}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Danh sách xe ra" IsChecked="{Binding ShowMenuOutgoingVehicleList}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="B&#xE1;o c&#xE1;o xu&#x1EA5;t - N&#x110;" IsChecked="{Binding ShowMenuExportReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Báo cáo cân hàng" IsChecked="{Binding ShowMenuInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
-                        <CheckBox Content="Báo cáo cân hàng (trạm đập)" IsChecked="{Binding ShowMenuCrusherInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
+                        <CheckBox Content="Báo cáo cân hàng (mỏ đá)" IsChecked="{Binding ShowMenuCrusherInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                         <CheckBox Content="Báo cáo cân hàng (mỏ sét)" IsChecked="{Binding ShowMenuClayInboundReport}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,16,8"/>
                     </UniformGrid>
 

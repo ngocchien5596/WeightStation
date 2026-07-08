@@ -37,6 +37,7 @@ public class CutOrder
     public int? BagCount { get; set; }
     public decimal? TareWeightKg { get; set; }
     public decimal? BagWeightKg { get; set; }
+    public string? ExportPackageType { get; set; }
     public string? Notes { get; set; }
 
     public bool IsCancelled { get; set; }
@@ -53,6 +54,7 @@ public class CutOrder
     public DateTime? CarryForwardWeight1Time { get; set; }
     public bool IsExportScale { get; set; }
     public bool IsPortTransfer { get; set; }
+    public decimal ExportUnweighedWeight { get; set; }
     public decimal? ExportFinalizedWeight { get; set; }
     public DateTime? ExportFinalizedAt { get; set; }
     public string? ExportFinalizedBy { get; set; }

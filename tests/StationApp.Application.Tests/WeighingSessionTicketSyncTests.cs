@@ -1114,6 +1114,93 @@ public class WeighingSessionTicketSyncTests
     }
 
     [Fact]
+    public async Task CaptureSessionWeight2_BlocksBaggedWeightBelowTolerance()
+    {
+        var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var regRepo = Substitute.For<ICutOrderRepository>();
+        var productRepo = Substitute.For<IProductRepository>();
+        var weighRepo = Substitute.For<IWeighTicketRepository>();
+        var deliveryRepo = Substitute.For<IDeliveryTicketRepository>();
+        var deliveryNoGen = Substitute.For<IDeliveryNumberGenerator>();
+        var toleranceProvider = Substitute.For<IToleranceProvider>();
+        var overweightService = new WeighingSessionOverweightService();
+        var ticketSyncService = new WeighingSessionTicketSyncService();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var now = new DateTime(2026, 5, 19, 8, 15, 0);
+        currentUser.Username.Returns("tester");
+        currentUser.RoleCode.Returns("ADMIN");
+        clock.NowLocal.Returns(now);
+        toleranceProvider.GetToleranceKgPerBagAsync(Arg.Any<CancellationToken>()).Returns(1.75m);
+
+        var session = new WeighingSession
+        {
+            Id = Guid.NewGuid(),
+            SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+            TransactionType = TransactionType.OUTBOUND,
+            Weight1 = 31_000m,
+            Ttcp10WeightSnapshot = 30_000m
+        };
+        var line = new WeighingSessionLine
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            CutOrderId = Guid.NewGuid(),
+            SequenceNo = 1,
+            LineStatus = WeighingSessionLineStatus.PENDING
+        };
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            WeighingSessionId = session.Id,
+            RecordRole = WeighTicketRecordRoles.MasterSession
+        };
+        var registration = new CutOrder
+        {
+            Id = line.CutOrderId,
+            ProductType = ProductTypes.Bagged,
+            PlannedWeight = 20_000m,
+            BagCount = 400,
+            ErpCutOrderId = "ERP-BAG-UNDER",
+            CustomerCode = "C1",
+            ProductCode = "P1"
+        };
+
+        sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { line });
+        regRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(new[] { registration });
+        weighRepo.GetPrimaryByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(ticket);
+
+        var sut = new CaptureSessionWeight2UseCase(
+            sessionRepo,
+            regRepo,
+            productRepo,
+            weighRepo,
+            deliveryRepo,
+            CreateImageRepo(),
+            CreateCameraSettingsProvider(),
+            CreateCameraCaptureService(),
+            deliveryNoGen,
+            toleranceProvider,
+            overweightService,
+            ticketSyncService,
+            uow,
+            currentUser,
+            clock);
+
+        var ex = await Assert.ThrowsAsync<BaggedWeightToleranceExceededException>(() =>
+            sut.ExecuteAsync(
+                new CaptureSessionWeightRequest(session.Id, 12_300m, true, WeightMode.AUTO),
+                CancellationToken.None));
+
+        Assert.Contains("thấp hơn", ex.Message);
+        Assert.Contains("vượt dung sai cho phép", ex.Message);
+        await sessionRepo.DidNotReceive().UpdateAsync(Arg.Any<WeighingSession>(), Arg.Any<CancellationToken>());
+        await uow.DidNotReceive().ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task AllocateWeighingSession_SyncsOverweightStateToMasterTicket()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();

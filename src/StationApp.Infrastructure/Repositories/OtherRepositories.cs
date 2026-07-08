@@ -30,11 +30,11 @@ public class AuditLogRepository : IAuditLogRepository
         var endDateTime = toDate.Date.AddDays(1).AddTicks(-1);
 
         // Determine which actions to include based on station
-        // QN01 (Export Weighing): only TRANSFER_EXPORT_TRIP
-        // Other stations (QN02, QN03): only EDIT_WEIGHING_SESSION
+        // QN01 (Export Weighing): export trip transfers and temporary cut-order edits
+        // Other stations (QN02, QN03): weighing-session edits, returned-trip toggles, and clay vessel edits
         var validActions = stationCode == "QN01"
-            ? new[] { "TRANSFER_EXPORT_TRIP" }
-            : new[] { "EDIT_WEIGHING_SESSION" };
+            ? new[] { "TRANSFER_EXPORT_TRIP", "UPDATE_TEMPORARY_EXPORT_CUT_ORDER" }
+            : new[] { "EDIT_WEIGHING_SESSION", "TOGGLE_CRUSHER_RETURNED_BROKEN_TRIP", "UPDATE_CLAY_VESSEL" };
 
         var query = _db.AuditLogs
             .AsNoTracking()

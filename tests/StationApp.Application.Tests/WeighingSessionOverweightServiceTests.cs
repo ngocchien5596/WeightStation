@@ -186,19 +186,24 @@ public class WeighingSessionOverweightServiceTests
     }
 
     [Fact]
-    public void BuildSplitPlan_ThrowsWhenSecondTicketStillExceedsThreshold()
+    public void BuildSplitPlan_AllowsResidualTicketToExceedThreshold_WhenFirstTicketGrossEqualsTtcp10()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 44_500m, ttcp10: 32_000m);
+        var session = CreateReadySession(netWeight: 65_500m, ttcp10: 32_000m);
         var lines = new[]
         {
-            CreateAllocatedLine(sequenceNo: 1, weight: 22_250m, bagCount: 445),
-            CreateAllocatedLine(sequenceNo: 2, weight: 22_250m, bagCount: 445)
+            CreateAllocatedLine(sequenceNo: 1, weight: 32_750m, bagCount: 655),
+            CreateAllocatedLine(sequenceNo: 2, weight: 32_750m, bagCount: 655)
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => service.BuildSplitPlan(session, lines, 0.0025m));
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m);
 
-        Assert.Contains("không thể tách", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(22_000m, plan.SplitTicket1NetWeight);
+        Assert.Equal(43_500m, plan.SplitTicket2NetWeight);
+        Assert.Equal(session.Ttcp10WeightSnapshot, session.Weight1 + plan.SplitTicket1NetWeight);
+        Assert.Equal(22_000m, plan.Groups[0].GroupWeight);
+        Assert.Equal(43_500m, plan.Groups[1].GroupWeight);
+        Assert.Equal(65_500m, plan.Groups.Sum(x => x.GroupWeight));
     }
 
     [Fact]

@@ -96,6 +96,7 @@ public sealed class MapTemporaryExportCutOrderUseCase
         realCutOrder.TareWeightKg ??= temporaryCutOrder.TareWeightKg;
         realCutOrder.BagWeightKg ??= temporaryCutOrder.BagWeightKg;
         realCutOrder.BagCount ??= temporaryCutOrder.BagCount;
+        realCutOrder.ExportPackageType ??= temporaryCutOrder.ExportPackageType;
         realCutOrder.MappedTemporaryCutOrderId = temporaryCutOrder.Id;
         realCutOrder.MappedAt = now;
         realCutOrder.MappedBy = username;

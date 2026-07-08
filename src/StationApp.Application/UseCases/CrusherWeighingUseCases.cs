@@ -100,21 +100,21 @@ public sealed class CrusherWeighingUseCases
     public async Task<Guid> CreateSessionAsync(CreateCrusherSessionRequest request, CancellationToken ct)
     {
         var vehicle = await _vehicleRepository.GetByIdAsync(request.VehicleId, ct);
-        if (vehicle is null || !vehicle.IsInternalVehicle)
+        if (vehicle is null || !vehicle.IsInternalVehicle || !vehicle.IsActive)
         {
-            throw new InvalidOperationException("Không tìm thấy xe nội bộ hợp lệ cho trạm đập.");
+            throw new InvalidOperationException("Không tìm thấy xe nội bộ hợp lệ cho mỏ đá.");
         }
 
         var mode = NormalizeMode(request.WeighingMode);
         if (mode == CrusherWeighingModes.SingleWithStandardTare && !await IsSingleWeighEnabledAsync(ct))
         {
-            throw new InvalidOperationException("Trạm hiện tại chưa bật chế độ cân một lần bằng trọng lượng xe chuẩn.");
+            throw new InvalidOperationException("Trạm hiện tại chưa bật chế độ cân một lần bằng trọng lượng bì.");
         }
 
         var effectiveStandardTare = StandardTarePolicy.GetEffectiveStandardTare(vehicle, _clock.TodayLocal);
         if (mode == CrusherWeighingModes.SingleWithStandardTare && !effectiveStandardTare.HasValue)
         {
-            throw new InvalidOperationException("Xe nội bộ chưa có trọng lượng xe chuẩn, không thể cân một lần.");
+            throw new InvalidOperationException("Xe nội bộ chưa có trọng lượng bì, không thể cân một lần.");
         }
 
         var now = _clock.NowLocal;
@@ -174,7 +174,7 @@ public sealed class CrusherWeighingUseCases
     public async Task CaptureWeight2Async(CaptureCrusherWeight2Request request, CancellationToken ct)
     {
         var session = await _sessionRepository.GetByIdAsync(request.SessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân trạm đập.");
+            ?? throw new InvalidOperationException("Không tìm thấy lượt cân mỏ đá.");
 
         if (!string.Equals(session.WeighingMode, CrusherWeighingModes.TwoWeigh, StringComparison.OrdinalIgnoreCase))
         {
@@ -204,9 +204,12 @@ public sealed class CrusherWeighingUseCases
         session.UpdatedBy = CurrentUsername();
 
         var vehicleId = session.StandardTareVehicleId
-            ?? throw new InvalidOperationException("Lượt cân chưa liên kết xe nội bộ để cập nhật TL xe chuẩn.");
+            ?? throw new InvalidOperationException("Lượt cân chưa liên kết xe nội bộ để cập nhật TL bì.");
         var vehicle = await _vehicleRepository.GetByIdAsync(vehicleId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy xe nội bộ để cập nhật TL xe chuẩn.");
+            ?? throw new InvalidOperationException("Không tìm thấy xe nội bộ để cập nhật TL bì.");
+        session.StandardTareVehicleId = vehicle.Id;
+        session.StandardTareWeightSnapshot = session.Weight2;
+        session.StandardTareSourceSnapshot = vehicle.StandardTareSource;
         vehicle.TtcpWeight = session.Weight2;
         vehicle.StandardTareUpdatedAt = now;
         vehicle.StandardTareUpdatedBy = CurrentUsername();
@@ -410,7 +413,7 @@ public sealed class CrusherWeighingUseCases
         var vehicle = await _vehicleRepository.GetByIdAsync(newVehicleId, ct)
             ?? throw new InvalidOperationException("Không tìm thấy thông tin xe mới.");
 
-        if (!vehicle.IsInternalVehicle)
+        if (!vehicle.IsInternalVehicle || !vehicle.IsActive)
         {
             throw new InvalidOperationException("Chỉ cho phép chọn xe nội bộ.");
         }
@@ -418,6 +421,22 @@ public sealed class CrusherWeighingUseCases
         var now = _clock.NowLocal;
         var todayLocal = _clock.TodayLocal;
         var effectiveStandardTare = StandardTarePolicy.GetEffectiveStandardTare(vehicle, todayLocal);
+        var oldVehicleId = session.StandardTareVehicleId;
+        var oldVehicle = oldVehicleId.HasValue && oldVehicleId.Value != newVehicleId
+            ? await _vehicleRepository.GetByIdAsync(oldVehicleId.Value, ct)
+            : null;
+        var shouldInvalidateOldVehicleStandardTare = ShouldInvalidateOldVehicleStandardTare(
+            session,
+            oldVehicle,
+            todayLocal);
+        if (shouldInvalidateOldVehicleStandardTare && oldVehicle != null)
+        {
+            var completedSessionCount = await _sessionRepository.CountCompletedStandardTareSessionsForVehicleOnDateAsync(
+                oldVehicle.Id,
+                todayLocal,
+                ct);
+            shouldInvalidateOldVehicleStandardTare = completedSessionCount == 1;
+        }
 
         // Capture old values for audit logging
         var oldVehiclePlate = session.VehiclePlate;
@@ -434,7 +453,10 @@ public sealed class CrusherWeighingUseCases
         decimal? targetNetWeight = session.NetWeight;
 
         var isCompleted = session.SessionStatus == WeighingSessionStatus.COMPLETED;
-
+        var shouldApplyExistingWeight2AsStandardTareToNewVehicle =
+            isCompleted
+            && session.Weight2.HasValue
+            && !effectiveStandardTare.HasValue;
         if (!isCompleted)
         {
             // In-progress session (only has Weight1)
@@ -473,23 +495,45 @@ public sealed class CrusherWeighingUseCases
                 }
                 else
                 {
-                    // Convert completed single weigh session to incomplete two weigh session
-                    targetWeighingMode = CrusherWeighingModes.TwoWeigh;
-                    targetWeight2 = null;
-                    targetWeight2Time = null;
-                    targetNetWeightCalculationMode = NetWeightCalculationModes.Weight2Diff;
-                    targetStatus = WeighingSessionStatus.PENDING_WEIGHT2;
-                    targetNetWeight = null;
+                    if (session.Weight2.HasValue)
+                    {
+                        targetWeighingMode = CrusherWeighingModes.SingleWithStandardTare;
+                        targetStatus = WeighingSessionStatus.COMPLETED;
+                        targetNetWeightCalculationMode = NetWeightCalculationModes.Weight1MinusStandardTare;
+                        targetNetWeight = Math.Max(0, RoundWeight(session.Weight1 ?? 0) - session.Weight2.Value);
+                    }
+                    else
+                    {
+                        targetWeighingMode = CrusherWeighingModes.TwoWeigh;
+                        targetWeight2 = null;
+                        targetWeight2Time = null;
+                        targetNetWeightCalculationMode = NetWeightCalculationModes.Weight2Diff;
+                        targetStatus = WeighingSessionStatus.PENDING_WEIGHT2;
+                        targetNetWeight = null;
+                    }
                 }
             }
             else
             {
                 // Completed two weigh session remains two weigh
                 targetWeighingMode = CrusherWeighingModes.TwoWeigh;
-                targetStatus = WeighingSessionStatus.COMPLETED;
-                if (session.Weight2.HasValue)
+                if (effectiveStandardTare.HasValue)
                 {
-                    targetNetWeight = Math.Abs(session.Weight2.Value - (session.Weight1 ?? 0));
+                    targetStatus = WeighingSessionStatus.COMPLETED;
+                    targetWeight2 = effectiveStandardTare.Value;
+                    targetWeight2Time = now;
+                    targetNetWeightCalculationMode = NetWeightCalculationModes.Weight1MinusStandardTare;
+                    targetNetWeight = Math.Max(0, RoundWeight(session.Weight1 ?? 0) - effectiveStandardTare.Value);
+                }
+                else if (session.Weight2.HasValue)
+                {
+                    targetStatus = WeighingSessionStatus.COMPLETED;
+                    targetNetWeightCalculationMode = NetWeightCalculationModes.Weight1MinusStandardTare;
+                    targetNetWeight = Math.Max(0, RoundWeight(session.Weight1 ?? 0) - session.Weight2.Value);
+                }
+                else
+                {
+                    targetStatus = WeighingSessionStatus.PENDING_WEIGHT2;
                 }
             }
         }
@@ -500,7 +544,9 @@ public sealed class CrusherWeighingUseCases
         session.DriverName = vehicle.DriverName;
         session.StandardTareVehicleId = vehicle.Id;
         session.StandardTareSourceSnapshot = vehicle.StandardTareSource;
-        session.StandardTareWeightSnapshot = effectiveStandardTare;
+        session.StandardTareWeightSnapshot = shouldApplyExistingWeight2AsStandardTareToNewVehicle
+            ? session.Weight2
+            : effectiveStandardTare;
 
         session.WeighingMode = targetWeighingMode;
         session.Weight2 = targetWeight2;
@@ -513,10 +559,44 @@ public sealed class CrusherWeighingUseCases
         session.UpdatedBy = CurrentUsername();
         session.SyncStatus = SyncStatus.SYNC_QUEUED;
 
+        if (shouldInvalidateOldVehicleStandardTare && oldVehicle != null)
+        {
+            oldVehicle.TtcpWeight = null;
+            oldVehicle.StandardTareUpdatedAt = null;
+            oldVehicle.StandardTareUpdatedBy = CurrentUsername();
+            oldVehicle.UpdatedAt = now;
+            oldVehicle.UpdatedBy = CurrentUsername();
+        }
+
+        if (shouldApplyExistingWeight2AsStandardTareToNewVehicle)
+        {
+            vehicle.TtcpWeight = session.Weight2;
+            vehicle.StandardTareUpdatedAt = now;
+            vehicle.StandardTareUpdatedBy = CurrentUsername();
+            vehicle.UpdatedAt = now;
+            vehicle.UpdatedBy = CurrentUsername();
+        }
+
         // Write AuditLog
         var auditDetail = new
         {
             Reason = reason,
+            InvalidatedOldVehicleStandardTare = shouldInvalidateOldVehicleStandardTare
+                ? new
+                {
+                    VehicleId = oldVehicle?.Id,
+                    VehiclePlate = oldVehiclePlate,
+                    InvalidatedWeight = oldWeight2
+                }
+                : null,
+            AppliedStandardTareToNewVehicle = shouldApplyExistingWeight2AsStandardTareToNewVehicle
+                ? new
+                {
+                    VehicleId = vehicle.Id,
+                    VehiclePlate = vehicle.VehiclePlate,
+                    StandardTareWeight = session.Weight2
+                }
+                : null,
             Changes = new Dictionary<string, object>
             {
                 { "VehiclePlate", new { Old = oldVehiclePlate, New = session.VehiclePlate } },
@@ -539,7 +619,38 @@ public sealed class CrusherWeighingUseCases
         };
 
         await _auditLogRepository.AddAsync(log, ct);
+        if (shouldInvalidateOldVehicleStandardTare && oldVehicle != null)
+        {
+            await _vehicleRepository.UpdateAsync(oldVehicle, ct);
+            await EnqueueMasterSyncAsync(oldVehicle.Id, SyncAggregateTypes.Vehicle, _syncPayloadFactory.CreatePayload(oldVehicle), now, ct);
+        }
+
+        if (shouldApplyExistingWeight2AsStandardTareToNewVehicle)
+        {
+            await _vehicleRepository.UpdateAsync(vehicle, ct);
+            await EnqueueMasterSyncAsync(vehicle.Id, SyncAggregateTypes.Vehicle, _syncPayloadFactory.CreatePayload(vehicle), now, ct);
+        }
+
         await _sessionRepository.UpdateAsync(session, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    private static bool ShouldInvalidateOldVehicleStandardTare(
+        WeighingSession session,
+        Vehicle? oldVehicle,
+        DateTime todayLocal)
+    {
+        if (oldVehicle == null
+            || session.SessionStatus != WeighingSessionStatus.COMPLETED
+            || !session.Weight2.HasValue
+            || !oldVehicle.TtcpWeight.HasValue
+            || !oldVehicle.StandardTareUpdatedAt.HasValue
+            || oldVehicle.StandardTareUpdatedAt.Value.Date != todayLocal.Date)
+        {
+            return false;
+        }
+
+        return decimal.Round(oldVehicle.TtcpWeight.Value, 3, MidpointRounding.AwayFromZero)
+            == decimal.Round(session.Weight2.Value, 3, MidpointRounding.AwayFromZero);
     }
 }

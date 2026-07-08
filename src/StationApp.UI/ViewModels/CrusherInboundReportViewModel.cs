@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -40,6 +40,27 @@ public partial class CrusherInboundReportViewModel : ObservableObject
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<CrusherInboundReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
+    [ObservableProperty] private System.Windows.Documents.IDocumentPaginatorSource? _previewDocument;
+    private System.Windows.Xps.Packaging.XpsDocument? _currentXpsDocument;
+    private string? _currentTempXpsPath;
+    private string? _currentTempExcelPath;
+
+    private void CleanupOldPreview()
+    {
+        if (_currentXpsDocument != null)
+        {
+            Helpers.ReportPreviewHelper.CleanupPreview(_currentXpsDocument, _currentTempExcelPath, _currentTempXpsPath);
+            _currentXpsDocument = null;
+            _currentTempXpsPath = null;
+            _currentTempExcelPath = null;
+        }
+        PreviewDocument = null;
+    }
+
+    ~CrusherInboundReportViewModel()
+    {
+        CleanupOldPreview();
+    }
 
     public CrusherInboundReportViewModel(
         BuildCrusherInboundReportUseCase buildUseCase,
@@ -81,9 +102,33 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         try
         {
             IsBusy = true;
+            CleanupOldPreview();
+
             var document = await BuildDocumentFromCurrentFilterAsync();
             ApplyPreview(document);
-            _toastService.ShowSuccess($"Đã tải xem trước {document.Rows.Count:N0} dòng.");
+
+            if (document.Rows.Count == 0)
+            {
+                _toastService.ShowWarning("Không có dữ liệu để xem trước.");
+                return;
+            }
+
+            var result = await Helpers.ReportPreviewHelper.GeneratePreviewAsync(
+                "BaoCaoCanHangTramDap",
+                async (tempPath) => await _exportUseCase.ExecuteAsync(document, tempPath, CancellationToken.None)
+            );
+
+            if (result.Success && result.XpsDocument != null)
+            {
+                _currentXpsDocument = result.XpsDocument;
+                _currentTempExcelPath = result.ExcelPath;
+                _currentTempXpsPath = result.XpsPath;
+                PreviewDocument = _currentXpsDocument.GetFixedDocumentSequence();
+            }
+            else
+            {
+                _toastService.ShowWarning(result.ErrorMessage ?? "Lỗi không xác định khi tạo bản xem trước.");
+            }
         }
         catch (Exception ex)
         {
@@ -111,7 +156,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
 
         var saveDialog = new SaveFileDialog
         {
-            Title = "Xuất báo cáo cân hàng trạm đập",
+            Title = "Xuất báo cáo cân hàng mỏ đá",
             Filter = "Excel Workbook (*.xlsx)|*.xlsx",
             DefaultExt = ".xlsx",
             AddExtension = true,
@@ -167,7 +212,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
             document.Name = $"BaoCaoCanHangTramDap_{DateTime.Now:yyyyMMddHHmmss}";
 
             printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator, document.Name);
-            _toastService.ShowSuccess("Đã gửi lệnh in báo cáo cân hàng trạm đập.");
+            _toastService.ShowSuccess("Đã gửi lệnh in báo cáo cân hàng mỏ đá.");
         }
         catch (Exception ex)
         {
@@ -196,20 +241,20 @@ public partial class CrusherInboundReportViewModel : ObservableObject
     private void ApplyPreview(CrusherInboundReportDocument document)
     {
         PreviewRows = new ObservableCollection<CrusherInboundReportRow>(document.Rows);
-        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Tổng hàng: {document.TotalNetWeightTon:N3} tấn";
+        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Nhập: {document.TotalNetWeightTon:N3} tấn | Hoàn: {document.ReturnedBrokenWeightTon:N3} tấn | Thực nhập: {document.ActualInboundWeightTon:N3} tấn";
     }
 
     private void ApplyCurrentShift()
     {
-        var (fromTime, toTime) = ResolveShiftRange(_clock.NowLocal);
-        FromDate = fromTime.Date;
-        FromHour = fromTime.Hour.ToString("00");
-        FromMinute = fromTime.Minute.ToString("00");
-        FromSecond = fromTime.Second.ToString("00");
-        ToDate = toTime.Date;
-        ToHour = toTime.Hour.ToString("00");
-        ToMinute = toTime.Minute.ToString("00");
-        ToSecond = toTime.Second.ToString("00");
+        var today = _clock.NowLocal.Date;
+        FromDate = today;
+        FromHour = "00";
+        FromMinute = "00";
+        FromSecond = "00";
+        ToDate = today;
+        ToHour = "23";
+        ToMinute = "59";
+        ToSecond = "59";
     }
 
     private static string GetDefaultReportFolder()
@@ -252,7 +297,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn ngày cho Từ giờ.";
+            errorMessage = "Vui lòng chọn Từ ngày.";
             return false;
         }
 
@@ -260,64 +305,16 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn ngày cho Đến giờ.";
+            errorMessage = "Vui lòng chọn Đến ngày.";
             return false;
         }
 
-        if (!int.TryParse(FromHour, out var fromHour) || fromHour is < 0 or > 23)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giờ của Từ giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(FromMinute, out var fromMinute) || fromMinute is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Phút của Từ giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(FromSecond, out var fromSecond) || fromSecond is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giây của Từ giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(ToHour, out var toHour) || toHour is < 0 or > 23)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giờ của Đến giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(ToMinute, out var toMinute) || toMinute is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Phút của Đến giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(ToSecond, out var toSecond) || toSecond is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giây của Đến giờ không hợp lệ.";
-            return false;
-        }
-
-        fromTime = FromDate.Value.Date.AddHours(fromHour).AddMinutes(fromMinute).AddSeconds(fromSecond);
-        toTime = ToDate.Value.Date.AddHours(toHour).AddMinutes(toMinute).AddSeconds(toSecond);
+        fromTime = FromDate.Value.Date;
+        toTime = ToDate.Value.Date.AddDays(1).AddTicks(-1);
 
         if (fromTime > toTime)
         {
-            errorMessage = "Từ giờ không được lớn hơn Đến giờ.";
+            errorMessage = "Từ ngày không được lớn hơn Đến ngày.";
             return false;
         }
 
@@ -409,7 +406,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         var rightHeaderPanel = new StackPanel();
         rightHeaderPanel.Children.Add(new TextBlock
         {
-            Text = "BÁO CÁO CÂN HÀNG TRẠM ĐẬP",
+            Text = "BÁO CÁO CÂN HÀNG",
             FontSize = 16,
             FontWeight = FontWeights.Bold,
             TextAlignment = TextAlignment.Center
@@ -426,15 +423,17 @@ public partial class CrusherInboundReportViewModel : ObservableObject
 
         var dataTable = new Table();
         dataTable.CellSpacing = 0;
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(44) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(90) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(38) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(64) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(88) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(62) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(62) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(62) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(62) });
         dataTable.Columns.Add(new TableColumn { Width = new GridLength(74) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(104) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(132) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(96) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(116) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(86) });
 
         var dataGroup = new TableRowGroup();
         dataTable.RowGroups.Add(dataGroup);
@@ -451,20 +450,38 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         AddCell(reportHeaderRow, "Khách hàng", true);
         AddCell(reportHeaderRow, "Hàng hóa", true);
 
+        AddCell(reportHeaderRow, "Hoàn", true);
+
+        reportHeaderRow.Cells.Clear();
+        AddCell(reportHeaderRow, "STT", true);
+        AddCell(reportHeaderRow, "Số phiếu", true);
+        AddCell(reportHeaderRow, "Số xe", true);
+        AddCell(reportHeaderRow, "Ngày cân", true);
+        AddCell(reportHeaderRow, "Tổng (tấn)", true);
+        AddCell(reportHeaderRow, "Bì (tấn)", true);
+        AddCell(reportHeaderRow, "Hàng (tấn)", true);
+        AddCell(reportHeaderRow, "Hoàn (tấn)", true, foreground: Brushes.Firebrick);
+        AddCell(reportHeaderRow, "Thực nhập (tấn)", true);
+        AddCell(reportHeaderRow, "Khách hàng", true);
+        AddCell(reportHeaderRow, "Hàng hóa", true);
+
         for (var index = 0; index < document.Rows.Count; index++)
         {
             var row = document.Rows[index];
             var dataRow = new TableRow();
             dataGroup.Rows.Add(dataRow);
-            AddCell(dataRow, row.RowNo.ToString());
-            AddCell(dataRow, row.SessionNo);
-            AddCell(dataRow, row.InternalVehicleNo);
-            AddCell(dataRow, row.Weight2Time?.ToString("dd/MM/yyyy HH:mm"));
-            AddCell(dataRow, row.GrossWeightTon.ToString("N3"));
-            AddCell(dataRow, row.TareWeightTon.ToString("N3"));
-            AddCell(dataRow, row.NetWeightTon.ToString("N3"));
-            AddCell(dataRow, row.CustomerName);
-            AddCell(dataRow, row.ProductName);
+            var rowBrush = row.IsReturnedBrokenTrip ? Brushes.Firebrick : null;
+            AddCell(dataRow, row.RowNo.ToString(), foreground: rowBrush);
+            AddCell(dataRow, row.SessionNo, foreground: rowBrush);
+            AddCell(dataRow, row.InternalVehicleNo, foreground: rowBrush);
+            AddCell(dataRow, row.Weight2Time?.ToString("dd/MM/yyyy HH:mm"), foreground: rowBrush);
+            AddCell(dataRow, row.GrossWeightTon.ToString("N3"), foreground: rowBrush);
+            AddCell(dataRow, row.TareWeightTon.ToString("N3"), foreground: rowBrush);
+            AddCell(dataRow, row.NetWeightTon.ToString("N3"), foreground: rowBrush);
+            AddCell(dataRow, row.ReturnedBrokenWeightTon == 0m ? string.Empty : row.ReturnedBrokenWeightTon.ToString("N3"), foreground: Brushes.Firebrick);
+            AddCell(dataRow, row.ActualInboundWeightTon.ToString("N3"), foreground: rowBrush);
+            AddCell(dataRow, row.CustomerName, foreground: rowBrush);
+            AddCell(dataRow, row.ProductName, foreground: rowBrush);
         }
 
         var totalRow = new TableRow();
@@ -482,6 +499,8 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         AddCell(totalRow, string.Empty);
         AddCell(totalRow, string.Empty);
         AddCell(totalRow, document.TotalNetWeightTon.ToString("N3"), false, TextAlignment.Right);
+        AddCell(totalRow, document.ReturnedBrokenWeightTon.ToString("N3"), false, TextAlignment.Right, Brushes.Firebrick);
+        AddCell(totalRow, document.ActualInboundWeightTon.ToString("N3"), false, TextAlignment.Right);
         AddCell(totalRow, string.Empty);
         AddCell(totalRow, string.Empty);
 
@@ -554,7 +573,12 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         };
     }
 
-    private static void AddCell(TableRow row, string? text, bool isHeader = false, TextAlignment textAlignment = TextAlignment.Center)
+    private static void AddCell(
+        TableRow row,
+        string? text,
+        bool isHeader = false,
+        TextAlignment textAlignment = TextAlignment.Center,
+        Brush? foreground = null)
     {
         row.Cells.Add(new TableCell(new Paragraph(new Run(text ?? string.Empty)))
         {
@@ -563,7 +587,8 @@ public partial class CrusherInboundReportViewModel : ObservableObject
             Padding = new Thickness(4),
             FontWeight = isHeader ? FontWeights.Bold : FontWeights.Regular,
             TextAlignment = textAlignment,
-            Background = isHeader ? new SolidColorBrush(Color.FromRgb(0xD9, 0xD9, 0xD9)) : null
+            Background = isHeader ? new SolidColorBrush(Color.FromRgb(0xD9, 0xD9, 0xD9)) : null,
+            Foreground = foreground ?? Brushes.Black
         });
     }
 
@@ -571,9 +596,10 @@ public partial class CrusherInboundReportViewModel : ObservableObject
     {
         if (fromTime.Date == toTime.Date)
         {
-            return $"Thời gian: Từ {fromTime:HH:mm} đến {toTime:HH:mm} ngày {fromTime:dd/MM/yyyy}";
+            return $"Ngày: {fromTime:dd/MM/yyyy}";
         }
 
-        return $"Thời gian: Từ {fromTime:HH:mm dd/MM/yyyy} đến {toTime:HH:mm dd/MM/yyyy}";
+        return $"Từ ngày {fromTime:dd/MM/yyyy} đến ngày {toTime:dd/MM/yyyy}";
     }
 }
+

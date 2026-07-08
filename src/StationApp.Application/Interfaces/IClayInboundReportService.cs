@@ -11,5 +11,9 @@ public interface IClayInboundReportService
 
     Task<IReadOnlyList<ReportLookupOptionDto>> GetProductOptionsAsync(CancellationToken ct);
 
-    Task<IReadOnlyList<ReportLookupOptionDto>> GetCustomersAsync(CancellationToken ct);
+    Task<IReadOnlyList<ReportLookupOptionDto>> GetCarrierOptionsAsync(CancellationToken ct);
+
+    Task<IReadOnlyList<ReportLookupOptionDto>> GetVesselOptionsAsync(
+        ClayInboundVesselLookupFilter filter,
+        CancellationToken ct);
 }

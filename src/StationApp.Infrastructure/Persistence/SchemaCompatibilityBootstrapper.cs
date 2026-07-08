@@ -21,8 +21,10 @@ public static class SchemaCompatibilityBootstrapper
         new("CarryForwardWeight1Time", "datetime2 NULL"),
         new("TareWeightKg", "decimal(18,3) NULL"),
         new("BagWeightKg", "decimal(18,3) NULL"),
+        new("ExportPackageType", "nvarchar(30) NULL"),
         new("IsExportScale", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_export_scale_bootstrap] DEFAULT ((0))"),
         new("IsPortTransfer", "bit NOT NULL CONSTRAINT [DF_cut_orders_is_port_transfer_bootstrap] DEFAULT ((0))"),
+        new("ExportUnweighedWeight", "decimal(18,3) NOT NULL CONSTRAINT [DF_cut_orders_export_unweighed_weight_bootstrap] DEFAULT ((0))"),
         new("ExportFinalizedWeight", "decimal(18,3) NULL"),
         new("ExportFinalizedAt", "datetime2 NULL"),
         new("ExportFinalizedBy", "nvarchar(100) NULL"),
@@ -122,7 +124,8 @@ public static class SchemaCompatibilityBootstrapper
         new("ProductCode", "nvarchar(50) NULL"),
         new("ProductName", "nvarchar(255) NULL"),
         new("CustomerCode", "nvarchar(50) NULL"),
-        new("CustomerName", "nvarchar(255) NULL")
+        new("CustomerName", "nvarchar(255) NULL"),
+        new("IsReturnedBrokenTrip", "bit NOT NULL CONSTRAINT [DF_weighing_sessions_is_returned_broken_trip_bootstrap] DEFAULT ((0))")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> WeighingSessionLineColumnPatches =

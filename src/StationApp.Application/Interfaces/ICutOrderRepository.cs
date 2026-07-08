@@ -28,6 +28,9 @@ public interface ICutOrderRepository
     Task<IReadOnlyList<TemporaryExportCutOrderOption>> GetActiveTemporaryExportCutOrderOptionsAsync(Guid? realCutOrderId, CancellationToken ct);
     Task<string> GenerateTemporaryExportDisplayCodeAsync(CancellationToken ct);
     Task<IReadOnlyList<ExportVehicleTripListItem>> GetExportVehicleTripsAsync(Guid cutOrderId, CancellationToken ct);
+    Task<IReadOnlyList<ClayVesselListItem>> GetClayVesselsAsync(ClayVesselFilter filter, CancellationToken ct);
+    Task<string> GenerateClayVesselDisplayCodeAsync(CancellationToken ct);
+    Task<IReadOnlyList<ClayVehicleTripListItem>> GetClayVehicleTripsAsync(Guid cutOrderId, CancellationToken ct);
     Task<IReadOnlyList<VehicleAutocompleteSource>> SearchVehicleHistorySourcesAsync(string keyword, int limit, CancellationToken ct);
     Task<IReadOnlyList<VehicleAutocompleteSource>> SearchMoocHistorySourcesAsync(string keyword, int limit, CancellationToken ct);
     Task<IReadOnlyList<DriverAutocompleteSource>> SearchDriverHistorySourcesAsync(string keyword, int limit, CancellationToken ct);

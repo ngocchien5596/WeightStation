@@ -35,6 +35,43 @@ function Invoke-PowerShellScript {
     }
 }
 
+function Add-PublishReleaseLog {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LogPath,
+        [Parameter(Mandatory = $true)]
+        [DateTimeOffset]$PublishedAt,
+        [Parameter(Mandatory = $true)]
+        [string]$Version,
+        [Parameter(Mandatory = $true)]
+        [string]$Notes,
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName,
+        [Parameter(Mandatory = $true)]
+        [string]$PackagePath
+    )
+
+    if (-not (Test-Path $LogPath)) {
+        Set-Content -Path $LogPath -Value "# Publish release log`r`n" -Encoding UTF8
+    }
+
+    $entry = @(
+        ""
+        "## $($PublishedAt.ToString("yyyy-MM-dd HH:mm:ss zzz")) - v$Version"
+        ""
+        "- Thoi gian: $($PublishedAt.ToString("yyyy-MM-dd HH:mm:ss zzz"))"
+        "- Phien ban: $Version"
+        "- File publish: $PackageName"
+        "- Duong dan: $PackagePath"
+        "- Release note:"
+        ""
+        $Notes
+        ""
+    ) -join "`r`n"
+
+    Add-Content -Path $LogPath -Value $entry -Encoding UTF8
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $publishScriptPath = Join-Path $PSScriptRoot "publish-ui-release.ps1"
 
@@ -55,6 +92,7 @@ $localZipPath = Join-Path $repoRoot "Builds\$packageName"
 $sharedZipPath = Join-Path $SharedReleaseRoot $packageName
 $latestManifestPath = Join-Path $SharedReleaseRoot "latest.json"
 $versionManifestPath = Join-Path $SharedReleaseRoot "StationApp_$AppVersion`_$releaseStamp.json"
+$publishLogPath = Join-Path $SharedReleaseRoot "publish-release-log.md"
 
 Invoke-PowerShellScript -ScriptPath $publishScriptPath -Arguments @(
     "-Configuration", $Configuration,
@@ -94,8 +132,16 @@ if (-not (Test-Path $SharedReleaseRoot)) {
 Copy-Item $localZipPath $sharedZipPath -Force
 Set-Content -Path $latestManifestPath -Value $manifestJson -Encoding UTF8
 Set-Content -Path $versionManifestPath -Value $manifestJson -Encoding UTF8
+Add-PublishReleaseLog `
+    -LogPath $publishLogPath `
+    -PublishedAt $publishedAt `
+    -Version $AppVersion `
+    -Notes $ReleaseNotes `
+    -PackageName $packageName `
+    -PackagePath $sharedZipPath
 
 Write-Host "Shared folder release published successfully."
 Write-Host "Version: $AppVersion"
 Write-Host "Package: $sharedZipPath"
 Write-Host "Manifest: $latestManifestPath"
+Write-Host "Publish log: $publishLogPath"

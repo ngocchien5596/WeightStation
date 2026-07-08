@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Globalization;
 using StationApp.Application.DTOs;
 using StationApp.Application.Formatting;
 using StationApp.Application.Interfaces;
@@ -11,6 +12,7 @@ using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace StationApp.Infrastructure.Services;
@@ -265,27 +267,36 @@ public class ToleranceProvider : IToleranceProvider
     public async Task<decimal> GetToleranceKgPerBagAsync(CancellationToken ct)
     {
         var val = await _configRepo.GetValueAsync(AppConfigKeys.ToleranceKgPerBag, ct);
-        return decimal.TryParse(val, out var result) ? result : AppConfigDefaults.DefaultToleranceKgPerBag;
+        return decimal.TryParse(val, NumberStyles.Number, CultureInfo.InvariantCulture, out var result)
+            ? result
+            : AppConfigDefaults.DefaultToleranceKgPerBag;
     }
 }
 
 public class CameraSettingsProvider : ICameraSettingsProvider
 {
     private readonly IAppConfigRepository _configRepo;
+    private readonly string _resolvedStationCode;
 
-    public CameraSettingsProvider(IAppConfigRepository configRepo)
+    public CameraSettingsProvider(IAppConfigRepository configRepo, IConfiguration configuration)
     {
         _configRepo = configRepo;
+        var station = configuration["PrintingStationName"];
+        if (string.IsNullOrWhiteSpace(station))
+        {
+            var machineName = Environment.MachineName.ToUpperInvariant();
+            station = machineName.Contains("C6") ? "C6" : "C2";
+        }
+        _resolvedStationCode = station.Trim();
     }
 
     public Task<CameraSystemSettings> GetAsync(CancellationToken ct)
-    {
-        return GetForStationAsync("C2", ct);
-    }
+        => GetForStationAsync(null, ct);
 
-    public async Task<CameraSystemSettings> GetForStationAsync(string stationCode, CancellationToken ct)
+    public async Task<CameraSystemSettings> GetForStationAsync(string? stationCode, CancellationToken ct)
     {
-        var profile = CameraStationProfile.Resolve(stationCode);
+        var code = string.IsNullOrWhiteSpace(stationCode) ? _resolvedStationCode : stationCode;
+        var profile = CameraStationProfile.Resolve(code);
 
         var camera1Enabled = ParseBool(await _configRepo.GetValueAsync(profile.Camera1EnabledKey, ct), profile.Camera1EnabledDefault);
         var camera1Name = await _configRepo.GetValueAsync(profile.Camera1NameKey, ct) ?? profile.Camera1NameDefault;
@@ -496,4 +507,3 @@ public class SyncPayloadFactory : ISyncPayloadFactory
     public string CreatePayload(Product product)
         => JsonSerializer.Serialize(product, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }
-

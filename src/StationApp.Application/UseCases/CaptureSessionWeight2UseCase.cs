@@ -286,20 +286,24 @@ public sealed class CaptureSessionWeight2UseCase
             return;
         }
 
-        var normalizedTypes = (await ResolveProductTypesAsync(registrations, ct))
-            .Select(ProductTypes.Normalize)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        if (registrations.Any(x => x.IsExportScale))
+        {
+            return;
+        }
 
-        if (normalizedTypes.Count != 1
-            || !string.Equals(normalizedTypes[0], ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase))
+        var baggedFlags = new List<bool>(registrations.Count);
+        foreach (var registration in registrations)
+        {
+            baggedFlags.Add(await IsBaggedForToleranceAsync(registration, ct));
+        }
+
+        if (baggedFlags.Count == 0 || baggedFlags.Any(x => !x))
         {
             return;
         }
 
         var plannedWeight = registrations.Sum(x => x.PlannedWeight ?? 0m);
-        if (plannedWeight <= 0m || netWeight <= plannedWeight)
+        if (plannedWeight <= 0m)
         {
             return;
         }
@@ -312,7 +316,14 @@ public sealed class CaptureSessionWeight2UseCase
         }
 
         var toleranceKg = toleranceKgPerBag * plannedBagCount;
+        var minimumWeight = plannedWeight - toleranceKg;
         var allowedWeight = plannedWeight + toleranceKg;
+        if (netWeight < minimumWeight)
+        {
+            throw new BaggedWeightToleranceExceededException(
+                $"Kh\u1ed1i l\u01b0\u1ee3ng h\u00e0ng {netWeight:N0} kg th\u1ea5p h\u01a1n kh\u1ed1i l\u01b0\u1ee3ng k\u1ebf ho\u1ea1ch {plannedWeight:N0} kg v\u00e0 v\u01b0\u1ee3t dung sai cho ph\u00e9p {toleranceKg:N0} kg ({toleranceKgPerBag:##0.###} kg/bao x {plannedBagCount:N0} bao).");
+        }
+
         if (netWeight > allowedWeight)
         {
             throw new BaggedWeightToleranceExceededException(
@@ -327,9 +338,33 @@ public sealed class CaptureSessionWeight2UseCase
             return false;
         }
 
+        var normalizedPackageType = ExportPackageTypes.Normalize(registration.ExportPackageType);
+        if (!string.IsNullOrWhiteSpace(normalizedPackageType))
+        {
+            return string.Equals(normalizedPackageType, ExportPackageTypes.Bagged, StringComparison.Ordinal);
+        }
+
         if (registration.BagWeightKg.HasValue && registration.BagWeightKg.Value > 0m)
         {
             return true;
+        }
+
+        var normalizedProductType = ProductTypes.Normalize(registration.ProductType);
+        if (string.IsNullOrWhiteSpace(normalizedProductType)
+            && !string.IsNullOrWhiteSpace(registration.ProductCode))
+        {
+            var product = await _productRepo.GetByCodeAsync(registration.ProductCode.Trim(), ct);
+            normalizedProductType = ProductTypes.Normalize(product?.ProductType);
+        }
+
+        return string.Equals(normalizedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<bool> IsBaggedForToleranceAsync(CutOrder registration, CancellationToken ct)
+    {
+        if (registration.IsExportScale)
+        {
+            return await IsExportScaleBaggedCutOrderAsync(registration, ct);
         }
 
         var normalizedProductType = ProductTypes.Normalize(registration.ProductType);
@@ -391,7 +426,7 @@ public sealed class CaptureSessionWeight2UseCase
         {
             var registrations = await _regRepo.GetByWeighingSessionIdAsync(sessionId, ct);
             var isExport = registrations.Any(x => x.IsExportScale);
-            var settings = await _cameraSettingsProvider.GetForStationAsync(isExport ? "C6" : "C2", ct);
+            var settings = await _cameraSettingsProvider.GetForStationAsync(null, ct);
             if (settings.EnabledCameras.Count == 0)
             {
                 return;

@@ -220,74 +220,103 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
     }
 
     public async Task<ExportScaleSummaryReportDocument> BuildExportScaleReportAsync(
-        Guid cutOrderId,
+        Guid? cutOrderId,
         DateTime? targetDateForShiftReport,
         string preparedByDisplayName,
         CancellationToken ct)
     {
         var stationCode = await ResolveStationCodeAsync(ct);
-        var cutOrder = await _dbContext.CutOrders.AsNoTracking()
-            .FirstOrDefaultAsync(x =>
-                x.StationCode == stationCode
-                && x.Id == cutOrderId
-                && !x.IsDeleted
-                && !x.IsCancelled
-                && x.IsExportScale
-                && x.TransactionType == TransactionType.OUTBOUND,
-                ct);
+        var effectiveShiftReportDate = targetDateForShiftReport?.Date ?? DateTime.Today;
+        var fromTime = effectiveShiftReportDate;
+        var toTime = effectiveShiftReportDate.AddDays(1);
 
-        if (cutOrder == null)
+        CutOrder? selectedCutOrder = null;
+        if (cutOrderId.HasValue)
         {
-            throw new InvalidOperationException("Không tìm thấy cắt lệnh xuất khẩu để lập báo cáo.");
+            selectedCutOrder = await _dbContext.CutOrders.AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.StationCode == stationCode
+                    && x.Id == cutOrderId.Value
+                    && !x.IsDeleted
+                    && !x.IsCancelled
+                    && (x.IsExportScale || x.IsTemporaryExport)
+                    && x.TransactionType == TransactionType.OUTBOUND,
+                    ct);
+
+            if (selectedCutOrder == null)
+            {
+                throw new InvalidOperationException("Không tìm thấy cắt lệnh xuất khẩu để lập báo cáo.");
+            }
         }
 
         var rows = await (
             from line in _dbContext.WeighingSessionLines.AsNoTracking()
             join session in _dbContext.WeighingSessions.AsNoTracking()
                 on line.WeighingSessionId equals session.Id
+            join cutOrder in _dbContext.CutOrders.AsNoTracking()
+                on line.CutOrderId equals cutOrder.Id
             where line.StationCode == stationCode
                 && session.StationCode == stationCode
-                && line.CutOrderId == cutOrderId
+                && cutOrder.StationCode == stationCode
                 && !line.IsDeleted
                 && !session.IsDeleted
                 && !session.IsCancelled
                 && !session.IsNoLoad
+                && !cutOrder.IsDeleted
+                && !cutOrder.IsCancelled
                 && line.LineStatus == WeighingSessionLineStatus.ALLOCATED
                 && session.TransactionType == TransactionType.OUTBOUND
+                && cutOrder.TransactionType == TransactionType.OUTBOUND
+                && (cutOrder.IsExportScale || cutOrder.IsTemporaryExport)
                 && session.Weight2Time.HasValue
                 && (session.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
                     || session.SessionStatus == WeighingSessionStatus.COMPLETED)
+                && (cutOrderId.HasValue
+                    ? line.CutOrderId == cutOrderId.Value
+                    : session.Weight2Time.Value >= fromTime && session.Weight2Time.Value < toTime)
             orderby session.Weight2Time, session.SessionNo, line.SequenceNo
             select new
             {
                 Session = session,
-                Line = line
+                Line = line,
+                CutOrder = cutOrder
             })
             .ToListAsync(ct);
 
-        var canComputeBagMetrics = CanComputeExportScaleBagMetrics(cutOrder);
-        var tareWeightKg = canComputeBagMetrics ? cutOrder.TareWeightKg!.Value : 0m;
-        var netCementWeightKg = canComputeBagMetrics ? cutOrder.BagWeightKg!.Value : 0m;
+        var headerCutOrder = selectedCutOrder;
+        var canComputeBagMetrics = headerCutOrder != null && CanComputeExportScaleBagMetrics(headerCutOrder);
+        var tareWeightKg = canComputeBagMetrics ? headerCutOrder!.TareWeightKg!.Value : 0m;
+        var netCementWeightKg = canComputeBagMetrics ? headerCutOrder!.BagWeightKg!.Value : 0m;
         var grossWeightKg = canComputeBagMetrics ? tareWeightKg + netCementWeightKg : 0m;
-        var plannedWeightTon = decimal.Round((cutOrder.PlannedWeight ?? 0m) / 1000m, 3, MidpointRounding.AwayFromZero);
+        var plannedWeightTon = headerCutOrder == null
+            ? 0m
+            : decimal.Round((headerCutOrder.PlannedWeight ?? 0m) / 1000m, 3, MidpointRounding.AwayFromZero);
         var plannedBagCount = canComputeBagMetrics && netCementWeightKg > 0m
-            ? (int)decimal.Round((cutOrder.PlannedWeight ?? 0m) / netCementWeightKg, 0, MidpointRounding.AwayFromZero)
+            ? (int)decimal.Round((headerCutOrder!.PlannedWeight ?? 0m) / netCementWeightKg, 0, MidpointRounding.AwayFromZero)
             : 0;
 
         var rawRows = rows.Select((item, index) =>
-            BuildExportScaleRow(index + 1, item.Session, item.Line, cutOrder, canComputeBagMetrics, grossWeightKg, tareWeightKg))
-            .ToList();
+        {
+            var rowCanComputeBagMetrics = CanComputeExportScaleBagMetrics(item.CutOrder);
+            var rowTareWeightKg = rowCanComputeBagMetrics ? item.CutOrder.TareWeightKg!.Value : 0m;
+            var rowNetCementWeightKg = rowCanComputeBagMetrics ? item.CutOrder.BagWeightKg!.Value : 0m;
+            var rowGrossWeightKg = rowCanComputeBagMetrics ? rowTareWeightKg + rowNetCementWeightKg : 0m;
+            return BuildExportScaleRow(
+                index + 1,
+                item.Session,
+                item.Line,
+                item.CutOrder,
+                rowCanComputeBagMetrics,
+                rowGrossWeightKg,
+                rowTareWeightKg);
+        }).ToList();
         var mappedRows = MergeReturnedBrokenTrips(rawRows);
 
-        var effectiveShiftReportDate = targetDateForShiftReport?.Date
-            ?? rawRows.LastOrDefault()?.ExportDate.Date
-            ?? DateTime.Today;
-
         return new ExportScaleSummaryReportDocument(
-            cutOrder.Id,
-            ResolveCutOrderDisplayCode(cutOrder),
-            cutOrder.CustomerName,
-            cutOrder.ProductName,
+            headerCutOrder?.Id ?? Guid.Empty,
+            headerCutOrder == null ? "Tất cả" : ResolveCutOrderDisplayCode(headerCutOrder),
+            headerCutOrder?.CustomerName,
+            headerCutOrder?.ProductName,
             plannedWeightTon,
             plannedBagCount,
             tareWeightKg,
@@ -297,7 +326,6 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             preparedByDisplayName,
             mappedRows);
     }
-
     public async Task<IReadOnlyList<ReportLookupOptionDto>> GetProductOptionsAsync(CancellationToken ct)
     {
         return await _dbContext.Products.AsNoTracking()
@@ -913,6 +941,7 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
     private static void BuildHeader(IXLWorksheet sheet, ExportSummaryReportDocument document)
     {
         sheet.Range("B2:G3").Merge().Value = "XI MĂNG CẨM PHẢ\nPHÒNG CHIẾN LƯỢC KINH DOANH";
+        sheet.Range("B2:G3").Merge().Value = "XI MĂNG CẨM PHẢ\nPHÒNG CHIẾN LƯỢC KINH DOANH";
         var leftHeader = sheet.Range("B2:G3");
         leftHeader.Style.Alignment.WrapText = true;
         leftHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
@@ -920,8 +949,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         leftHeader.Style.Font.Bold = true;
         leftHeader.Style.Font.FontSize = 12;
 
-        sheet.Range("O2:V3").Merge().Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc";
-        var rightHeader = sheet.Range("O2:V3");
+        sheet.Range("O2:T3").Merge().Value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc";
+        var rightHeader = sheet.Range("O2:T3");
         rightHeader.Style.Alignment.WrapText = true;
         rightHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         rightHeader.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -929,8 +958,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         rightHeader.Style.Font.FontSize = 12;
 
         var title = $"BÁO CÁO XUẤT TỔNG HỢP TỪ {document.FromTime:HH:mm:ss dd/MM/yyyy} ĐẾN {document.ToTime:HH:mm:ss dd/MM/yyyy}";
-        sheet.Range("B5:V5").Merge().Value = title;
-        var titleRange = sheet.Range("B5:V5");
+        sheet.Range("B5:T5").Merge().Value = title;
+        var titleRange = sheet.Range("B5:T5");
         titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         titleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         titleRange.Style.Font.Bold = true;
@@ -942,39 +971,37 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         const int topHeaderRow = 7;
         const int bottomHeaderRow = 8;
         const int dataStartRow = 9;
-        const int lastColumn = 22;
+        const int lastColumn = 20;
 
         sheet.Cell(topHeaderRow, 2).Value = "NGÀY XUẤT";
         sheet.Cell(topHeaderRow, 3).Value = "GIỜ XUẤT";
         sheet.Cell(topHeaderRow, 4).Value = "MÃ CẮT LỆNH";
-        sheet.Cell(topHeaderRow, 5).Value = "MÃ KH";
-        sheet.Cell(topHeaderRow, 6).Value = "TÊN KH";
-        sheet.Cell(topHeaderRow, 7).Value = "LOẠI HÀNG";
-        sheet.Cell(topHeaderRow, 8).Value = "SỐ PC";
-        sheet.Cell(topHeaderRow, 9).Value = "SỐ PGN";
-        sheet.Cell(topHeaderRow, 10).Value = "SỐ PTVC";
-        sheet.Cell(topHeaderRow, 11).Value = "TÊN TÀI XẾ";
-        sheet.Cell(topHeaderRow, 12).Value = "ĐẶT HÀNG";
-        sheet.Cell(topHeaderRow, 14).Value = "THỰC XUẤT";
-        sheet.Cell(topHeaderRow, 16).Value = "ERP";
-        sheet.Cell(topHeaderRow, 18).Value = "GHI CHÚ";
-        sheet.Cell(topHeaderRow, 19).Value = "CHÊNH LỆCH";
-        sheet.Cell(topHeaderRow, 20).Value = "KG/BAO";
-        sheet.Cell(topHeaderRow, 21).Value = "TỈ LỆ (0,99≤x≤1,01)";
-        sheet.Cell(topHeaderRow, 22).Value = "ĐẠT/VƯỢT/THIẾU";
+        sheet.Cell(topHeaderRow, 5).Value = "TÊN KH";
+        sheet.Cell(topHeaderRow, 6).Value = "LOẠI HÀNG";
+        sheet.Cell(topHeaderRow, 7).Value = "SỐ PC";
+        sheet.Cell(topHeaderRow, 8).Value = "SỐ PGN";
+        sheet.Cell(topHeaderRow, 9).Value = "BIỂN SỐ XE";
+        sheet.Cell(topHeaderRow, 10).Value = "ĐẶT HÀNG";
+        sheet.Cell(topHeaderRow, 12).Value = "THỰC XUẤT";
+        sheet.Cell(topHeaderRow, 14).Value = "ERP";
+        sheet.Cell(topHeaderRow, 16).Value = "GHI CHÚ";
+        sheet.Cell(topHeaderRow, 17).Value = "CHÊNH LỆCH";
+        sheet.Cell(topHeaderRow, 18).Value = "KG/BAO";
+        sheet.Cell(topHeaderRow, 19).Value = "TỈ LỆ (0,99≤x≤1,01)";
+        sheet.Cell(topHeaderRow, 20).Value = "ĐẠT/VƯỢT/THIẾU";
 
+        sheet.Range(topHeaderRow, 10, topHeaderRow, 11).Merge();
         sheet.Range(topHeaderRow, 12, topHeaderRow, 13).Merge();
         sheet.Range(topHeaderRow, 14, topHeaderRow, 15).Merge();
-        sheet.Range(topHeaderRow, 16, topHeaderRow, 17).Merge();
 
+        sheet.Cell(bottomHeaderRow, 10).Value = "BAO";
+        sheet.Cell(bottomHeaderRow, 11).Value = "TẤN";
         sheet.Cell(bottomHeaderRow, 12).Value = "BAO";
         sheet.Cell(bottomHeaderRow, 13).Value = "TẤN";
         sheet.Cell(bottomHeaderRow, 14).Value = "BAO";
         sheet.Cell(bottomHeaderRow, 15).Value = "TẤN";
-        sheet.Cell(bottomHeaderRow, 16).Value = "BAO";
-        sheet.Cell(bottomHeaderRow, 17).Value = "TẤN";
 
-        foreach (var singleColumn in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 21, 22 })
+        foreach (var singleColumn in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19, 20 })
         {
             sheet.Range(topHeaderRow, singleColumn, bottomHeaderRow, singleColumn).Merge();
         }
@@ -995,52 +1022,50 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             sheet.Cell(row, 3).Value = item.ExportedAt;
             sheet.Cell(row, 3).Style.DateFormat.Format = "HH:mm";
             sheet.Cell(row, 4).Value = item.CutOrderCode;
-            sheet.Cell(row, 5).Value = item.CustomerCode;
-            sheet.Cell(row, 6).Value = item.CustomerName;
-            sheet.Cell(row, 7).Value = item.ProductDisplayName;
-            sheet.Cell(row, 8).Value = item.WeighTicketNo;
-            sheet.Cell(row, 9).Value = item.DeliveryNo;
-            sheet.Cell(row, 10).Value = item.VehiclePlate;
-            sheet.Cell(row, 11).Value = item.DriverName;
-            sheet.Cell(row, 12).Value = item.PlannedBagCount;
-            sheet.Cell(row, 13).Value = item.PlannedTon;
-            sheet.Cell(row, 14).Value = item.ActualBagCount;
-            sheet.Cell(row, 15).Value = item.ActualTon;
-            sheet.Cell(row, 16).Value = item.ErpBagCount;
-            sheet.Cell(row, 17).Value = item.ErpTon;
-            sheet.Cell(row, 18).Value = item.Notes;
-            sheet.Cell(row, 19).Value = item.DifferenceTon;
-            sheet.Cell(row, 20).Value = FormatOptionalDecimal(item.ActualKgPerBag, 2);
-            sheet.Cell(row, 21).Value = FormatOptionalDecimal(item.KgPerBagRatio, 4);
-            sheet.Cell(row, 22).Value = item.Status;
+            sheet.Cell(row, 5).Value = item.CustomerName;
+            sheet.Cell(row, 6).Value = item.ProductDisplayName;
+            sheet.Cell(row, 7).Value = item.WeighTicketNo;
+            sheet.Cell(row, 8).Value = item.DeliveryNo;
+            sheet.Cell(row, 9).Value = item.VehiclePlate;
+            sheet.Cell(row, 10).Value = item.PlannedBagCount;
+            sheet.Cell(row, 11).Value = item.PlannedTon;
+            sheet.Cell(row, 12).Value = item.ActualBagCount;
+            sheet.Cell(row, 13).Value = item.ActualTon;
+            sheet.Cell(row, 14).Value = item.ErpBagCount;
+            sheet.Cell(row, 15).Value = item.ErpTon;
+            sheet.Cell(row, 16).Value = item.Notes;
+            sheet.Cell(row, 17).Value = item.DifferenceTon;
+            sheet.Cell(row, 18).Value = FormatOptionalDecimal(item.ActualKgPerBag, 2);
+            sheet.Cell(row, 19).Value = FormatOptionalDecimal(item.KgPerBagRatio, 4);
+            sheet.Cell(row, 20).Value = item.Status;
             row++;
         }
 
         if (document.Rows.Count > 0)
         {
+            sheet.Range(dataStartRow, 11, row - 1, 11).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 13, row - 1, 13).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 15, row - 1, 15).Style.NumberFormat.Format = "#,##0.00";
             sheet.Range(dataStartRow, 17, row - 1, 17).Style.NumberFormat.Format = "#,##0.00";
-            sheet.Range(dataStartRow, 19, row - 1, 19).Style.NumberFormat.Format = "#,##0.00";
         }
 
         var totalRow = row;
-        sheet.Range(totalRow, 2, totalRow, 11).Merge().Value = "TỔNG";
-        var totalLabelRange = sheet.Range(totalRow, 2, totalRow, 11);
+        sheet.Range(totalRow, 2, totalRow, 9).Merge().Value = "TỔNG";
+        var totalLabelRange = sheet.Range(totalRow, 2, totalRow, 9);
         totalLabelRange.Style.Font.Bold = true;
         totalLabelRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 2, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 15).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 2, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 17).Value = decimal.Round(document.Rows.Sum(x => x.ErpTon ?? 0m), 2, MidpointRounding.AwayFromZero);
-        sheet.Cell(totalRow, 19).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 11).Value = decimal.Round(document.Rows.Sum(x => x.PlannedTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 13).Value = decimal.Round(document.Rows.Sum(x => x.ActualTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 15).Value = decimal.Round(document.Rows.Sum(x => x.ErpTon ?? 0m), 2, MidpointRounding.AwayFromZero);
+        sheet.Cell(totalRow, 17).Value = decimal.Round(document.Rows.Sum(x => x.DifferenceTon), 2, MidpointRounding.AwayFromZero);
+        sheet.Range(totalRow, 11, totalRow, 11).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 13, totalRow, 13).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 15, totalRow, 15).Style.NumberFormat.Format = "#,##0.00";
         sheet.Range(totalRow, 17, totalRow, 17).Style.NumberFormat.Format = "#,##0.00";
-        sheet.Range(totalRow, 19, totalRow, 19).Style.NumberFormat.Format = "#,##0.00";
+        sheet.Cell(totalRow, 10).Value = string.Empty;
         sheet.Cell(totalRow, 12).Value = string.Empty;
         sheet.Cell(totalRow, 14).Value = string.Empty;
-        sheet.Cell(totalRow, 16).Value = string.Empty;
 
         var totalBaggedRows = document.Rows.Where(x => x.ActualBagCount > 0).ToList();
         if (totalBaggedRows.Count > 0)
@@ -1050,8 +1075,8 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
             if (totalActualBagCount > 0)
             {
                 var totalKgPerBag = decimal.Round(totalActualWeightKg / totalActualBagCount, 2, MidpointRounding.AwayFromZero);
-                sheet.Cell(totalRow, 20).Value = FormatOptionalDecimal(totalKgPerBag, 2);
-                sheet.Cell(totalRow, 21).Value = FormatOptionalDecimal(decimal.Round(totalKgPerBag / 50m, 4, MidpointRounding.AwayFromZero), 4);
+                sheet.Cell(totalRow, 18).Value = FormatOptionalDecimal(totalKgPerBag, 2);
+                sheet.Cell(totalRow, 19).Value = FormatOptionalDecimal(decimal.Round(totalKgPerBag / 50m, 4, MidpointRounding.AwayFromZero), 4);
             }
         }
 
@@ -1078,26 +1103,26 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
     {
         if (rowCount > 0)
         {
-            sheet.Range(dataStartRow, 2, totalRow - 1, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            sheet.Range(dataStartRow, 2, totalRow - 1, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
             sheet.Range(dataStartRow, 2, totalRow - 1, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 10, totalRow - 1, 10).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 12, totalRow - 1, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             sheet.Range(dataStartRow, 14, totalRow - 1, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            sheet.Range(dataStartRow, 16, totalRow - 1, 16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 11, totalRow - 1, 11).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             sheet.Range(dataStartRow, 13, totalRow - 1, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             sheet.Range(dataStartRow, 15, totalRow - 1, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 17, totalRow - 1, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 19, totalRow - 1, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            sheet.Range(dataStartRow, 22, totalRow - 1, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            sheet.Range(dataStartRow, 17, totalRow - 1, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            sheet.Range(dataStartRow, 20, totalRow - 1, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
+        sheet.Range(totalRow, 10, totalRow, 10).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         sheet.Range(totalRow, 12, totalRow, 12).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         sheet.Range(totalRow, 14, totalRow, 14).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(totalRow, 16, totalRow, 16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(totalRow, 11, totalRow, 11).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         sheet.Range(totalRow, 13, totalRow, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         sheet.Range(totalRow, 15, totalRow, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 17, totalRow, 17).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 19, totalRow, 21).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-        sheet.Range(totalRow, 22, totalRow, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(totalRow, 17, totalRow, 19).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        sheet.Range(totalRow, 20, totalRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
     private static int BuildTable(IXLWorksheet sheet, ExportSummaryReportDocument document)
@@ -1112,7 +1137,7 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Cell(topHeaderRow, 5).Value = "MÃ KH";
         sheet.Cell(topHeaderRow, 6).Value = "TÊN KH";
         sheet.Cell(topHeaderRow, 7).Value = "SỐ PGN";
-        sheet.Cell(topHeaderRow, 8).Value = "SỐ PTVC";
+        sheet.Cell(topHeaderRow, 8).Value = "BIỂN SỐ XE";
         sheet.Cell(topHeaderRow, 9).Value = "TÊN TÀI XẾ";
         sheet.Cell(topHeaderRow, 10).Value = "ĐẶT HÀNG";
         sheet.Cell(topHeaderRow, 12).Value = "THỰC XUẤT";
@@ -1516,7 +1541,6 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         sheet.Range(dataStartRow, 5, dataEndRow, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
         sheet.Range(dataStartRow, 14, dataEndRow, 15).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        // Hide column 16 (P) which has "Loại" values for formulas
         sheet.Column(16).Hide();
 
         return dataEndRow;
@@ -1587,6 +1611,14 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
 
     private static void ApplyExportScaleSheetLayout(IXLWorksheet sheet, int lastRelevantRow)
     {
+        sheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        sheet.PageSetup.PaperSize = XLPaperSize.A4Paper;
+        sheet.PageSetup.FitToPages(1, 0);
+        sheet.PageSetup.Margins.Top = 0.3;
+        sheet.PageSetup.Margins.Bottom = 0.3;
+        sheet.PageSetup.Margins.Left = 0.2;
+        sheet.PageSetup.Margins.Right = 0.2;
+
         sheet.SheetView.FreezeRows(14);
         sheet.Range(1, 1, Math.Max(20, lastRelevantRow), 21).Style.Font.FontName = "Times New Roman";
         sheet.Columns(1, 21).AdjustToContents(1, lastRelevantRow);
@@ -1628,47 +1660,53 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         var footerTitleRow = lastTableRow + 3;
         var footerNameRow = lastTableRow + 6;
 
-        sheet.Range(footerTitleRow, 19, footerTitleRow, 22).Merge().Value = "Người lập";
-        sheet.Range(footerTitleRow, 19, footerTitleRow, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(footerTitleRow, 19, footerTitleRow, 22).Style.Font.Bold = true;
+        sheet.Range(footerTitleRow, 17, footerTitleRow, 20).Merge().Value = "Người lập";
+        sheet.Range(footerTitleRow, 17, footerTitleRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(footerTitleRow, 17, footerTitleRow, 20).Style.Font.Bold = true;
 
-        sheet.Range(footerNameRow, 19, footerNameRow, 22).Merge().Value = document.PreparedByDisplayName;
-        sheet.Range(footerNameRow, 19, footerNameRow, 22).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        sheet.Range(footerNameRow, 17, footerNameRow, 20).Merge().Value = document.PreparedByDisplayName;
+        sheet.Range(footerNameRow, 17, footerNameRow, 20).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
     private static void ApplySheetLayout(IXLWorksheet sheet, int lastRelevantRow)
     {
+        sheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        sheet.PageSetup.PaperSize = XLPaperSize.A4Paper;
+        sheet.PageSetup.FitToPages(1, 0);
+        sheet.PageSetup.Margins.Top = 0.3;
+        sheet.PageSetup.Margins.Bottom = 0.3;
+        sheet.PageSetup.Margins.Left = 0.2;
+        sheet.PageSetup.Margins.Right = 0.2;
+
         sheet.Column(1).Width = 2;
-        sheet.Column(23).Width = 2;
-        sheet.Column(24).Width = 2;
+        sheet.Column(21).Width = 2;
+        sheet.Column(22).Width = 2;
 
         sheet.SheetView.FreezeRows(8);
-        sheet.Range(7, 2, Math.Max(8, lastRelevantRow), 22).Style.Font.FontName = "Times New Roman";
-        sheet.Range(2, 2, Math.Max(8, lastRelevantRow), 22).Style.Font.FontName = "Times New Roman";
-        sheet.Columns(2, 22).AdjustToContents(2, lastRelevantRow);
+        sheet.Range(7, 2, Math.Max(8, lastRelevantRow), 20).Style.Font.FontName = "Times New Roman";
+        sheet.Range(2, 2, Math.Max(8, lastRelevantRow), 20).Style.Font.FontName = "Times New Roman";
+        sheet.Columns(2, 20).AdjustToContents(2, lastRelevantRow);
         ApplyColumnWidthLimits(sheet, new Dictionary<int, (double Min, double Max)>
         {
             [2] = (12, 14),
             [3] = (9, 11),
             [4] = (14, 20),
-            [5] = (9, 12),
-            [6] = (22, 40),
-            [7] = (24, 44),
-            [8] = (10, 14),
-            [9] = (11, 16),
-            [10] = (12, 16),
-            [11] = (18, 30),
+            [5] = (22, 40),
+            [6] = (24, 44),
+            [7] = (10, 14),
+            [8] = (11, 16),
+            [9] = (12, 16),
+            [10] = (9, 12),
+            [11] = (9, 12),
             [12] = (9, 12),
             [13] = (9, 12),
             [14] = (9, 12),
             [15] = (9, 12),
-            [16] = (9, 12),
-            [17] = (9, 12),
-            [18] = (16, 34),
-            [19] = (10, 13),
-            [20] = (9, 12),
-            [21] = (9, 12),
-            [22] = (12, 16)
+            [16] = (16, 34),
+            [17] = (10, 13),
+            [18] = (9, 12),
+            [19] = (9, 12),
+            [20] = (12, 16)
         });
         sheet.Rows(2, lastRelevantRow).AdjustToContents();
     }

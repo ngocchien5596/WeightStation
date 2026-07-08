@@ -51,6 +51,7 @@ public sealed partial class ExportTripTransferDialogViewModel : ObservableObject
 public sealed record ExportTripTransferOption(
     Guid CutOrderId,
     string? ErpCutOrderId,
+    string DisplayCutOrderCode,
     string VehiclePlate,
     string? CustomerName,
     string? ProductName,

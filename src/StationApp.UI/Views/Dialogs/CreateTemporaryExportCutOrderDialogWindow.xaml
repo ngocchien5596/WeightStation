@@ -4,7 +4,7 @@
         xmlns:controls="clr-namespace:StationApp.UI.Controls"
         Title="{Binding Title}"
         Width="760"
-        Height="420"
+        Height="470"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -43,6 +43,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="34"/>
                         <RowDefinition Height="34"/>
                         <RowDefinition Height="34"/>
                         <RowDefinition Height="34"/>
@@ -89,20 +90,37 @@
                                                    TextBoxStyle="{StaticResource StandardTextBoxStyle}"/>
 
                     <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Lo&#x1EA1;i" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <ComboBox Grid.Row="2" Grid.Column="1"
+                              Margin="0,3,12,3"
+                              ItemsSource="{Binding ExportPackageTypeOptions}"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedExportPackageType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource StandardComboBoxStyle}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="SL &#x111;&#x1EB7;t (t&#x1EA5;n)" FontWeight="SemiBold" Foreground="#334155"/>
                         <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
                     </StackPanel>
-                    <TextBox Grid.Row="2" Grid.Column="1" Margin="0,3,12,3" Text="{Binding PlannedWeightTonsInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
+                    <TextBox Grid.Row="2" Grid.Column="3" Margin="0,3,0,3" Text="{Binding PlannedWeightTonsInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="2" Text="SL &#x111;&#x1EB7;t (bao)" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#334155"/>
-                    <TextBox Grid.Row="2" Grid.Column="3" Margin="0,3,0,3" Text="{Binding BagCountPreview}" IsReadOnly="True" Background="#F8F9F9" Style="{StaticResource StandardTextBoxStyle}"/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="SL &#x111;&#x1EB7;t (bao)" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#334155"/>
+                    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,3,12,3" Text="{Binding BagCountPreview}" IsReadOnly="True" Background="#F8F9F9" Style="{StaticResource StandardTextBoxStyle}"/>
 
-                    <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="TL v&#x1ECF; (kg)" FontWeight="SemiBold" Foreground="#334155"/>
                         <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
                     </StackPanel>
-                    <Grid Grid.Row="3" Grid.Column="1" Margin="0,3,12,3">
-                        <TextBox x:Name="TareWeightInput" Text="{Binding TareWeightKgInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
+                    <Grid Grid.Row="3" Grid.Column="3" Margin="0,3,0,3">
+                        <TextBox x:Name="TareWeightInput" Text="{Binding TareWeightKgInput, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsBagMetricsEnabled}" Style="{StaticResource StandardTextBoxStyle}"/>
                         <TextBlock Text="Ví dụ: 5.36" 
                                    Foreground="#94A3B8" 
                                    IsHitTestVisible="False" 
@@ -126,10 +144,13 @@
                         </TextBlock>
                     </Grid>
 
-                    <TextBlock Grid.Row="3" Grid.Column="2" Text="TL bao (kg)" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center"/>
-                    <TextBox Grid.Row="3" Grid.Column="3" Margin="0,3,0,3" Text="{Binding BagWeightKgInput, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StandardTextBoxStyle}"/>
+                    <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="TL bao (kg)" FontWeight="SemiBold" Foreground="#334155"/>
+                        <TextBlock Text=" *" Foreground="#DC2626" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <TextBox Grid.Row="4" Grid.Column="1" Margin="0,3,12,3" Text="{Binding BagWeightKgInput, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsBagMetricsEnabled}" Style="{StaticResource StandardTextBoxStyle}"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4"
+                    <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4"
                                Text="{Binding FractionalBagWarningMessage}"
                                Foreground="#B45309"
                                FontWeight="SemiBold"
@@ -137,13 +158,13 @@
                                VerticalAlignment="Center"
                                Margin="0,4,0,4"/>
 
-                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Ghi ch&#xFA;" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#334155"/>
-                    <TextBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3"
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Ghi ch&#xFA;" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#334155"/>
+                    <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3"
                              Margin="0,3,0,3"
                              Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource StandardTextBoxStyle}"/>
 
-                    <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4"
+                    <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="4"
                                Text="{Binding ValidationMessage}"
                                Foreground="#DC2626"
                                FontWeight="SemiBold"

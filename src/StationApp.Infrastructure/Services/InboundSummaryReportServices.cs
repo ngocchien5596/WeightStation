@@ -345,7 +345,7 @@ public sealed class InboundSummaryReportExcelExporter : IInboundSummaryReportExp
         {
             "KHÁCH HÀNG",
             "HÀNG HÓA",
-            "SỐ PTVC",
+            "BIỂN SỐ XE",
             "NGÀY VÀO",
             "GIỜ VÀO",
             "NGÀY RA",
@@ -456,10 +456,6 @@ public sealed class InboundSummaryReportExcelExporter : IInboundSummaryReportExp
         var footerTitleRow = lastTableRow + 3;
         var footerNameRow = lastTableRow + 6;
 
-        sheet.Range(footerTitleRow, 2, footerTitleRow, 4).Merge().Value = "Tổ trưởng";
-        sheet.Range(footerTitleRow, 2, footerTitleRow, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        sheet.Range(footerTitleRow, 2, footerTitleRow, 4).Style.Font.Bold = true;
-
         sheet.Range(footerTitleRow, 11, footerTitleRow, 13).Merge().Value = "Người lập";
         sheet.Range(footerTitleRow, 11, footerTitleRow, 13).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         sheet.Range(footerTitleRow, 11, footerTitleRow, 13).Style.Font.Bold = true;
@@ -470,6 +466,14 @@ public sealed class InboundSummaryReportExcelExporter : IInboundSummaryReportExp
 
     private static void ApplySheetLayout(IXLWorksheet sheet, int lastRelevantRow)
     {
+        sheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        sheet.PageSetup.PaperSize = XLPaperSize.A4Paper;
+        sheet.PageSetup.FitToPages(1, 0);
+        sheet.PageSetup.Margins.Top = 0.3;
+        sheet.PageSetup.Margins.Bottom = 0.3;
+        sheet.PageSetup.Margins.Left = 0.2;
+        sheet.PageSetup.Margins.Right = 0.2;
+
         sheet.Column(1).Width = 2;
         sheet.Column(14).Width = 2;
         sheet.Column(15).Width = 2;

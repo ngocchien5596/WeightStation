@@ -1,10 +1,12 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -21,9 +23,16 @@ public partial class ClayInboundReportViewModel : ObservableObject
 
     private readonly BuildClayInboundReportUseCase _buildUseCase;
     private readonly ExportClayInboundReportUseCase _exportUseCase;
+    private readonly GetClayInboundReportLookupOptionsUseCase _lookupOptionsUseCase;
     private readonly IClock _clock;
     private readonly IToastService _toastService;
     private ClayInboundReportDocument? _currentDocument;
+    private bool _suppressVesselSearchSync;
+    private bool _suppressProductSearchSync;
+    private bool _suppressCarrierSearchSync;
+    private bool _suppressFilterRefresh;
+    private readonly SemaphoreSlim _dataAccessGate = new(1, 1);
+    private int _vesselReloadVersion;
 
     [ObservableProperty] private DateTime? _fromDate;
     [ObservableProperty] private string? _fromHour;
@@ -33,35 +42,121 @@ public partial class ClayInboundReportViewModel : ObservableObject
     [ObservableProperty] private string? _toHour;
     [ObservableProperty] private string? _toMinute;
     [ObservableProperty] private string? _toSecond;
-    [ObservableProperty] private string? _vehicleSearchText;
+    [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _productOptions = [];
+    [ObservableProperty] private ICollectionView? _productOptionsView;
+    [ObservableProperty] private string? _productSearchText;
+    [ObservableProperty] private ReportLookupOptionDto? _selectedProduct;
+    [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _carrierOptions = [];
+    [ObservableProperty] private ICollectionView? _carrierOptionsView;
+    [ObservableProperty] private string? _carrierSearchText;
+    [ObservableProperty] private ReportLookupOptionDto? _selectedCarrier;
+    [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _vesselOptions = [];
+    [ObservableProperty] private ICollectionView? _vesselOptionsView;
+    [ObservableProperty] private string? _vesselSearchText;
+    [ObservableProperty] private ReportLookupOptionDto? _selectedVessel;
     [ObservableProperty] private ObservableCollection<string> _hourOptions = [];
     [ObservableProperty] private ObservableCollection<string> _minuteOptions = [];
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<ClayInboundReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
+    [ObservableProperty] private System.Windows.Documents.IDocumentPaginatorSource? _previewDocument;
+    private System.Windows.Xps.Packaging.XpsDocument? _currentXpsDocument;
+    private string? _currentTempXpsPath;
+    private string? _currentTempExcelPath;
+
+    private void CleanupOldPreview()
+    {
+        if (_currentXpsDocument != null)
+        {
+            Helpers.ReportPreviewHelper.CleanupPreview(_currentXpsDocument, _currentTempExcelPath, _currentTempXpsPath);
+            _currentXpsDocument = null;
+            _currentTempXpsPath = null;
+            _currentTempExcelPath = null;
+        }
+        PreviewDocument = null;
+    }
+
+    ~ClayInboundReportViewModel()
+    {
+        CleanupOldPreview();
+    }
 
     public ClayInboundReportViewModel(
         BuildClayInboundReportUseCase buildUseCase,
         ExportClayInboundReportUseCase exportUseCase,
+        GetClayInboundReportLookupOptionsUseCase lookupOptionsUseCase,
         IClock clock,
         IToastService toastService)
     {
         _buildUseCase = buildUseCase;
         _exportUseCase = exportUseCase;
+        _lookupOptionsUseCase = lookupOptionsUseCase;
         _clock = clock;
         _toastService = toastService;
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        var productOptions = await _lookupOptionsUseCase.GetProductsAsync(CancellationToken.None);
+        ProductOptions = new ObservableCollection<ReportLookupOptionDto>(
+            new[] { new ReportLookupOptionDto(string.Empty, "Tất cả sản phẩm") }.Concat(productOptions));
+        ProductOptionsView = CollectionViewSource.GetDefaultView(ProductOptions);
+        ProductOptionsView.Filter = item => MatchesLookupFilter(item, ProductSearchText);
+
+        var carrierOptions = await _lookupOptionsUseCase.GetCarriersAsync(CancellationToken.None);
+        CarrierOptions = new ObservableCollection<ReportLookupOptionDto>(
+            new[] { new ReportLookupOptionDto(string.Empty, "Tất cả đơn vị vận chuyển") }.Concat(carrierOptions));
+        CarrierOptionsView = CollectionViewSource.GetDefaultView(CarrierOptions);
+        CarrierOptionsView.Filter = item => MatchesLookupFilter(item, CarrierSearchText);
+
+        VesselOptions = [];
+        VesselOptionsView = CollectionViewSource.GetDefaultView(VesselOptions);
+        VesselOptionsView.Filter = item => MatchesLookupFilter(item, VesselSearchText);
+        _suppressFilterRefresh = true;
         ApplyCurrentShift();
-        VehicleSearchText = null;
+
+        _suppressProductSearchSync = true;
+        try
+        {
+            SelectedProduct = null;
+            ProductSearchText = string.Empty;
+            ProductOptionsView.Refresh();
+        }
+        finally
+        {
+            _suppressProductSearchSync = false;
+        }
+
+        _suppressCarrierSearchSync = true;
+        try
+        {
+            SelectedCarrier = null;
+            CarrierSearchText = string.Empty;
+            CarrierOptionsView.Refresh();
+        }
+        finally
+        {
+            _suppressCarrierSearchSync = false;
+        }
+
+        _suppressVesselSearchSync = true;
+        try
+        {
+            SelectedVessel = null;
+            VesselSearchText = string.Empty;
+        }
+        finally
+        {
+            _suppressVesselSearchSync = false;
+        }
+
+        _suppressFilterRefresh = false;
+        await ReloadVesselOptionsAsync();
         _currentDocument = null;
-        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -81,9 +176,33 @@ public partial class ClayInboundReportViewModel : ObservableObject
         try
         {
             IsBusy = true;
+            CleanupOldPreview();
+
             var document = await BuildDocumentFromCurrentFilterAsync();
             ApplyPreview(document);
-            _toastService.ShowSuccess($"Đã tải xem trước {document.Rows.Count:N0} dòng.");
+
+            if (document.Rows.Count == 0)
+            {
+                _toastService.ShowWarning("Không có dữ liệu để xem trước.");
+                return;
+            }
+
+            var result = await Helpers.ReportPreviewHelper.GeneratePreviewAsync(
+                "BaoCaoCanHangMoSet",
+                async (tempPath) => await _exportUseCase.ExecuteAsync(document, tempPath, CancellationToken.None)
+            );
+
+            if (result.Success && result.XpsDocument != null)
+            {
+                _currentXpsDocument = result.XpsDocument;
+                _currentTempExcelPath = result.ExcelPath;
+                _currentTempXpsPath = result.XpsPath;
+                PreviewDocument = _currentXpsDocument.GetFixedDocumentSequence();
+            }
+            else
+            {
+                _toastService.ShowWarning(result.ErrorMessage ?? "Lỗi không xác định khi tạo bản xem trước.");
+            }
         }
         catch (Exception ex)
         {
@@ -185,9 +304,21 @@ public partial class ClayInboundReportViewModel : ObservableObject
         var filter = new ClayInboundReportFilter(
             fromTime,
             toTime,
-            string.IsNullOrWhiteSpace(VehicleSearchText) ? null : VehicleSearchText.Trim());
+            ResolveSelectedProductCode(),
+            ResolveSelectedCarrierCode(),
+            ResolveSelectedVesselId());
 
-        var document = await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
+        await _dataAccessGate.WaitAsync(CancellationToken.None);
+        ClayInboundReportDocument document;
+        try
+        {
+            document = await _buildUseCase.ExecuteAsync(filter, CancellationToken.None);
+        }
+        finally
+        {
+            _dataAccessGate.Release();
+        }
+
         var enrichedDocument = document with { LogoBytes = LoadCompanyLogoBytes() };
         _currentDocument = enrichedDocument;
         return enrichedDocument;
@@ -196,20 +327,124 @@ public partial class ClayInboundReportViewModel : ObservableObject
     private void ApplyPreview(ClayInboundReportDocument document)
     {
         PreviewRows = new ObservableCollection<ClayInboundReportRow>(document.Rows);
-        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Tổng hàng: {document.TotalNetWeightTon:N3} tấn";
+        var vesselText = string.IsNullOrWhiteSpace(document.VesselDisplayName)
+            ? string.Empty
+            : $" | Chuyến tàu: {document.VesselDisplayName}";
+        PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Hàng: {document.TotalNetWeightTon:N3} tấn | Hoàn: {document.ReturnedBrokenWeightTon:N3} tấn | Thực nhập: {document.ActualInboundWeightTon:N3} tấn{vesselText}";
     }
 
+    partial void OnVesselSearchTextChanged(string? value)
+    {
+        VesselOptionsView?.Refresh();
+
+        if (_suppressVesselSearchSync)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SelectedVessel = null;
+        }
+    }
+
+    partial void OnSelectedVesselChanged(ReportLookupOptionDto? value)
+    {
+        if (_suppressVesselSearchSync)
+        {
+            return;
+        }
+
+        var displayName = value?.DisplayName ?? string.Empty;
+        if (!string.Equals(VesselSearchText, displayName, StringComparison.Ordinal))
+        {
+            VesselSearchText = displayName;
+        }
+    }
+
+    partial void OnProductSearchTextChanged(string? value)
+    {
+        ProductOptionsView?.Refresh();
+
+        if (_suppressProductSearchSync)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SelectedProduct = null;
+            QueueVesselOptionsReload();
+        }
+    }
+
+    partial void OnSelectedProductChanged(ReportLookupOptionDto? value)
+    {
+        if (_suppressProductSearchSync)
+        {
+            return;
+        }
+
+        var displayName = value?.DisplayName ?? string.Empty;
+        if (!string.Equals(ProductSearchText, displayName, StringComparison.Ordinal))
+        {
+            ProductSearchText = displayName;
+        }
+
+        QueueVesselOptionsReload();
+    }
+
+    partial void OnCarrierSearchTextChanged(string? value)
+    {
+        CarrierOptionsView?.Refresh();
+
+        if (_suppressCarrierSearchSync)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SelectedCarrier = null;
+            QueueVesselOptionsReload();
+        }
+    }
+
+    partial void OnSelectedCarrierChanged(ReportLookupOptionDto? value)
+    {
+        if (_suppressCarrierSearchSync)
+        {
+            return;
+        }
+
+        var displayName = value?.DisplayName ?? string.Empty;
+        if (!string.Equals(CarrierSearchText, displayName, StringComparison.Ordinal))
+        {
+            CarrierSearchText = displayName;
+        }
+
+        QueueVesselOptionsReload();
+    }
+
+    partial void OnFromDateChanged(DateTime? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnFromHourChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnFromMinuteChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnFromSecondChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnToDateChanged(DateTime? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnToHourChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnToMinuteChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnToSecondChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
     private void ApplyCurrentShift()
     {
-        var (fromTime, toTime) = ResolveShiftRange(_clock.NowLocal);
-        FromDate = fromTime.Date;
-        FromHour = fromTime.Hour.ToString("00");
-        FromMinute = fromTime.Minute.ToString("00");
-        FromSecond = fromTime.Second.ToString("00");
-        ToDate = toTime.Date;
-        ToHour = toTime.Hour.ToString("00");
-        ToMinute = toTime.Minute.ToString("00");
-        ToSecond = toTime.Second.ToString("00");
+        var today = _clock.NowLocal.Date;
+        FromDate = today;
+        FromHour = "00";
+        FromMinute = "00";
+        FromSecond = "00";
+        ToDate = today;
+        ToHour = "23";
+        ToMinute = "59";
+        ToSecond = "59";
     }
 
     private static string GetDefaultReportFolder()
@@ -221,6 +456,195 @@ public partial class ClayInboundReportViewModel : ObservableObject
         return Directory.Exists(downloadsFolder)
             ? downloadsFolder
             : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+    }
+
+    private async Task ReloadVesselOptionsAsync()
+    {
+        var reloadVersion = ++_vesselReloadVersion;
+
+        if (_suppressFilterRefresh || VesselOptionsView == null)
+        {
+            return;
+        }
+
+        if (!TryBuildDateRange(out var fromTime, out var toTime, out _))
+        {
+            SetVesselOptions([]);
+            return;
+        }
+
+        var selectedVesselCode = SelectedVessel?.Code;
+        var selectedProduct = SelectedProduct ?? ResolveSelectedLookup(ProductOptions, ProductSearchText);
+        var productCode = selectedProduct == null || string.IsNullOrWhiteSpace(selectedProduct.Code)
+            ? null
+            : selectedProduct.Code;
+        var selectedCarrier = SelectedCarrier ?? ResolveSelectedLookup(CarrierOptions, CarrierSearchText);
+        var carrierCode = selectedCarrier == null || string.IsNullOrWhiteSpace(selectedCarrier.Code)
+            ? null
+            : selectedCarrier.Code;
+
+        await _dataAccessGate.WaitAsync(CancellationToken.None);
+        IReadOnlyList<ReportLookupOptionDto> vesselOptions;
+        try
+        {
+            vesselOptions = await _lookupOptionsUseCase.GetVesselsAsync(
+                new ClayInboundVesselLookupFilter(fromTime, toTime, productCode, carrierCode),
+                CancellationToken.None);
+        }
+        finally
+        {
+            _dataAccessGate.Release();
+        }
+
+        if (reloadVersion != _vesselReloadVersion)
+        {
+            return;
+        }
+
+        SetVesselOptions(vesselOptions);
+
+        if (!string.IsNullOrWhiteSpace(selectedVesselCode))
+        {
+            var matchedVessel = VesselOptions.FirstOrDefault(x => string.Equals(x.Code, selectedVesselCode, StringComparison.OrdinalIgnoreCase));
+            if (matchedVessel != null)
+            {
+                SelectedVessel = matchedVessel;
+                VesselSearchText = matchedVessel.DisplayName;
+                return;
+            }
+        }
+
+        _suppressVesselSearchSync = true;
+        try
+        {
+            SelectedVessel = null;
+            VesselSearchText = string.Empty;
+        }
+        finally
+        {
+            _suppressVesselSearchSync = false;
+        }
+    }
+
+    private void SetVesselOptions(IEnumerable<ReportLookupOptionDto> vesselOptions)
+    {
+        VesselOptions = new ObservableCollection<ReportLookupOptionDto>(vesselOptions);
+        VesselOptionsView = CollectionViewSource.GetDefaultView(VesselOptions);
+        VesselOptionsView.Filter = item => MatchesLookupFilter(item, VesselSearchText);
+        VesselOptionsView.Refresh();
+    }
+
+    private void RefreshVesselOptionsAfterFilterChanged()
+    {
+        if (_suppressFilterRefresh)
+        {
+            return;
+        }
+
+        QueueVesselOptionsReload();
+    }
+
+    private void QueueVesselOptionsReload()
+    {
+        _ = ReloadVesselOptionsSafelyAsync();
+    }
+
+    private async Task ReloadVesselOptionsSafelyAsync()
+    {
+        try
+        {
+            await ReloadVesselOptionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _toastService.ShowError($"Không thể tải danh sách chuyến tàu: {ex.Message}");
+        }
+    }
+
+    private string? ResolveSelectedProductCode()
+    {
+        var selectedProduct = SelectedProduct ?? ResolveSelectedLookup(ProductOptions, ProductSearchText);
+        if (selectedProduct == null || string.IsNullOrWhiteSpace(selectedProduct.Code))
+        {
+            return null;
+        }
+
+        if (!ReferenceEquals(SelectedProduct, selectedProduct))
+        {
+            SelectedProduct = selectedProduct;
+        }
+
+        return selectedProduct.Code;
+    }
+
+    private string? ResolveSelectedCarrierCode()
+    {
+        var selectedCarrier = SelectedCarrier ?? ResolveSelectedLookup(CarrierOptions, CarrierSearchText);
+        if (selectedCarrier == null || string.IsNullOrWhiteSpace(selectedCarrier.Code))
+        {
+            return null;
+        }
+
+        if (!ReferenceEquals(SelectedCarrier, selectedCarrier))
+        {
+            SelectedCarrier = selectedCarrier;
+        }
+
+        return selectedCarrier.Code;
+    }
+
+    private Guid? ResolveSelectedVesselId()
+    {
+        var selectedVessel = SelectedVessel ?? ResolveSelectedLookup(VesselOptions, VesselSearchText);
+        if (selectedVessel == null || string.IsNullOrWhiteSpace(selectedVessel.Code))
+        {
+            return null;
+        }
+
+        if (!Guid.TryParse(selectedVessel.Code, out var vesselId))
+        {
+            return null;
+        }
+
+        if (!ReferenceEquals(SelectedVessel, selectedVessel))
+        {
+            SelectedVessel = selectedVessel;
+        }
+
+        return vesselId;
+    }
+
+    private static ReportLookupOptionDto? ResolveSelectedLookup(
+        IEnumerable<ReportLookupOptionDto> options,
+        string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var keyword = text.Trim();
+        return options.FirstOrDefault(x =>
+            !string.IsNullOrWhiteSpace(x.Code)
+            && (string.Equals(x.Code, keyword, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(x.DisplayName, keyword, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool MatchesLookupFilter(object item, string? filterText)
+    {
+        if (item is not ReportLookupOptionDto option)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(filterText))
+        {
+            return true;
+        }
+
+        var keyword = filterText.Trim();
+        return option.Code.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || option.DisplayName.Contains(keyword, StringComparison.OrdinalIgnoreCase);
     }
 
     private static (DateTime FromTime, DateTime ToTime) ResolveShiftRange(DateTime now)
@@ -252,7 +676,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn ngày cho Từ giờ.";
+            errorMessage = "Vui lòng chọn Từ ngày.";
             return false;
         }
 
@@ -260,71 +684,22 @@ public partial class ClayInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn ngày cho Đến giờ.";
+            errorMessage = "Vui lòng chọn Đến ngày.";
             return false;
         }
 
-        if (!int.TryParse(FromHour, out var fromHour) || fromHour is < 0 or > 23)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giờ của Từ giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(FromMinute, out var fromMinute) || fromMinute is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Phút của Từ giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(FromSecond, out var fromSecond) || fromSecond is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giây của Từ giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(ToHour, out var toHour) || toHour is < 0 or > 23)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giờ của Đến giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(ToMinute, out var toMinute) || toMinute is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Phút của Đến giờ không hợp lệ.";
-            return false;
-        }
-
-        if (!int.TryParse(ToSecond, out var toSecond) || toSecond is < 0 or > 59)
-        {
-            fromTime = default;
-            toTime = default;
-            errorMessage = "Giây của Đến giờ không hợp lệ.";
-            return false;
-        }
-
-        fromTime = FromDate.Value.Date.AddHours(fromHour).AddMinutes(fromMinute).AddSeconds(fromSecond);
-        toTime = ToDate.Value.Date.AddHours(toHour).AddMinutes(toMinute).AddSeconds(toSecond);
+        fromTime = FromDate.Value.Date;
+        toTime = ToDate.Value.Date.AddDays(1).AddTicks(-1);
 
         if (fromTime > toTime)
         {
-            errorMessage = "Từ giờ không được lớn hơn Đến giờ.";
+            errorMessage = "Từ ngày không được lớn hơn Đến ngày.";
             return false;
         }
 
         errorMessage = string.Empty;
         return true;
     }
-
     private static byte[]? LoadCompanyLogoBytes()
     {
         try
@@ -374,7 +749,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
         var headerTable = new Table();
         headerTable.Columns.Add(new TableColumn { Width = new GridLength(76) });
         headerTable.Columns.Add(new TableColumn { Width = new GridLength(264) });
-        headerTable.Columns.Add(new TableColumn { Width = new GridLength(270) });
+        headerTable.Columns.Add(new TableColumn { Width = new GridLength(360) });
 
         var headerGroup = new TableRowGroup();
         headerTable.RowGroups.Add(headerGroup);
@@ -424,17 +799,27 @@ public partial class ClayInboundReportViewModel : ObservableObject
         flowDocument.Blocks.Add(headerTable);
         flowDocument.Blocks.Add(new Paragraph { Margin = new Thickness(0, 0, 0, 10) });
 
-        var dataTable = new Table();
-        dataTable.CellSpacing = 0;
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(44) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(90) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(74) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(104) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(78) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(132) });
-        dataTable.Columns.Add(new TableColumn { Width = new GridLength(96) });
+        if (!string.IsNullOrWhiteSpace(document.VesselDisplayName))
+        {
+            flowDocument.Blocks.Add(new Paragraph(new Run($"Chuyến tàu: {document.VesselDisplayName}"))
+            {
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+        }
+
+        var dataTable = new Table { CellSpacing = 0 };
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(34) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(76) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(56) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(92) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(58) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(58) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(58) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(58) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(64) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(112) });
+        dataTable.Columns.Add(new TableColumn { Width = new GridLength(94) });
 
         var dataGroup = new TableRowGroup();
         dataTable.RowGroups.Add(dataGroup);
@@ -448,6 +833,8 @@ public partial class ClayInboundReportViewModel : ObservableObject
         AddCell(reportHeaderRow, "Tổng (tấn)", true);
         AddCell(reportHeaderRow, "Bì (tấn)", true);
         AddCell(reportHeaderRow, "Hàng (tấn)", true);
+        AddCell(reportHeaderRow, "Hoàn (tấn)", true, TextAlignment.Center, Brushes.Red);
+        AddCell(reportHeaderRow, "Thực nhập (tấn)", true);
         AddCell(reportHeaderRow, "Khách hàng", true);
         AddCell(reportHeaderRow, "Hàng hóa", true);
 
@@ -460,9 +847,11 @@ public partial class ClayInboundReportViewModel : ObservableObject
             AddCell(dataRow, row.SessionNo);
             AddCell(dataRow, row.InternalVehicleNo);
             AddCell(dataRow, row.Weight2Time?.ToString("dd/MM/yyyy HH:mm"));
-            AddCell(dataRow, row.GrossWeightTon.ToString("N3"));
-            AddCell(dataRow, row.TareWeightTon.ToString("N3"));
-            AddCell(dataRow, row.NetWeightTon.ToString("N3"));
+            AddCell(dataRow, row.GrossWeightTon.ToString("N3"), false, TextAlignment.Right);
+            AddCell(dataRow, row.TareWeightTon.ToString("N3"), false, TextAlignment.Right);
+            AddCell(dataRow, row.NetWeightTon.ToString("N3"), false, TextAlignment.Right);
+            AddCell(dataRow, row.ReturnedBrokenWeightTon > 0 ? row.ReturnedBrokenWeightTon.ToString("N3") : string.Empty, false, TextAlignment.Right, Brushes.Red);
+            AddCell(dataRow, row.ActualInboundWeightTon.ToString("N3"), false, TextAlignment.Right);
             AddCell(dataRow, row.CustomerName);
             AddCell(dataRow, row.ProductName);
         }
@@ -482,6 +871,8 @@ public partial class ClayInboundReportViewModel : ObservableObject
         AddCell(totalRow, string.Empty);
         AddCell(totalRow, string.Empty);
         AddCell(totalRow, document.TotalNetWeightTon.ToString("N3"), false, TextAlignment.Right);
+        AddCell(totalRow, document.ReturnedBrokenWeightTon.ToString("N3"), false, TextAlignment.Right, Brushes.Red);
+        AddCell(totalRow, document.ActualInboundWeightTon.ToString("N3"), false, TextAlignment.Right);
         AddCell(totalRow, string.Empty);
         AddCell(totalRow, string.Empty);
 
@@ -540,7 +931,6 @@ public partial class ClayInboundReportViewModel : ObservableObject
 
         return flowDocument;
     }
-
     private static TableCell CreateFooterCell(string text, bool bold, TextAlignment alignment, bool italic = false)
     {
         return new TableCell(new Paragraph(new Run(text)))
@@ -554,7 +944,12 @@ public partial class ClayInboundReportViewModel : ObservableObject
         };
     }
 
-    private static void AddCell(TableRow row, string? text, bool isHeader = false, TextAlignment textAlignment = TextAlignment.Center)
+    private static void AddCell(
+        TableRow row,
+        string? text,
+        bool isHeader = false,
+        TextAlignment textAlignment = TextAlignment.Center,
+        Brush? foreground = null)
     {
         row.Cells.Add(new TableCell(new Paragraph(new Run(text ?? string.Empty)))
         {
@@ -562,6 +957,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
             BorderThickness = new Thickness(0.5),
             Padding = new Thickness(4),
             FontWeight = isHeader ? FontWeights.Bold : FontWeights.Regular,
+            Foreground = foreground ?? Brushes.Black,
             TextAlignment = textAlignment,
             Background = isHeader ? new SolidColorBrush(Color.FromRgb(0xD9, 0xD9, 0xD9)) : null
         });
@@ -571,9 +967,11 @@ public partial class ClayInboundReportViewModel : ObservableObject
     {
         if (fromTime.Date == toTime.Date)
         {
-            return $"Thời gian: Từ {fromTime:HH:mm} đến {toTime:HH:mm} ngày {fromTime:dd/MM/yyyy}";
+            return $"Ngày: {fromTime:dd/MM/yyyy}";
         }
 
-        return $"Thời gian: Từ {fromTime:HH:mm dd/MM/yyyy} đến {toTime:HH:mm dd/MM/yyyy}";
+        return $"Từ ngày {fromTime:dd/MM/yyyy} đến ngày {toTime:dd/MM/yyyy}";
     }
 }
+
+

@@ -171,6 +171,9 @@ public sealed class WeighingDeviceConnector : IDisposable
 
         _host.RaisePropertyChanged(nameof(IWeighingDeviceHost.IsCamera1PreviewAvailable));
         _host.RaisePropertyChanged(nameof(IWeighingDeviceHost.IsCamera2PreviewAvailable));
+        _host.RaisePropertyChanged("ShowCamera1Selector");
+        _host.RaisePropertyChanged("ShowCamera2Selector");
+        _host.RaisePropertyChanged("ShowCameraPreviewPlaceholder");
 
         if (!string.Equals(_host.SelectedPreviewCameraCode, targetCameraCode, StringComparison.OrdinalIgnoreCase))
         {

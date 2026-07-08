@@ -24,7 +24,7 @@ public sealed class ExternalDatacanQueryService : IExternalDatacanQueryService
         int pageSize,
         CancellationToken cancellationToken)
     {
-        var connectionStringName = source == "Trạm đập" ? "ExternalCrusherConnection" : "ExternalDatacanConnection";
+        var connectionStringName = source == "Mỏ đá" ? "ExternalCrusherConnection" : "ExternalDatacanConnection";
         var connectionString = _configuration.GetConnectionString(connectionStringName);
         if (string.IsNullOrWhiteSpace(connectionString))
         {

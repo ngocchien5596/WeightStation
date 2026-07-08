@@ -16,6 +16,7 @@ public interface IWeighingSessionRepository
     Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchCrusherSessionsAsync(string? keyword, DateTime? selectedDate, CancellationToken ct);
     Task<IReadOnlyList<CrusherWeighingSessionListItem>> SearchClaySessionsAsync(string? keyword, DateTime? selectedDate, CancellationToken ct);
     Task<IReadOnlyList<OutgoingSessionListItem>> SearchCompletedSessionsAsync(string? keyword, DateTime? completedDate, CancellationToken ct);
+    Task<int> CountCompletedStandardTareSessionsForVehicleOnDateAsync(Guid vehicleId, DateTime date, CancellationToken ct);
     Task ApplySyncResultAsync(Guid sessionId, StationApp.Domain.Enums.SyncStatus syncStatus, DateTime attemptedAt, string? error, CancellationToken ct);
 
     Task AddLineAsync(WeighingSessionLine line, CancellationToken ct);

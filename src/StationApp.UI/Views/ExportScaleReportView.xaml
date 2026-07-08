@@ -108,28 +108,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="{Binding PreviewSummaryText}" FontWeight="SemiBold" Foreground="#0F3B66" Margin="0,0,0,8"/>
-                <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewRows}" AutoGenerateColumns="False" IsReadOnly="True"
-                          HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
-                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="STT" Binding="{Binding Stt}" Width="60"/>
-                        <DataGridTextColumn Header="L&#x1B0;&#x1EE3;t c&#xE2;n" Binding="{Binding SessionNo}" Width="110"/>
-                        <DataGridTextColumn Header="Ca" Binding="{Binding Shift}" Width="60"/>
-                        <DataGridTextColumn Header="Ng&#xE0;y xu&#x1EA5;t" Binding="{Binding ExportDate, StringFormat=dd/MM/yyyy}" Width="100"/>
-                        <DataGridTextColumn Header="Ph&#x1B0;&#x1A1;ng ti&#x1EC7;n" Binding="{Binding VehiclePlate}" Width="110"/>
-                        <DataGridTextColumn Header="Qua c&#xE2;n (t&#x1EA5;n)" Binding="{Binding NetWeightTon, StringFormat={}{0:#,##0.###}}" Width="110"/>
-                        <DataGridTextColumn Header="Qua c&#xE2;n (bao)" Binding="{Binding BagCount, StringFormat=N0}" Width="100"/>
-                        <DataGridTextColumn Header="V&#x1ECF; bao (t&#x1EA5;n)" Binding="{Binding BagShellWeightTon, StringFormat={}{0:#,##0.###}}" Width="110"/>
-                        <DataGridTextColumn Header="H&#x1ED3;i v&#x1EC1; (t&#x1EA5;n)" Binding="{Binding ReturnedBrokenWeightTon, StringFormat={}{0:#,##0.###}}" Width="110"/>
-                        <DataGridTextColumn Header="H&#x1ED3;i v&#x1EC1; (bao)" Binding="{Binding ReturnedBrokenBagCount, StringFormat=N0}" Width="100"/>
-                        <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (t&#x1EA5;n)" Binding="{Binding ActualExportTon, StringFormat={}{0:#,##0.###}}" Width="120"/>
-                        <DataGridTextColumn Header="Th&#x1EF1;c xu&#x1EA5;t (bao)" Binding="{Binding ActualExportBagCount, StringFormat=N0}" Width="110"/>
-                        <DataGridTextColumn Header="L&#x1EC7;ch chuy&#x1EBF;n (kg)" Binding="{Binding DifferenceKgPerTrip, StringFormat={}{0:#,##0.###}}" Width="120"/>
-                        <DataGridTextColumn Header="L&#x1EC7;ch/bao (kg)" Binding="{Binding DifferenceKgPerBag, StringFormat={}{0:#,##0.###}}" Width="110"/>
-                        <DataGridTextColumn Header="Ghi ch&#xFA;" Binding="{Binding Notes}" Width="220"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <DocumentViewer Grid.Row="1" Document="{Binding PreviewDocument}" Zoom="120" Focusable="False"/>
             </Grid>
         </Border>
     </Grid>

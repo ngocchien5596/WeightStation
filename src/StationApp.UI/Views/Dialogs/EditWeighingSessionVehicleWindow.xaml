@@ -85,23 +85,19 @@
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Số lượt cân:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SessionNo}" Style="{StaticResource ValueText}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SessionNo}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Biển số xe:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding OldVehiclePlate}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Foreground="#1E3A8A"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding OldVehiclePlate}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Foreground="#1E3A8A" Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Cân L1 / L2 (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Weight1, StringFormat={}{0:N0}}" Style="{StaticResource ValueText}"/>
-                                <TextBlock Text=" / " Margin="2,0"/>
-                                <TextBlock Text="{Binding Weight2, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}"/>
-                            </StackPanel>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Trọng lượng tổng (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Weight1, StringFormat={}{0:N0}}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="TL xe chuẩn (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding OldStandardTare, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Trọng lượng bì (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CurrentTareWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Khối lượng tịnh (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding NetWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" Foreground="#B91C1C" FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Trọng lượng hàng (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding NetWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" Foreground="#B91C1C" FontSize="14" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -121,19 +117,23 @@
                                 <RowDefinition Height="24"/>
                                 <RowDefinition Height="24"/>
                                 <RowDefinition Height="24"/>
+                                <RowDefinition Height="24"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Biển số xe mới:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedVehicle.VehiclePlate, TargetNullValue=--}" Style="{StaticResource ValueText}" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Số lượt cân:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SessionNo}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Tài xế mới:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedDriverName, TargetNullValue=--}" Style="{StaticResource ValueText}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Biển số xe:" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedVehicle.VehiclePlate, TargetNullValue=--}" Style="{StaticResource ValueText}" Foreground="#1E40AF" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="TL xe chuẩn (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding NewStandardTareWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Trọng lượng tổng (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Weight1, StringFormat={}{0:N0}}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Khối lượng tịnh (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding NewNetWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" Foreground="#B91C1C" FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Trọng lượng bì (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding NewStandardTareWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Trọng lượng hàng (kg):" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding NewNetWeight, StringFormat={}{0:N0}, TargetNullValue=--}" Style="{StaticResource ValueText}" Foreground="#B91C1C" FontSize="14" VerticalAlignment="Center" Margin="8,0,0,0"/>
                         </Grid>
                     </StackPanel>
                 </Border>

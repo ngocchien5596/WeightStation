@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 using StationApp.Domain.Services;
@@ -40,6 +41,8 @@ public sealed partial class EditWeighingSessionVehicleViewModel : ObservableObje
     [ObservableProperty] private decimal? _newStandardTareWeight;
     [ObservableProperty] private decimal? _newNetWeight;
     [ObservableProperty] private string _reason = string.Empty;
+
+    public decimal? CurrentTareWeight => OldStandardTare ?? Weight2;
 
     partial void OnReasonChanged(string value)
     {
@@ -129,7 +132,7 @@ public sealed partial class EditWeighingSessionVehicleViewModel : ObservableObje
         if (item.Payload != null)
         {
             SelectedDriverName = item.Payload.DriverName;
-            NewStandardTareWeight = item.Payload.TtcpWeight;
+            NewStandardTareWeight = ResolvePreviewTareWeight(item.Payload.TtcpWeight);
 
             // Load full vehicle entity
             try
@@ -153,32 +156,27 @@ public sealed partial class EditWeighingSessionVehicleViewModel : ObservableObje
 
     private void RecalculateNetWeight()
     {
-        if (string.Equals(WeighingMode, "SINGLE_WITH_STANDARD_TARE", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(WeighingMode, "1", StringComparison.OrdinalIgnoreCase))
+        if (NewStandardTareWeight.HasValue)
         {
-            if (NewStandardTareWeight.HasValue)
-            {
-                var roundedWeight1 = decimal.Round(Weight1, 3, MidpointRounding.AwayFromZero);
-                NewNetWeight = Math.Max(0, roundedWeight1 - NewStandardTareWeight.Value);
-            }
-            else
-            {
-                NewNetWeight = null;
-            }
+            var roundedGrossWeight = decimal.Round(Weight1, 3, MidpointRounding.AwayFromZero);
+            NewNetWeight = Math.Max(0, roundedGrossWeight - NewStandardTareWeight.Value);
         }
         else
         {
-            // TWO_WEIGH mode
-            if (Weight2.HasValue)
-            {
-                NewNetWeight = Math.Abs(Weight2.Value - Weight1);
-            }
-            else
-            {
-                NewNetWeight = null;
-            }
+            NewNetWeight = null;
         }
     }
+
+    private decimal? ResolvePreviewTareWeight(decimal? effectiveStandardTare)
+        => effectiveStandardTare ?? (CanApplyExistingWeight2AsNewVehicleTare() ? Weight2 : null);
+
+    private bool CanApplyExistingWeight2AsNewVehicleTare()
+        => Weight2.HasValue;
+
+    private bool IsSingleWithStandardTareMode()
+        => string.Equals(WeighingMode, CrusherWeighingModes.SingleWithStandardTare, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(WeighingMode, ClayWeighingModes.SingleWithStandardTare, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(WeighingMode, "1", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty] private string? _validationMessage;
 
@@ -208,7 +206,7 @@ public sealed partial class EditWeighingSessionVehicleViewModel : ObservableObje
                 if (matched != null)
                 {
                     SelectedVehicle = matched;
-                    NewStandardTareWeight = StandardTarePolicy.GetEffectiveStandardTare(matched, _clock.TodayLocal);
+                    NewStandardTareWeight = ResolvePreviewTareWeight(StandardTarePolicy.GetEffectiveStandardTare(matched, _clock.TodayLocal));
                     SelectedDriverName = matched.DriverName;
                     RecalculateNetWeight();
                 }
@@ -238,10 +236,9 @@ public sealed partial class EditWeighingSessionVehicleViewModel : ObservableObje
         }
 
         // Additional validation for single weigh mode
-        if ((string.Equals(WeighingMode, "SINGLE_WITH_STANDARD_TARE", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(WeighingMode, "1", StringComparison.OrdinalIgnoreCase)) && !NewStandardTareWeight.HasValue)
+        if (IsSingleWithStandardTareMode() && !NewStandardTareWeight.HasValue)
         {
-            ValidationMessage = "Xe mới chưa có cấu hình trọng lượng xe chuẩn.";
+            ValidationMessage = "Xe mới chưa có cấu hình trọng lượng bì.";
             return;
         }
 
