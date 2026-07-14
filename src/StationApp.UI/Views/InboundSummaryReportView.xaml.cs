@@ -33,7 +33,12 @@ public partial class InboundSummaryReportView : UserControl
 
     private void LookupComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is not ComboBox comboBox || comboBox.SelectedItem is not ReportLookupOptionDto option)
+        if (sender is not ComboBox comboBox)
+        {
+            return;
+        }
+
+        if (comboBox.SelectedItem is not ReportLookupOptionDto option)
         {
             return;
         }

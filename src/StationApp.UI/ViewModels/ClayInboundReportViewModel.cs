@@ -160,6 +160,35 @@ public partial class ClayInboundReportViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task SearchVesselsAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (!TryBuildDateRange(out _, out _, out var errorMessage))
+        {
+            _toastService.ShowWarning(errorMessage);
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            await ReloadVesselOptionsAsync();
+        }
+        catch (Exception ex)
+        {
+            _toastService.ShowError($"Không thể tải danh sách chuyến tàu: {ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     private async Task PreviewAsync()
     {
         if (IsBusy)
@@ -374,7 +403,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(value))
         {
             SelectedProduct = null;
-            QueueVesselOptionsReload();
+            ClearVesselSelection();
         }
     }
 
@@ -391,7 +420,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
             ProductSearchText = displayName;
         }
 
-        QueueVesselOptionsReload();
+        ClearVesselSelection();
     }
 
     partial void OnCarrierSearchTextChanged(string? value)
@@ -406,7 +435,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(value))
         {
             SelectedCarrier = null;
-            QueueVesselOptionsReload();
+            ClearVesselSelection();
         }
     }
 
@@ -423,17 +452,17 @@ public partial class ClayInboundReportViewModel : ObservableObject
             CarrierSearchText = displayName;
         }
 
-        QueueVesselOptionsReload();
+        ClearVesselSelection();
     }
 
-    partial void OnFromDateChanged(DateTime? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnFromHourChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnFromMinuteChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnFromSecondChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnToDateChanged(DateTime? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnToHourChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnToMinuteChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
-    partial void OnToSecondChanged(string? value) => RefreshVesselOptionsAfterFilterChanged();
+    partial void OnFromDateChanged(DateTime? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnFromHourChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnFromMinuteChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnFromSecondChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnToDateChanged(DateTime? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnToHourChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnToMinuteChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnToSecondChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
     private void ApplyCurrentShift()
     {
         var today = _clock.NowLocal.Date;
@@ -534,30 +563,33 @@ public partial class ClayInboundReportViewModel : ObservableObject
         VesselOptionsView.Refresh();
     }
 
-    private void RefreshVesselOptionsAfterFilterChanged()
+    private void ClearVesselSelectionAfterFilterChanged()
     {
         if (_suppressFilterRefresh)
         {
             return;
         }
 
-        QueueVesselOptionsReload();
+        ClearVesselSelection();
     }
 
-    private void QueueVesselOptionsReload()
+    private void ClearVesselSelection()
     {
-        _ = ReloadVesselOptionsSafelyAsync();
-    }
+        if (_suppressVesselSearchSync)
+        {
+            return;
+        }
 
-    private async Task ReloadVesselOptionsSafelyAsync()
-    {
+        _vesselReloadVersion++;
+        _suppressVesselSearchSync = true;
         try
         {
-            await ReloadVesselOptionsAsync();
+            SelectedVessel = null;
+            VesselSearchText = string.Empty;
         }
-        catch (Exception ex)
+        finally
         {
-            _toastService.ShowError($"Không thể tải danh sách chuyến tàu: {ex.Message}");
+            _suppressVesselSearchSync = false;
         }
     }
 

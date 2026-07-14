@@ -145,30 +145,34 @@
 
                 <StackPanel Grid.Column="2" Margin="0,0,12,0">
                     <TextBlock Text="Sản phẩm" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
-                              Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
-                              Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              ItemsSource="{Binding ProductOptionsView}" SelectedItem="{Binding SelectedProduct, Mode=TwoWay}" SelectedValuePath="Code">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
+                    <Grid Width="210">
+                        <ComboBox x:Name="ProductComboBox" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
+                                  Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
+                                  Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ItemsSource="{Binding ProductOptionsView}" SelectedItem="{Binding SelectedProduct, Mode=TwoWay}" SelectedValuePath="Code">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
                 </StackPanel>
 
                 <StackPanel Grid.Column="3" Margin="0,0,12,0">
                     <TextBlock Text="Khách hàng" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <ComboBox Width="210" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
-                              Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
-                              Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              ItemsSource="{Binding CustomerOptionsView}" SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}" SelectedValuePath="Code">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
+                    <Grid Width="210">
+                        <ComboBox x:Name="CustomerComboBox" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
+                                  Loaded="LookupComboBox_Loaded" SelectionChanged="LookupComboBox_SelectionChanged"
+                                  Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ItemsSource="{Binding CustomerOptionsView}" SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}" SelectedValuePath="Code">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
                 </StackPanel>
 
                 <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
