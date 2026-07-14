@@ -296,15 +296,47 @@ public partial class DashboardViewModel : ObservableObject
             3,
             MidpointRounding.AwayFromZero);
         CrusherReturnedTonnage = decimal.Round(
-            completed
-                .Where(x => x.IsReturnedBrokenTrip)
-                .Sum(x => (x.NetWeight ?? 0m) / 1000m),
+            CalculateRecognizedReturnedWeightTon(completed),
             3,
             MidpointRounding.AwayFromZero);
         CrusherActualInboundTonnage = decimal.Round(
-            CrusherCompletedTonnage - CrusherReturnedTonnage,
+            Math.Max(0m, CrusherCompletedTonnage - CrusherReturnedTonnage),
             3,
             MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateRecognizedReturnedWeightTon(IReadOnlyCollection<WeighingSession> completedSessions)
+    {
+        var returnedWeightTon = 0m;
+        foreach (var group in completedSessions
+                     .GroupBy(x => x.InternalVehicleNo ?? x.VehiclePlate, StringComparer.OrdinalIgnoreCase))
+        {
+            decimal? lastInboundWeightTon = null;
+            var returnedForLastInboundTon = 0m;
+            foreach (var session in group.OrderBy(x => x.Weight2Time ?? x.UpdatedAt ?? x.CreatedAt))
+            {
+                var netWeightTon = Math.Max(0m, (session.NetWeight ?? 0m) / 1000m);
+                if (!session.IsReturnedBrokenTrip)
+                {
+                    lastInboundWeightTon = netWeightTon;
+                    returnedForLastInboundTon = 0m;
+                    continue;
+                }
+
+                if (!lastInboundWeightTon.HasValue)
+                {
+                    returnedWeightTon += netWeightTon;
+                    continue;
+                }
+
+                var remainingReturnableTon = Math.Max(0m, lastInboundWeightTon.Value - returnedForLastInboundTon);
+                var recognizedTon = Math.Min(netWeightTon, remainingReturnableTon);
+                returnedForLastInboundTon += recognizedTon;
+                returnedWeightTon += recognizedTon;
+            }
+        }
+
+        return returnedWeightTon;
     }
 
     private static void ApplyKpiMetrics(

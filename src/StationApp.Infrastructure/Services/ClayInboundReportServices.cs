@@ -316,8 +316,14 @@ public sealed class ClayInboundReportService : IClayInboundReportService
             }
 
             var targetRow = mergedRows[matchedIndex];
+            var remainingReturnableWeightTon = Math.Max(
+                0m,
+                targetRow.NetWeightTon - targetRow.ReturnedBrokenWeightTon);
+            var recognizedReturnedWeightTon = Math.Min(
+                row.ReturnedBrokenWeightTon,
+                remainingReturnableWeightTon);
             var returnedBrokenWeightTon = decimal.Round(
-                targetRow.ReturnedBrokenWeightTon + row.ReturnedBrokenWeightTon,
+                targetRow.ReturnedBrokenWeightTon + recognizedReturnedWeightTon,
                 3,
                 MidpointRounding.AwayFromZero);
 

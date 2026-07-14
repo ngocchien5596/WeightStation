@@ -399,6 +399,151 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             .ToList();
     }
 
+    public async Task<ReturnedBrokenTripPreviousTripInfo?> GetPreviousCrusherTripForReturnedAsync(Guid sessionId, CancellationToken ct)
+    {
+        var current = await _db.WeighingSessions.AsNoTracking()
+            .Where(x => x.Id == sessionId && !x.IsDeleted && !x.IsCancelled)
+            .Select(x => new
+            {
+                x.Id,
+                x.StationCode,
+                x.VehiclePlate,
+                x.InternalVehicleNo,
+                CompletedAt = x.Weight2Time ?? x.UpdatedAt ?? x.CreatedAt
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (current == null)
+        {
+            return null;
+        }
+
+        var vehicleNo = string.IsNullOrWhiteSpace(current.InternalVehicleNo)
+            ? current.VehiclePlate
+            : current.InternalVehicleNo;
+        if (string.IsNullOrWhiteSpace(vehicleNo))
+        {
+            return null;
+        }
+
+        var previous = await _db.WeighingSessions.AsNoTracking()
+            .Where(x => x.StationCode == current.StationCode
+                && x.Id != current.Id
+                && !x.IsDeleted
+                && !x.IsCancelled
+                && !x.IsNoLoad
+                && !x.IsReturnedBrokenTrip
+                && x.TransactionType == TransactionType.INBOUND
+                && x.SessionStatus == WeighingSessionStatus.COMPLETED
+                && x.Weight2Time.HasValue
+                && x.Weight2Time.Value < current.CompletedAt
+                && (x.NetWeight ?? 0m) > 0m
+                && ((x.InternalVehicleNo ?? x.VehiclePlate) == vehicleNo))
+            .OrderByDescending(x => x.Weight2Time)
+            .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+            .Select(x => new
+            {
+                x.Id,
+                x.SessionNo,
+                x.InternalVehicleNo,
+                x.VehiclePlate,
+                x.Weight2Time,
+                x.NetWeight
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (previous == null || !previous.NetWeight.HasValue)
+        {
+            return null;
+        }
+
+        return new ReturnedBrokenTripPreviousTripInfo(
+            previous.Id,
+            null,
+            BusinessNumberFormatter.ToDisplay(previous.SessionNo),
+            previous.InternalVehicleNo ?? previous.VehiclePlate,
+            previous.Weight2Time,
+            previous.NetWeight.Value);
+    }
+
+    public async Task<ReturnedBrokenTripPreviousTripInfo?> GetPreviousClayTripForReturnedAsync(Guid sessionLineId, CancellationToken ct)
+    {
+        var current = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where line.Id == sessionLineId
+                && !line.IsDeleted
+                && !session.IsDeleted
+                && !session.IsCancelled
+            select new
+            {
+                LineId = line.Id,
+                line.CutOrderId,
+                session.StationCode,
+                session.VehiclePlate,
+                session.InternalVehicleNo,
+                CompletedAt = session.Weight2Time ?? session.UpdatedAt ?? session.CreatedAt
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (current == null)
+        {
+            return null;
+        }
+
+        var vehicleNo = string.IsNullOrWhiteSpace(current.InternalVehicleNo)
+            ? current.VehiclePlate
+            : current.InternalVehicleNo;
+        if (string.IsNullOrWhiteSpace(vehicleNo))
+        {
+            return null;
+        }
+
+        var previous = await (
+            from line in _db.WeighingSessionLines.AsNoTracking()
+            join session in _db.WeighingSessions.AsNoTracking()
+                on line.WeighingSessionId equals session.Id
+            where line.CutOrderId == current.CutOrderId
+                && line.Id != current.LineId
+                && !line.IsDeleted
+                && !line.IsReturnedBrokenTrip
+                && (line.ActualAllocatedWeight ?? 0m) > 0m
+                && session.StationCode == current.StationCode
+                && !session.IsDeleted
+                && !session.IsCancelled
+                && !session.IsNoLoad
+                && session.SessionStatus == WeighingSessionStatus.COMPLETED
+                && session.Weight2Time.HasValue
+                && session.Weight2Time.Value < current.CompletedAt
+                && ((session.InternalVehicleNo ?? session.VehiclePlate) == vehicleNo)
+            orderby session.Weight2Time descending, session.UpdatedAt ?? session.CreatedAt descending
+            select new
+            {
+                LineId = line.Id,
+                SessionId = session.Id,
+                session.SessionNo,
+                session.InternalVehicleNo,
+                session.VehiclePlate,
+                session.Weight2Time,
+                line.ActualAllocatedWeight
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (previous == null || !previous.ActualAllocatedWeight.HasValue)
+        {
+            return null;
+        }
+
+        return new ReturnedBrokenTripPreviousTripInfo(
+            previous.SessionId,
+            previous.LineId,
+            BusinessNumberFormatter.ToDisplay(previous.SessionNo),
+            previous.InternalVehicleNo ?? previous.VehiclePlate,
+            previous.Weight2Time,
+            previous.ActualAllocatedWeight.Value);
+    }
+
     private async Task<Dictionary<Guid, WeighTicket>> LoadPrimaryTicketBySessionIdAsync(
         IReadOnlyCollection<Guid> sessionIds,
         CancellationToken ct)

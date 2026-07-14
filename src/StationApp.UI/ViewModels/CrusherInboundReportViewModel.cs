@@ -246,15 +246,15 @@ public partial class CrusherInboundReportViewModel : ObservableObject
 
     private void ApplyCurrentShift()
     {
-        var today = _clock.NowLocal.Date;
-        FromDate = today;
-        FromHour = "00";
-        FromMinute = "00";
-        FromSecond = "00";
-        ToDate = today;
-        ToHour = "23";
-        ToMinute = "59";
-        ToSecond = "59";
+        var (fromTime, toTime) = ResolveShiftRange(_clock.NowLocal);
+        FromDate = fromTime.Date;
+        FromHour = fromTime.Hour.ToString("00");
+        FromMinute = fromTime.Minute.ToString("00");
+        FromSecond = fromTime.Second.ToString("00");
+        ToDate = toTime.Date;
+        ToHour = toTime.Hour.ToString("00");
+        ToMinute = toTime.Minute.ToString("00");
+        ToSecond = toTime.Second.ToString("00");
     }
 
     private static string GetDefaultReportFolder()
@@ -273,22 +273,22 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         var today = now.Date;
         var timeOfDay = now.TimeOfDay;
 
-        if (timeOfDay >= TimeSpan.FromHours(6) && timeOfDay < TimeSpan.FromHours(14))
+        if (timeOfDay >= TimeSpan.FromHours(5) && timeOfDay < TimeSpan.FromHours(12))
         {
-            return (today.AddHours(6), today.AddHours(14).AddSeconds(-1));
+            return (today.AddHours(5), today.AddHours(12).AddSeconds(-1));
         }
 
-        if (timeOfDay >= TimeSpan.FromHours(14) && timeOfDay < TimeSpan.FromHours(22))
+        if (timeOfDay >= TimeSpan.FromHours(12) && timeOfDay <= TimeSpan.FromHours(21))
         {
-            return (today.AddHours(14), today.AddHours(22).AddSeconds(-1));
+            return (today.AddHours(12), today.AddHours(21));
         }
 
-        if (timeOfDay >= TimeSpan.FromHours(22))
+        if (timeOfDay > TimeSpan.FromHours(21))
         {
-            return (today.AddHours(22), today.AddDays(1).AddHours(6).AddSeconds(-1));
+            return (today.AddHours(12), today.AddHours(21));
         }
 
-        return (today.AddDays(-1).AddHours(22), today.AddHours(6).AddSeconds(-1));
+        return (today.AddHours(5), today.AddHours(12).AddSeconds(-1));
     }
 
     private bool TryBuildDateRange(out DateTime fromTime, out DateTime toTime, out string errorMessage)
@@ -297,7 +297,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn Từ ngày.";
+            errorMessage = "Vui lòng chọn ngày cho Từ giờ.";
             return false;
         }
 
@@ -305,16 +305,70 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn Đến ngày.";
+            errorMessage = "Vui lòng chọn ngày cho Đến giờ.";
             return false;
         }
 
-        fromTime = FromDate.Value.Date;
-        toTime = ToDate.Value.Date.AddDays(1).AddTicks(-1);
+        if (!int.TryParse(FromHour, out var fromHour) || fromHour is < 0 or > 23)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giờ của Từ giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(FromMinute, out var fromMinute) || fromMinute is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Phút của Từ giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(FromSecond, out var fromSecond) || fromSecond is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giây của Từ giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(ToHour, out var toHour) || toHour is < 0 or > 23)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giờ của Đến giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(ToMinute, out var toMinute) || toMinute is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Phút của Đến giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(ToSecond, out var toSecond) || toSecond is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giây của Đến giờ không hợp lệ.";
+            return false;
+        }
+
+        fromTime = FromDate.Value.Date
+            .AddHours(fromHour)
+            .AddMinutes(fromMinute)
+            .AddSeconds(fromSecond);
+        toTime = ToDate.Value.Date
+            .AddHours(toHour)
+            .AddMinutes(toMinute)
+            .AddSeconds(toSecond);
 
         if (fromTime > toTime)
         {
-            errorMessage = "Từ ngày không được lớn hơn Đến ngày.";
+            errorMessage = "Từ giờ không được lớn hơn Đến giờ.";
             return false;
         }
 
@@ -594,12 +648,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
 
     private static string BuildTimeRangeText(DateTime fromTime, DateTime toTime)
     {
-        if (fromTime.Date == toTime.Date)
-        {
-            return $"Ngày: {fromTime:dd/MM/yyyy}";
-        }
-
-        return $"Từ ngày {fromTime:dd/MM/yyyy} đến ngày {toTime:dd/MM/yyyy}";
+        return $"Từ giờ {fromTime:HH:mm:ss dd/MM/yyyy} đến giờ {toTime:HH:mm:ss dd/MM/yyyy}";
     }
 }
 

@@ -1,5 +1,8 @@
 using System.Text.Json;
+using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -52,9 +55,28 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
             return;
         }
 
-        var now = _clock.NowLocal;
+        ReturnedBrokenTripPreviousTripInfo? previousTrip = null;
+        ReturnedBrokenTripWeightResolution? resolution = null;
         var oldState = session.IsReturnedBrokenTrip;
+        var oldNetWeight = session.NetWeight;
+        var actualNetWeight = ResolveActualNetWeight(session);
+
+        if (isReturnedBrokenTrip)
+        {
+            previousTrip = await _sessionRepo.GetPreviousCrusherTripForReturnedAsync(session.Id, ct);
+            if (previousTrip == null)
+            {
+                throw new InvalidOperationException("Không có dữ liệu chuyến xe gần nhất trước đó của xe này. Vui lòng kiểm tra lại.");
+            }
+
+            resolution = ReturnedBrokenTripWeightLimiter.Resolve(actualNetWeight, previousTrip.NetWeightKg);
+        }
+
+        var now = _clock.NowLocal;
         session.IsReturnedBrokenTrip = isReturnedBrokenTrip;
+        session.NetWeight = isReturnedBrokenTrip
+            ? resolution!.RecognizedWeightKg
+            : actualNetWeight;
         session.SyncStatus = SyncStatus.SYNC_QUEUED;
         session.LastSyncAttemptAt = null;
         session.LastSyncError = null;
@@ -66,7 +88,13 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
             SessionNo = session.SessionNo,
             VehiclePlate = session.InternalVehicleNo ?? session.VehiclePlate,
             GrossWeight = session.Weight1,
-            NetWeight = session.NetWeight,
+            OldNetWeight = oldNetWeight,
+            ActualReturnedWeight = actualNetWeight,
+            PreviousTripSessionId = previousTrip?.SessionId,
+            PreviousTripSessionNo = previousTrip?.SessionNo,
+            PreviousTripWeight = previousTrip?.NetWeightKg,
+            ReturnedRecognizedWeight = session.NetWeight,
+            IsReturnedWeightCapped = resolution?.IsCapped ?? false,
             OldIsReturnedBrokenTrip = oldState,
             NewIsReturnedBrokenTrip = isReturnedBrokenTrip,
             Note = isReturnedBrokenTrip
@@ -95,5 +123,22 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
                 await _auditLogRepo.AddAsync(auditLog, innerCt);
             },
             ct);
+    }
+
+    private static decimal ResolveActualNetWeight(WeighingSession session)
+    {
+        if (string.Equals(session.NetWeightCalculationMode, NetWeightCalculationModes.Weight1MinusStandardTare, StringComparison.OrdinalIgnoreCase)
+            && session.Weight1.HasValue
+            && session.StandardTareWeightSnapshot.HasValue)
+        {
+            return Math.Max(0m, session.Weight1.Value - session.StandardTareWeightSnapshot.Value);
+        }
+
+        if (session.Weight1.HasValue && session.Weight2.HasValue)
+        {
+            return Math.Abs(session.Weight2.Value - session.Weight1.Value);
+        }
+
+        return Math.Max(0m, session.NetWeight ?? 0m);
     }
 }

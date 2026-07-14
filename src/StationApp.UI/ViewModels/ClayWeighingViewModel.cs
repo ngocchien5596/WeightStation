@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Application.UseCases;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Device.Abstractions;
@@ -763,9 +764,31 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
         }
 
         var newState = !trip.IsReturnedBrokenTrip;
+        var confirmMessage = $"Bỏ đánh dấu chuyến {trip.SessionNo} là hàng hoàn?";
+
+        if (newState)
+        {
+            using var lookupScope = _scopeFactory.CreateScope();
+            var sessionRepo = lookupScope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+            var previousTrip = await sessionRepo.GetPreviousClayTripForReturnedAsync(trip.SessionLineId, CancellationToken.None);
+            if (previousTrip == null)
+            {
+                await _dialogService.ShowWarningAsync(
+                    "Không đủ dữ liệu đối chiếu",
+                    "Không có dữ liệu chuyến xe gần nhất trước đó của xe này. Vui lòng kiểm tra lại.");
+                return;
+            }
+
+            var actualWeight = ResolveActualAllocatedWeightKg(trip);
+            var resolution = ReturnedBrokenTripWeightLimiter.Resolve(actualWeight, previousTrip.NetWeightKg);
+            confirmMessage = resolution.IsCapped
+                ? BuildReturnedBrokenTripCappedConfirmMessage(trip.SessionNo, previousTrip, resolution)
+                : $"Đánh dấu chuyến {trip.SessionNo} là hàng hoàn?";
+        }
+
         var confirmed = await _dialogService.ShowConfirmAsync(
             newState ? "Đánh dấu Hoàn" : "Bỏ đánh dấu Hoàn",
-            $"{(newState ? "Đánh dấu" : "Bỏ đánh dấu")} chuyến {trip.SessionNo} là hàng hoàn?",
+            confirmMessage,
             "Đồng ý",
             "Hủy");
         if (!confirmed)
@@ -791,6 +814,33 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
             _logger?.LogWarning(ex, "Toggle clay returned trip failed");
             _toastService.ShowError("Không thể cập nhật trạng thái Hoàn.");
         }
+    }
+
+    private static string BuildReturnedBrokenTripCappedConfirmMessage(
+        string sessionNo,
+        ReturnedBrokenTripPreviousTripInfo previousTrip,
+        ReturnedBrokenTripWeightResolution resolution)
+    {
+        return
+            $"Đánh dấu chuyến {sessionNo} là hàng hoàn?\n\n" +
+            $"TL hoàn thực cân: {FormatTon(resolution.ActualWeightTon)} tấn\n" +
+            $"TL chuyến gần nhất trong cùng tàu: {FormatTon(resolution.PreviousTripWeightTon ?? 0m)} tấn\n\n" +
+            $"Do TL hoàn thực cân lớn hơn chuyến gần nhất, hệ thống chỉ ghi nhận Hoàn là {FormatTon(resolution.RecognizedWeightTon)} tấn.";
+    }
+
+    private static decimal ResolveActualAllocatedWeightKg(ClayVehicleTripListItem trip)
+    {
+        if (trip.NetWeight.HasValue && trip.NetWeight.Value > 0m)
+        {
+            return trip.NetWeight.Value;
+        }
+
+        return Math.Max(0m, trip.ActualAllocatedWeight ?? 0m);
+    }
+
+    private static string FormatTon(decimal value)
+    {
+        return value.ToString("N3", CultureInfo.CurrentCulture);
     }
 
     [RelayCommand(CanExecute = nameof(CanViewImageHistory))]

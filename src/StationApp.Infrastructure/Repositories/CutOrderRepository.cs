@@ -1599,7 +1599,7 @@ public class CutOrderRepository : ICutOrderRepository
                 session.Weight1Time,
                 session.Weight2,
                 session.Weight2Time,
-                session.NetWeight,
+                line.ActualAllocatedWeight ?? session.NetWeight,
                 line.ActualAllocatedWeight,
                 session.WeighingMode,
                 session.StandardTareWeightSnapshot,

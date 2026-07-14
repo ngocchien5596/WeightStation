@@ -1,6 +1,7 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -954,9 +955,28 @@ public sealed class ToggleClayReturnedBrokenTripUseCase
             return;
         }
 
-        var now = _clock.NowLocal;
+        ReturnedBrokenTripPreviousTripInfo? previousTrip = null;
+        ReturnedBrokenTripWeightResolution? resolution = null;
         var oldState = line.IsReturnedBrokenTrip;
+        var oldAllocatedWeight = line.ActualAllocatedWeight;
+        var actualReturnedWeight = ResolveActualAllocatedWeight(session, line);
+
+        if (isReturnedBrokenTrip)
+        {
+            previousTrip = await _sessionRepo.GetPreviousClayTripForReturnedAsync(line.Id, ct);
+            if (previousTrip == null)
+            {
+                throw new InvalidOperationException("Không có dữ liệu chuyến xe gần nhất trước đó của xe này. Vui lòng kiểm tra lại.");
+            }
+
+            resolution = ReturnedBrokenTripWeightLimiter.Resolve(actualReturnedWeight, previousTrip.NetWeightKg);
+        }
+
+        var now = _clock.NowLocal;
         line.IsReturnedBrokenTrip = isReturnedBrokenTrip;
+        line.ActualAllocatedWeight = isReturnedBrokenTrip
+            ? resolution!.RecognizedWeightKg
+            : actualReturnedWeight;
         line.SyncStatus = SyncStatus.SYNC_QUEUED;
         line.UpdatedAt = now;
         line.UpdatedBy = _userContext.Username;
@@ -971,8 +991,16 @@ public sealed class ToggleClayReturnedBrokenTripUseCase
             DetailJson = JsonSerializer.Serialize(new
             {
                 SessionNo = session.SessionNo,
-                VehiclePlate = session.VehiclePlate,
+                VehiclePlate = session.InternalVehicleNo ?? session.VehiclePlate,
                 VesselName = cutOrder.VehiclePlate,
+                OldActualAllocatedWeight = oldAllocatedWeight,
+                ActualReturnedWeight = actualReturnedWeight,
+                PreviousTripSessionId = previousTrip?.SessionId,
+                PreviousTripSessionLineId = previousTrip?.SessionLineId,
+                PreviousTripSessionNo = previousTrip?.SessionNo,
+                PreviousTripWeight = previousTrip?.NetWeightKg,
+                ReturnedRecognizedWeight = line.ActualAllocatedWeight,
+                IsReturnedWeightCapped = resolution?.IsCapped ?? false,
                 OldIsReturnedBrokenTrip = oldState,
                 NewIsReturnedBrokenTrip = isReturnedBrokenTrip,
                 NetWeight = session.NetWeight
@@ -986,5 +1014,15 @@ public sealed class ToggleClayReturnedBrokenTripUseCase
             await _sessionRepo.UpdateLineAsync(line, innerCt);
             await _auditLogRepo.AddAsync(auditLog, innerCt);
         }, ct);
+    }
+
+    private static decimal ResolveActualAllocatedWeight(WeighingSession session, WeighingSessionLine line)
+    {
+        if (session.NetWeight.HasValue && session.NetWeight.Value > 0m)
+        {
+            return session.NetWeight.Value;
+        }
+
+        return Math.Max(0m, line.ActualAllocatedWeight ?? 0m);
     }
 }

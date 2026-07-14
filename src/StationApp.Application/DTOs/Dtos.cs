@@ -863,6 +863,15 @@ public sealed record CrusherWeighingSessionListItem(
     string? Weight2User = null
 );
 
+public sealed record ReturnedBrokenTripPreviousTripInfo(
+    Guid SessionId,
+    Guid? SessionLineId,
+    string SessionNo,
+    string VehicleNo,
+    DateTime? CompletedAt,
+    decimal NetWeightKg
+);
+
 public sealed record WeighingSessionLineItem(
     Guid SessionLineId,
     Guid CutOrderId,

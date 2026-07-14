@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Application.UseCases;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Device.Abstractions;
@@ -335,11 +336,31 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable, I
         }
 
         var newState = !session.IsReturnedBrokenTrip;
+        var confirmMessage = $"Bỏ đánh dấu hàng hoàn cho lượt cân {session.SessionNo}?\n\nLượt này sẽ được tính lại như lượt nhập bình thường.";
+
+        if (newState)
+        {
+            using var lookupScope = _scopeFactory.CreateScope();
+            var sessionRepo = lookupScope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
+            var previousTrip = await sessionRepo.GetPreviousCrusherTripForReturnedAsync(session.SessionId, CancellationToken.None);
+            if (previousTrip == null)
+            {
+                await _dialogService.ShowWarningAsync(
+                    "Không đủ dữ liệu đối chiếu",
+                    "Không có dữ liệu chuyến xe gần nhất trước đó của xe này. Vui lòng kiểm tra lại.");
+                return;
+            }
+
+            var actualWeight = ResolveActualNetWeightKg(session);
+            var resolution = ReturnedBrokenTripWeightLimiter.Resolve(actualWeight, previousTrip.NetWeightKg);
+            confirmMessage = resolution.IsCapped
+                ? BuildReturnedBrokenTripCappedConfirmMessage(session.SessionNo, previousTrip, resolution)
+                : $"Đánh dấu lượt cân {session.SessionNo} là hàng hoàn?\n\nLượt này sẽ được tính vào KPI Hoàn và trừ khỏi Thực nhập.";
+        }
+
         var confirmed = await _dialogService.ShowConfirmAsync(
             newState ? "Xác nhận hàng hoàn" : "Bỏ đánh dấu hàng hoàn",
-            newState
-                ? $"Đánh dấu lượt cân {session.SessionNo} là hàng hoàn?\n\nLượt này sẽ được tính vào KPI Hoàn và trừ khỏi Thực nhập."
-                : $"Bỏ đánh dấu hàng hoàn cho lượt cân {session.SessionNo}?\n\nLượt này sẽ được tính lại như lượt nhập bình thường.",
+            confirmMessage,
             "Đồng ý",
             "Hủy");
 
@@ -374,6 +395,38 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable, I
         {
             IsLoading = false;
         }
+    }
+
+    private static string BuildReturnedBrokenTripCappedConfirmMessage(
+        string sessionNo,
+        ReturnedBrokenTripPreviousTripInfo previousTrip,
+        ReturnedBrokenTripWeightResolution resolution)
+    {
+        return
+            $"Đánh dấu lượt cân {sessionNo} là hàng hoàn?\n\n" +
+            $"TL hoàn thực cân: {FormatTon(resolution.ActualWeightTon)} tấn\n" +
+            $"TL chuyến gần nhất: {FormatTon(resolution.PreviousTripWeightTon ?? 0m)} tấn\n\n" +
+            $"Do TL hoàn thực cân lớn hơn chuyến gần nhất, hệ thống chỉ ghi nhận Hoàn là {FormatTon(resolution.RecognizedWeightTon)} tấn.";
+    }
+
+    private static decimal ResolveActualNetWeightKg(CrusherWeighingSessionListItem session)
+    {
+        if (session.Weight1.HasValue && session.Weight2.HasValue)
+        {
+            return Math.Abs(session.Weight2.Value - session.Weight1.Value);
+        }
+
+        if (session.Weight1.HasValue && session.StandardTareWeightSnapshot.HasValue)
+        {
+            return Math.Max(0m, session.Weight1.Value - session.StandardTareWeightSnapshot.Value);
+        }
+
+        return Math.Max(0m, session.NetWeight ?? 0m);
+    }
+
+    private static string FormatTon(decimal value)
+    {
+        return value.ToString("N3", CultureInfo.CurrentCulture);
     }
 
     [RelayCommand]

@@ -142,8 +142,14 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
             }
 
             var targetRow = mergedRows[matchedIndex];
+            var remainingReturnableWeightTon = Math.Max(
+                0m,
+                targetRow.NetWeightTon - targetRow.ReturnedBrokenWeightTon);
+            var recognizedReturnedWeightTon = Math.Min(
+                row.ReturnedBrokenWeightTon,
+                remainingReturnableWeightTon);
             var returnedBrokenWeightTon = decimal.Round(
-                targetRow.ReturnedBrokenWeightTon + row.ReturnedBrokenWeightTon,
+                targetRow.ReturnedBrokenWeightTon + recognizedReturnedWeightTon,
                 3,
                 MidpointRounding.AwayFromZero);
 
@@ -433,12 +439,7 @@ public sealed class CrusherInboundReportExcelExporter : ICrusherInboundReportExp
 
     private static string BuildTimeRangeText(DateTime fromTime, DateTime toTime)
     {
-        if (fromTime.Date == toTime.Date)
-        {
-            return $"Ngày: {fromTime:dd/MM/yyyy}";
-        }
-
-        return $"Từ ngày {fromTime:dd/MM/yyyy} đến ngày {toTime:dd/MM/yyyy}";
+        return $"Từ giờ {fromTime:HH:mm:ss dd/MM/yyyy} đến giờ {toTime:HH:mm:ss dd/MM/yyyy}";
     }
 }
 
