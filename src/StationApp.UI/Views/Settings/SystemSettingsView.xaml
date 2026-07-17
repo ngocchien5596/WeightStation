@@ -93,6 +93,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Column="0" Grid.Row="0" Text="Mã trạm (Station Code)" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
@@ -172,6 +173,29 @@
                                         Height="32"
                                         HorizontalAlignment="Stretch">
                                     <TextBlock Text="SAO LƯU NGAY" FontWeight="SemiBold"/>
+                                </Button>
+                            </Grid>
+
+                            <TextBlock Grid.Column="0" Grid.Row="11" Text="Telegram" Style="{StaticResource FormLabel}" VerticalAlignment="Center"/>
+                            <Grid Grid.Column="1" Grid.Row="11" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="180"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding TelegramStatusMessage}"
+                                           TextWrapping="Wrap"
+                                           Foreground="#50627A"
+                                           VerticalAlignment="Center"/>
+
+                                <Button Grid.Column="2"
+                                        Command="{Binding TestTelegramConnectionCommand}"
+                                        Style="{StaticResource UtilityButtonStyle}"
+                                        Height="32"
+                                        HorizontalAlignment="Stretch">
+                                    <TextBlock Text="GỬI TEST TELEGRAM" FontWeight="SemiBold"/>
                                 </Button>
                             </Grid>
 

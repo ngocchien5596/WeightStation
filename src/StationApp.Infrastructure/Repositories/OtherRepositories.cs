@@ -18,6 +18,35 @@ public class AuditLogRepository : IAuditLogRepository
         => await _db.AuditLogs.Where(l => l.EntityType == entityType && l.EntityId == entityId)
             .OrderByDescending(l => l.CreatedAt).ToListAsync(ct);
 
+    public async Task<IReadOnlyList<AuditLog>> SearchAsync(AuditLogSearchRequest request, CancellationToken ct)
+    {
+        var startDateTime = request.FromDate.Date;
+        var endDateTime = request.ToDate.Date.AddDays(1).AddTicks(-1);
+
+        var query = _db.AuditLogs
+            .AsNoTracking()
+            .Where(l => l.CreatedAt >= startDateTime && l.CreatedAt <= endDateTime);
+
+        if (!string.IsNullOrWhiteSpace(request.StationCode))
+        {
+            query = query.Where(l => l.StationCode == request.StationCode);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Action))
+        {
+            var action = request.Action.Trim();
+            query = query.Where(l => l.Action == action);
+        }
+
+        var logs = await query.OrderByDescending(l => l.CreatedAt).ToListAsync(ct);
+
+        logs = FilterInMemory(logs, request.VehiclePlate);
+        logs = FilterInMemory(logs, request.SessionNo);
+        logs = FilterInMemory(logs, request.Keyword);
+
+        return logs;
+    }
+
     public async Task<IReadOnlyList<AuditLog>> SearchEditLogsAsync(
         string? vehiclePlate,
         string? sessionNo,
@@ -62,6 +91,26 @@ public class AuditLogRepository : IAuditLogRepository
 
         return logs;
     }
+
+    private static List<AuditLog> FilterInMemory(IEnumerable<AuditLog> logs, string? keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return logs.ToList();
+        }
+
+        var cleanKeyword = keyword.Trim();
+        return logs.Where(l =>
+                Contains(l.Actor, cleanKeyword)
+                || Contains(l.Action, cleanKeyword)
+                || Contains(l.EntityType, cleanKeyword)
+                || Contains(l.DetailJson, cleanKeyword))
+            .ToList();
+    }
+
+    private static bool Contains(string? source, string keyword)
+        => !string.IsNullOrWhiteSpace(source)
+           && source.Contains(keyword, StringComparison.OrdinalIgnoreCase);
 }
 
 public class AppConfigRepository : IAppConfigRepository

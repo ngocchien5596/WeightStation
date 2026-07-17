@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
+using StationApp.Application.Security;
 using StationApp.Domain.Enums;
 
 namespace StationApp.UI.Converters;
@@ -357,6 +358,33 @@ public class BooleanToStatusConverter : IValueConverter
     }
 }
 
+public static class RoleDisplayMapper
+{
+    public static string ToDisplayString(string? roleCode)
+    {
+        return roleCode?.Trim().ToUpperInvariant() switch
+        {
+            StationRoles.Operator => "V\u1eadn h\u00e0nh",
+            StationRoles.Manager => "Qu\u1ea3n l\u00fd",
+            StationRoles.Admin => "Qu\u1ea3n tr\u1ecb h\u1ec7 th\u1ed1ng",
+            _ => roleCode ?? string.Empty
+        };
+    }
+}
+
+public class RoleDisplayConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return RoleDisplayMapper.ToDisplayString(value?.ToString());
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 public class OverweightFlagDisplayConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -466,4 +494,3 @@ public class CrusherWeighingModeDisplayConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
-

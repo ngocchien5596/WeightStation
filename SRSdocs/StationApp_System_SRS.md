@@ -330,7 +330,7 @@ Bảng lưu trữ thông tin tài khoản người dùng tại trạm cân để
 | `Id` | `uniqueidentifier` | PK, NOT NULL | Khóa chính người dùng. |
 | `Username` | `nvarchar(100)` | UNIQUE, NOT NULL | Tên đăng nhập hệ thống. |
 | `DisplayName` | `nvarchar(150)` | NOT NULL | Tên hiển thị của cán bộ trạm cân. |
-| `RoleCode` | `nvarchar(30)` | NOT NULL | Vai trò người dùng (`ADMIN` - Quản trị viên / `OPERATOR` - Nhân viên cân). |
+| `RoleCode` | `nvarchar(30)` | NOT NULL | Vai trò người dùng (`ADMIN` - Quản trị hệ thống / `MANAGER` - Quản lý / `OPERATOR` - Vận hành). |
 | `PasswordHash` | `nvarchar(255)` | NULL | Chuỗi băm mật khẩu bảo mật (băm bằng BCrypt). |
 | `IsActive` | `bit` | NOT NULL, DEFAULT 1 | Trạng thái hoạt động của tài khoản. |
 | `LastLoginAt` | `datetime2` | NULL | Thời gian đăng nhập cuối cùng vào hệ thống. |
@@ -479,9 +479,10 @@ Giao diện WPF tuân thủ hệ thống thiết kế nhất quán, bao gồm:
 9. **Tự động & Thủ công Sao lưu dữ liệu cục bộ (local)**: Hỗ trợ tác vụ chạy ngầm tự động sao lưu dữ liệu cục bộ (local) hàng ngày theo giờ cấu hình trên màn Tham số hệ thống, duy trì tệp sao lưu trong vòng 10 ngày (tự động xóa tệp cũ hơn) và hỗ trợ Quản trị viên (Admin) kích hoạt sao lưu thủ công tức thì từ giao diện cấu hình.
 
 ## 3.3 Đặc điểm Người dùng (User Characteristics)
-Hệ thống phân chia thành 2 vai trò người dùng chính theo phân quyền thực tế trong mã nguồn (`StationRoles.cs` và `StationAuthorization.cs`):
-- **OPERATOR (Nhân viên cân)**: Thao tác cân xe tự động, phân bổ khối lượng, in ấn chứng từ và hủy phiên cân (Session) nếu có sự cố. Nhân viên cân (Operator) chỉ được phép dùng chế độ cân tự động (không được sử dụng chế độ cân tay nhập số thủ công), có quyền bỏ qua (bypass) dung sai hàng bao khi lưu cân lần 2, và không có quyền truy cập vào các chức năng cấu hình hệ thống.
-- **ADMIN (Quản trị viên)**: Quyền hạn cao nhất trên hệ thống. Quản trị viên (Admin) có đầy đủ quyền hạn của Nhân viên cân (Operator), cộng thêm các quyền: phê duyệt cân tay (nhập khối lượng thủ công), quản trị tài khoản người dùng, cấu hình thiết bị cân cổng COM, cấu hình RTSP camera, cấu hình biểu mẫu in ấn, quản lý danh mục, cấu hình và thực hiện sao lưu/phục hồi dữ liệu cục bộ (local), và truy xuất nhật ký hệ thống (Nhật ký kiểm toán (Nhật ký kiểm toán (Audit Logs))).
+Hệ thống phân chia thành 3 vai trò người dùng chính theo phân quyền thực tế trong mã nguồn (`StationRoles.cs` và `StationAuthorization.cs`):
+- **OPERATOR (Vận hành)**: Thao tác cân xe tự động, phân bổ khối lượng, in ấn chứng từ và xử lý các nghiệp vụ vận hành thông thường. Operator không được sử dụng chế độ cân tay và không được xem audit log. Với trạm `QN01`, Operator được truy cập master data; với trạm `QN02` và `QN03`, Operator không được truy cập master data.
+- **MANAGER (Quản lý)**: Quản lý nghiệp vụ trong phạm vi các trạm được phân quyền. Manager có thể được gán nhiều trạm, được sử dụng Cân tay, quản lý đầy đủ master data, xem báo cáo và xem toàn bộ audit log của trạm đang chọn. Manager không được quản lý tài khoản, danh mục trạm, tham số hệ thống, cấu hình thiết bị/camera, cấu hình in/layout hoặc các chức năng kỹ thuật Admin-only.
+- **ADMIN (Quản trị hệ thống)**: Quyền hạn cao nhất trên hệ thống. Admin có toàn quyền cấu hình hệ thống, cấu hình thiết bị/camera/in, quản lý tài khoản, gán trạm, danh mục trạm, quản trị kỹ thuật và sử dụng toàn bộ chức năng nghiệp vụ.
 
 ## 3.4 Ràng buộc Hệ thống (Constraints)
 - **Không dùng màu tím/vàng (Purple/Violet Hex Codes)**: Hệ thống giao diện tuân thủ quy tắc thẩm mỹ hiện đại, không sử dụng các màu sắc bị cấm để đảm bảo trải nghiệm chuyên nghiệp.
@@ -519,8 +520,9 @@ Màn hình xuất hiện khi khởi chạy ứng dụng trạm cân. Màn hình 
 #### Các Yêu cầu Chức năng Nghiệp vụ liên quan (FR-AUTH)
 - **FR-AUTH-001 (Đăng nhập)**: Nhân viên cân nhập `Username` và `Password`. Hệ thống thực hiện băm mật khẩu và đối chiếu với bản ghi trong bảng `users` cục bộ.
 - **FR-AUTH-002 (Phân quyền RBAC)**: Sau khi đăng nhập thành công, phiên làm việc sẽ lưu giữ vai trò người dùng trong `StationAuthorization`:
-  - **ADMIN (Quản trị viên)**: Quyền truy cập đầy đủ, bao gồm cấu hình thiết bị cân cổng COM, cấu hình RTSP camera, cấu hình phôi in, sao lưu dữ liệu cục bộ (local), tạo và quản lý tài khoản người dùng, và thực hiện cân tay (MANUAL - tự nhập số cân).
-  - **OPERATOR (Nhân viên cân)**: Chỉ được phép thực hiện cân tự động (AUTO - đọc từ cổng COM), gộp đơn, in phiếu cân/giao nhận và bỏ qua (bypass) dung sai hàng bao (được ghi lại nhật ký kiểm toán).
+  - **ADMIN (Quản trị hệ thống)**: Quyền truy cập đầy đủ, bao gồm cấu hình thiết bị cân cổng COM, cấu hình RTSP camera, cấu hình phôi in, sao lưu dữ liệu cục bộ (local), tạo và quản lý tài khoản người dùng, gán trạm và thực hiện cân tay (MANUAL - tự nhập số cân).
+  - **MANAGER (Quản lý)**: Được vận hành nghiệp vụ theo trạm được phân quyền, sử dụng cân tay, quản lý master data, xem báo cáo và xem audit log của trạm; không được truy cập các cấu hình kỹ thuật/Admin-only.
+  - **OPERATOR (Vận hành)**: Được thực hiện cân tự động (AUTO - đọc từ cổng COM), gộp đơn, in phiếu cân/giao nhận và xử lý nghiệp vụ vận hành thông thường; không được dùng cân tay và không được xem audit log.
 
 ---
 
@@ -698,9 +700,9 @@ Màn hình làm việc chính của nhân viên cân khi thực hiện cân xe n
 ##### D. Khu vực vận hành đầu cân & camera (Bên phải giao diện)
 | Mã phần tử | Loại Control | Tên / Binding | Mô tả chức năng |
 | :--- | :--- | :--- | :--- |
-| UI-WGH-TXT-LWEIGHT | `TextBox` | `CurrentWeight` | Hiển thị số cân từ thiết bị đọc. Chỉ Quản trị viên (ADMIN) được nhập số thủ công bằng tay khi chọn chế độ "Cân Tay". |
+| UI-WGH-TXT-LWEIGHT | `TextBox` | `CurrentWeight` | Hiển thị số cân từ thiết bị đọc. Chỉ ADMIN và MANAGER được nhập số thủ công bằng tay khi chọn chế độ "Cân Tay". |
 | UI-WGH-RDO-AUTO | `RadioButton` | `IsAutoMode` | Lựa chọn chế độ đọc cân tự động (AUTO) qua cổng COM của thiết bị cân. |
-| UI-WGH-RDO-MANUAL | `RadioButton` | `IsManualMode` | Lựa chọn chế độ nhập số cân bằng tay (Chỉ khả dụng cho vai trò ADMIN). |
+| UI-WGH-RDO-MANUAL | `RadioButton` | `IsManualMode` | Lựa chọn chế độ nhập số cân bằng tay (Chỉ khả dụng cho vai trò ADMIN và MANAGER). |
 | UI-WGH-TXT-STABLE | `TextBlock` | `StabilityText` | Trạng thái ổn định số cân đọc về (`ỔN ĐỊNH` hoặc `DAO ĐỘNG`). |
 | UI-WGH-IMG-CAM | `Image` | `CameraPreviewSource` | Hiển thị luồng RTSP thời gian thực để kiểm soát vị trí đỗ xe của xe. |
 
@@ -741,7 +743,7 @@ Hệ thống hỗ trợ 2 chế độ ghi nhận trọng lượng từ bàn cân
   - Hệ thống tự động phân tích chuỗi dữ liệu đầu cân truyền về để cập nhật liên tục lên ô hiển thị trọng lượng cỡ lớn và xác định độ ổn định của cân.
   - **Ràng buộc an toàn**: Nút lấy cân ("Lấy Cân 1", "Lấy Cân 2") chỉ khả dụng và cho phép bấm khi đầu cân trả về trạng thái ổn định (`StabilityText = "ỔN ĐỊNH"`). Nếu cân đang dao động (`StabilityText = "DAO ĐỘNG"`), nút bấm sẽ bị vô hiệu hóa để tránh nhân viên ghi nhận sai số do xe chưa dừng hẳn.
 - **Cân tay (Manual Mode - `IsManualMode = true`)**:
-  - Chế độ này bị khóa mặc định và **chỉ khả dụng đối với người dùng có vai trò quản trị viên (ADMIN)** (`CanUseManualWeighing`). Nhân viên cân thông thường (Operator) không có quyền kích hoạt chế độ này.
+  - Chế độ này bị khóa mặc định và **chỉ khả dụng đối với người dùng có vai trò ADMIN hoặc MANAGER** (`CanUseManualWeighing`). Nhân viên cân thông thường (Operator) không có quyền kích hoạt chế độ này.
   - Khi bật chế độ cân tay, ô nhập trọng lượng (`CurrentWeight`) sẽ được mở khóa cho phép Admin nhập trực tiếp giá trị cân bằng số từ bàn phím. Toàn bộ tiến trình đọc tự động từ cổng COM và kiểm tra ổn định sẽ bị tạm dừng.
   - Chế độ này chỉ được dùng trong trường hợp đầu cân gặp sự cố phần cứng, hỏng cáp hoặc mất kết nối cổng COM để tránh tắc nghẽn giao thông trạm cân. Mọi lượt lấy cân bằng tay sẽ tự động được gán cờ `WeightMode = MANUAL` và ghi nhận tài khoản thực hiện vào nhật ký hệ thống để phục vụ công tác thanh tra.
 
@@ -1253,14 +1255,14 @@ Tab quản trị danh sách tài khoản, phân quyền (Admin / Operator), thi�
 | :--- | :--- | :--- | :--- |
 | **UI-CFG-ACC-TXT-SNAME**| `TextBox` | `SearchUsername` | Tìm kiếm tài khoản theo Tên đăng nhập. |
 | **UI-CFG-ACC-TXT-SDISP**| `TextBox` | `SearchDisplayName` | Tìm kiếm tài khoản theo Tên hiển thị. |
-| **UI-CFG-ACC-COM-SROLE**| `ComboBox` | `SelectedSearchRoleOption` | Lọc tài khoản theo vai trò (Tất cả, ADMIN, OPERATOR). |
+| **UI-CFG-ACC-COM-SROLE**| `ComboBox` | `SelectedSearchRoleOption` | Lọc tài khoản theo vai trò (Tất cả, ADMIN, MANAGER, OPERATOR). |
 | **UI-CFG-ACC-COM-SSTAT**| `ComboBox` | `SelectedStatusFilter` | Lọc tài khoản theo trạng thái (Tất cả, Đang hoạt động, Ngừng hoạt động). |
 | **UI-CFG-ACC-BTN-SRCH** | `Button` | `SearchCommand` | Thực hiện tìm kiếm theo các điều kiện lọc. |
 | **UI-CFG-ACC-BTN-NEW**  | `Button` | `NewCommand` | Chuyển Form nhập liệu sang chế độ tạo tài khoản mới (Clear Form). |
 | **UI-CFG-ACC-GRID**     | `DataGrid` | `ItemsSource={Binding Users}`, `SelectedItem={Binding SelectedUser}` | Lưới danh sách người dùng. |
 | **UI-CFG-ACC-TXT-UNAME**| `TextBox` | `EditUsername`, `IsReadOnly={Binding IsUsernameReadOnly}` | Ô nhập Tên đăng nhập (Chỉ cho phép sửa khi tạo mới). |
 | **UI-CFG-ACC-TXT-DISP** | `TextBox` | `EditDisplayName` | Ô nhập Tên hiển thị. |
-| **UI-CFG-ACC-COM-ROLE** | `ComboBox` | `SelectedRoleOption` | Chọn vai trò tài khoản (ADMIN, OPERATOR). |
+| **UI-CFG-ACC-COM-ROLE** | `ComboBox` | `SelectedRoleOption` | Chọn vai trò tài khoản (ADMIN, MANAGER, OPERATOR). |
 | **UI-CFG-ACC-PASS**     | `PasswordBox` | `CreatePassword` | Ô nhập Mật khẩu (Chỉ hiển thị khi tạo mới). |
 | **UI-CFG-ACC-CONFIRM**  | `PasswordBox` | `CreateConfirmPassword` | Ô nhập lại Mật khẩu xác nhận. |
 | **UI-CFG-ACC-CHK-ACT**  | `CheckBox` | `EditIsActive` | Lựa chọn trạng thái hoạt động. |
@@ -1521,7 +1523,7 @@ Màn hình hỗ trợ kiểm tra phiên bản mới, xem ghi chú phát hành, c
 | **UI-UPD-BTN-UPGRADE** | `Button` | `UpdateCommand`, `IsEnabled={Binding IsUpdateAvailable}` | Thực hiện tải gói cài đặt ZIP, giải nén và kích hoạt updater để nâng cấp phần mềm. |
 
 #### Nghiệp vụ xử lý liên quan ([AppUpdateViewModel.cs](file:///g:/Source-code/pmcan_C%23/src/StationApp.UI/ViewModels/AppUpdateViewModel.cs))
-- **Quyền hạn**: Vai trò ADMIN và OPERATOR được phép thực hiện tác vụ kiểm tra và cập nhật ứng dụng (`CanUpdateApplication`).
+- **Quyền hạn**: Vai trò ADMIN, MANAGER và OPERATOR được phép thực hiện tác vụ kiểm tra và cập nhật ứng dụng (`CanUpdateApplication`).
 - **Lưu cấu hình thư mục shared**: Khi bấm **LƯU**, hệ thống lưu giá trị đường dẫn vào bảng `app_config` dưới key `AppUpdateSharedReleaseRoot` và giải quyết đường dẫn manifest mặc định dạng `{SharedReleaseRoot}\latest.json`.
 - **Quy trình kiểm tra cập nhật (`CheckForUpdatesCommand`)**:
   - Hệ thống gọi `IAppUpdateService.CheckForUpdatesAsync` để đọc tệp manifest JSON trên máy chủ trung tâm.

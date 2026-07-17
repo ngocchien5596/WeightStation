@@ -453,7 +453,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
             FontWeight = FontWeights.Bold,
             TextAlignment = TextAlignment.Center
         });
-        leftHeaderPanel.Children.Add(new TextBlock { Text = "Địa chỉ: Km6, Quốc lộ 18A, Cẩm Thạch, Cẩm Phả, Quảng Ninh" });
+        leftHeaderPanel.Children.Add(new TextBlock { Text = "Địa chỉ: Km6, Quốc lộ 18A, Quang Hanh, Quảng Ninh" });
         leftHeaderPanel.Children.Add(new TextBlock { Text = "Điện thoại: (84-203) 3.721.995 - (84-203) 3.721.996" });
         headerRow.Cells.Add(new TableCell(new BlockUIContainer(leftHeaderPanel)) { BorderThickness = new Thickness(0) });
 

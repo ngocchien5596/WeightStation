@@ -1,5 +1,6 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -52,6 +53,14 @@ public sealed class UpdateIncomingRegistrationUseCase
         {
             return OperationResult<CutOrder>.Fail("Chỉ được sửa phiếu đang ở Danh sách xe vào.");
         }
+
+        var oldVehiclePlate = reg.VehiclePlate;
+        var oldMoocNumber = reg.MoocNumber;
+        var oldReceiverName = reg.ReceiverName;
+        var oldCustomerName = reg.CustomerName;
+        var oldProductName = reg.ProductName;
+        var oldTransactionType = reg.TransactionType;
+        var oldIsCancelled = reg.IsCancelled;
 
         reg.TransactionType = request.TransactionType;
         reg.TransportMethod = request.TransportMethod;
@@ -154,7 +163,16 @@ public sealed class UpdateIncomingRegistrationUseCase
             "UPDATE_INCOMING_REGISTRATION",
             nameof(CutOrder),
             reg.Id,
-            new { reg.VehiclePlate, reg.TransactionType, reg.IsCancelled },
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", reg.ErpCutOrderId ?? reg.VehiclePlate)
+                .AddChange(nameof(CutOrder.VehiclePlate), oldVehiclePlate, reg.VehiclePlate)
+                .AddChange(nameof(CutOrder.MoocNumber), oldMoocNumber, reg.MoocNumber)
+                .AddChange(nameof(CutOrder.ReceiverName), oldReceiverName, reg.ReceiverName)
+                .AddChange(nameof(CutOrder.CustomerName), oldCustomerName, reg.CustomerName)
+                .AddChange(nameof(CutOrder.ProductName), oldProductName, reg.ProductName)
+                .AddChange(nameof(CutOrder.TransactionType), oldTransactionType.ToString(), reg.TransactionType.ToString())
+                .AddChange(nameof(CutOrder.IsCancelled), oldIsCancelled, reg.IsCancelled)
+                .Build(),
             ct);
 
         return OperationResult<CutOrder>.Ok(reg);

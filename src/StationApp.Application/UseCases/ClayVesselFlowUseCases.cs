@@ -693,6 +693,7 @@ public sealed class TransferClayVehicleTripUseCase
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
     private readonly IAuditLogRepository _auditLogRepo;
+    private readonly ITelegramNotificationService _telegramService;
 
     public TransferClayVehicleTripUseCase(
         ICutOrderRepository cutOrderRepo,
@@ -700,7 +701,8 @@ public sealed class TransferClayVehicleTripUseCase
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock,
-        IAuditLogRepository auditLogRepo)
+        IAuditLogRepository auditLogRepo,
+        ITelegramNotificationService telegramService)
     {
         _cutOrderRepo = cutOrderRepo;
         _sessionRepo = sessionRepo;
@@ -708,6 +710,7 @@ public sealed class TransferClayVehicleTripUseCase
         _userContext = userContext;
         _clock = clock;
         _auditLogRepo = auditLogRepo;
+        _telegramService = telegramService;
     }
 
     public async Task ExecuteAsync(TransferClayVehicleTripRequest request, CancellationToken ct)
@@ -756,6 +759,20 @@ public sealed class TransferClayVehicleTripUseCase
         target.UpdatedAt = now;
         target.UpdatedBy = _userContext.Username;
 
+        var normalizedAuditDetail = new AuditLogDetailBuilder()
+            .WithSubject("Name", session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .WithReason($"Chuy\u1ec3n chuy\u1ebfn t\u1eeb t\u00e0u {source.VehiclePlate} sang {target.VehiclePlate}")
+            .AddChange("VesselName", source.VehiclePlate, target.VehiclePlate)
+            .AddChange(nameof(WeighingSessionLine.CustomerName), source.CustomerName, target.CustomerName)
+            .AddChange(nameof(WeighingSessionLine.ProductName), source.ProductName, target.ProductName)
+            .WithSummary(nameof(WeighingSession.SessionNo), session.SessionNo)
+            .WithSummary(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .WithSummary(nameof(WeighingSession.Weight1), session.Weight1)
+            .WithSummary(nameof(WeighingSession.Weight2), session.Weight2)
+            .WithSummary(nameof(WeighingSession.NetWeight), session.NetWeight)
+            .Build();
+
         var auditLog = new AuditLog
         {
             Id = Guid.NewGuid(),
@@ -763,18 +780,7 @@ public sealed class TransferClayVehicleTripUseCase
             Action = "TRANSFER_CLAY_TRIP",
             EntityType = nameof(WeighingSession),
             EntityId = session.Id,
-            DetailJson = JsonSerializer.Serialize(new
-            {
-                SessionNo = session.SessionNo,
-                VehiclePlate = session.VehiclePlate,
-                SourceCutOrderId = source.Id,
-                SourceVesselName = source.VehiclePlate,
-                TargetCutOrderId = target.Id,
-                TargetVesselName = target.VehiclePlate,
-                Weight1 = session.Weight1,
-                Weight2 = session.Weight2,
-                NetWeight = session.NetWeight
-            }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+            DetailJson = JsonSerializer.Serialize(normalizedAuditDetail, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
             CreatedAt = now,
             StationCode = _userContext.StationCode
         };
@@ -786,6 +792,16 @@ public sealed class TransferClayVehicleTripUseCase
             await _cutOrderRepo.UpdateAsync(target, innerCt);
             await _auditLogRepo.AddAsync(auditLog, innerCt);
         }, ct);
+
+        var notification = TelegramNotificationMessageBuilder.BuildClayTripTransfer(
+            session,
+            source,
+            target,
+            _userContext.Username,
+            _userContext.DisplayName,
+            _userContext.StationCode,
+            now);
+        await _telegramService.SendNotificationAsync(notification, _userContext.StationCode, ct);
     }
 
     private static void ValidateOpenClayVessel(CutOrder cutOrder, string role)
@@ -874,6 +890,14 @@ public sealed class DeleteClayVehicleTripUseCase
         cutOrder.UpdatedAt = now;
         cutOrder.UpdatedBy = _userContext.Username;
 
+        var normalizedAuditDetail = new AuditLogDetailBuilder()
+            .WithSubject("Name", session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .WithSubject("VesselName", cutOrder.VehiclePlate)
+            .AddChange("IsDeleted", false, true)
+            .WithSummary("VesselName", cutOrder.VehiclePlate)
+            .Build();
+
         var auditLog = new AuditLog
         {
             Id = Guid.NewGuid(),
@@ -881,12 +905,7 @@ public sealed class DeleteClayVehicleTripUseCase
             Action = "DELETE_CLAY_TRIP",
             EntityType = nameof(WeighingSession),
             EntityId = session.Id,
-            DetailJson = JsonSerializer.Serialize(new
-            {
-                SessionNo = session.SessionNo,
-                VehiclePlate = session.VehiclePlate,
-                VesselName = cutOrder.VehiclePlate
-            }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+            DetailJson = JsonSerializer.Serialize(normalizedAuditDetail, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
             CreatedAt = now,
             StationCode = _userContext.StationCode
         };
@@ -981,6 +1000,18 @@ public sealed class ToggleClayReturnedBrokenTripUseCase
         line.UpdatedAt = now;
         line.UpdatedBy = _userContext.Username;
 
+        var normalizedAuditDetail = new AuditLogDetailBuilder()
+            .WithSubject("Name", session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.InternalVehicleNo ?? session.VehiclePlate)
+            .WithSubject("VesselName", cutOrder.VehiclePlate)
+            .AddChange("IsReturnedBrokenTrip", oldState, isReturnedBrokenTrip)
+            .AddChange("ReturnedWeight", actualReturnedWeight, line.ActualAllocatedWeight, "kg")
+            .WithSummary("VesselName", cutOrder.VehiclePlate)
+            .WithSummary("PreviousTripSessionNo", previousTrip?.SessionNo)
+            .WithSummary("PreviousTripWeight", previousTrip?.NetWeightKg)
+            .WithSummary("IsReturnedWeightCapped", resolution?.IsCapped ?? false)
+            .Build();
+
         var auditLog = new AuditLog
         {
             Id = Guid.NewGuid(),
@@ -988,23 +1019,7 @@ public sealed class ToggleClayReturnedBrokenTripUseCase
             Action = "TOGGLE_CLAY_RETURNED_TRIP",
             EntityType = nameof(WeighingSession),
             EntityId = session.Id,
-            DetailJson = JsonSerializer.Serialize(new
-            {
-                SessionNo = session.SessionNo,
-                VehiclePlate = session.InternalVehicleNo ?? session.VehiclePlate,
-                VesselName = cutOrder.VehiclePlate,
-                OldActualAllocatedWeight = oldAllocatedWeight,
-                ActualReturnedWeight = actualReturnedWeight,
-                PreviousTripSessionId = previousTrip?.SessionId,
-                PreviousTripSessionLineId = previousTrip?.SessionLineId,
-                PreviousTripSessionNo = previousTrip?.SessionNo,
-                PreviousTripWeight = previousTrip?.NetWeightKg,
-                ReturnedRecognizedWeight = line.ActualAllocatedWeight,
-                IsReturnedWeightCapped = resolution?.IsCapped ?? false,
-                OldIsReturnedBrokenTrip = oldState,
-                NewIsReturnedBrokenTrip = isReturnedBrokenTrip,
-                NetWeight = session.NetWeight
-            }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+            DetailJson = JsonSerializer.Serialize(normalizedAuditDetail, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
             CreatedAt = now,
             StationCode = _userContext.StationCode
         };

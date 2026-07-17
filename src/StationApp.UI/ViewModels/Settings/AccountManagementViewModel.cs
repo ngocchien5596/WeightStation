@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Mvvm.Messaging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Security;
 using StationApp.Application.UseCases;
 using StationApp.UI.Services;
 using StationApp.UI.ViewModels.Dialogs;
@@ -15,15 +16,18 @@ namespace StationApp.UI.ViewModels.Settings;
 public partial class AccountManagementViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private const string AllFilterText = "T\u1ea5t c\u1ea3";
+    private const string ActiveFilterText = "\u0110ang ho\u1ea1t \u0111\u1ed9ng";
+    private const string InactiveFilterText = "Ng\u1eebng ho\u1ea1t \u0111\u1ed9ng";
 
-    public ObservableCollection<string> RoleOptions { get; } = new(["ADMIN", "OPERATOR"]);
-    public ObservableCollection<string> SearchRoleOptions { get; } = new(["Tất cả", "ADMIN", "OPERATOR"]);
-    public ObservableCollection<string> StatusFilterOptions { get; } = new(["Tất cả", "Đang hoạt động", "Ngừng hoạt động"]);
+    public ObservableCollection<string> RoleOptions { get; } = new([StationRoles.Admin, StationRoles.Manager, StationRoles.Operator]);
+    public ObservableCollection<string> SearchRoleOptions { get; } = new([AllFilterText, StationRoles.Admin, StationRoles.Manager, StationRoles.Operator]);
+    public ObservableCollection<string> StatusFilterOptions { get; } = new([AllFilterText, ActiveFilterText, InactiveFilterText]);
 
     [ObservableProperty] private string _searchUsername = string.Empty;
     [ObservableProperty] private string _searchDisplayName = string.Empty;
-    [ObservableProperty] private string _selectedSearchRoleOption = "Tất cả";
-    [ObservableProperty] private string _selectedStatusFilter = "Tất cả";
+    [ObservableProperty] private string _selectedSearchRoleOption = AllFilterText;
+    [ObservableProperty] private string _selectedStatusFilter = AllFilterText;
 
     [ObservableProperty] private ObservableCollection<UserListItemDto> _users = new();
     [ObservableProperty]
@@ -444,8 +448,8 @@ public partial class AccountManagementViewModel : ObservableObject
     {
         return SelectedStatusFilter switch
         {
-            "Đang hoạt động" => true,
-            "Ngừng hoạt động" => false,
+            ActiveFilterText => true,
+            InactiveFilterText => false,
             _ => null
         };
     }

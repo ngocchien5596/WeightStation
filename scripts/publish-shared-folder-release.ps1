@@ -63,6 +63,7 @@ function Add-PublishReleaseLog {
         "- Phien ban: $Version"
         "- File publish: $PackageName"
         "- Duong dan: $PackagePath"
+        "- Prerequisites: prerequisites/install-access-database-engine-prerequisite.ps1"
         "- Release note:"
         ""
         $Notes
@@ -93,6 +94,9 @@ $sharedZipPath = Join-Path $SharedReleaseRoot $packageName
 $latestManifestPath = Join-Path $SharedReleaseRoot "latest.json"
 $versionManifestPath = Join-Path $SharedReleaseRoot "StationApp_$AppVersion`_$releaseStamp.json"
 $publishLogPath = Join-Path $SharedReleaseRoot "publish-release-log.md"
+$sharedPrerequisitesDir = Join-Path $SharedReleaseRoot "prerequisites"
+$repoPrerequisitesDir = Join-Path $repoRoot "prerequisites"
+$aceInstallScriptPath = Join-Path $PSScriptRoot "install-access-database-engine-prerequisite.ps1"
 
 Invoke-PowerShellScript -ScriptPath $publishScriptPath -Arguments @(
     "-Configuration", $Configuration,
@@ -130,6 +134,19 @@ if (-not (Test-Path $SharedReleaseRoot)) {
 }
 
 Copy-Item $localZipPath $sharedZipPath -Force
+
+if (-not (Test-Path $sharedPrerequisitesDir)) {
+    New-Item -ItemType Directory -Path $sharedPrerequisitesDir -Force | Out-Null
+}
+
+if (Test-Path $repoPrerequisitesDir) {
+    Copy-Item (Join-Path $repoPrerequisitesDir "*") $sharedPrerequisitesDir -Recurse -Force
+}
+
+if (Test-Path $aceInstallScriptPath) {
+    Copy-Item $aceInstallScriptPath $sharedPrerequisitesDir -Force
+}
+
 Set-Content -Path $latestManifestPath -Value $manifestJson -Encoding UTF8
 Set-Content -Path $versionManifestPath -Value $manifestJson -Encoding UTF8
 Add-PublishReleaseLog `
@@ -145,3 +162,4 @@ Write-Host "Version: $AppVersion"
 Write-Host "Package: $sharedZipPath"
 Write-Host "Manifest: $latestManifestPath"
 Write-Host "Publish log: $publishLogPath"
+Write-Host "Prerequisites: $sharedPrerequisitesDir"

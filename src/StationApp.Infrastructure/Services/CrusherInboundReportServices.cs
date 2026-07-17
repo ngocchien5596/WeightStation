@@ -251,7 +251,7 @@ public sealed class CrusherInboundReportExcelExporter : ICrusherInboundReportExp
         companyName.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         companyName.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        sheet.Range("B2:E2").Merge().Value = "Địa chỉ: Km6, Quốc lộ 18A, Cẩm Thạch, Cẩm Phả, Quảng Ninh";
+        sheet.Range("B2:E2").Merge().Value = "Địa chỉ: Km6, Quốc lộ 18A, Quang Hanh, Quảng Ninh";
         sheet.Range("B3:E3").Merge().Value = "Điện thoại: (84-203) 3.721.995 - (84-203) 3.721.996";
         sheet.Range("B2:E3").Style.Font.FontName = "Times New Roman";
         sheet.Range("B2:E3").Style.Font.FontSize = 11;

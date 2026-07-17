@@ -1,5 +1,6 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -52,6 +53,7 @@ public sealed class UpdateWeighingSessionMoocNumberUseCase
 
         var weighTickets = await _weighTicketRepository.GetByWeighingSessionIdAsync(weighingSessionId, ct);
         var normalizedMoocNumber = NormalizeOptional(moocNumber);
+        var oldMoocNumber = session.MoocNumber;
         var now = _clock.NowLocal;
         var erpRegistrations = registrations
             .Where(ShouldWriteBackToErp)
@@ -108,14 +110,14 @@ public sealed class UpdateWeighingSessionMoocNumberUseCase
             "UPDATE_WEIGHING_SESSION_MOOC_NO",
             nameof(WeighingSession),
             session.Id,
-            new
-            {
-                WeighingSessionId = weighingSessionId,
-                MoocNumber = normalizedMoocNumber,
-                UpdatedCutOrderIds = registrations.Select(x => x.Id).ToArray(),
-                UpdatedWeighTicketIds = weighTickets.Select(x => x.Id).ToArray(),
-                UpdatedErpCutOrderIds = erpRegistrations.Select(x => x.ErpCutOrderId).ToArray()
-            },
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", session.SessionNo)
+                .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+                .AddChange("MoocNumber", oldMoocNumber, normalizedMoocNumber)
+                .WithSummary("UpdatedCutOrderCount", registrations.Count)
+                .WithSummary("UpdatedWeighTicketCount", weighTickets.Count)
+                .WithSummary("UpdatedErpCutOrderIds", erpRegistrations.Select(x => x.ErpCutOrderId).ToArray())
+                .Build(),
             ct);
 
         return OperationResult<string?>.Ok(normalizedMoocNumber);

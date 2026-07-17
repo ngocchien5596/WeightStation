@@ -1,6 +1,7 @@
 using NSubstitute;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Security;
 using StationApp.Application.Services;
 using StationApp.Application.UseCases;
 using StationApp.Domain.Entities;
@@ -11,12 +12,52 @@ namespace StationApp.Application.Tests;
 
 public class AuthorizationRbacUseCaseTests
 {
+    [Theory]
+    [InlineData("ADMIN", true, true, true, true, true, true)]
+    [InlineData("MANAGER", true, true, true, true, true, true)]
+    [InlineData("OPERATOR", true, false, true, false, true, false)]
+    public void StationAuthorization_CoreCapabilities_FollowRoleMatrix(
+        string roleCode,
+        bool canViewOperational,
+        bool canUseManualWeighing,
+        bool canUpdateApplication,
+        bool canViewEditHistory,
+        bool canManageMasterDataQn01,
+        bool canManageMasterDataQn02)
+    {
+        Assert.Equal(canViewOperational, StationAuthorization.CanViewOperationalScreens(roleCode));
+        Assert.Equal(canUseManualWeighing, StationAuthorization.CanUseManualWeighing(roleCode));
+        Assert.Equal(canUpdateApplication, StationAuthorization.CanUpdateApplication(roleCode));
+        Assert.Equal(canViewEditHistory, StationAuthorization.CanViewEditHistory(roleCode));
+        Assert.Equal(canManageMasterDataQn01, StationAuthorization.CanManageMasterData(roleCode, "QN01"));
+        Assert.Equal(canManageMasterDataQn02, StationAuthorization.CanManageMasterData(roleCode, "QN02"));
+    }
+
+    [Fact]
+    public void StationAuthorization_Manager_IsSupportedRole()
+    {
+        Assert.True(StationAuthorization.IsSupportedRole("MANAGER"));
+        Assert.True(StationAuthorization.IsManager("manager"));
+    }
+
     [Fact]
     public async Task SearchUsers_Operator_IsBlocked()
     {
         var userRepo = Substitute.For<IUserRepository>();
         var currentUser = Substitute.For<ICurrentUserContext>();
         currentUser.RoleCode.Returns("OPERATOR");
+        var sut = new SearchUsersUseCase(userRepo, currentUser);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            sut.ExecuteAsync(new SearchUsersRequest(null, null, null, null), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task SearchUsers_Manager_IsBlocked()
+    {
+        var userRepo = Substitute.For<IUserRepository>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        currentUser.RoleCode.Returns("MANAGER");
         var sut = new SearchUsersUseCase(userRepo, currentUser);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -58,6 +99,32 @@ public class AuthorizationRbacUseCaseTests
 
         Assert.False(result.Success);
         Assert.Equal("Vai trò không hợp lệ.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task CreateUserAccount_Admin_CanCreateManager()
+    {
+        var userRepo = Substitute.For<IUserRepository>();
+        var hasher = Substitute.For<IUserPasswordHasher>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var audit = Substitute.For<IAuditService>();
+        currentUser.RoleCode.Returns("ADMIN");
+        currentUser.Username.Returns("admin");
+        clock.NowLocal.Returns(new DateTime(2026, 7, 15, 8, 0, 0));
+        hasher.HashPassword("password1").Returns("hash");
+        userRepo.ExistsByUsernameAsync("manager1", Arg.Any<CancellationToken>()).Returns(false);
+
+        var sut = new CreateUserAccountUseCase(userRepo, hasher, currentUser, clock, uow, audit);
+        var result = await sut.ExecuteAsync(
+            new CreateUserAccountRequest("manager1", "Manager 1", "MANAGER", "password1", "password1", true),
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("MANAGER", result.Data.RoleCode);
+        await userRepo.Received(1).AddAsync(Arg.Is<User>(x => x.Username == "manager1" && x.RoleCode == "MANAGER"), Arg.Any<CancellationToken>());
     }
 
     [Fact]

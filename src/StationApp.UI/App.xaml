@@ -28,6 +28,7 @@
             <converters:OverweightResolutionStatusDisplayConverter x:Key="OverweightResolutionStatusDisplay"/>
             <converters:RecordRoleDisplayConverter x:Key="RecordRoleDisplay"/>
             <converters:BooleanToStatusConverter x:Key="BooleanToStatusConverter"/>
+            <converters:RoleDisplayConverter x:Key="RoleDisplayConverter"/>
             <converters:OverweightFlagDisplayConverter x:Key="OverweightFlagDisplay"/>
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
             <converters:TransactionTypeDisplayConverter x:Key="TransactionTypeDisplayConverter"/>
@@ -49,4 +50,3 @@
         </ResourceDictionary>
     </Application.Resources>
 </Application>
-

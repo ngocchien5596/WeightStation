@@ -1,6 +1,7 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Domain.Entities;
 
 namespace StationApp.Application.UseCases;
@@ -107,7 +108,18 @@ public sealed class CreateUserAccountUseCase
 
         await _userRepository.AddAsync(user, ct);
         await _uow.SaveChangesAsync(ct);
-        await _auditService.LogAsync("CREATE_USER_ACCOUNT", nameof(User), user.Id, new { user.Username, user.RoleCode }, ct);
+        await _auditService.LogAsync(
+            "CREATE_USER_ACCOUNT",
+            nameof(User),
+            user.Id,
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", user.Username)
+                .AddChange(nameof(User.Username), null, user.Username)
+                .AddChange(nameof(User.DisplayName), null, user.DisplayName)
+                .AddChange(nameof(User.RoleCode), null, user.RoleCode)
+                .AddChange(nameof(User.IsActive), null, user.IsActive)
+                .Build(),
+            ct);
         return OperationResult<User>.Ok(user);
     }
 
@@ -232,6 +244,10 @@ public sealed class UpdateUserAccountUseCase
             }
         }
 
+        var oldDisplayName = user.DisplayName;
+        var oldRoleCode = user.RoleCode;
+        var oldIsActive = user.IsActive;
+
         user.DisplayName = displayName;
         user.RoleCode = roleCode;
         user.IsActive = request.IsActive;
@@ -240,7 +256,17 @@ public sealed class UpdateUserAccountUseCase
 
         await _userRepository.UpdateAsync(user, ct);
         await _uow.SaveChangesAsync(ct);
-        await _auditService.LogAsync("UPDATE_USER_ACCOUNT", nameof(User), user.Id, new { user.Username, user.RoleCode, user.IsActive }, ct);
+        await _auditService.LogAsync(
+            "UPDATE_USER_ACCOUNT",
+            nameof(User),
+            user.Id,
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", user.Username)
+                .AddChange(nameof(User.DisplayName), oldDisplayName, user.DisplayName)
+                .AddChange(nameof(User.RoleCode), oldRoleCode, user.RoleCode)
+                .AddChange(nameof(User.IsActive), oldIsActive, user.IsActive)
+                .Build(),
+            ct);
         return OperationResult<User>.Ok(user);
     }
 
@@ -293,6 +319,7 @@ public sealed class SetUserActiveStatusUseCase
             }
         }
 
+        var oldIsActive = user.IsActive;
         user.IsActive = request.IsActive;
         user.UpdatedAt = _clock.NowLocal;
         user.UpdatedBy = _currentUser.Username;
@@ -303,7 +330,10 @@ public sealed class SetUserActiveStatusUseCase
             request.IsActive ? "REACTIVATE_USER_ACCOUNT" : "DEACTIVATE_USER_ACCOUNT",
             nameof(User),
             user.Id,
-            new { user.Username, user.IsActive },
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", user.Username)
+                .AddChange(nameof(User.IsActive), oldIsActive, user.IsActive)
+                .Build(),
             ct);
         return OperationResult<User>.Ok(user);
     }
@@ -361,7 +391,15 @@ public sealed class ResetUserPasswordUseCase
 
         await _userRepository.UpdateAsync(user, ct);
         await _uow.SaveChangesAsync(ct);
-        await _auditService.LogAsync("RESET_USER_PASSWORD", nameof(User), user.Id, new { user.Username }, ct);
+        await _auditService.LogAsync(
+            "RESET_USER_PASSWORD",
+            nameof(User),
+            user.Id,
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", user.Username)
+                .AddChange("Password", null, "\u0110\u00e3 \u0111\u1eb7t l\u1ea1i")
+                .Build(),
+            ct);
         return OperationResult<User>.Ok(user);
     }
 

@@ -6,5 +6,15 @@ public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog log, CancellationToken ct);
     Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, Guid entityId, CancellationToken ct);
+    Task<IReadOnlyList<AuditLog>> SearchAsync(AuditLogSearchRequest request, CancellationToken ct);
     Task<IReadOnlyList<AuditLog>> SearchEditLogsAsync(string? vehiclePlate, string? sessionNo, DateTime fromDate, DateTime toDate, string? stationCode, CancellationToken ct);
 }
+
+public sealed record AuditLogSearchRequest(
+    DateTime FromDate,
+    DateTime ToDate,
+    string? StationCode,
+    string? VehiclePlate,
+    string? SessionNo,
+    string? Action,
+    string? Keyword);

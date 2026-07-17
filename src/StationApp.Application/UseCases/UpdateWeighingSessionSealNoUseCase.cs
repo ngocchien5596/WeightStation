@@ -1,5 +1,6 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -39,6 +40,7 @@ public sealed class UpdateWeighingSessionSealNoUseCase
         }
 
         var normalizedSealNo = NormalizeOptional(sealNo);
+        var oldSealNo = registrations[0].SealNo;
         var now = _clock.NowLocal;
         var erpRegistrations = registrations
             .Where(ShouldWriteBackToErp)
@@ -82,13 +84,12 @@ public sealed class UpdateWeighingSessionSealNoUseCase
             "UPDATE_WEIGHING_SESSION_SEAL_NO",
             nameof(CutOrder),
             registrations[0].Id,
-            new
-            {
-                WeighingSessionId = weighingSessionId,
-                SealNo = normalizedSealNo,
-                UpdatedCutOrderIds = registrations.Select(x => x.Id).ToArray(),
-                UpdatedErpCutOrderIds = erpRegistrations.Select(x => x.ErpCutOrderId).ToArray()
-            },
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", registrations[0].ErpCutOrderId ?? registrations[0].VehiclePlate)
+                .AddChange("SealNo", oldSealNo, normalizedSealNo)
+                .WithSummary("UpdatedCutOrderCount", registrations.Count)
+                .WithSummary("UpdatedErpCutOrderIds", erpRegistrations.Select(x => x.ErpCutOrderId).ToArray())
+                .Build(),
             ct);
 
         return OperationResult<string?>.Ok(normalizedSealNo);

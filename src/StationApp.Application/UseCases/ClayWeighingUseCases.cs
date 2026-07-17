@@ -1,4 +1,4 @@
-using StationApp.Application.DTOs;
+﻿using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -96,7 +96,7 @@ public sealed class ClayWeighingUseCases
         var vehicle = await _vehicleRepository.GetByIdAsync(request.VehicleId, ct);
         if (vehicle is null || !vehicle.IsInternalVehicle)
         {
-            throw new InvalidOperationException("Không tìm thấy xe nội bộ hợp lệ cho mỏ đá.");
+            throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y xe ná»™i bá»™ há»£p lá»‡ cho má» Ä‘Ã¡.");
         }
 
         var mode = ClayWeighingModes.TwoWeigh;
@@ -148,21 +148,21 @@ public sealed class ClayWeighingUseCases
     public async Task CaptureWeight2Async(CaptureClayWeight2Request request, CancellationToken ct)
     {
         var session = await _sessionRepository.GetByIdAsync(request.SessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân mỏ đá.");
+            ?? throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t cÃ¢n má» Ä‘Ã¡.");
 
         if (!string.Equals(session.WeighingMode, ClayWeighingModes.TwoWeigh, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Lượt cân một lần không cần cân lần 2.");
+            throw new InvalidOperationException("LÆ°á»£t cÃ¢n má»™t láº§n khÃ´ng cáº§n cÃ¢n láº§n 2.");
         }
 
         if (session.Weight1 is null)
         {
-            throw new InvalidOperationException("Lượt cân chưa có cân lần 1.");
+            throw new InvalidOperationException("LÆ°á»£t cÃ¢n chÆ°a cÃ³ cÃ¢n láº§n 1.");
         }
 
         if (session.SessionStatus == WeighingSessionStatus.COMPLETED)
         {
-            throw new InvalidOperationException("Lượt cân đã hoàn tất, không thể cân lần 2 lại.");
+            throw new InvalidOperationException("LÆ°á»£t cÃ¢n Ä‘Ã£ hoÃ n táº¥t, khÃ´ng thá»ƒ cÃ¢n láº§n 2 láº¡i.");
         }
 
         var now = _clock.NowLocal;
@@ -178,9 +178,9 @@ public sealed class ClayWeighingUseCases
         session.UpdatedBy = CurrentUsername();
 
         var vehicleId = session.StandardTareVehicleId
-            ?? throw new InvalidOperationException("Lượt cân chưa liên kết xe nội bộ để cập nhật TL bì.");
+            ?? throw new InvalidOperationException("LÆ°á»£t cÃ¢n chÆ°a liÃªn káº¿t xe ná»™i bá»™ Ä‘á»ƒ cáº­p nháº­t TL bÃ¬.");
         var vehicle = await _vehicleRepository.GetByIdAsync(vehicleId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy xe nội bộ để cập nhật TL bì.");
+            ?? throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y xe ná»™i bá»™ Ä‘á»ƒ cáº­p nháº­t TL bÃ¬.");
         vehicle.TtcpWeight = session.Weight2;
         vehicle.StandardTareUpdatedAt = now;
         vehicle.StandardTareUpdatedBy = CurrentUsername();
@@ -362,18 +362,18 @@ public sealed class ClayWeighingUseCases
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
-            throw new ArgumentException("Lý do sửa đổi là bắt buộc.", nameof(reason));
+            throw new ArgumentException("LÃ½ do sá»­a Ä‘á»•i lÃ  báº¯t buá»™c.", nameof(reason));
         }
 
         var session = await _sessionRepository.GetByIdAsync(sessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân cần chỉnh sửa.");
+            ?? throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t cÃ¢n cáº§n chá»‰nh sá»­a.");
 
         var vehicle = await _vehicleRepository.GetByIdAsync(newVehicleId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy thông tin xe mới.");
+            ?? throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin xe má»›i.");
 
         if (!vehicle.IsInternalVehicle)
         {
-            throw new InvalidOperationException("Chỉ cho phép chọn xe nội bộ.");
+            throw new InvalidOperationException("Chá»‰ cho phÃ©p chá»n xe ná»™i bá»™.");
         }
 
         var now = _clock.NowLocal;
@@ -537,6 +537,7 @@ public sealed class ClayWeighingUseCases
 
         await _sessionRepository.UpdateAsync(session, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+
     }
 
     private static bool ShouldInvalidateOldVehicleStandardTare(
@@ -558,3 +559,4 @@ public sealed class ClayWeighingUseCases
             == decimal.Round(session.Weight2.Value, 3, MidpointRounding.AwayFromZero);
     }
 }
+

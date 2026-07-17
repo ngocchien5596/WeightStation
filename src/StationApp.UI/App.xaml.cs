@@ -332,6 +332,11 @@ public partial class App : System.Windows.Application
                     {
                         client.Timeout = TimeSpan.FromMinutes(2);
                     }).AddHttpMessageHandler<ApiKeyDelegatingHandler>();
+                    services.AddHttpClient<ITelegramNotificationService, TelegramNotificationService>(client =>
+                    {
+                        client.BaseAddress = new Uri("https://api.telegram.org/");
+                        client.Timeout = TimeSpan.FromSeconds(15);
+                    });
 
                     services.AddHostedService<SyncOutboxWorker>();
                     services.AddHostedService<WeighingSessionImageSyncWorker>();

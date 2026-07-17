@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -21,6 +22,7 @@ public sealed class TransferExportVehicleTripUseCase
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly ITelegramNotificationService _telegramService;
 
     public TransferExportVehicleTripUseCase(
         ICutOrderRepository cutOrderRepo,
@@ -30,7 +32,8 @@ public sealed class TransferExportVehicleTripUseCase
         IUnitOfWork uow,
         ICurrentUserContext userContext,
         IClock clock,
-        IAuditLogRepository auditLogRepository)
+        IAuditLogRepository auditLogRepository,
+        ITelegramNotificationService telegramService)
     {
         _cutOrderRepo = cutOrderRepo;
         _sessionRepo = sessionRepo;
@@ -40,6 +43,7 @@ public sealed class TransferExportVehicleTripUseCase
         _userContext = userContext;
         _clock = clock;
         _auditLogRepository = auditLogRepository;
+        _telegramService = telegramService;
     }
 
     public async Task ExecuteAsync(TransferExportVehicleTripRequest request, CancellationToken ct)
@@ -179,21 +183,19 @@ public sealed class TransferExportVehicleTripUseCase
             ? targetCutOrder.TemporaryExportDisplayCode ?? targetErpId
             : targetErpId;
 
-        var auditDetail = new
-        {
-            SessionNo = session.SessionNo,
-            SourceCutOrderId = sourceCutOrder.Id,
-            SourceErpCutOrderId = sourceErpId,
-            SourceDisplayCode = sourceDisplayCode,
-            TargetCutOrderId = targetCutOrder.Id,
-            TargetErpCutOrderId = targetErpId,
-            TargetDisplayCode = targetDisplayCode,
-            VehiclePlate = session.VehiclePlate,
-            Weight1 = session.Weight1,
-            Weight2 = session.Weight2,
-            NetWeight = session.NetWeight,
-            Reason = $"Chuyển chuyến từ cắt lệnh {sourceDisplayCode ?? sourceCutOrder.Id.ToString()} sang {targetDisplayCode ?? targetCutOrder.Id.ToString()}"
-        };
+        var normalizedAuditDetail = new AuditLogDetailBuilder()
+            .WithSubject("Name", session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .WithReason($"Chuyển chuyến từ cắt lệnh {sourceDisplayCode ?? sourceCutOrder.Id.ToString()} sang {targetDisplayCode ?? targetCutOrder.Id.ToString()}")
+            .AddChange("CutOrder", sourceDisplayCode ?? sourceErpId ?? sourceCutOrder.Id.ToString(), targetDisplayCode ?? targetErpId ?? targetCutOrder.Id.ToString())
+            .AddChange(nameof(WeighingSessionLine.CustomerName), sourceCutOrder.CustomerName, targetCutOrder.CustomerName)
+            .AddChange(nameof(WeighingSessionLine.ProductName), sourceCutOrder.ProductName, targetCutOrder.ProductName)
+            .WithSummary(nameof(WeighingSession.SessionNo), session.SessionNo)
+            .WithSummary(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .WithSummary(nameof(WeighingSession.Weight1), session.Weight1)
+            .WithSummary(nameof(WeighingSession.Weight2), session.Weight2)
+            .WithSummary(nameof(WeighingSession.NetWeight), session.NetWeight)
+            .Build();
 
         var auditLog = new AuditLog
         {
@@ -202,13 +204,25 @@ public sealed class TransferExportVehicleTripUseCase
             Action = "TRANSFER_EXPORT_TRIP",
             EntityType = "WeighingSession",
             EntityId = session.Id,
-            DetailJson = System.Text.Json.JsonSerializer.Serialize(auditDetail, new System.Text.Json.JsonSerializerOptions { WriteIndented = false, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+            DetailJson = System.Text.Json.JsonSerializer.Serialize(normalizedAuditDetail, new System.Text.Json.JsonSerializerOptions { WriteIndented = false, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
             CreatedAt = _clock.NowLocal,
             StationCode = _userContext.StationCode
         };
 
         await _auditLogRepository.AddAsync(auditLog, ct);
         await _uow.SaveChangesAsync(ct);
+
+        var notification = TelegramNotificationMessageBuilder.BuildExportTripTransfer(
+            session,
+            sourceCutOrder,
+            targetCutOrder,
+            sourceDisplayCode,
+            targetDisplayCode,
+            _userContext.Username,
+            _userContext.DisplayName,
+            _userContext.StationCode,
+            auditLog.CreatedAt);
+        await _telegramService.SendNotificationAsync(notification, _userContext.StationCode, ct);
     }
 
     private async Task<decimal?> ResolveRemainingPlannedWeightAsync(CutOrder cutOrder, CancellationToken ct)

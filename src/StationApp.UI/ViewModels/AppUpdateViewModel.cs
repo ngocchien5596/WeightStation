@@ -43,7 +43,7 @@ public partial class AppUpdateViewModel : ObservableObject
     [ObservableProperty] private string _sharedReleaseRoot = string.Empty;
     [ObservableProperty] private string _resolvedManifestPath = string.Empty;
 
-    public bool CanUpdateApplication => StationAuthorization.IsAdmin(_currentUserContext.RoleCode) || StationAuthorization.IsOperator(_currentUserContext.RoleCode);
+    public bool CanUpdateApplication => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
     public async Task LoadAsync()
     {

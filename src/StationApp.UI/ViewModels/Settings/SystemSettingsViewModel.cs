@@ -1,6 +1,7 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
@@ -14,11 +15,16 @@ public partial class SystemSettingsViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IConfiguration _configuration;
 
-    public SystemSettingsViewModel(IServiceScopeFactory scopeFactory, ICurrentUserContext currentUserContext)
+    public SystemSettingsViewModel(
+        IServiceScopeFactory scopeFactory,
+        ICurrentUserContext currentUserContext,
+        IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
+        _configuration = configuration;
     }
 
     [ObservableProperty] private string _stationCode = string.Empty;
@@ -34,6 +40,7 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _localDatabaseBackupTime = AppConfigDefaults.DefaultLocalDatabaseBackupTime;
     [ObservableProperty] private string _centralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
     [ObservableProperty] private string _localDatabaseBackupMessage = "Chưa chạy sao lưu DB local thủ công.";
+    [ObservableProperty] private string _telegramStatusMessage = "Chưa kiểm tra cấu hình Telegram.";
 
     public bool CanManageSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
 
@@ -62,6 +69,7 @@ public partial class SystemSettingsViewModel : ObservableObject
             ?? AppConfigDefaults.DefaultLocalDatabaseBackupTime;
         CentralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
         LocalDatabaseBackupMessage = $"Thư mục backup hiện tại: {LocalDatabaseBackupDirectory}";
+        TelegramStatusMessage = BuildTelegramStatusMessage();
     }
 
     [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
@@ -133,5 +141,85 @@ public partial class SystemSettingsViewModel : ObservableObject
         }
 
         await dialogService.ShowWarningAsync("Cảnh báo", result.Message);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
+    private async Task TestTelegramConnectionAsync()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dialogService = scope.ServiceProvider.GetRequiredService<Services.IDialogService>();
+        var telegram = scope.ServiceProvider.GetRequiredService<ITelegramNotificationService>();
+        var token = _configuration["Telegram:BotToken"] ?? string.Empty;
+        var chatId = ResolveTelegramChatIdForCurrentStation();
+
+        var result = await telegram.TestConnectionAsync(token, chatId, CancellationToken.None);
+        TelegramStatusMessage = BuildTelegramStatusMessage(result.Message);
+
+        if (result.Success)
+        {
+            await dialogService.ShowInfoAsync("Thông báo", result.Message);
+            return;
+        }
+
+        await dialogService.ShowWarningAsync("Cảnh báo", result.Message);
+    }
+
+    private string BuildTelegramStatusMessage(string? suffix = null)
+    {
+        var enabled = _configuration.GetValue("Telegram:Enabled", false);
+        var token = _configuration["Telegram:BotToken"];
+        var chatId = ResolveTelegramChatIdForCurrentStation();
+        var stationCode = _currentUserContext.StationCode;
+        var status = enabled ? "Đang bật" : "Đang tắt";
+        var message = $"Telegram: {status}; Trạm: {FormatStationCode(stationCode)}; BotToken: {MaskToken(token)}; ChatId: {MaskChatId(chatId)}";
+        return string.IsNullOrWhiteSpace(suffix)
+            ? message
+            : $"{message}. {suffix}";
+    }
+
+    private string ResolveTelegramChatIdForCurrentStation()
+    {
+        var stationCode = _currentUserContext.StationCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(stationCode))
+        {
+            var stationChatId = _configuration[$"Telegram:StationChatIds:{stationCode.ToUpperInvariant()}"];
+            if (!string.IsNullOrWhiteSpace(stationChatId))
+            {
+                return stationChatId;
+            }
+        }
+
+        return _configuration["Telegram:DefaultChatId"]
+            ?? _configuration["Telegram:ChatId"]
+            ?? string.Empty;
+    }
+
+    private static string FormatStationCode(string? stationCode)
+        => string.IsNullOrWhiteSpace(stationCode) ? "chưa xác định" : stationCode.Trim().ToUpperInvariant();
+
+    private static string MaskToken(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return "chưa cấu hình";
+        }
+
+        var trimmed = token.Trim();
+        return trimmed.Length <= 8
+            ? "***"
+            : $"{trimmed[..4]}...{trimmed[^4..]}";
+    }
+
+    private static string MaskChatId(string? chatId)
+    {
+        if (string.IsNullOrWhiteSpace(chatId))
+        {
+            return "chưa cấu hình";
+        }
+
+        var trimmed = chatId.Trim();
+        return trimmed.Length <= 6
+            ? trimmed
+            : $"{trimmed[..4]}...{trimmed[^3..]}";
     }
 }

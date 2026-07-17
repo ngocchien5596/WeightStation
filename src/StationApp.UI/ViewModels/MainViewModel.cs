@@ -62,27 +62,27 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewExportWeighing => StationFeatures.ShowMenuExportWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationFeatures.ShowMenuOutgoingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport || CanViewEditHistoryReport;
-    public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewExportScaleReport => CanViewExportSummaryReport;
-    public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewEditHistoryReport => StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
+    public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
+    public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
+    public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
+    public bool CanViewEditHistoryReport => StationAuthorization.CanViewEditHistory(_currentUserContext.RoleCode);
     public bool CanViewTicketList => false;
     public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
-        StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode)
+        StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode)
         || StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode)
         || StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
     public bool CanViewSettingsParams => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanViewSettingsDevice => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
     public bool CanViewSettingsPrint => StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);
-    public bool CanViewSettingsVehicles => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
-    public bool CanViewSettingsCustomers => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
-    public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
+    public bool CanViewSettingsVehicles => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
+    public bool CanViewSettingsCustomers => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
+    public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
     public bool CanViewSettingsSync => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
     public bool CanViewSettingsExternalDatacan => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
-    public bool CanViewSettingsStations => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
+    public bool CanViewSettingsStations => StationAuthorization.CanManageStations(_currentUserContext.RoleCode);
     public bool CanViewSettingsAccounts => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
     public bool CanViewAppUpdate => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
@@ -353,38 +353,18 @@ public partial class MainViewModel : ObservableObject
                         navigationVersion);
                     break;
                 case "Reports_EditHistory":
-                    // QN01: Export trip transfer history
-                    // Other stations: Weighing session edit history
-                    if (_currentUserContext.StationCode == "QN01")
+                    var editHistoryVm = _serviceProvider.GetRequiredService<WeighingSessionEditHistoryViewModel>();
+                    if (!string.IsNullOrWhiteSpace(_pendingEditHistoryVehiclePlate) || !string.IsNullOrWhiteSpace(_pendingEditHistorySessionNo))
                     {
-                        var transferHistoryVm = _serviceProvider.GetRequiredService<ExportTripTransferHistoryViewModel>();
-                        if (!string.IsNullOrWhiteSpace(_pendingEditHistoryVehiclePlate) || !string.IsNullOrWhiteSpace(_pendingEditHistorySessionNo))
-                        {
-                            transferHistoryVm.SetFilter(_pendingEditHistoryVehiclePlate, _pendingEditHistorySessionNo);
-                            _pendingEditHistoryVehiclePlate = null;
-                            _pendingEditHistorySessionNo = null;
-                        }
-                        CurrentView = new ExportTripTransferHistoryView { DataContext = transferHistoryVm };
-                        _ = RunViewInitializationAsync(
-                            () => transferHistoryVm.InitializeAsync(),
-                            destination,
-                            navigationVersion);
+                        editHistoryVm.SetFilter(_pendingEditHistoryVehiclePlate, _pendingEditHistorySessionNo);
+                        _pendingEditHistoryVehiclePlate = null;
+                        _pendingEditHistorySessionNo = null;
                     }
-                    else
-                    {
-                        var editHistoryVm = _serviceProvider.GetRequiredService<WeighingSessionEditHistoryViewModel>();
-                        if (!string.IsNullOrWhiteSpace(_pendingEditHistoryVehiclePlate) || !string.IsNullOrWhiteSpace(_pendingEditHistorySessionNo))
-                        {
-                            editHistoryVm.SetFilter(_pendingEditHistoryVehiclePlate, _pendingEditHistorySessionNo);
-                            _pendingEditHistoryVehiclePlate = null;
-                            _pendingEditHistorySessionNo = null;
-                        }
-                        CurrentView = new WeighingSessionEditHistoryView { DataContext = editHistoryVm };
-                        _ = RunViewInitializationAsync(
-                            () => editHistoryVm.InitializeAsync(),
-                            destination,
-                            navigationVersion);
-                    }
+                    CurrentView = new WeighingSessionEditHistoryView { DataContext = editHistoryVm };
+                    _ = RunViewInitializationAsync(
+                        () => editHistoryVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
                     break;
                 case "TicketList":
                     var ticketVm = _serviceProvider.GetRequiredService<TicketListViewModel>();
@@ -652,6 +632,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewInboundSummaryReport));
         OnPropertyChanged(nameof(CanViewCrusherInboundReport));
         OnPropertyChanged(nameof(CanViewClayInboundReport));
+        OnPropertyChanged(nameof(CanViewEditHistoryReport));
         OnPropertyChanged(nameof(CanViewSettingsMenu));
         OnPropertyChanged(nameof(CanViewSettingsParams));
         OnPropertyChanged(nameof(CanViewSettingsDevice));
@@ -663,6 +644,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewSettingsExternalDatacan));
         OnPropertyChanged(nameof(CanViewSettingsStations));
         OnPropertyChanged(nameof(CanViewSettingsAccounts));
+        OnPropertyChanged(nameof(CanViewAppUpdate));
     }
 
     private void DisposeCurrentViewModel()

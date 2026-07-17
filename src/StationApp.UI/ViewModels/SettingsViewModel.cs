@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
@@ -9,6 +10,7 @@ public partial class SettingsViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly ICurrentStationContext _currentStationContext;
     private bool _suppressTabChangedHandler;
 
     public ViewModels.Settings.SystemSettingsViewModel SystemSettingsVM { get; }
@@ -30,12 +32,12 @@ public partial class SettingsViewModel : ObservableObject
     public bool CanAccessSystemSettings => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanAccessScaleDeviceConfig => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
     public bool CanAccessPrintConfig => StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);
-    public bool CanAccessVehicleMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
-    public bool CanAccessCustomerMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
-    public bool CanAccessProductMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode);
+    public bool CanAccessVehicleMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
+    public bool CanAccessCustomerMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
+    public bool CanAccessProductMaster => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
     public bool CanAccessSyncInfo => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
     public bool CanAccessExternalDatacan => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
-    public bool CanAccessStationMaster => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
+    public bool CanAccessStationMaster => StationAuthorization.CanManageStations(_currentUserContext.RoleCode);
     public bool CanAccessAccountManagement => StationAuthorization.CanManageAccounts(_currentUserContext.RoleCode);
     public bool CanAccessAppUpdate => StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
 
@@ -53,18 +55,19 @@ public partial class SettingsViewModel : ObservableObject
         IServiceScopeFactory scopeFactory,
         ICurrentUserContext currentUserContext,
         Device.Abstractions.IScaleDevice scaleDevice,
-        AppUpdateViewModel appUpdateViewModel)
+        AppUpdateViewModel appUpdateViewModel,
+        IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
         using var scope = _scopeFactory.CreateScope();
-        var currentStationContext = scope.ServiceProvider.GetRequiredService<ICurrentStationContext>();
+        _currentStationContext = scope.ServiceProvider.GetRequiredService<ICurrentStationContext>();
 
-        SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext);
+        SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext, configuration);
         CameraConfigVM = new Settings.CameraConfigViewModel(_scopeFactory, _currentUserContext);
         ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice);
         PrintConfigVM = new Settings.PrintConfigViewModel(_scopeFactory, _currentUserContext);
-        VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory, currentStationContext);
+        VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory, _currentStationContext);
         CustomerMasterVM = new Settings.CustomerMasterViewModel(_scopeFactory);
         ProductMasterVM = new Settings.ProductMasterViewModel(_scopeFactory);
         SyncInfoVM = new Settings.SyncInfoViewModel(_scopeFactory);

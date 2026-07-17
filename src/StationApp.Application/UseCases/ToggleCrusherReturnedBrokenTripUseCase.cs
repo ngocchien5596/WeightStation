@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
@@ -33,21 +33,21 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
     public async Task ExecuteAsync(Guid sessionId, bool isReturnedBrokenTrip, CancellationToken ct)
     {
         var session = await _sessionRepo.GetByIdAsync(sessionId, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy lượt cân mỏ đá cần cập nhật.");
+            ?? throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t cÃ¢n má» Ä‘Ã¡ cáº§n cáº­p nháº­t.");
 
         if (session.IsDeleted || session.IsCancelled)
         {
-            throw new InvalidOperationException("Lượt cân không còn hợp lệ để cập nhật trạng thái hàng hoàn.");
+            throw new InvalidOperationException("LÆ°á»£t cÃ¢n khÃ´ng cÃ²n há»£p lá»‡ Ä‘á»ƒ cáº­p nháº­t tráº¡ng thÃ¡i hÃ ng hoÃ n.");
         }
 
         if (string.IsNullOrWhiteSpace(session.InternalVehicleNo))
         {
-            throw new InvalidOperationException("Chỉ hỗ trợ đánh dấu hàng hoàn cho luồng cân mỏ đá.");
+            throw new InvalidOperationException("Chá»‰ há»— trá»£ Ä‘Ã¡nh dáº¥u hÃ ng hoÃ n cho luá»“ng cÃ¢n má» Ä‘Ã¡.");
         }
 
         if (session.SessionStatus != WeighingSessionStatus.COMPLETED || (session.NetWeight ?? 0m) <= 0m)
         {
-            throw new InvalidOperationException("Chỉ được đánh dấu hàng hoàn khi lượt cân đã hoàn thành và có trọng lượng hàng.");
+            throw new InvalidOperationException("Chá»‰ Ä‘Æ°á»£c Ä‘Ã¡nh dáº¥u hÃ ng hoÃ n khi lÆ°á»£t cÃ¢n Ä‘Ã£ hoÃ n thÃ nh vÃ  cÃ³ trá»ng lÆ°á»£ng hÃ ng.");
         }
 
         if (session.IsReturnedBrokenTrip == isReturnedBrokenTrip)
@@ -66,7 +66,7 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
             previousTrip = await _sessionRepo.GetPreviousCrusherTripForReturnedAsync(session.Id, ct);
             if (previousTrip == null)
             {
-                throw new InvalidOperationException("Không có dữ liệu chuyến xe gần nhất trước đó của xe này. Vui lòng kiểm tra lại.");
+                throw new InvalidOperationException("KhÃ´ng cÃ³ dá»¯ liá»‡u chuyáº¿n xe gáº§n nháº¥t trÆ°á»›c Ä‘Ã³ cá»§a xe nÃ y. Vui lÃ²ng kiá»ƒm tra láº¡i.");
             }
 
             resolution = ReturnedBrokenTripWeightLimiter.Resolve(actualNetWeight, previousTrip.NetWeightKg);
@@ -83,24 +83,19 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
         session.UpdatedAt = now;
         session.UpdatedBy = _userContext.Username;
 
-        var auditDetail = new
-        {
-            SessionNo = session.SessionNo,
-            VehiclePlate = session.InternalVehicleNo ?? session.VehiclePlate,
-            GrossWeight = session.Weight1,
-            OldNetWeight = oldNetWeight,
-            ActualReturnedWeight = actualNetWeight,
-            PreviousTripSessionId = previousTrip?.SessionId,
-            PreviousTripSessionNo = previousTrip?.SessionNo,
-            PreviousTripWeight = previousTrip?.NetWeightKg,
-            ReturnedRecognizedWeight = session.NetWeight,
-            IsReturnedWeightCapped = resolution?.IsCapped ?? false,
-            OldIsReturnedBrokenTrip = oldState,
-            NewIsReturnedBrokenTrip = isReturnedBrokenTrip,
-            Note = isReturnedBrokenTrip
-                ? "Đánh dấu hàng hoàn mỏ đá"
-                : "Bỏ đánh dấu hàng hoàn mỏ đá"
-        };
+        var normalizedAuditDetail = new AuditLogDetailBuilder()
+            .WithSubject("Name", session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.InternalVehicleNo ?? session.VehiclePlate)
+            .AddChange("IsReturnedBrokenTrip", oldState, isReturnedBrokenTrip)
+            .AddChange("ReturnedWeight", actualNetWeight, session.NetWeight, "kg")
+            .WithSummary(nameof(WeighingSession.Weight1), session.Weight1)
+            .WithSummary("PreviousTripSessionNo", previousTrip?.SessionNo)
+            .WithSummary("PreviousTripWeight", previousTrip?.NetWeightKg)
+            .WithSummary("IsReturnedWeightCapped", resolution?.IsCapped ?? false)
+            .AddNote(isReturnedBrokenTrip
+                ? "\u0110\u00e1nh d\u1ea5u h\u00e0ng ho\u00e0n m\u1ecf \u0111\u00e1"
+                : "B\u1ecf \u0111\u00e1nh d\u1ea5u h\u00e0ng ho\u00e0n m\u1ecf \u0111\u00e1")
+            .Build();
 
         var auditLog = new AuditLog
         {
@@ -110,7 +105,7 @@ public sealed class ToggleCrusherReturnedBrokenTripUseCase
             EntityType = nameof(WeighingSession),
             EntityId = session.Id,
             DetailJson = JsonSerializer.Serialize(
-                auditDetail,
+                normalizedAuditDetail,
                 new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
             CreatedAt = now,
             StationCode = _userContext.StationCode

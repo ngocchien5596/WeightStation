@@ -3,6 +3,7 @@ using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Contracts.Sync;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -364,6 +365,9 @@ public sealed class StationAdministrationService : IStationAdministrationService
         var now = _clock.NowLocal;
         var actor = _currentUser.Username;
         Station station;
+        string? oldStationName = null;
+        bool? oldIsActive = null;
+        int? oldSortOrder = null;
 
         if (request.StationId.HasValue)
         {
@@ -374,6 +378,10 @@ public sealed class StationAdministrationService : IStationAdministrationService
             {
                 throw new InvalidOperationException("Không cho phép đổi mã trạm sau khi đã tạo.");
             }
+
+            oldStationName = station.StationName;
+            oldIsActive = station.IsActive;
+            oldSortOrder = station.SortOrder;
 
             station.StationName = stationName;
             station.IsActive = request.IsActive;
@@ -441,7 +449,14 @@ public sealed class StationAdministrationService : IStationAdministrationService
             request.StationId.HasValue ? "UPDATE_STATION" : "CREATE_STATION",
             nameof(Station),
             station.Id,
-            new { station.StationCode, station.StationName, station.IsActive, station.SortOrder },
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", station.StationName)
+                .WithSubject(nameof(Station.StationCode), station.StationCode)
+                .AddChange(nameof(Station.StationCode), request.StationId.HasValue ? station.StationCode : null, station.StationCode)
+                .AddChange(nameof(Station.StationName), oldStationName, station.StationName)
+                .AddChange(nameof(Station.IsActive), oldIsActive, station.IsActive)
+                .AddChange(nameof(Station.SortOrder), oldSortOrder, station.SortOrder)
+                .Build(),
             ct);
 
         return new StationManagementDto(
@@ -732,10 +747,19 @@ public sealed class StationAdministrationService : IStationAdministrationService
 
         var now = _clock.NowLocal;
         var actor = _currentUser.Username;
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId, ct);
         var existing = await _db.UserStationAssignments
             .Where(x => x.UserId == userId)
             .ToListAsync(ct);
-        var selectedSet = selected.Select(x => x.StationCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var oldStations = existing
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.StationCode)
+            .Select(x => x.IsDefault ? $"{x.StationCode} (m\u1eb7c \u0111\u1ecbnh)" : x.StationCode)
+            .ToArray();
+        var newStations = selected
+            .OrderBy(x => x.StationCode)
+            .Select(x => x.IsDefault ? $"{x.StationCode} (m\u1eb7c \u0111\u1ecbnh)" : x.StationCode)
+            .ToArray();
 
         foreach (var assignment in existing)
         {
@@ -770,7 +794,11 @@ public sealed class StationAdministrationService : IStationAdministrationService
             "UPDATE_USER_STATION_ASSIGNMENTS",
             nameof(UserStationAssignment),
             userId,
-            new { UserId = userId, Stations = selectedSet.ToArray() },
+            new AuditLogDetailBuilder()
+                .WithSubject("Name", user?.Username ?? userId.ToString("N")[..8])
+                .AddChange("StationAssignments", oldStations, newStations)
+                .WithSummary("UserId", userId)
+                .Build(),
             ct);
     }
 

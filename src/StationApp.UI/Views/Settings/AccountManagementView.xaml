@@ -60,7 +60,13 @@
                     <TextBox Grid.Column="3" Text="{Binding SearchDisplayName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource SearchTextBoxStyle}" helpers:EnterKeySearch.Command="{Binding SearchCommand}" Margin="0,0,16,0"/>
 
                     <TextBlock Grid.Column="4" Text="Vai tr&#xF2;" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox Grid.Column="5" ItemsSource="{Binding SearchRoleOptions}" SelectedItem="{Binding SelectedSearchRoleOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormCombo}" Margin="0,0,16,0"/>
+                    <ComboBox Grid.Column="5" ItemsSource="{Binding SearchRoleOptions}" SelectedItem="{Binding SelectedSearchRoleOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormCombo}" Margin="0,0,16,0">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource RoleDisplayConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
                     <TextBlock Grid.Column="6" Text="Tr&#x1EA1;ng th&#xE1;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ComboBox Grid.Column="7" ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" Style="{StaticResource FormCombo}" Margin="0,0,16,0"/>
@@ -99,7 +105,13 @@
                     <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding EditDisplayName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
 
                     <TextBlock Grid.Row="0" Grid.Column="4" Text="Vai tr&#xF2; *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
-                    <ComboBox Grid.Row="0" Grid.Column="5" ItemsSource="{Binding RoleOptions}" SelectedItem="{Binding SelectedRoleOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormCombo}" Margin="0,0,16,8"/>
+                    <ComboBox Grid.Row="0" Grid.Column="5" ItemsSource="{Binding RoleOptions}" SelectedItem="{Binding SelectedRoleOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormCombo}" Margin="0,0,16,8">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource RoleDisplayConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
                     <CheckBox Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="2" Content="&#x110;ang ho&#x1EA1;t &#x111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
 
@@ -301,7 +313,7 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="140" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="T&#xEA;n hi&#x1EC3;n th&#x1ECB;" Binding="{Binding DisplayName}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Vai tr&#xF2;" Binding="{Binding RoleCode}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
+                    <DataGridTextColumn Header="Vai tr&#xF2;" Binding="{Binding RoleCode, Converter={StaticResource RoleDisplayConverter}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="Tr&#x1EA1;ng th&#xE1;i" Binding="{Binding IsActive, Converter={StaticResource BooleanToStatusConverter}}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="&#x110;&#x103;ng nh&#x1EAD;p cu&#x1ED1;i" Binding="{Binding LastLoginAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="Ng&#xE0;y t&#x1EA1;o" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm:ss}}" Width="160" ElementStyle="{StaticResource GridTextCenter}"/>

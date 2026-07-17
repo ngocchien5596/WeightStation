@@ -1,5 +1,6 @@
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -42,6 +43,7 @@ public sealed class CrusherWeighingUseCases
     private readonly ICurrentUserContext _currentUser;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly ITelegramNotificationService _telegramService;
 
     public CrusherWeighingUseCases(
         IVehicleRepository vehicleRepository,
@@ -56,7 +58,8 @@ public sealed class CrusherWeighingUseCases
         IClock clock,
         ICurrentUserContext currentUser,
         IUnitOfWork unitOfWork,
-        IAuditLogRepository auditLogRepository)
+        IAuditLogRepository auditLogRepository,
+        ITelegramNotificationService telegramService)
     {
         _vehicleRepository = vehicleRepository;
         _customerRepository = customerRepository;
@@ -71,6 +74,7 @@ public sealed class CrusherWeighingUseCases
         _currentUser = currentUser;
         _unitOfWork = unitOfWork;
         _auditLogRepository = auditLogRepository;
+        _telegramService = telegramService;
     }
 
     public async Task<IReadOnlyList<InternalVehicleOptionDto>> SearchInternalVehiclesAsync(string? keyword, CancellationToken ct)
@@ -633,6 +637,18 @@ public sealed class CrusherWeighingUseCases
 
         await _sessionRepository.UpdateAsync(session, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        var notification = TelegramNotificationMessageBuilder.BuildVehicleEdit(
+                "CẢNH BÁO: ĐỔI SỐ XE MỎ ĐÁ",
+                session,
+                oldVehiclePlate,
+                session.VehiclePlate,
+                reason,
+                CurrentUsername(),
+                _currentUser.DisplayName,
+                _currentUser.StationCode,
+                now);
+        await _telegramService.SendNotificationAsync(notification, _currentUser.StationCode, ct);
     }
 
     private static bool ShouldInvalidateOldVehicleStandardTare(
