@@ -298,6 +298,16 @@ public partial class MainViewModel : ObservableObject
                     break;
                 case "OutgoingVehicles":
                     var outgoingVm = _serviceProvider.GetRequiredService<OutgoingVehicleListViewModel>();
+                    outgoingVm.NavigateToWeighingRequested += async sessionId =>
+                    {
+                        _pendingWeighingSessionId = sessionId;
+                        await NavigateAsync("Weighing");
+                    };
+                    outgoingVm.NavigateToExportWeighingRequested += async cutOrderId =>
+                    {
+                        _pendingExportCutOrderId = cutOrderId;
+                        await NavigateAsync("ExportWeighing");
+                    };
                     CurrentView = new OutgoingVehicleListView { DataContext = outgoingVm };
                     _ = RunViewInitializationAsync(
                         () => outgoingVm.InitializeAsync(),

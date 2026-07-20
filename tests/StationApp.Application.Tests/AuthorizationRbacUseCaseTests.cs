@@ -13,9 +13,9 @@ namespace StationApp.Application.Tests;
 public class AuthorizationRbacUseCaseTests
 {
     [Theory]
-    [InlineData("ADMIN", true, true, true, true, true, true)]
-    [InlineData("MANAGER", true, true, true, true, true, true)]
-    [InlineData("OPERATOR", true, false, true, false, true, false)]
+    [InlineData("ADMIN", true, true, true, true, true, true, true)]
+    [InlineData("MANAGER", true, true, true, true, true, true, true)]
+    [InlineData("OPERATOR", true, true, true, false, true, false, false)]
     public void StationAuthorization_CoreCapabilities_FollowRoleMatrix(
         string roleCode,
         bool canViewOperational,
@@ -23,7 +23,8 @@ public class AuthorizationRbacUseCaseTests
         bool canUpdateApplication,
         bool canViewEditHistory,
         bool canManageMasterDataQn01,
-        bool canManageMasterDataQn02)
+        bool canManageMasterDataQn02,
+        bool canDeleteWeight2)
     {
         Assert.Equal(canViewOperational, StationAuthorization.CanViewOperationalScreens(roleCode));
         Assert.Equal(canUseManualWeighing, StationAuthorization.CanUseManualWeighing(roleCode));
@@ -31,6 +32,7 @@ public class AuthorizationRbacUseCaseTests
         Assert.Equal(canViewEditHistory, StationAuthorization.CanViewEditHistory(roleCode));
         Assert.Equal(canManageMasterDataQn01, StationAuthorization.CanManageMasterData(roleCode, "QN01"));
         Assert.Equal(canManageMasterDataQn02, StationAuthorization.CanManageMasterData(roleCode, "QN02"));
+        Assert.Equal(canDeleteWeight2, StationAuthorization.CanDeleteWeight2(roleCode));
     }
 
     [Fact]
@@ -329,7 +331,7 @@ public class AuthorizationRbacUseCaseTests
     }
 
     [Fact]
-    public async Task CaptureSessionWeight1_Operator_CannotUseManualMode()
+    public async Task CaptureSessionWeight1_Operator_CanUseManualMode()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
@@ -361,14 +363,16 @@ public class AuthorizationRbacUseCaseTests
             currentUser,
             clock);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             sut.ExecuteAsync(
                 new CaptureSessionWeightRequest(Guid.NewGuid(), 10000m, true, WeightMode.MANUAL),
                 CancellationToken.None));
+
+        Assert.Contains("Không tìm thấy lượt cân", ex.Message);
     }
 
     [Fact]
-    public async Task CaptureSessionWeight2_Operator_CannotUseManualMode()
+    public async Task CaptureSessionWeight2_Operator_CanUseManualMode()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();
         var regRepo = Substitute.For<ICutOrderRepository>();
@@ -401,10 +405,12 @@ public class AuthorizationRbacUseCaseTests
             currentUser,
             clock);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             sut.ExecuteAsync(
                 new CaptureSessionWeightRequest(Guid.NewGuid(), 32000m, true, WeightMode.MANUAL),
                 CancellationToken.None));
+
+        Assert.Contains("Không tìm thấy lượt cân", ex.Message);
     }
 }
 

@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using StationApp.Domain.Entities;
@@ -92,6 +92,7 @@ public static class AuditLogDisplayMapper
         "DELETE_CLAY_TRIP",
         "TOGGLE_CRUSHER_RETURNED_BROKEN_TRIP",
         "TOGGLE_CLAY_RETURNED_TRIP",
+        "TOGGLE_DOMESTIC_RETURNED_GOODS",
         "UPDATE_WEIGHING_SESSION_MOOC_NO",
         "UPDATE_WEIGHING_SESSION_SEAL_NO",
         "UPDATE_INCOMING_REGISTRATION",
@@ -105,6 +106,9 @@ public static class AuditLogDisplayMapper
         "UPDATE_STATION",
         "CAPTURE_WEIGHT_1",
         "CAPTURE_WEIGHT_2",
+        "DELETE_WEIGHT_2",
+        "CAPTURE_MANUAL_WEIGHT_1",
+        "CAPTURE_MANUAL_WEIGHT_2",
         "CREATE_TICKET",
         "COMPLETE_TICKET",
         "CANCEL_VEHICLE_REGISTRATION",
@@ -229,7 +233,13 @@ public static class AuditLogDisplayMapper
         if (root.TryGetProperty("Subject", out var subject) && subject.ValueKind == JsonValueKind.Object)
         {
             if (TryGetString(subject, "Name", out var name)
-                || TryGetString(subject, "Code", out name))
+                || TryGetString(subject, "Code", out name)
+                || TryGetString(subject, "SessionNo", out name)
+                || TryGetString(subject, "DisplayCode", out name)
+                || TryGetString(subject, "VesselName", out name)
+                || TryGetString(subject, "VehiclePlate", out name)
+                || TryGetString(subject, "Username", out name)
+                || TryGetString(subject, "StationCode", out name))
             {
                 row.EntityDisplay = name;
                 return;
@@ -614,6 +624,7 @@ public static class AuditLogDisplayMapper
             "DELETE_CLAY_TRIP" => "X\u00f3a chuy\u1ebfn xe m\u1ecf s\u00e9t",
             "TOGGLE_CRUSHER_RETURNED_BROKEN_TRIP" => "C\u1eadp nh\u1eadt h\u00e0ng ho\u00e0n m\u1ecf \u0111\u00e1",
             "TOGGLE_CLAY_RETURNED_TRIP" => "C\u1eadp nh\u1eadt h\u00e0ng ho\u00e0n m\u1ecf s\u00e9t",
+            "TOGGLE_DOMESTIC_RETURNED_GOODS" => "Cập nhật hoàn hàng nội địa",
             "UPDATE_WEIGHING_SESSION_MOOC_NO" => "C\u1eadp nh\u1eadt s\u1ed1 mooc",
             "UPDATE_WEIGHING_SESSION_SEAL_NO" => "C\u1eadp nh\u1eadt s\u1ed1 seal",
             "UPDATE_INCOMING_REGISTRATION" => "C\u1eadp nh\u1eadt c\u1eaft l\u1ec7nh xe v\u00e0o",
@@ -631,6 +642,9 @@ public static class AuditLogDisplayMapper
             "UPDATE_STATION_FEATURES" => "C\u1eadp nh\u1eadt ch\u1ee9c n\u0103ng tr\u1ea1m",
             "CAPTURE_WEIGHT_1" => "Ghi nh\u1eadn c\u00e2n l\u1ea7n 1",
             "CAPTURE_WEIGHT_2" => "Ghi nh\u1eadn c\u00e2n l\u1ea7n 2",
+            "DELETE_WEIGHT_2" => "X\u00f3a l\u01b0\u1ee3t c\u00e2n l\u1ea7n 2",
+            "CAPTURE_MANUAL_WEIGHT_1" => "Cân tay lần 1",
+            "CAPTURE_MANUAL_WEIGHT_2" => "Cân tay lần 2",
             "CREATE_TICKET" => "T\u1ea1o phi\u1ebfu c\u00e2n",
             "COMPLETE_TICKET" => "Ho\u00e0n t\u1ea5t phi\u1ebfu c\u00e2n",
             "CANCEL_VEHICLE_REGISTRATION" => "H\u1ee7y c\u1eaft l\u1ec7nh xe",
@@ -821,6 +835,3 @@ public static class AuditLogDisplayMapper
 
     private sealed record AuditFieldChange(string FieldName, JsonElement OldValue, JsonElement NewValue, string? Unit);
 }
-
-
-

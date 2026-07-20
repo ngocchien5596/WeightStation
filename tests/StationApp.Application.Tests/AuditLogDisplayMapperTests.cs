@@ -167,6 +167,26 @@ public sealed class AuditLogDisplayMapperTests
     }
 
     [Fact]
+    public void Map_DomesticReturnedGoodsPayload_RendersReturnedGoodsChange()
+    {
+        var detail = new AuditLogDetailBuilder()
+            .WithSubject(nameof(WeighingSession.SessionNo), "LC26070080")
+            .WithSubject(nameof(WeighingSession.VehiclePlate), "14C-12345")
+            .AddChange(nameof(WeighingSession.IsReturnedBrokenTrip), false, true)
+            .WithSummary(nameof(WeighingSession.NetWeight), 25000m)
+            .AddNote("Đánh dấu xe hàng hoàn nội địa, không tính vào báo cáo xuất hàng nội địa.")
+            .Build();
+        var log = NewLog("TOGGLE_DOMESTIC_RETURNED_GOODS", JsonSerializer.Serialize(detail));
+
+        var row = AuditLogDisplayMapper.Map(log);
+
+        Assert.Equal("Cập nhật hoàn hàng nội địa", row.ActionDisplay);
+        Assert.Equal("LC26070080", row.EntityDisplay);
+        Assert.Contains("Hàng hoàn: Không", row.OldValueDisplay);
+        Assert.Contains("Hàng hoàn: Có", row.NewValueDisplay);
+        Assert.Contains("không tính vào báo cáo xuất hàng nội địa", row.Note);
+    }
+    [Fact]
     public void KnownActions_AllHaveVietnameseDisplayNames()
     {
         foreach (var action in AuditLogDisplayMapper.KnownActions)

@@ -77,6 +77,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveToOutYardCommand))]
     [NotifyCanExecuteChangedFor(nameof(MarkNoLoadCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteWeight2Command))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ViewImageHistoryCommand))]
@@ -628,6 +629,12 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
             or WeighingSessionStatus.READY_TO_COMPLETE
             or WeighingSessionStatus.COMPLETED;
     private bool CanPrintDeliveryTicket() => SelectedSession != null && SelectedSession.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED;
+    private bool CanDeleteWeight2() =>
+        SelectedSession != null
+        && StationAuthorization.CanDeleteWeight2(_currentUserContext.RoleCode)
+        && SelectedSession.TransactionType == TransactionType.OUTBOUND
+        && SelectedSession.SessionStatus != WeighingSessionStatus.CANCELLED
+        && (SelectedSession.Weight2.HasValue || SelectedSession.NetWeight.HasValue);
     private bool CanConfirmOverweightSplit() => SelectedSession != null && IsOverweightSplitPlanValid;
     private bool CanMoveToOutYard() =>
         SelectedSession != null
@@ -1864,6 +1871,52 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedSession.SessionId, "phiếu giao nhận");
     }
 
+    [RelayCommand(CanExecute = nameof(CanDeleteWeight2))]
+    private async Task DeleteWeight2Async()
+    {
+        if (SelectedSession == null)
+        {
+            return;
+        }
+
+        var session = SelectedSession;
+        var dialogVm = new DeleteWeight2DialogViewModel(
+            session.SessionNo,
+            session.VehiclePlate,
+            session.CustomerSummary,
+            FormatWeightText(session.Weight1),
+            FormatWeightText(session.Weight2),
+            FormatWeightText(session.NetWeight),
+            session.HasPrintedMasterWeighTicket,
+            session.AllDeliveryTicketsPrinted);
+
+        var result = await _dialogService.ShowCustomDialogAsync<DeleteWeight2DialogViewModel, DeleteWeight2DialogResult>(dialogVm);
+        if (result == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<DeleteSessionWeight2UseCase>();
+            await useCase.ExecuteAsync(new DeleteSessionWeight2Request(session.SessionId, result.Reason), CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã xóa lượt cân lần 2. Lượt cân đã quay về trạng thái chờ cân lần 2.");
+            await FocusSessionAsync(session.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(ex, "Delete weight2 rejected for session {SessionId}", session.SessionId);
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Delete weight2 failed for session {SessionId}", session.SessionId);
+            _toastService.ShowError("Không thể xóa lượt cân lần 2. Vui lòng thử lại.");
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanMoveToOutYard))]
     private async Task MoveToOutYardAsync()
     {
@@ -2672,6 +2725,8 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
 
         return Math.Abs(weight1 - weight2);
     }
+
+    private static string? FormatWeightText(decimal? value) => value.HasValue ? $"{value.Value:N0} kg" : null;
 
 
 

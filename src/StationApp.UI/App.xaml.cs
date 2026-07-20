@@ -250,6 +250,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<SetCutOrderPortTransferUseCase>();
                     services.AddScoped<CaptureSessionWeight1UseCase>();
                     services.AddScoped<CaptureSessionWeight2UseCase>();
+                    services.AddScoped<DeleteSessionWeight2UseCase>();
                     services.AddScoped<AllocateWeighingSessionUseCase>();
                     services.AddScoped<MarkRegistrationsNoLoadUseCase>();
                     services.AddScoped<PreviewWeighingSessionOverweightSplitUseCase>();
@@ -278,6 +279,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<DeleteClayVehicleTripUseCase>();
                     services.AddScoped<ToggleClayReturnedBrokenTripUseCase>();
                     services.AddScoped<ToggleExportReturnedBrokenTripUseCase>();
+                    services.AddScoped<ToggleDomesticReturnedGoodsUseCase>();
                     services.AddScoped<ToggleCrusherReturnedBrokenTripUseCase>();
                     services.AddScoped<BuildExportSummaryReportUseCase>();
                     services.AddScoped<ExportExportSummaryReportUseCase>();
@@ -572,4 +574,3 @@ internal class ApiKeyDelegatingHandler : DelegatingHandler
         return await base.SendAsync(request, cancellationToken);
     }
 }
-

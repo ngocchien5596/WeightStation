@@ -40,6 +40,7 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(PrintDeliveryTicketCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowRelatedTicketsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ViewImageHistoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteWeight2Command))]
     private OutgoingVehicleListItem? _selectedVehicle;
     [ObservableProperty] private string? _searchSessionNo;
     [ObservableProperty] private string? _searchVehiclePlate;
@@ -51,11 +52,16 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     [ObservableProperty] private bool _isRelatedTicketsVisible;
     [ObservableProperty] private bool _useActualWeightForBaggedCutOrders;
     [ObservableProperty] private bool _isPortTransferMarked;
+    [ObservableProperty] private bool _isDomesticReturnedGoodsMarked;
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _detailLines = new();
     [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
     private bool _isApplyingBaggedActualWeightOverrideState;
     private bool _isApplyingPortTransferState;
+    private bool _isApplyingDomesticReturnedGoodsState;
     private bool _isSuppressingFilterReload;
+
+    public event Action<Guid>? NavigateToWeighingRequested;
+    public event Action<Guid>? NavigateToExportWeighingRequested;
 
     public OutgoingVehicleListViewModel(
         IServiceScopeFactory scopeFactory,
@@ -115,6 +121,12 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
     private bool CanPrintDeliveryTicket() => SelectedVehicle != null;
     private bool CanShowRelatedTickets() => SelectedVehicle != null;
     private bool CanViewImageHistory() => SelectedVehicle != null && SelectedVehicle.WeighingSessionId.HasValue;
+    private bool CanDeleteWeight2() =>
+        SelectedVehicle?.WeighingSessionId.HasValue == true
+        && SelectedVehicle.TransactionType == TransactionType.OUTBOUND
+        && StationAuthorization.CanDeleteWeight2(_currentUserContext.RoleCode)
+        && !SelectedVehicle.IsNoLoad
+        && (!SelectedVehicle.IsExportScale || !SelectedVehicle.ErpExportCompleted);
     public bool ShowBaggedActualWeightOverride =>
         SelectedVehicle != null
         && string.Equals(ProductTypes.Normalize(SelectedVehicle.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
@@ -126,6 +138,13 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         SelectedVehicle != null
         && SelectedVehicle.TransactionType == TransactionType.OUTBOUND
         && !SelectedVehicle.IsExportScale;
+
+    public bool CanToggleDomesticReturnedGoods =>
+        SelectedVehicle?.WeighingSessionId.HasValue == true
+        && SelectedVehicle.TransactionType == TransactionType.OUTBOUND
+        && !SelectedVehicle.IsExportScale
+        && !SelectedVehicle.IsNoLoad
+        && (StationAuthorization.IsManager(_currentUserContext.RoleCode) || StationAuthorization.IsAdmin(_currentUserContext.RoleCode));
 
     partial void OnSelectedVehicleChanged(OutgoingVehicleListItem? value)
     {
@@ -149,9 +168,21 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
             _isApplyingPortTransferState = false;
         }
 
+        _isApplyingDomesticReturnedGoodsState = true;
+        try
+        {
+            IsDomesticReturnedGoodsMarked = value?.IsReturnedGoods == true;
+        }
+        finally
+        {
+            _isApplyingDomesticReturnedGoodsState = false;
+        }
+
         OnPropertyChanged(nameof(CanToggleBaggedActualWeightOverride));
         OnPropertyChanged(nameof(ShowBaggedActualWeightOverride));
         OnPropertyChanged(nameof(CanTogglePortTransfer));
+        OnPropertyChanged(nameof(CanToggleDomesticReturnedGoods));
+        DeleteWeight2Command.NotifyCanExecuteChanged();
     }
 
     partial void OnUseActualWeightForBaggedCutOrdersChanged(bool value)
@@ -172,6 +203,16 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         }
 
         _ = PersistPortTransferAsync(value);
+    }
+
+    partial void OnIsDomesticReturnedGoodsMarkedChanged(bool value)
+    {
+        if (_isApplyingDomesticReturnedGoodsState || SelectedVehicle?.WeighingSessionId == null)
+        {
+            return;
+        }
+
+        _ = PersistDomesticReturnedGoodsAsync(value);
     }
 
     [RelayCommand]
@@ -219,19 +260,23 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var sessionNoSearch = NormalizeBusinessNumberSearch(SearchSessionNo);
+            var completedDateFilter = string.IsNullOrWhiteSpace(sessionNoSearch)
+                ? SelectedCompletedDate
+                : null;
             var items = await repo.GetOutgoingListAsync(
                 new OutgoingVehicleListFilter(
-                    SearchSessionNo,
+                    sessionNoSearch,
                     null,
                     SearchVehiclePlate,
                     null,
                     null,
                     null,
-                    SelectedCompletedDate,
+                    completedDateFilter,
                     SelectedFlowType?.Value ?? OutgoingFlowType.All),
                 CancellationToken.None);
             var filtered = items
-                .Where(x => string.IsNullOrWhiteSpace(SearchSessionNo) || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(SearchSessionNo, StringComparison.OrdinalIgnoreCase)))
+                .Where(x => string.IsNullOrWhiteSpace(sessionNoSearch) || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(sessionNoSearch, StringComparison.OrdinalIgnoreCase)))
                 .Where(x => string.IsNullOrWhiteSpace(SearchVehiclePlate) || x.VehiclePlate.Contains(SearchVehiclePlate, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -403,6 +448,59 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         }
 
         await ExecutePrintFlowAsync(PrintDocumentKind.DeliveryTicket, SelectedVehicle.WeighingSessionId.Value, "phiếu giao nhận");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteWeight2))]
+    private async Task DeleteWeight2Async()
+    {
+        if (SelectedVehicle?.WeighingSessionId == null)
+        {
+            return;
+        }
+
+        var vehicle = SelectedVehicle;
+        var dialogVm = new DeleteWeight2DialogViewModel(
+            vehicle.SessionNo ?? string.Empty,
+            vehicle.VehiclePlate,
+            vehicle.ErpCutOrderId,
+            FormatWeightText(vehicle.Weight1),
+            null,
+            FormatWeightText(vehicle.ActualWeightKg),
+            vehicle.HasPrintedWeighTicket,
+            vehicle.HasPrintedDeliveryTicket);
+
+        var result = await _dialogService.ShowCustomDialogAsync<DeleteWeight2DialogViewModel, DeleteWeight2DialogResult>(dialogVm);
+        if (result == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<DeleteSessionWeight2UseCase>();
+            await useCase.ExecuteAsync(new DeleteSessionWeight2Request(vehicle.WeighingSessionId.Value, result.Reason), CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã xóa lượt cân lần 2. Đang chuyển về màn cân để cân lại.");
+            if (vehicle.IsExportScale)
+            {
+                NavigateToExportWeighingRequested?.Invoke(vehicle.CutOrderId);
+            }
+            else
+            {
+                NavigateToWeighingRequested?.Invoke(vehicle.WeighingSessionId.Value);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(ex, "Delete weight2 from outgoing list rejected for session {SessionId}", vehicle.WeighingSessionId);
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Delete weight2 from outgoing list failed for session {SessionId}", vehicle.WeighingSessionId);
+            _toastService.ShowError("Không thể xóa lượt cân lần 2. Vui lòng thử lại.");
+        }
     }
 
     public async Task InitializeAsync()
@@ -622,6 +720,57 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         }
     }
 
+    private async Task PersistDomesticReturnedGoodsAsync(bool value)
+    {
+        if (SelectedVehicle?.WeighingSessionId == null)
+        {
+            return;
+        }
+
+        var sessionId = SelectedVehicle.WeighingSessionId.Value;
+        var currentCutOrderId = SelectedVehicle.CutOrderId;
+        var previousValue = !value;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<ToggleDomesticReturnedGoodsUseCase>();
+            await useCase.ExecuteAsync(sessionId, value, CancellationToken.None);
+            _toastService.ShowSuccess(value
+                ? "Đã đánh dấu xe là Hoàn hàng nội địa. Xe này sẽ không tính vào báo cáo xuất hàng nội địa."
+                : "Đã bỏ đánh dấu Hoàn hàng nội địa. Xe này sẽ được tính lại vào báo cáo xuất hàng nội địa.");
+            await LoadVehiclesInternalAsync(false);
+            SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == currentCutOrderId);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+            RevertDomesticReturnedGoods(previousValue);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toastService.ShowWarning(ex.Message);
+            RevertDomesticReturnedGoods(previousValue);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Update domestic returned goods flag from outgoing list failed");
+            _toastService.ShowError("Không thể cập nhật trạng thái Hoàn hàng nội địa. Vui lòng thử lại.");
+            RevertDomesticReturnedGoods(previousValue);
+        }
+    }
+
+    private void RevertDomesticReturnedGoods(bool value)
+    {
+        _isApplyingDomesticReturnedGoodsState = true;
+        try
+        {
+            IsDomesticReturnedGoodsMarked = value;
+        }
+        finally
+        {
+            _isApplyingDomesticReturnedGoodsState = false;
+        }
+    }
     private async Task ReloadAndReselectAsync(Guid sessionId)
     {
         var currentCutOrderId = SelectedVehicle?.CutOrderId;
@@ -1049,6 +1198,18 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
         };
     }
 
+    private static string? FormatWeightText(decimal? value) => value.HasValue ? $"{value.Value:N0} kg" : null;
+
+    private static string? NormalizeBusinessNumberSearch(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return BusinessNumberFormatter.ToDisplay(value.Trim());
+    }
+
     private sealed record SessionPrintContext(
         WeighingSession MasterSession,
         IReadOnlyList<WeighingSessionLine> Lines,
@@ -1060,5 +1221,3 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
 }
 
 public sealed record OutgoingFlowFilterOption(string Label, OutgoingFlowType Value);
-
-

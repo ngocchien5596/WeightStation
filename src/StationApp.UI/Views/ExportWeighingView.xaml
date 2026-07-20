@@ -405,6 +405,7 @@
             <Button Content="T&#x1EA0;O CHUY&#x1EBE;N XE" Command="{Binding CreateTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="CHUY&#x1EC2;N CHUY&#x1EBE;N" Command="{Binding TransferTripCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="X&#xD3;A CHUY&#x1EBE;N XE" Command="{Binding DeleteTripCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="X&#x00D3;A L&#x01AF;&#x1EE2;T C&#x00C2;N L&#x1EA6;N 2" Command="{Binding DeleteWeight2Command}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="XEM &#x1EA2;NH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>

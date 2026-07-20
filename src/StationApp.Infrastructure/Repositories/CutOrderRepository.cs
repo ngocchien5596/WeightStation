@@ -777,6 +777,7 @@ public class CutOrderRepository : ICutOrderRepository
                 session?.UseActualWeightForBaggedCutOrders == true,
                 vr.ErpExportCompleted,
                 isNoLoad,
+                session?.IsReturnedBrokenTrip == true,
                 vr.IsExportScale,
                 vr.IsPortTransfer,
                 hasSplitOverweight
@@ -972,6 +973,7 @@ public class CutOrderRepository : ICutOrderRepository
                 session.UseActualWeightForBaggedCutOrders,
                 vr.ErpExportCompleted,
                 session.IsNoLoad,
+                line.IsReturnedBrokenTrip,
                 vr.IsExportScale,
                 vr.IsPortTransfer,
                 false);

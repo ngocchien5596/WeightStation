@@ -67,7 +67,7 @@
                              Style="{StaticResource StandardTextBoxStyle}"
                              Text="{Binding SearchSessionNo, UpdateSourceTrigger=PropertyChanged}">
                         <TextBox.InputBindings>
-                            <KeyBinding Key="Enter" Command="{Binding RefreshCommand}"/>
+                            <KeyBinding Key="Enter" Command="{Binding LoadVehiclesCommand}"/>
                         </TextBox.InputBindings>
                     </TextBox>
 
@@ -76,7 +76,7 @@
                              Style="{StaticResource StandardTextBoxStyle}"
                              Text="{Binding SearchVehiclePlate, UpdateSourceTrigger=PropertyChanged}">
                         <TextBox.InputBindings>
-                            <KeyBinding Key="Enter" Command="{Binding RefreshCommand}"/>
+                            <KeyBinding Key="Enter" Command="{Binding LoadVehiclesCommand}"/>
                         </TextBox.InputBindings>
                     </TextBox>
 
@@ -99,8 +99,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
-                        <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
+                    <Button Command="{Binding LoadVehiclesCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
+                        <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </DockPanel>
@@ -115,6 +115,7 @@
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="{StaticResource Outgoing.Action.ViewDetails}" Command="{Binding ShowDetailsCommand}" Style="{StaticResource WorkflowButtonStyle}" Margin="0,0,6,0"/>
+                <Button Content="X&#x00D3;A L&#x01AF;&#x1EE2;T C&#x00C2;N L&#x1EA6;N 2" Command="{Binding DeleteWeight2Command}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,6,0"/>
                 <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,6,0"/>
                 <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}"/>
                 <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="6,0,0,0"/>
@@ -130,6 +131,11 @@
                           Visibility="{Binding ShowBaggedActualWeightOverride, Converter={StaticResource BoolToVis}}"
                           IsChecked="{Binding UseActualWeightForBaggedCutOrders, Mode=TwoWay}"
                           IsEnabled="{Binding CanToggleBaggedActualWeightOverride}"
+                          Style="{StaticResource StandardCheckBoxStyle}"
+                          Margin="0,0,16,0"/>
+                <CheckBox Content="HO&#x00C0;N H&#x00C0;NG"
+                          IsChecked="{Binding IsDomesticReturnedGoodsMarked, Mode=TwoWay}"
+                          IsEnabled="{Binding CanToggleDomesticReturnedGoods}"
                           Style="{StaticResource StandardCheckBoxStyle}"
                           Margin="0,0,16,0"/>
                 <CheckBox Content="CHUY&#x1EC0;N T&#x1EA2;I"
@@ -161,6 +167,7 @@
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>
                     <DataGridCheckBoxColumn Header="ERP" Binding="{Binding ErpExportCompleted, Mode=OneWay}" Width="60" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridCheckBoxColumn Header="HOÀN HÀNG" Binding="{Binding IsReturnedGoods, Mode=OneWay}" Width="90" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="{StaticResource Outgoing.Column.Mooc}" Binding="{Binding MoocNumber}" Width="90" ElementStyle="{StaticResource GridTextCenter}"/>

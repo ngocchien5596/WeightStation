@@ -431,6 +431,7 @@ public sealed record OutgoingVehicleListItem(
     bool UseActualWeightForBaggedCutOrders,
     bool ErpExportCompleted,
     bool IsNoLoad,
+    bool IsReturnedGoods,
     bool IsExportScale,
     bool IsPortTransfer,
     bool HighlightAsSplitOverweight

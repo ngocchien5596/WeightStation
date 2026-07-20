@@ -118,6 +118,14 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         && !SelectedTrip.Weight2Time.HasValue
         && !IsLoading;
 
+    public bool CanDeleteWeight2 =>
+        SelectedCutOrder != null
+        && SelectedTrip != null
+        && !SelectedCutOrder.IsFinalized
+        && StationAuthorization.CanDeleteWeight2(_currentUserContext.RoleCode)
+        && (SelectedTrip.Weight2.HasValue || SelectedTrip.Weight2Time.HasValue || SelectedTrip.NetWeight.HasValue)
+        && !IsLoading;
+
     public bool CanToggleReturnedBrokenTrip =>
         SelectedCutOrder != null
         && SelectedTrip != null
@@ -500,6 +508,53 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         {
             _logger?.LogError(ex, "Delete export trip failed");
             _toastService.ShowError("Không thể xóa chuyến xe. Vui lòng thử lại.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteWeight2))]
+    private async Task DeleteWeight2Async()
+    {
+        if (SelectedCutOrder == null || SelectedTrip == null)
+        {
+            return;
+        }
+
+        var cutOrderId = SelectedCutOrder.CutOrderId;
+        var session = SelectedTrip;
+        var dialogVm = new DeleteWeight2DialogViewModel(
+            session.SessionNo,
+            session.VehiclePlate,
+            SelectedCutOrder.DisplayCutOrderCode,
+            FormatWeightText(session.Weight1),
+            FormatWeightText(session.Weight2),
+            FormatWeightText(session.NetWeight),
+            session.HasPrintedWeighTicket,
+            session.HasPrintedDeliveryTicket);
+
+        var result = await _dialogService.ShowCustomDialogAsync<DeleteWeight2DialogViewModel, DeleteWeight2DialogResult>(dialogVm);
+        if (result == null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var useCase = scope.ServiceProvider.GetRequiredService<DeleteSessionWeight2UseCase>();
+            await useCase.ExecuteAsync(new DeleteSessionWeight2Request(session.SessionId, result.Reason), CancellationToken.None);
+
+            _toastService.ShowSuccess("Đã xóa lượt cân lần 2. Chuyến xe đã quay về trạng thái chờ cân lần 2.");
+            await LoadTripsAsync(cutOrderId, session.SessionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger?.LogWarning(ex, "Delete export weight2 rejected for session {SessionId}", session.SessionId);
+            _toastService.ShowWarning(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Delete export weight2 failed for session {SessionId}", session.SessionId);
+            _toastService.ShowError("Không thể xóa lượt cân lần 2. Vui lòng thử lại.");
         }
     }
 
@@ -1101,6 +1156,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
     {
         return Math.Abs(weight1 - weight2);
     }
+
+    private static string? FormatWeightText(decimal? value) => value.HasValue ? $"{value.Value:N0} kg" : null;
 
     private async Task RefreshAndClearSelectionAsync()
     {
@@ -1812,6 +1869,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         OnPropertyChanged(nameof(CanCreateTrip));
         OnPropertyChanged(nameof(CanTransferTrip));
         OnPropertyChanged(nameof(CanDeleteTrip));
+        OnPropertyChanged(nameof(CanDeleteWeight2));
         OnPropertyChanged(nameof(CanToggleReturnedBrokenTrip));
         OnPropertyChanged(nameof(CanFinalize));
         OnPropertyChanged(nameof(IsTemporaryCutOrderSelected));
@@ -1828,6 +1886,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         CreateTripCommand.NotifyCanExecuteChanged();
         TransferTripCommand.NotifyCanExecuteChanged();
         DeleteTripCommand.NotifyCanExecuteChanged();
+        DeleteWeight2Command.NotifyCanExecuteChanged();
         ToggleReturnedBrokenTripCommand.NotifyCanExecuteChanged();
         FinalizeCommand.NotifyCanExecuteChanged();
         EditTemporaryCutOrderCommand.NotifyCanExecuteChanged();

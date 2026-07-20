@@ -40,6 +40,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x => !x.IsNoLoad)
+            .Where(x => !x.IsReturnedBrokenTrip)
             .Where(x => x.TransactionType == TransactionType.OUTBOUND)
             .OrderBy(x => x.CreatedAt)
             .ThenBy(x => x.SessionNo)

@@ -27,6 +27,7 @@ public sealed class CaptureSessionWeight1UseCase
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
+    private readonly IAuditService? _auditService;
 
     public CaptureSessionWeight1UseCase(
         IWeighingSessionRepository sessionRepo,
@@ -41,7 +42,8 @@ public sealed class CaptureSessionWeight1UseCase
         IIncomingVehicleComplianceSettingsProvider complianceSettingsProvider,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
-        IClock clock)
+        IClock clock,
+        IAuditService? auditService = null)
     {
         _sessionRepo = sessionRepo;
         _regRepo = regRepo;
@@ -56,6 +58,7 @@ public sealed class CaptureSessionWeight1UseCase
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
+        _auditService = auditService;
     }
 
     public async Task ExecuteAsync(CaptureSessionWeightRequest request, CancellationToken ct)
@@ -201,6 +204,7 @@ public sealed class CaptureSessionWeight1UseCase
         }, ct);
 
         await TryCaptureSessionImagesAsync(session.Id, CameraCaptureStage.WEIGHT1, ct);
+        await LogManualCaptureAsync(session, primaryRegistration, request, ct);
     }
 
     private void EnsureManualPermission(WeightMode mode)
@@ -271,5 +275,27 @@ public sealed class CaptureSessionWeight1UseCase
         {
             // Camera capture failures must not fail the weighing flow.
         }
+    }
+
+    private async Task LogManualCaptureAsync(
+        WeighingSession session,
+        CutOrder primaryRegistration,
+        CaptureSessionWeightRequest request,
+        CancellationToken ct)
+    {
+        if (request.Mode != WeightMode.MANUAL || _auditService == null)
+        {
+            return;
+        }
+
+        var detail = new AuditLogDetailBuilder()
+            .WithSubject(nameof(WeighingSession.SessionNo), session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .AddChange(nameof(WeighingSession.Weight1), null, request.Weight)
+            .WithSummary(nameof(CutOrder.ErpCutOrderId), primaryRegistration.ErpCutOrderId)
+            .AddNote("Người dùng ghi nhận cân tay lần 1.")
+            .Build();
+
+        await _auditService.LogAsync("CAPTURE_MANUAL_WEIGHT_1", nameof(WeighingSession), session.Id, detail, ct);
     }
 }

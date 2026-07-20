@@ -55,7 +55,8 @@ public class CrusherClayWeighingUseCasesTests
             clock,
             currentUser,
             unitOfWork,
-            auditLogRepo);
+            auditLogRepo,
+            Substitute.For<ITelegramNotificationService>());
 
         var ex = new InvalidOperationException("chưa có trọng lượng bì");
 
@@ -131,7 +132,8 @@ public class CrusherClayWeighingUseCasesTests
             clock,
             currentUser,
             unitOfWork,
-            auditLogRepo);
+            auditLogRepo,
+            Substitute.For<ITelegramNotificationService>());
 
         await sut.CaptureWeight2Async(
             new CaptureCrusherWeight2Request(sessionId, 15555m, true, WeightMode.AUTO),
@@ -372,7 +374,8 @@ public class CrusherClayWeighingUseCasesTests
             clock,
             currentUser,
             unitOfWork,
-            auditLogRepo);
+            auditLogRepo,
+            Substitute.For<ITelegramNotificationService>());
 
         await sut.UpdateSessionVehicleAsync(sessionId, newVehicleId, "Chọn nhầm xe", CancellationToken.None);
 
@@ -481,7 +484,8 @@ public class CrusherClayWeighingUseCasesTests
             clock,
             currentUser,
             unitOfWork,
-            auditLogRepo);
+            auditLogRepo,
+            Substitute.For<ITelegramNotificationService>());
 
         await sut.UpdateSessionVehicleAsync(sessionId, newVehicleId, "Chọn nhầm xe", CancellationToken.None);
 
@@ -582,7 +586,8 @@ public class CrusherClayWeighingUseCasesTests
             clock,
             currentUser,
             unitOfWork,
-            auditLogRepo);
+            auditLogRepo,
+            Substitute.For<ITelegramNotificationService>());
 
         await sut.UpdateSessionVehicleAsync(sessionId, newVehicleId, "Chọn nhầm xe", CancellationToken.None);
 
@@ -685,7 +690,8 @@ public class CrusherClayWeighingUseCasesTests
             clock,
             currentUser,
             unitOfWork,
-            auditLogRepo);
+            auditLogRepo,
+            Substitute.For<ITelegramNotificationService>());
 
         await sut.UpdateSessionVehicleAsync(sessionId, newVehicleId, "Chọn nhầm xe", CancellationToken.None);
 

@@ -30,7 +30,8 @@ public static class StationAuthorization
     private static bool IsAdminOrManager(string? roleCode) => IsAdmin(roleCode) || IsManager(roleCode);
     private static bool IsAnyApplicationRole(string? roleCode) => IsAdmin(roleCode) || IsManager(roleCode) || IsOperator(roleCode);
 
-    public static bool CanUseManualWeighing(string? roleCode) => IsAdminOrManager(roleCode);
+    public static bool CanUseManualWeighing(string? roleCode) => IsAnyApplicationRole(roleCode);
+    public static bool CanDeleteWeight2(string? roleCode) => IsAdminOrManager(roleCode);
     public static bool CanManageAccounts(string? roleCode) => IsAdmin(roleCode);
     public static bool CanManageSystemSettings(string? roleCode) => IsAdmin(roleCode);
     public static bool CanManageDeviceConfiguration(string? roleCode) => IsAdmin(roleCode);

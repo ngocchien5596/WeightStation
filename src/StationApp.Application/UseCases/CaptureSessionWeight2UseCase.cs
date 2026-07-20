@@ -31,6 +31,7 @@ public sealed class CaptureSessionWeight2UseCase
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _userContext;
     private readonly IClock _clock;
+    private readonly IAuditService? _auditService;
 
     public CaptureSessionWeight2UseCase(
         IWeighingSessionRepository sessionRepo,
@@ -47,7 +48,8 @@ public sealed class CaptureSessionWeight2UseCase
         WeighingSessionTicketSyncService ticketSyncService,
         IUnitOfWork uow,
         ICurrentUserContext userContext,
-        IClock clock)
+        IClock clock,
+        IAuditService? auditService = null)
     {
         _sessionRepo = sessionRepo;
         _regRepo = regRepo;
@@ -64,6 +66,7 @@ public sealed class CaptureSessionWeight2UseCase
         _uow = uow;
         _userContext = userContext;
         _clock = clock;
+        _auditService = auditService;
     }
 
     public async Task ExecuteAsync(CaptureSessionWeightRequest request, CancellationToken ct)
@@ -274,6 +277,7 @@ public sealed class CaptureSessionWeight2UseCase
         }, ct);
 
         await TryCaptureSessionImagesAsync(session.Id, CameraCaptureStage.WEIGHT2, ct);
+        await LogManualCaptureAsync(session, request, ct);
     }
 
     private async Task ValidateBaggedWeightToleranceAsync(
@@ -480,5 +484,27 @@ public sealed class CaptureSessionWeight2UseCase
         {
             // Camera capture failures must not fail the weighing flow.
         }
+    }
+
+    private async Task LogManualCaptureAsync(
+        WeighingSession session,
+        CaptureSessionWeightRequest request,
+        CancellationToken ct)
+    {
+        if (request.Mode != WeightMode.MANUAL || _auditService == null)
+        {
+            return;
+        }
+
+        var detail = new AuditLogDetailBuilder()
+            .WithSubject(nameof(WeighingSession.SessionNo), session.SessionNo)
+            .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+            .AddChange(nameof(WeighingSession.Weight2), null, request.Weight)
+            .WithSummary(nameof(WeighingSession.Weight1), session.Weight1)
+            .WithSummary(nameof(WeighingSession.NetWeight), session.NetWeight)
+            .AddNote("Người dùng ghi nhận cân tay lần 2.")
+            .Build();
+
+        await _auditService.LogAsync("CAPTURE_MANUAL_WEIGHT_2", nameof(WeighingSession), session.Id, detail, ct);
     }
 }

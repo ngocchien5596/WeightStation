@@ -295,6 +295,7 @@
             <Button Content="IN PC" Command="{Binding PrintWeighTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="IN PGN" Command="{Binding PrintDeliveryTicketCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.MoveOut}" Command="{Binding MoveToOutYardCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
+            <Button Content="X&#x00D3;A L&#x01AF;&#x1EE2;T C&#x00C2;N L&#x1EA6;N 2" Command="{Binding DeleteWeight2Command}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="{StaticResource Weighing.Action.RelatedTickets}" Command="{Binding ShowRelatedTicketsCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
             <Button Content="XEM ẢNH" Command="{Binding ViewImageHistoryCommand}" Style="{StaticResource NeutralButtonStyle}" Margin="0,0,4,4"/>
         </ItemsControl>

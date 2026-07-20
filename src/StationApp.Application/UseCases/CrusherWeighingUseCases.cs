@@ -171,6 +171,22 @@ public sealed class CrusherWeighingUseCases
         };
 
         await _sessionRepository.AddAsync(session, ct);
+        if (request.Weight1Mode == WeightMode.MANUAL)
+        {
+            await _auditLogRepository.AddAsync(CreateManualWeightAuditLog(
+                "CAPTURE_MANUAL_WEIGHT_1",
+                session,
+                now,
+                new AuditLogDetailBuilder()
+                    .WithSubject(nameof(WeighingSession.SessionNo), session.SessionNo)
+                    .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+                    .AddChange(nameof(WeighingSession.Weight1), null, session.Weight1)
+                    .WithSummary(nameof(WeighingSession.ProductName), session.ProductName)
+                    .WithSummary(nameof(WeighingSession.CustomerName), session.CustomerName)
+                    .AddNote("Người dùng ghi nhận cân tay lần 1.")
+                    .Build()),
+                ct);
+        }
         await _unitOfWork.SaveChangesAsync(ct);
         return session.Id;
     }
@@ -234,6 +250,22 @@ public sealed class CrusherWeighingUseCases
             CreatedAt = now,
             UpdatedAt = now
         }, ct);
+        if (request.Weight2Mode == WeightMode.MANUAL)
+        {
+            await _auditLogRepository.AddAsync(CreateManualWeightAuditLog(
+                "CAPTURE_MANUAL_WEIGHT_2",
+                session,
+                now,
+                new AuditLogDetailBuilder()
+                    .WithSubject(nameof(WeighingSession.SessionNo), session.SessionNo)
+                    .WithSubject(nameof(WeighingSession.VehiclePlate), session.VehiclePlate)
+                    .AddChange(nameof(WeighingSession.Weight2), null, session.Weight2)
+                    .WithSummary(nameof(WeighingSession.Weight1), session.Weight1)
+                    .WithSummary(nameof(WeighingSession.NetWeight), session.NetWeight)
+                    .AddNote("Người dùng ghi nhận cân tay lần 2.")
+                    .Build()),
+                ct);
+        }
         await _unitOfWork.SaveChangesAsync(ct);
     }
 
@@ -403,6 +435,19 @@ public sealed class CrusherWeighingUseCases
 
     private string CurrentUsername()
         => string.IsNullOrWhiteSpace(_currentUser.Username) ? "SYSTEM" : _currentUser.Username;
+
+    private AuditLog CreateManualWeightAuditLog(string action, WeighingSession session, DateTime now, object detail)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            Actor = CurrentUsername(),
+            Action = action,
+            EntityType = nameof(WeighingSession),
+            EntityId = session.Id,
+            DetailJson = JsonSerializer.Serialize(detail),
+            CreatedAt = now,
+            StationCode = session.StationCode
+        };
 
     public async Task UpdateSessionVehicleAsync(Guid sessionId, Guid newVehicleId, string reason, CancellationToken ct)
     {
