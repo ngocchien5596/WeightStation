@@ -77,6 +77,62 @@ public class NoLoadUseCaseTests
     }
 
     [Fact]
+    public async Task MarkRegistrationsNoLoad_AllowsSingleInboundRegistration()
+    {
+        var regRepo = Substitute.For<ICutOrderRepository>();
+        var sessionRepo = Substitute.For<IWeighingSessionRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var currentUser = Substitute.For<ICurrentUserContext>();
+        var clock = Substitute.For<IClock>();
+        var sessionNoGen = Substitute.For<IWeighingSessionNumberGenerator>();
+        currentUser.Username.Returns("tester");
+        clock.NowLocal.Returns(new DateTime(2026, 7, 21, 9, 0, 0));
+        sessionNoGen.GenerateAsync(TransactionType.INBOUND, Arg.Any<CancellationToken>()).Returns("LC26070099");
+
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "14C-12345",
+            TransactionType = TransactionType.INBOUND,
+            CutOrderStatus = CutOrderStatus.REGISTERED,
+            ProcessingStage = ProcessingStage.IN_YARD,
+            CustomerName = "NCC",
+            ProductName = "Hang nhap",
+            CreatedAt = new DateTime(2026, 7, 21, 8, 0, 0)
+        };
+
+        regRepo.GetByIdsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { registration });
+        uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                var action = call.ArgAt<Func<CancellationToken, Task>>(0);
+                await action(call.ArgAt<CancellationToken>(1));
+            });
+
+        var sut = new MarkRegistrationsNoLoadUseCase(regRepo, sessionRepo, uow, currentUser, clock, sessionNoGen);
+
+        var sessionId = await sut.ExecuteAsync(
+            new MarkRegistrationsNoLoadRequest(new[] { registration.Id }, registration.Id),
+            CancellationToken.None);
+
+        await sessionRepo.Received(1).AddAsync(
+            Arg.Is<WeighingSession>(x =>
+                x.Id == sessionId
+                && x.TransactionType == TransactionType.INBOUND
+                && x.SessionStatus == WeighingSessionStatus.COMPLETED
+                && x.IsNoLoad),
+            Arg.Any<CancellationToken>());
+        await regRepo.Received(1).UpdateAsync(
+            Arg.Is<CutOrder>(x =>
+                x.TransactionType == TransactionType.INBOUND
+                && x.CutOrderStatus == CutOrderStatus.COMPLETED
+                && x.ProcessingStage == ProcessingStage.OUT_YARD
+                && x.WeighingSessionId == sessionId),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task MarkWeighingSessionNoLoad_CompletesSessionAndCancelsExistingDocuments()
     {
         var sessionRepo = Substitute.For<IWeighingSessionRepository>();

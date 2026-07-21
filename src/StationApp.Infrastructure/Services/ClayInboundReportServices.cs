@@ -44,6 +44,7 @@ public sealed class ClayInboundReportService : IClayInboundReportService
                 && !line.IsDeleted
                 && !session.IsDeleted
                 && !session.IsCancelled
+                && !session.IsNoLoad
                 && !vessel.IsDeleted
                 && !vessel.IsCancelled
                 && vessel.TransactionType == TransactionType.INBOUND
@@ -196,6 +197,7 @@ public sealed class ClayInboundReportService : IClayInboundReportService
                             && !x.line.IsDeleted
                             && !x.session.IsDeleted
                             && !x.session.IsCancelled
+                            && !x.session.IsNoLoad
                             && x.session.TransactionType == TransactionType.INBOUND
                             && x.session.SessionStatus == WeighingSessionStatus.COMPLETED
                             && x.line.LineStatus == WeighingSessionLineStatus.ALLOCATED
@@ -225,6 +227,7 @@ public sealed class ClayInboundReportService : IClayInboundReportService
                 && !line.IsDeleted
                 && !session.IsDeleted
                 && !session.IsCancelled
+                && !session.IsNoLoad
                 && session.TransactionType == TransactionType.INBOUND
                 && session.SessionStatus == WeighingSessionStatus.COMPLETED
                 && line.LineStatus == WeighingSessionLineStatus.ALLOCATED

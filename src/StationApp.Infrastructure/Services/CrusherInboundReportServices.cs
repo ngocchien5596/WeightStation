@@ -34,6 +34,7 @@ public sealed class CrusherInboundReportService : ICrusherInboundReportService
 
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
+            .Where(x => !x.IsNoLoad)
             .Where(x => x.TransactionType == TransactionType.INBOUND)
             .Where(x => x.SessionStatus == WeighingSessionStatus.COMPLETED)
             .Where(x => x.InternalVehicleNo != null && x.InternalVehicleNo != string.Empty)

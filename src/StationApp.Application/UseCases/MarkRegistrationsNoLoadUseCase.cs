@@ -86,6 +86,7 @@ public sealed class MarkRegistrationsNoLoadUseCase
                 MoocNumber = first.MoocNumber,
                 DriverName = first.ReceiverName,
                 SessionStatus = WeighingSessionStatus.COMPLETED,
+                NetWeight = 0m,
                 OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
                 OverweightAmount = 0m,
                 IsCancelled = false,

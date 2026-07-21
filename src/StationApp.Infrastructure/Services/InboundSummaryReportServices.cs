@@ -34,6 +34,7 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x => x.TransactionType == TransactionType.INBOUND)
+            .Where(x => !x.IsNoLoad)
             .Where(x => x.Weight2Time.HasValue && x.Weight2Time.Value >= filter.FromTime && x.Weight2Time.Value <= filter.ToTime)
             .OrderBy(x => x.Weight2Time)
             .ThenBy(x => x.SessionNo)
@@ -174,6 +175,7 @@ public sealed class InboundSummaryReportService : IInboundSummaryReportService
         var sessions = await _dbContext.WeighingSessions.AsNoTracking()
             .Where(x => x.StationCode == stationCode && !x.IsDeleted && !x.IsCancelled)
             .Where(x => x.TransactionType == TransactionType.INBOUND)
+            .Where(x => !x.IsNoLoad)
             .Where(x => x.Weight2Time.HasValue && x.Weight2Time.Value >= fromTime && x.Weight2Time.Value <= toTime)
             .Select(x => new { x.Id, x.NetWeight })
             .ToListAsync(ct);
