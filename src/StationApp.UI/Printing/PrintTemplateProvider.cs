@@ -12,6 +12,7 @@ namespace StationApp.UI.Printing;
 public sealed class PrintTemplateProvider : IPrintTemplateProvider
 {
     private const string ProfilesFileName = "print-template-profiles.json";
+    private const double DeliveryTicketFontSize = 12.5d;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly StationDbContext _dbContext;
     private readonly IAppConfigRepository _appConfigRepository;
@@ -579,29 +580,29 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
 
     private static readonly IReadOnlyList<PrintFieldDefinition> DeliveryTicketFields =
     [
-        new("DeliveryNo", 150, 39, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("ReferenceCode", 150, 54, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("CustomerName", 27, 86, 156, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("Market", 132, 104, 49, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("ConsumptionPlace", 27, 104, 103, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("LoadingPlace", 27, 122, 103, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("CustomerCode", 147, 122, 34, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("ProductName", 25, 149, 42, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal, 4, PrintWrapMode.Wrap),
-        new("PlannedWeight", 79, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("BagCount", 95, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("ActualWeight", 118, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("ActualBagCount", 134, 149, 14, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("LotNo", 155, 149, 17, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("VehicleLine", 176, 146, 18, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
-        new("SealNo", 31, 214, 56, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("Weight1Hour", 121, 233, 8, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("Weight1Minute", 142, 233, 8, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("Weight1Date", 161, 233, 24, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("Weight2Hour", 121, 249, 8, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("Weight2Minute", 142, 249, 8, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal),
-        new("Weight2Date", 161, 249, 24, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal),
-        new("Notes", 18, 267, 166, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
-        new("PrintedBy", 24, 287, 46, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Normal)
+        new("DeliveryNo", 150, 39, 34, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("ReferenceCode", 150, 54, 34, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("CustomerName", 27, 86, 156, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Market", 132, 104, 49, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("ConsumptionPlace", 27, 104, 103, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("LoadingPlace", 27, 122, 103, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("CustomerCode", 147, 122, 34, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("ProductName", 25, 149, 42, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal, 4, PrintWrapMode.Wrap),
+        new("PlannedWeight", 79, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("BagCount", 95, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("ActualWeight", 118, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("ActualBagCount", 134, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("LotNo", 155, 149, 17, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("VehicleLine", 176, 146, 18, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("SealNo", 31, 214, 56, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Weight1Hour", 121, 233, 8, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Weight1Minute", 142, 233, 8, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Weight1Date", 161, 233, 24, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Weight2Hour", 121, 249, 8, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Weight2Minute", 142, 249, 8, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Weight2Date", 161, 249, 24, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("Notes", 18, 267, 166, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("PrintedBy", 24, 287, 46, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal)
     ];
 }
 

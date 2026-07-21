@@ -79,7 +79,8 @@ public sealed class WpfPrintService : IPrintService
                     var document = _renderer.CreateDocument(template, [page], options, previewMode: false);
                     var jobName = BuildJobName(batch.Kind, page.DisplayNumber, copy + 1, options.CopyCount);
                     
-                    // Render WPF FixedPage to RenderTargetBitmap (300 DPI for high quality printing)
+                    // Render WPF FixedPage to RenderTargetBitmap. Higher DPI reduces dotted text artifacts
+                    // when shared/GDI printers rasterize the overlay before printing.
                     var pageContent = document.Pages[0];
                     var fixedPage = (System.Windows.Documents.FixedPage)pageContent.GetPageRoot(false);
 
@@ -89,15 +90,16 @@ public sealed class WpfPrintService : IPrintService
                     fixedPage.Arrange(new System.Windows.Rect(0, 0, pageWidth, pageHeight));
                     fixedPage.UpdateLayout();
 
-                    double dpiScale = 300d / 96d;
+                    const double printDpi = 600d;
+                    double dpiScale = printDpi / 96d;
                     int pixelWidth = (int)Math.Round(pageWidth * dpiScale);
                     int pixelHeight = (int)Math.Round(pageHeight * dpiScale);
 
                     var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
                         pixelWidth,
                         pixelHeight,
-                        300d,
-                        300d,
+                        printDpi,
+                        printDpi,
                         System.Windows.Media.PixelFormats.Pbgra32);
 
                     renderTarget.Render(fixedPage);

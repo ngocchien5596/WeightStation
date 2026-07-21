@@ -161,6 +161,10 @@ public sealed class PrintOverlayRenderer
                     text.TextDecorations = TextDecorations.Underline;
                 }
 
+                TextOptions.SetTextFormattingMode(text, TextFormattingMode.Display);
+                TextOptions.SetTextHintingMode(text, TextHintingMode.Fixed);
+                TextOptions.SetTextRenderingMode(text, previewMode ? TextRenderingMode.Auto : TextRenderingMode.Aliased);
+
                 if (field.MaxLines > 1)
                 {
                     text.MaxHeight = field.MaxLines * (field.FontSize + PrintFontSizeBoost) * 1.4;
