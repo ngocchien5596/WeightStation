@@ -31,10 +31,18 @@ public sealed class WpfPrintService : IPrintService
             throw new InvalidOperationException("Copy count must be greater than zero.");
         }
 
-        using var server = new LocalPrintServer();
-        var queue = server.GetPrintQueue(options.SelectedPrinterName);
-        queue.Refresh();
-        EnsureQueueCanAcceptJobs(queue);
+        var printerName = options.SelectedPrinterName.Trim();
+        using var queueHandle = TryGetPrintQueue(printerName);
+        var queue = queueHandle?.Queue;
+        if (queue != null)
+        {
+            queue.Refresh();
+            EnsureQueueCanAcceptJobs(queue);
+        }
+        else
+        {
+            EnsureGdiPrinterExists(printerName);
+        }
 
         var pagesToPrint = options.SelectedDocumentIds.Count == 0
             ? batch.Pages
@@ -49,7 +57,7 @@ public sealed class WpfPrintService : IPrintService
 
         _logger.LogInformation(
             "Print started. Printer={PrinterName} DocumentKind={DocumentKind} DocumentCount={DocumentCount} CopyCount={CopyCount}",
-            queue.Name,
+            printerName,
             batch.Kind,
             pagesToPrint.Count,
             options.CopyCount);
@@ -62,8 +70,11 @@ public sealed class WpfPrintService : IPrintService
             {
                 for (var copy = 0; copy < options.CopyCount; copy++)
                 {
-                    queue.Refresh();
-                    EnsureQueueCanAcceptJobs(queue);
+                    if (queue != null)
+                    {
+                        queue.Refresh();
+                        EnsureQueueCanAcceptJobs(queue);
+                    }
 
                     var document = _renderer.CreateDocument(template, [page], options, previewMode: false);
                     var jobName = BuildJobName(batch.Kind, page.DisplayNumber, copy + 1, options.CopyCount);
@@ -110,7 +121,7 @@ public sealed class WpfPrintService : IPrintService
                         // Print using legacy GDI PrintDocument (directly compatible with GDI printers like Canon LBP2900)
                         using (var printDoc = new System.Drawing.Printing.PrintDocument())
                         {
-                            printDoc.PrinterSettings.PrinterName = queue.Name;
+                            printDoc.PrinterSettings.PrinterName = printerName;
                             printDoc.DocumentName = jobName;
                             printDoc.DefaultPageSettings.Margins = new System.Drawing.Printing.Margins(0, 0, 0, 0);
 
@@ -150,11 +161,14 @@ public sealed class WpfPrintService : IPrintService
                         }
                     }
 
-                    DetectImmediateQueueError(queue, jobName, ct);
+                    if (queue != null)
+                    {
+                        DetectImmediateQueueError(queue, jobName, ct);
+                    }
 
                     _logger.LogInformation(
                         "Print job submitted. Printer={PrinterName} JobName={JobName} DisplayNumber={DisplayNumber} Copy={Copy}/{CopyCount}",
-                        queue.Name,
+                        printerName,
                         jobName,
                         page.DisplayNumber,
                         copy + 1,
@@ -171,6 +185,34 @@ public sealed class WpfPrintService : IPrintService
         }
 
         return Task.FromResult(new PrintExecutionResult { Documents = results });
+    }
+
+    private static PrintQueueHandle? TryGetPrintQueue(string printerName)
+    {
+        LocalPrintServer? server = null;
+        try
+        {
+            server = new LocalPrintServer();
+            return new PrintQueueHandle(server, server.GetPrintQueue(printerName));
+        }
+        catch
+        {
+            server?.Dispose();
+            return null;
+        }
+    }
+
+    private static void EnsureGdiPrinterExists(string printerName)
+    {
+        var settings = new System.Drawing.Printing.PrinterSettings
+        {
+            PrinterName = printerName
+        };
+
+        if (!settings.IsValid)
+        {
+            throw new InvalidOperationException($"Không tìm thấy máy in '{printerName}' trong danh sách máy in Windows.");
+        }
     }
 
     private void DetectImmediateQueueError(PrintQueue queue, string jobName, CancellationToken ct)
@@ -282,4 +324,23 @@ public sealed class WpfPrintService : IPrintService
     }
 
     private static double MmToDip(double mm) => mm * 96d / 25.4d;
+
+    private sealed class PrintQueueHandle : IDisposable
+    {
+        private readonly LocalPrintServer _server;
+
+        public PrintQueueHandle(LocalPrintServer server, PrintQueue queue)
+        {
+            _server = server;
+            Queue = queue;
+        }
+
+        public PrintQueue Queue { get; }
+
+        public void Dispose()
+        {
+            Queue.Dispose();
+            _server.Dispose();
+        }
+    }
 }
