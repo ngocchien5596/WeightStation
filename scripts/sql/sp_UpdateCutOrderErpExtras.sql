@@ -44,7 +44,7 @@ BEGIN
       AND ISNULL(IsDeleted, 0) = 0;
 
     IF @ActiveCount = 0
-        THROW 51022, N'Khong tim thay cut order active tuong ung de cap nhat.', 1;
+        RETURN;
 
     UPDATE dbo.cut_orders
     SET

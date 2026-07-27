@@ -50,7 +50,18 @@ BEGIN
        OR OrderCode IN (@ErpCutOrderId, @ErpRegistrationCode, @OrderCode));
 
     IF @MatchedCount = 0
-        THROW 51032, N'Khong tim thay cut order tuong ung de cap nhat trang thai hoan thanh ERP.', 1;
+    BEGIN
+        SELECT
+            CAST(NULL AS UNIQUEIDENTIFIER) AS Id,
+            @ErpCutOrderId AS ErpCutOrderId,
+            @ErpRegistrationCode AS ErpRegistrationCode,
+            @OrderCode AS OrderCode,
+            ISNULL(@IsCompleted, 1) AS ErpExportCompleted,
+            @NowLocal AS UpdatedAt,
+            @SystemUser AS UpdatedBy;
+
+        RETURN;
+    END;
 
     UPDATE dbo.cut_orders
     SET

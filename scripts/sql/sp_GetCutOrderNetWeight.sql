@@ -27,30 +27,16 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM #Result)
     BEGIN
-        THROW 50002, N'Khong tim thay cat lenh tuong ung trong DB can.', 1;
-    END;
+        SELECT
+            CAST(NULL AS decimal(18,2)) AS NetWeightTon,
+            CAST(NULL AS datetime2(7)) AS Weight1Time,
+            CAST(NULL AS datetime2(7)) AS Weight2Time;
 
-    IF EXISTS (
-        SELECT 1
-        FROM #Result r
-        INNER JOIN cut_orders co
-            ON co.ErpCutOrderId = @ErpCutOrderId
-        WHERE co.StationCode = @StationCode
-          AND ISNULL(co.IsDeleted, 0) = 0
-          AND ISNULL(co.IsExportScale, 0) = 1
-          AND co.ExportFinalizedWeight IS NULL
-    )
-    BEGIN
-        THROW 50004, N'Cat lenh xuat khau chua duoc chot tong, chua co SL thuc xuat de cung cap cho ERP.', 1;
-    END;
-
-    IF EXISTS (SELECT 1 FROM #Result WHERE ISNULL(NetWeightTon, 0) <= 0)
-    BEGIN
-        THROW 50003, N'Cat lenh chua co netweight hop le hoac netweight <= 0.', 1;
+        RETURN;
     END;
 
     SELECT
-        NetWeightTon,
+        ISNULL(NetWeightTon, 0) AS NetWeightTon,
         Weight1Time,
         Weight2Time
     FROM #Result;

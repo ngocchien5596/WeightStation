@@ -102,7 +102,8 @@ public sealed class UpdateIncomingRegistrationUseCase
 
                 if (erpResult.AffectedRows <= 0)
                 {
-                    return OperationResult<CutOrder>.Fail($"ERP không tìm thấy cắt lệnh {reg.ErpCutOrderId} để cập nhật.");
+                    // Dữ liệu ERP cũ trước go-live có thể không còn bản ghi tương ứng để ghi ngược.
+                    // Vẫn lưu thay đổi local và audit, không chặn thao tác của trạm cân.
                 }
 
                 var noteResult = await _erpCutOrderWriteBackService.UpdateDescriptionAsync(
@@ -115,7 +116,8 @@ public sealed class UpdateIncomingRegistrationUseCase
 
                 if (noteResult.AffectedRows <= 0)
                 {
-                    return OperationResult<CutOrder>.Fail($"ERP không tìm thấy cắt lệnh {reg.ErpCutOrderId} để cập nhật ghi chú.");
+                    // Dữ liệu ERP cũ trước go-live có thể không còn bản ghi tương ứng để ghi ngược.
+                    // Vẫn lưu thay đổi local và audit, không chặn thao tác của trạm cân.
                 }
 
                 var receiverResult = await _erpCutOrderWriteBackService.UpdateReceiverAsync(
@@ -128,7 +130,8 @@ public sealed class UpdateIncomingRegistrationUseCase
 
                 if (receiverResult.AffectedRows <= 0)
                 {
-                    return OperationResult<CutOrder>.Fail($"ERP không tìm thấy cắt lệnh {reg.ErpCutOrderId} để cập nhật tên tài xế.");
+                    // Dữ liệu ERP cũ trước go-live có thể không còn bản ghi tương ứng để ghi ngược.
+                    // Vẫn lưu thay đổi local và audit, không chặn thao tác của trạm cân.
                 }
             }
             catch (Exception ex)

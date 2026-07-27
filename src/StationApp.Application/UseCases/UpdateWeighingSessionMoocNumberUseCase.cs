@@ -73,7 +73,8 @@ public sealed class UpdateWeighingSessionMoocNumberUseCase
 
                 if (result.AffectedRows <= 0)
                 {
-                    return OperationResult<string?>.Fail($"ERP không tìm thấy cắt lệnh {registration.ErpCutOrderId} để cập nhật số mooc.");
+                    // Dữ liệu ERP cũ trước go-live có thể không còn bản ghi tương ứng để ghi ngược.
+                    // Vẫn lưu thay đổi local và audit, không chặn thao tác của trạm cân.
                 }
             }
             catch (Exception ex)

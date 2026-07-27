@@ -55,7 +55,13 @@ BEGIN
 
     IF (@CutOrderId IS NULL)
     BEGIN
-        THROW 50012, N'Khong tim thay cat lenh tuong ung.', 1;
+        SELECT
+            CAST(NULL AS UNIQUEIDENTIFIER) AS DeletedCutOrderId,
+            CAST(NULL AS UNIQUEIDENTIFIER) AS TemporaryCutOrderId,
+            CAST(NULL AS NVARCHAR(100)) AS TemporaryExportDisplayCode,
+            CAST(0 AS INT) AS MovedLineCount;
+
+        RETURN;
     END;
 
     SELECT @ExportLineCount = COUNT(1)
