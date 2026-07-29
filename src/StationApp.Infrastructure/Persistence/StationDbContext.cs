@@ -23,6 +23,7 @@ public class StationDbContext : DbContext
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<IncomingSeedVehicle> IncomingSeedVehicles => Set<IncomingSeedVehicle>();
     public DbSet<DeliveryTicket> DeliveryTickets => Set<DeliveryTicket>();
     public DbSet<WeighingSession> WeighingSessions => Set<WeighingSession>();
     public DbSet<WeighingSessionLine> WeighingSessionLines => Set<WeighingSessionLine>();
@@ -96,6 +97,9 @@ public class StationDbContext : DbContext
                 case Product product when string.IsNullOrWhiteSpace(product.StationCode):
                     product.StationCode = stationCode;
                     break;
+                case IncomingSeedVehicle seedVehicle when string.IsNullOrWhiteSpace(seedVehicle.StationCode):
+                    seedVehicle.StationCode = stationCode;
+                    break;
             }
         }
     }
@@ -152,6 +156,7 @@ public class StationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new VehicleEntityConfiguration());
         modelBuilder.ApplyConfiguration(new CustomerEntityConfiguration());
         modelBuilder.ApplyConfiguration(new ProductEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new IncomingSeedVehicleEntityConfiguration());
         modelBuilder.ApplyConfiguration(new DeliveryTicketEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionLineEntityConfiguration());

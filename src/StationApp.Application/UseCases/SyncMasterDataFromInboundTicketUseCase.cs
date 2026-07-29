@@ -1,4 +1,5 @@
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -42,7 +43,7 @@ public class SyncMasterDataFromInboundTicketUseCase
         var vehicle = await UpsertVehicleAsync(ticket.VehiclePlate, ticket.MoocNumber, ticket.DriverName, ticket.TransportMethod, ct);
         
         // 2. Upsert Customer
-        var customer = await UpsertCustomerAsync(ticket.CustomerCode, ticket.CustomerName, ct);
+        var customer = await UpsertCustomerAsync(ticket.CustomerCode, ticket.CustomerName, ticket.TransactionType, ct);
         
         // 3. Upsert Product
         var product = await UpsertProductAsync(ticket.ProductCode, ticket.ProductName, null, ticket.TransactionType, ct);
@@ -64,7 +65,7 @@ public class SyncMasterDataFromInboundTicketUseCase
     public async Task ExecuteAsync(CutOrder reg, CancellationToken ct)
     {
         var vehicle = await UpsertVehicleAsync(reg.VehiclePlate, reg.MoocNumber, reg.ReceiverName, reg.TransportMethod, ct);
-        var customer = await UpsertCustomerAsync(reg.CustomerCode, reg.CustomerName, ct);
+        var customer = await UpsertCustomerAsync(reg.CustomerCode, reg.CustomerName, reg.TransactionType, ct);
         var product = await UpsertProductAsync(reg.ProductCode, reg.ProductName, reg.ProductType, reg.TransactionType, ct);
 
         if (vehicle != null)
@@ -136,8 +137,9 @@ public class SyncMasterDataFromInboundTicketUseCase
 
     private async Task<Vehicle?> UpsertVehicleAsync(string? plate, string? mooc, string? driver, Domain.Enums.TransportMethod? transportMethod, CancellationToken ct)
     {
+        plate = VehicleIdentifierNormalizer.NormalizePlate(plate);
+        mooc = VehicleIdentifierNormalizer.NormalizeOptional(mooc) ?? string.Empty;
         if (string.IsNullOrEmpty(plate)) return null;
-        mooc ??= "";
 
         var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(plate, mooc, ct);
         if (vehicle == null)
@@ -174,7 +176,7 @@ public class SyncMasterDataFromInboundTicketUseCase
         return vehicle;
     }
 
-    private async Task<Customer?> UpsertCustomerAsync(string? code, string? name, CancellationToken ct)
+    private async Task<Customer?> UpsertCustomerAsync(string? code, string? name, TransactionType transactionType, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(code)) return null;
 
@@ -186,17 +188,34 @@ public class SyncMasterDataFromInboundTicketUseCase
                 Id = Guid.NewGuid(),
                 CustomerCode = code,
                 CustomerName = name ?? "",
+                CustomerBusinessRole = CustomerBusinessRoles.ForTransaction(transactionType),
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
             await _customerRepo.AddAsync(customer, ct);
         }
-        else if (!string.IsNullOrEmpty(name))
+        else
         {
-            customer.CustomerName = name;
-            customer.UpdatedAt = _clock.NowLocal;
-            customer.UpdatedBy = _currentUser.Username ?? "SYSTEM";
-            await _customerRepo.UpdateAsync(customer, ct);
+            var changed = false;
+            if (!string.IsNullOrEmpty(name) && !string.Equals(customer.CustomerName, name, StringComparison.Ordinal))
+            {
+                customer.CustomerName = name;
+                changed = true;
+            }
+
+            var mergedRole = CustomerBusinessRoles.MergeForTransaction(customer.CustomerBusinessRole, transactionType);
+            if (!string.Equals(customer.CustomerBusinessRole, mergedRole, StringComparison.Ordinal))
+            {
+                customer.CustomerBusinessRole = mergedRole;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                customer.UpdatedAt = _clock.NowLocal;
+                customer.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+                await _customerRepo.UpdateAsync(customer, ct);
+            }
         }
 
         return customer;
@@ -216,6 +235,7 @@ public class SyncMasterDataFromInboundTicketUseCase
                 ProductCode = code,
                 ProductName = name ?? "",
                 ProductType = normalizedType,
+                TransactionScope = ProductTransactionScopes.ForTransaction(transactionType),
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
@@ -236,6 +256,13 @@ public class SyncMasterDataFromInboundTicketUseCase
                 changed = true;
             }
 
+            var mergedScope = ProductTransactionScopes.MergeForTransaction(product.TransactionScope, transactionType);
+            if (!string.Equals(product.TransactionScope, mergedScope, StringComparison.Ordinal))
+            {
+                product.TransactionScope = mergedScope;
+                changed = true;
+            }
+
             if (changed)
             {
                 product.UpdatedAt = _clock.NowLocal;
@@ -251,8 +278,8 @@ public class SyncMasterDataFromInboundTicketUseCase
     {
         if (string.IsNullOrEmpty(ticket.VehiclePlate)) return null;
 
-        var plate = ticket.VehiclePlate;
-        var mooc = ticket.MoocNumber ?? "";
+        var plate = VehicleIdentifierNormalizer.NormalizePlate(ticket.VehiclePlate);
+        var mooc = VehicleIdentifierNormalizer.NormalizeOptional(ticket.MoocNumber) ?? string.Empty;
 
         var vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(plate, mooc, ct);
         var isNew = false;
@@ -454,17 +481,34 @@ public class SyncMasterDataFromInboundTicketUseCase
                 Id = Guid.NewGuid(),
                 CustomerCode = ticket.CustomerCode,
                 CustomerName = ticket.CustomerName ?? "",
+                CustomerBusinessRole = CustomerBusinessRoles.ForTransaction(ticket.TransactionType),
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
             await _customerRepo.AddAsync(customer, ct);
         }
-        else if (!string.IsNullOrEmpty(ticket.CustomerName))
+        else
         {
-            customer.CustomerName = ticket.CustomerName;
-            customer.UpdatedAt = _clock.NowLocal;
-            customer.UpdatedBy = _currentUser.Username ?? "SYSTEM";
-            await _customerRepo.UpdateAsync(customer, ct);
+            var changed = false;
+            if (!string.IsNullOrEmpty(ticket.CustomerName) && !string.Equals(customer.CustomerName, ticket.CustomerName, StringComparison.Ordinal))
+            {
+                customer.CustomerName = ticket.CustomerName;
+                changed = true;
+            }
+
+            var mergedRole = CustomerBusinessRoles.MergeForTransaction(customer.CustomerBusinessRole, ticket.TransactionType);
+            if (!string.Equals(customer.CustomerBusinessRole, mergedRole, StringComparison.Ordinal))
+            {
+                customer.CustomerBusinessRole = mergedRole;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                customer.UpdatedAt = _clock.NowLocal;
+                customer.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+                await _customerRepo.UpdateAsync(customer, ct);
+            }
         }
 
         return customer;
@@ -482,17 +526,34 @@ public class SyncMasterDataFromInboundTicketUseCase
                 Id = Guid.NewGuid(),
                 ProductCode = ticket.ProductCode,
                 ProductName = ticket.ProductName ?? "",
+                TransactionScope = ProductTransactionScopes.ForTransaction(ticket.TransactionType),
                 CreatedAt = _clock.NowLocal,
                 CreatedBy = _currentUser.Username ?? "SYSTEM"
             };
             await _productRepo.AddAsync(product, ct);
         }
-        else if (!string.IsNullOrEmpty(ticket.ProductName))
+        else
         {
-            product.ProductName = ticket.ProductName;
-            product.UpdatedAt = _clock.NowLocal;
-            product.UpdatedBy = _currentUser.Username ?? "SYSTEM";
-            await _productRepo.UpdateAsync(product, ct);
+            var changed = false;
+            if (!string.IsNullOrEmpty(ticket.ProductName) && !string.Equals(product.ProductName, ticket.ProductName, StringComparison.Ordinal))
+            {
+                product.ProductName = ticket.ProductName;
+                changed = true;
+            }
+
+            var mergedScope = ProductTransactionScopes.MergeForTransaction(product.TransactionScope, ticket.TransactionType);
+            if (!string.Equals(product.TransactionScope, mergedScope, StringComparison.Ordinal))
+            {
+                product.TransactionScope = mergedScope;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                product.UpdatedAt = _clock.NowLocal;
+                product.UpdatedBy = _currentUser.Username ?? "SYSTEM";
+                await _productRepo.UpdateAsync(product, ct);
+            }
         }
 
         return product;

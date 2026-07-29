@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 
 namespace StationApp.Infrastructure.Repositories;
@@ -53,13 +55,24 @@ public class ProductRepository : IProductRepository
         return list.AsReadOnly();
     }
 
-    public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct)
+    public async Task<IReadOnlyList<ProductAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct, TransactionType? transactionType = null)
     {
         var normalized = keyword.Trim();
         var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
-        var list = await _context.Products.AsNoTracking()
-            .Where(p => p.StationCode == stationCode && p.IsActive && (p.ProductCode.Contains(normalized) || p.ProductName.Contains(normalized)))
+        var query = _context.Products.AsNoTracking()
+            .Where(p => p.StationCode == stationCode && p.IsActive && (p.ProductCode.Contains(normalized) || p.ProductName.Contains(normalized)));
+
+        if (transactionType.HasValue)
+        {
+            var allowedScopes = transactionType.Value == TransactionType.INBOUND
+                ? new[] { ProductTransactionScopes.Inbound, ProductTransactionScopes.Both }
+                : [ProductTransactionScopes.Outbound, ProductTransactionScopes.Both];
+
+            query = query.Where(p => allowedScopes.Contains(p.TransactionScope));
+        }
+
+        var list = await query
             .OrderByDescending(p => p.ProductCode.StartsWith(normalized) || p.ProductName.StartsWith(normalized))
             .ThenBy(p => p.ProductCode)
             .Take(limit)

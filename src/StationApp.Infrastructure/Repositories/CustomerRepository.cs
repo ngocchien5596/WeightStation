@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
+using StationApp.Domain.Enums;
 using StationApp.Infrastructure.Persistence;
 
 namespace StationApp.Infrastructure.Repositories;
@@ -53,13 +55,24 @@ public class CustomerRepository : ICustomerRepository
         return list.AsReadOnly();
     }
 
-    public async Task<IReadOnlyList<CustomerAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct)
+    public async Task<IReadOnlyList<CustomerAutocompleteSource>> SearchAutocompleteAsync(string keyword, int limit, CancellationToken ct, TransactionType? transactionType = null)
     {
         var normalized = keyword.Trim();
         var stationCode = await StationScopeQuery.GetCurrentStationCodeAsync(_context, ct);
 
-        var list = await _context.Customers.AsNoTracking()
-            .Where(c => c.StationCode == stationCode && c.IsActive && (c.CustomerCode.Contains(normalized) || c.CustomerName.Contains(normalized)))
+        var query = _context.Customers.AsNoTracking()
+            .Where(c => c.StationCode == stationCode && c.IsActive && (c.CustomerCode.Contains(normalized) || c.CustomerName.Contains(normalized)));
+
+        if (transactionType.HasValue)
+        {
+            var allowedRoles = transactionType.Value == TransactionType.INBOUND
+                ? new[] { CustomerBusinessRoles.Supplier, CustomerBusinessRoles.Both }
+                : [CustomerBusinessRoles.Distributor, CustomerBusinessRoles.Both];
+
+            query = query.Where(c => allowedRoles.Contains(c.CustomerBusinessRole));
+        }
+
+        var list = await query
             .OrderByDescending(c => c.CustomerName.StartsWith(normalized) || c.CustomerCode.StartsWith(normalized))
             .ThenBy(c => c.CustomerName)
             .Take(limit)

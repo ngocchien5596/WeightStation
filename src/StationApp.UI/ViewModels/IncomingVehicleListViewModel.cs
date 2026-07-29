@@ -85,8 +85,11 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public string SaveButtonText => IsCreateMode ? "T\u1ea0O XE NH\u1eacP" : "L\u01afU THAY \u0110\u1ed4I";
     public bool IsDetailSelectionMode => !IsCreateMode && SelectedVehicle != null;
     public bool CanConfirmEnterWeighing => !HasUnsavedCutOrderChanges
-        && (Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null) || (IsCreateMode && !string.IsNullOrWhiteSpace(FormVehiclePlate)));
-    public bool CanMarkNoLoad => Vehicles.Any(x => x.IsSelected) || (!IsCreateMode && SelectedVehicle != null);
+        && (Vehicles.Any(x => x.IsSelected && x.CanSelectForAction)
+            || (!IsCreateMode && SelectedVehicle is { CanSelectForAction: true })
+            || (IsCreateMode && !string.IsNullOrWhiteSpace(FormVehiclePlate)));
+    public bool CanMarkNoLoad => Vehicles.Any(x => x.IsSelected && x.CanSelectForAction)
+        || (!IsCreateMode && SelectedVehicle is { CanSelectForAction: true });
     public bool CanTransitionToExportScale
     {
         get
@@ -102,7 +105,10 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     public IAsyncRelayCommand MarkNoLoadCommand => _markNoLoadCommand ??= new AsyncRelayCommand(MarkNoLoadAsync, () => CanMarkNoLoad);
     public decimal DisplayTtcp10PercentKg => ((TtcpWeight ?? 0m) * 1.10m);
     public bool IsOutboundDetailLockMode => !IsCreateMode && FormTransactionType == TransactionType.OUTBOUND;
+    public bool IsSeedVehicleCreateMode => IsCreateMode && SelectedVehicle?.IsSeedVehicle == true;
     public bool CanEditNonRegistrationFields => !IsOutboundDetailLockMode;
+    public bool CanEditSeedVehicleExtraFields => !IsSeedVehicleCreateMode;
+    public bool IsPlannedWeightReadOnly => IsOutboundDetailLockMode || IsSeedVehicleCreateMode;
     public bool IsVehicleRegistrationExpired => IsExpiredDate(VehicleRegistrationExpiry);
     public bool IsMoocRegistrationExpired => IsExpiredDate(MoocRegistrationExpiry);
 
@@ -149,12 +155,22 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     partial void OnSelectedVehicleChanged(IncomingVehicleSelectionItem? value)
     {
+        RefreshSeedVehicleCreateModeState();
         if (value == null)
         {
             return;
         }
 
+        if (value.IsSeedVehicle)
+        {
+            ApplySeedVehicleToCreateForm(value);
+            RefreshSeedVehicleCreateModeState();
+            RefreshCreateSessionState();
+            return;
+        }
+
         _ = LoadSelectedVehicleDetailsAsync(value);
+        RefreshSeedVehicleCreateModeState();
         RefreshCreateSessionState();
     }
 
@@ -164,6 +180,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         OnPropertyChanged(nameof(IsDetailSelectionMode));
         OnPropertyChanged(nameof(IsOutboundDetailLockMode));
         OnPropertyChanged(nameof(CanEditNonRegistrationFields));
+        RefreshSeedVehicleCreateModeState();
         RefreshCreateSessionState();
     }
 
@@ -171,6 +188,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsOutboundDetailLockMode));
         OnPropertyChanged(nameof(CanEditNonRegistrationFields));
+        OnPropertyChanged(nameof(IsPlannedWeightReadOnly));
     }
 
     partial void OnFormVehiclePlateChanged(string? value)
@@ -191,6 +209,13 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     partial void OnMoocRegistrationExpiryChanged(DateTime? value)
     {
         RefreshRegistrationExpiryState();
+    }
+
+    private void RefreshSeedVehicleCreateModeState()
+    {
+        OnPropertyChanged(nameof(IsSeedVehicleCreateMode));
+        OnPropertyChanged(nameof(CanEditSeedVehicleExtraFields));
+        OnPropertyChanged(nameof(IsPlannedWeightReadOnly));
     }
 
     partial void OnFormCustomerCodeChanged(string? value)
@@ -217,6 +242,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         {
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+            var currentStation = scope.ServiceProvider.GetRequiredService<ICurrentStationContext>();
             var list = await repo.GetIncomingListAsync(
                 new IncomingVehicleListFilter(
                     SearchErpCutOrderId,
@@ -228,9 +254,18 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     null),
                 CancellationToken.None);
 
-            var selectedIds = Vehicles.Where(x => x.IsSelected).Select(x => x.CutOrderId).ToHashSet();
-            Vehicles = new ObservableCollection<IncomingVehicleSelectionItem>(
-                list.Select(x =>
+            var selectedIds = Vehicles.Where(x => x.IsSelected && x.CanSelectForAction).Select(x => x.CutOrderId).ToHashSet();
+            var items = new List<IncomingVehicleSelectionItem>();
+            if (string.Equals(currentStation.StationCode, "QN01", StringComparison.OrdinalIgnoreCase))
+            {
+                var seedUseCase = scope.ServiceProvider.GetRequiredService<GetIncomingSeedVehiclesUseCase>();
+                var seeds = await seedUseCase.ExecuteAsync(CancellationToken.None);
+                items.AddRange(seeds
+                    .Where(x => x.IsActive)
+                    .Select(x => new IncomingVehicleSelectionItem(x)));
+            }
+
+            items.AddRange(list.Select(x =>
                 {
                     var item = new IncomingVehicleSelectionItem(x);
                     item.IsSelected = selectedIds.Contains(x.CutOrderId);
@@ -244,6 +279,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
                     return item;
                 }));
 
+            Vehicles = new ObservableCollection<IncomingVehicleSelectionItem>(items);
+
             var selectionIdToRestore = preferredSelectedCutOrderId ?? SelectedVehicle?.CutOrderId;
 
             if (list.Count == 0 && HasSearchFilters())
@@ -253,7 +290,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
             if (selectionIdToRestore.HasValue)
             {
-                SelectedVehicle = Vehicles.FirstOrDefault(x => x.CutOrderId == selectionIdToRestore.Value);
+                SelectedVehicle = Vehicles.FirstOrDefault(x => x.CanSelectForAction && x.CutOrderId == selectionIdToRestore.Value);
             }
         }
         catch (Exception ex)
@@ -422,8 +459,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             }
             else
             {
-                selectedVehicles = Vehicles.Where(x => x.IsSelected).ToList();
-                if (selectedVehicles.Count == 0 && SelectedVehicle != null)
+                selectedVehicles = Vehicles.Where(x => x.IsSelected && x.CanSelectForAction).ToList();
+                if (selectedVehicles.Count == 0 && SelectedVehicle is { CanSelectForAction: true })
                 {
                     selectedVehicles.Add(SelectedVehicle);
                 }
@@ -610,8 +647,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
     private async Task MarkNoLoadAsync()
     {
-        var selectedVehicles = Vehicles.Where(x => x.IsSelected).ToList();
-        if (selectedVehicles.Count == 0 && SelectedVehicle != null)
+        var selectedVehicles = Vehicles.Where(x => x.IsSelected && x.CanSelectForAction).ToList();
+        if (selectedVehicles.Count == 0 && SelectedVehicle is { CanSelectForAction: true })
         {
             selectedVehicles.Add(SelectedVehicle);
         }
@@ -721,7 +758,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return null;
         }
 
-        var selectedVehicles = Vehicles.Where(x => x.IsSelected).Take(2).ToList();
+        var selectedVehicles = Vehicles.Where(x => x.IsSelected && x.CanSelectForAction).Take(2).ToList();
         if (selectedVehicles.Count > 1)
         {
             return null;
@@ -729,7 +766,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
 
         return selectedVehicles.Count == 1
             ? selectedVehicles[0]
-            : SelectedVehicle;
+            : SelectedVehicle is { CanSelectForAction: true } ? SelectedVehicle : null;
     }
 
     private IncomingVehicleSelectionItem? ResolvePrimaryVehicleSelection(IReadOnlyCollection<IncomingVehicleSelectionItem> selectedVehicles)
@@ -739,7 +776,7 @@ public partial class IncomingVehicleListViewModel : ObservableObject
             return null;
         }
 
-        if (SelectedVehicle != null && selectedVehicles.Any(x => x.CutOrderId == SelectedVehicle.CutOrderId))
+        if (SelectedVehicle is { CanSelectForAction: true } && selectedVehicles.Any(x => x.CutOrderId == SelectedVehicle.CutOrderId))
         {
             return SelectedVehicle;
         }
@@ -847,6 +884,32 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         OnPropertyChanged(nameof(DisplayTtcp10PercentKg));
     }
 
+    private void ApplySeedVehicleToCreateForm(IncomingVehicleSelectionItem seed)
+    {
+        _isApplyingLoadedDetail = true;
+        IsCreateMode = true;
+        foreach (var vehicle in Vehicles.Where(x => x.CanSelectForAction))
+        {
+            vehicle.IsSelected = false;
+        }
+
+        ClearForm();
+        FormTransactionType = TransactionType.INBOUND;
+        FormTransportMethod = TransportMethod.ROAD;
+        SetFormCustomerCode(seed.CustomerCode);
+        SetFormCustomerName(seed.CustomerName);
+        SetFormProductCode(seed.ProductCode);
+        SetFormProductName(seed.ProductName);
+        FormProductType = ProductTypes.Normalize(seed.ProductType);
+        IsFormProductBagged = string.Equals(FormProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+        FormBagCount = null;
+        FormPlannedWeight = null;
+        FormNotes = null;
+        _isApplyingLoadedDetail = false;
+        CaptureLoadedDetailSnapshot();
+        OnPropertyChanged(nameof(IsDetailSelectionMode));
+    }
+
     private void BeginCreateMode()
     {
         IsCreateMode = true;
@@ -946,7 +1009,8 @@ public partial class IncomingVehicleListViewModel : ObservableObject
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
-        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword), ct);
+        var transactionType = IsMasterDataField(fieldType) ? FormTransactionType : (TransactionType?)null;
+        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, TransactionType: transactionType), ct);
     }
 
     private static void WireTextState(AutocompleteInputViewModel state, Action<string?> setter)
@@ -981,6 +1045,12 @@ public partial class IncomingVehicleListViewModel : ObservableObject
         SetFormMoocNumber(item.Value);
         ApplyVehiclePayload(item.Payload);
     }
+
+    private static bool IsMasterDataField(AutocompleteFieldType fieldType)
+        => fieldType is AutocompleteFieldType.Customer
+            or AutocompleteFieldType.CustomerCode
+            or AutocompleteFieldType.ProductCode
+            or AutocompleteFieldType.ProductName;
 
     private void ApplyCustomerSelection(AutocompleteItem item)
     {
@@ -1603,6 +1673,7 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
     public IncomingVehicleSelectionItem(IncomingVehicleListItem item)
     {
         CutOrderId = item.CutOrderId;
+        IsSeedVehicle = false;
         ErpCutOrderId = item.ErpCutOrderId;
         ErpRegistrationCode = item.ErpRegistrationCode;
         TransactionType = item.TransactionType;
@@ -1632,15 +1703,39 @@ public partial class IncomingVehicleSelectionItem : ObservableObject
         ExportTripCount = item.ExportTripCount;
     }
 
+    public IncomingVehicleSelectionItem(IncomingSeedVehicleListItem seed)
+    {
+        CutOrderId = seed.Id;
+        SeedVehicleId = seed.Id;
+        IsSeedVehicle = true;
+        ErpCutOrderId = "Xe nhập mẫu";
+        TransactionType = TransactionType.INBOUND;
+        VehiclePlate = string.Empty;
+        CustomerCode = seed.CustomerCode;
+        CustomerName = seed.CustomerName;
+        ProductCode = seed.ProductCode;
+        ProductName = seed.ProductName;
+        ProductType = seed.ProductType;
+        CutOrderStatus = CutOrderStatus.REGISTERED;
+        TransportMethod = StationApp.Domain.Enums.TransportMethod.ROAD;
+        CreatedAt = seed.CreatedAt;
+        IsExportScale = false;
+        ExportTripCount = 0;
+    }
+
     [ObservableProperty] private bool _isSelected;
 
     public Guid CutOrderId { get; }
+    public Guid? SeedVehicleId { get; }
+    public bool IsSeedVehicle { get; }
+    public bool CanSelectForAction => !IsSeedVehicle;
     public string? ErpCutOrderId { get; }
     public string? ErpRegistrationCode { get; }
     public TransactionType TransactionType { get; }
     public string VehiclePlate { get; }
     public string? MoocNumber { get; }
     public string? ReceiverName { get; }
+    public string? CustomerCode { get; }
     public string? CustomerName { get; }
     public string? ProductCode { get; }
     public string? ProductName { get; }

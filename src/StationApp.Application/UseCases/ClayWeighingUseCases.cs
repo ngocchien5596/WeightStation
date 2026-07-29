@@ -259,6 +259,7 @@ public sealed class ClayWeighingUseCases
                 Id = Guid.NewGuid(),
                 CustomerCode = normalizedCode,
                 CustomerName = normalizedName,
+                CustomerBusinessRole = CustomerBusinessRoles.Supplier,
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = CurrentUsername()
@@ -279,6 +280,13 @@ public sealed class ClayWeighingUseCases
             && !string.Equals(existing.CustomerName, normalizedName, StringComparison.Ordinal))
         {
             existing.CustomerName = normalizedName;
+            changed = true;
+        }
+
+        var mergedRole = CustomerBusinessRoles.MergeForTransaction(existing.CustomerBusinessRole, TransactionType.INBOUND);
+        if (!string.Equals(existing.CustomerBusinessRole, mergedRole, StringComparison.Ordinal))
+        {
+            existing.CustomerBusinessRole = mergedRole;
             changed = true;
         }
 
@@ -317,6 +325,7 @@ public sealed class ClayWeighingUseCases
                 ProductCode = normalizedCode,
                 ProductName = normalizedName,
                 ProductType = productType,
+                TransactionScope = ProductTransactionScopes.Inbound,
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = CurrentUsername()
@@ -344,6 +353,13 @@ public sealed class ClayWeighingUseCases
             && !string.Equals(existing.ProductType, productType, StringComparison.Ordinal))
         {
             existing.ProductType = productType;
+            changed = true;
+        }
+
+        var mergedScope = ProductTransactionScopes.MergeForTransaction(existing.TransactionScope, TransactionType.INBOUND);
+        if (!string.Equals(existing.TransactionScope, mergedScope, StringComparison.Ordinal))
+        {
+            existing.TransactionScope = mergedScope;
             changed = true;
         }
 

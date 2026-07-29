@@ -1050,7 +1050,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable, I
     [RelayCommand(CanExecute = nameof(CanConfirmInternalVehicle))]
     private async Task ConfirmInternalVehicleAsync()
     {
-        var vehiclePlate = InternalVehiclePlateInput.Text?.Trim();
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(InternalVehiclePlateInput.Text);
         if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
             _toastService.ShowWarning("Vui lòng nhập số xe nội bộ.");
@@ -1147,7 +1147,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable, I
     private async Task RefreshVehicleMasterInfoAsync()
     {
         var lookupVersion = Interlocked.Increment(ref _vehicleMasterLookupVersion);
-        var vehiclePlate = InternalVehiclePlateInput.Text?.Trim();
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(InternalVehiclePlateInput.Text);
 
         if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
@@ -1275,7 +1275,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable, I
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
-        var results = await service.SearchAsync(new AutocompleteQuery(fieldType, keyword), ct);
+        var results = await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, TransactionType: TransactionType.INBOUND), ct);
 
         if (fieldType == AutocompleteFieldType.Vehicle)
         {

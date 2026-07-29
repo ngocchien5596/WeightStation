@@ -506,4 +506,7 @@ public class SyncPayloadFactory : ISyncPayloadFactory
 
     public string CreatePayload(Product product)
         => JsonSerializer.Serialize(product, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(IncomingSeedVehicle seedVehicle)
+        => JsonSerializer.Serialize(seedVehicle, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }

@@ -170,6 +170,7 @@ public sealed class CreateTemporaryExportCutOrderUseCase
                 Id = Guid.NewGuid(),
                 CustomerCode = normalizedCode,
                 CustomerName = customerName,
+                CustomerBusinessRole = CustomerBusinessRoles.Distributor,
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = _userContext.Username
@@ -189,6 +190,13 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         if (!string.Equals(existing.CustomerName, customerName, StringComparison.Ordinal))
         {
             existing.CustomerName = customerName;
+            changed = true;
+        }
+
+        var mergedRole = CustomerBusinessRoles.MergeForTransaction(existing.CustomerBusinessRole, TransactionType.OUTBOUND);
+        if (!string.Equals(existing.CustomerBusinessRole, mergedRole, StringComparison.Ordinal))
+        {
+            existing.CustomerBusinessRole = mergedRole;
             changed = true;
         }
 
@@ -221,6 +229,7 @@ public sealed class CreateTemporaryExportCutOrderUseCase
                 ProductCode = normalizedCode,
                 ProductName = productName,
                 ProductType = normalizedType,
+                TransactionScope = ProductTransactionScopes.Outbound,
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = _userContext.Username
@@ -247,6 +256,13 @@ public sealed class CreateTemporaryExportCutOrderUseCase
             && !string.Equals(existing.ProductType, normalizedType, StringComparison.Ordinal))
         {
             existing.ProductType = normalizedType;
+            changed = true;
+        }
+
+        var mergedScope = ProductTransactionScopes.MergeForTransaction(existing.TransactionScope, TransactionType.OUTBOUND);
+        if (!string.Equals(existing.TransactionScope, mergedScope, StringComparison.Ordinal))
+        {
+            existing.TransactionScope = mergedScope;
             changed = true;
         }
 

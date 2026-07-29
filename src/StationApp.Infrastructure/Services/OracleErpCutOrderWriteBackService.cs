@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Oracle.ManagedDataAccess.Client;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 
 namespace StationApp.Infrastructure.Services;
 
@@ -34,8 +35,8 @@ public sealed class OracleErpCutOrderWriteBackService : IErpCutOrderWriteBackSer
         }
 
         var normalizedErpCutOrderId = request.ErpCutOrderId.Trim();
-        var normalizedVehiclePlate = request.VehiclePlate.Trim();
-        var normalizedMoocNumber = NormalizeOptional(request.MoocNumber);
+        var normalizedVehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(request.VehiclePlate);
+        var normalizedMoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber);
 
         await using var connection = new OracleConnection(connectionString);
         await connection.OpenAsync(ct);
@@ -111,7 +112,7 @@ WHERE documentNo = :erpCutOrderId
         }
 
         var normalizedErpCutOrderId = request.ErpCutOrderId.Trim();
-        var normalizedMoocNumber = NormalizeOptional(request.MoocNumber);
+        var normalizedMoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber);
 
         await using var connection = new OracleConnection(connectionString);
         await connection.OpenAsync(ct);

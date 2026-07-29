@@ -40,9 +40,12 @@
                 <Grid Grid.Row="0" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.1*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.6*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="150"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
@@ -60,7 +63,17 @@
                              helpers:EnterKeySearch.Command="{Binding SearchCommand}"
                              Margin="0,0,16,0"/>
 
-                    <Button Grid.Column="4" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Height="32" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="4" Text="Lo&#x1EA1;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox Grid.Column="5"
+                              ItemsSource="{Binding SearchCustomerRoleOptions}"
+                              DisplayMemberPath="DisplayName"
+                              TextSearch.TextPath="DisplayName"
+                              SelectedItem="{Binding SelectedSearchCustomerRoleOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource StandardComboBoxStyle}"
+                              Height="32"
+                              Margin="0,0,16,0"/>
+
+                    <Button Grid.Column="6" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Height="32" VerticalAlignment="Center">
                         <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
                     </Button>
                 </Grid>
@@ -74,6 +87,9 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0" Text="M&#x00E3; kh&#x00E1;ch h&#x00E0;ng *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
@@ -82,7 +98,21 @@
                     <TextBlock Grid.Column="2" Text="T&#x00EA;n kh&#x00E1;ch h&#x00E0;ng *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                     <TextBox Grid.Column="3" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormBox}" Margin="0,0,16,8"/>
 
-                    <CheckBox Grid.Column="4" Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Column="4" Text="Ph&#x00E2;n lo&#x1EA1;i *" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                    <CheckBox Grid.Column="5"
+                              Content="NCC"
+                              IsChecked="{Binding EditIsSupplier}"
+                              Style="{StaticResource StandardCheckBoxStyle}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,12,8"/>
+                    <CheckBox Grid.Column="6"
+                              Content="NPP"
+                              IsChecked="{Binding EditIsDistributor}"
+                              Style="{StaticResource StandardCheckBoxStyle}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,16,8"/>
+
+                    <CheckBox Grid.Column="7" Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng" IsChecked="{Binding EditIsActive}" Style="{StaticResource StandardCheckBoxStyle}" Margin="0,0,0,8"/>
                 </Grid>
 
                 <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
@@ -110,6 +140,8 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="M&#x00E3; kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerCode}" Width="170" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="T&#x00EA;n kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="320" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridCheckBoxColumn Header="NCC" Binding="{Binding IsSupplierCustomer, Mode=OneWay}" Width="70" IsReadOnly="True" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
+                    <DataGridCheckBoxColumn Header="NPP" Binding="{Binding IsDistributorCustomer, Mode=OneWay}" Width="70" IsReadOnly="True" ElementStyle="{StaticResource GridCheckBoxCenter}"/>
                     <DataGridCheckBoxColumn Header="Ho&#x1EA1;t &#x0111;&#x1ED9;ng" Binding="{Binding IsActive}" Width="100" ElementStyle="{StaticResource GridCheckBoxCenter}" EditingElementStyle="{StaticResource GridCheckBoxCenterEditable}"/>
                 </DataGrid.Columns>
             </DataGrid>

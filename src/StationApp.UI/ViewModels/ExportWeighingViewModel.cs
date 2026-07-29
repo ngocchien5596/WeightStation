@@ -1769,7 +1769,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
         var limit = fieldType == AutocompleteFieldType.Vehicle
             ? VehicleAutocompleteLimit
             : 10;
-        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, limit), ct);
+        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, limit, TransactionType.OUTBOUND), ct);
     }
 
     private static void WireTextState(AutocompleteInputViewModel state, Action<string?> setter)

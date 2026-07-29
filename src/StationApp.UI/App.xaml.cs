@@ -162,6 +162,7 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IStationOperationSettingsRepository, StationOperationSettingsRepository>();
                     services.AddScoped<ICustomerRepository, CustomerRepository>();
                     services.AddScoped<IProductRepository, ProductRepository>();
+                    services.AddScoped<IIncomingSeedVehicleRepository, IncomingSeedVehicleRepository>();
                     services.AddScoped<IDeliveryTicketRepository, DeliveryTicketRepository>();
                     services.AddScoped<IUnitOfWork, EfUnitOfWork>();
                     services.AddScoped<IWeighingSessionImageRepository, WeighingSessionImageRepository>();
@@ -239,6 +240,10 @@ public partial class App : System.Windows.Application
                     services.AddScoped<ConfirmEnterWeighingUseCase>();
                     services.AddScoped<CreateInboundRegistrationUseCase>();
                     services.AddScoped<UpdateIncomingRegistrationUseCase>();
+                    services.AddScoped<GetIncomingSeedVehiclesUseCase>();
+                    services.AddScoped<CreateIncomingSeedVehicleUseCase>();
+                    services.AddScoped<UpdateIncomingSeedVehicleUseCase>();
+                    services.AddScoped<DeleteIncomingSeedVehicleUseCase>();
                     services.AddScoped<UpdateWeighingSessionSealNoUseCase>();
                     services.AddScoped<UpdateWeighingSessionMoocNumberUseCase>();
                     services.AddScoped<CreateWeighingSessionUseCase>();

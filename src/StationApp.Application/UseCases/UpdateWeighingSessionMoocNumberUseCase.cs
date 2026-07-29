@@ -52,7 +52,7 @@ public sealed class UpdateWeighingSessionMoocNumberUseCase
         }
 
         var weighTickets = await _weighTicketRepository.GetByWeighingSessionIdAsync(weighingSessionId, ct);
-        var normalizedMoocNumber = NormalizeOptional(moocNumber);
+        var normalizedMoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(moocNumber);
         var oldMoocNumber = session.MoocNumber;
         var now = _clock.NowLocal;
         var erpRegistrations = registrations

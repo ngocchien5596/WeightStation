@@ -11,5 +11,6 @@ public static class SyncAggregateTypes
     public const string Vehicle = nameof(Entities.Vehicle);
     public const string Customer = nameof(Entities.Customer);
     public const string Product = nameof(Entities.Product);
+    public const string IncomingSeedVehicle = nameof(Entities.IncomingSeedVehicle);
 }
 

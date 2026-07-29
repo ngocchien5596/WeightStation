@@ -15,6 +15,11 @@ using StationApp.UI.Services;
 
 namespace StationApp.UI.ViewModels.Settings;
 
+public sealed record ProductTypeSearchOption(string? Value, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}
+
 public partial class ProductMasterViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -26,6 +31,7 @@ public partial class ProductMasterViewModel : ObservableObject
 
     [ObservableProperty] private string _searchCode = string.Empty;
     [ObservableProperty] private string _searchName = string.Empty;
+    [ObservableProperty] private ProductTypeSearchOption? _selectedSearchProductTypeOption;
 
     [ObservableProperty] private string _editCode = string.Empty;
     [ObservableProperty] private string _editName = string.Empty;
@@ -36,6 +42,11 @@ public partial class ProductMasterViewModel : ObservableObject
     [ObservableProperty] private Product? _selectedProduct;
 
     public IReadOnlyList<string> ProductTypeOptions { get; } = ProductTypes.All;
+    public IReadOnlyList<ProductTypeSearchOption> SearchProductTypeOptions { get; } =
+    [
+        new(null, "T\u1ea5t c\u1ea3"),
+        .. ProductTypes.All.Select(x => new ProductTypeSearchOption(x, x))
+    ];
 
     partial void OnSelectedProductChanged(Product? value)
     {
@@ -52,6 +63,7 @@ public partial class ProductMasterViewModel : ObservableObject
 
     public async Task LoadAsync()
     {
+        SelectedSearchProductTypeOption ??= SearchProductTypeOptions.FirstOrDefault();
         await SearchAsync();
     }
 
@@ -64,13 +76,25 @@ public partial class ProductMasterViewModel : ObservableObject
         var list = await repo.SearchAsync(null, CancellationToken.None);
         var filtered = list.Where(x =>
             MatchesSearch(x.ProductCode, SearchCode)
-            && MatchesSearch(x.ProductName, SearchName));
+            && MatchesSearch(x.ProductName, SearchName)
+            && MatchesSearchProductType(x));
 
         Products.Clear();
         foreach (var item in filtered)
         {
             Products.Add(item);
         }
+    }
+
+    private bool MatchesSearchProductType(Product product)
+    {
+        var selectedType = ProductTypes.Normalize(SelectedSearchProductTypeOption?.Value);
+        if (string.IsNullOrWhiteSpace(selectedType))
+        {
+            return true;
+        }
+
+        return string.Equals(ProductTypes.Normalize(product.ProductType), selectedType, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool MatchesSearch(string? source, string? keyword)
@@ -108,7 +132,9 @@ public partial class ProductMasterViewModel : ObservableObject
         var normalizedType = ProductTypes.Normalize(EditType);
         if (string.IsNullOrWhiteSpace(EditCode) || string.IsNullOrWhiteSpace(EditName) || string.IsNullOrWhiteSpace(normalizedType))
         {
-            await dialogService.ShowErrorAsync("\u004c\u1ed7\u0069", "\u004d\u00e3, \u0054\u00ean v\u00e0 \u004c\u006f\u1ea1\u0069 s\u1ea3\u006e ph\u1ea9m kh\u00f4ng \u0111\u01b0\u1ee3c r\u1ed7ng!");
+            await dialogService.ShowErrorAsync(
+                "L\u1ed7i",
+                "M\u00e3, T\u00ean v\u00e0 Lo\u1ea1i s\u1ea3n ph\u1ea9m kh\u00f4ng \u0111\u01b0\u1ee3c r\u1ed7ng!");
             return;
         }
 
@@ -117,7 +143,9 @@ public partial class ProductMasterViewModel : ObservableObject
             var existing = await repo.GetByCodeAsync(EditCode.Trim(), CancellationToken.None);
             if (existing != null && (SelectedProduct == null || existing.Id != SelectedProduct.Id))
             {
-                await dialogService.ShowWarningAsync("\u004c\u1ed7\u0069", "\u004d\u00e3 s\u1ea3\u006e ph\u1ea9m \u0111\u00e3 t\u1ed3n t\u1ea1i tr\u00ean h\u1ec7 th\u1ed1ng!");
+                await dialogService.ShowWarningAsync(
+                    "L\u1ed7i",
+                    "M\u00e3 s\u1ea3n ph\u1ea9m \u0111\u00e3 t\u1ed3n t\u1ea1i tr\u00ean h\u1ec7 th\u1ed1ng!");
                 return;
             }
 
@@ -164,14 +192,18 @@ public partial class ProductMasterViewModel : ObservableObject
             }
 
             await uow.SaveChangesAsync(CancellationToken.None);
-            await dialogService.ShowInfoAsync("\u0054\u0068\u00f4\u006e\u0067 b\u00e1\u006f", "\u004c\u01b0u d\u1eef li\u1ec7u th\u00e0nh c\u00f4ng!");
+            await dialogService.ShowInfoAsync(
+                "Th\u00f4ng b\u00e1o",
+                "L\u01b0u d\u1eef li\u1ec7u th\u00e0nh c\u00f4ng!");
 
             ResetForm();
             await SearchAsync();
         }
         catch (Exception ex)
         {
-            await dialogService.ShowErrorAsync("\u004c\u1ed7\u0069 h\u1ec7 th\u1ed1ng", $"\u004c\u1ed7\u0069 khi l\u01b0u d\u1eef li\u1ec7u: {ex.Message}");
+            await dialogService.ShowErrorAsync(
+                "L\u1ed7i h\u1ec7 th\u1ed1ng",
+                $"L\u1ed7i khi l\u01b0u d\u1eef li\u1ec7u: {ex.Message}");
         }
     }
 
@@ -187,10 +219,10 @@ public partial class ProductMasterViewModel : ObservableObject
         var dialogService = scope.ServiceProvider.GetRequiredService<IDialogService>();
 
         var result = await dialogService.ShowConfirmAsync(
-            "\u0058\u00e1c nh\u1eadn",
-            $"\u0042\u1ea1n c\u00f3 ch\u1eafc mu\u1ed1n ng\u1eebng s\u1eed d\u1ee5ng s\u1ea3n ph\u1ea9m {SelectedProduct.ProductName}?",
+            "X\u00e1c nh\u1eadn",
+            $"B\u1ea1n c\u00f3 ch\u1eafc mu\u1ed1n ng\u1eebng s\u1eed d\u1ee5ng s\u1ea3n ph\u1ea9m {SelectedProduct.ProductName}?",
             "\u0110\u1ed3ng \u00fd",
-            "\u0042\u1ecf qua");
+            "B\u1ecf qua");
 
         if (!result)
         {
@@ -210,7 +242,9 @@ public partial class ProductMasterViewModel : ObservableObject
         await EnqueueMasterSyncAsync(outboxRepo, payloadFactory, SelectedProduct, clock.NowLocal);
         await uow.SaveChangesAsync(CancellationToken.None);
 
-        await dialogService.ShowInfoAsync("\u0054\u0068\u00f4\u006e\u0067 b\u00e1\u006f", "\u0110\u00e3 chuy\u1ec3n \u0111\u1ed5i tr\u1ea1ng th\u00e1i ng\u1eebng s\u1eed d\u1ee5ng.");
+        await dialogService.ShowInfoAsync(
+            "Th\u00f4ng b\u00e1o",
+            "\u0110\u00e3 chuy\u1ec3n \u0111\u1ed5i tr\u1ea1ng th\u00e1i ng\u1eebng s\u1eed d\u1ee5ng.");
         ResetForm();
         await SearchAsync();
     }

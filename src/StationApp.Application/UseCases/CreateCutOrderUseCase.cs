@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -51,8 +52,8 @@ public sealed class CreateCutOrderUseCase
             CutOrderStatus = CutOrderStatus.REGISTERED,
             TransactionType = request.TransactionType,
             TransportMethod = request.TransportMethod,
-            VehiclePlate = request.VehiclePlate,
-            MoocNumber = request.MoocNumber,
+            VehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(request.VehiclePlate),
+            MoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber),
             ReceiverName = request.ReceiverName,
             ReceiverIdNo = request.ReceiverIdNo,
             CustomerCode = request.CustomerCode,

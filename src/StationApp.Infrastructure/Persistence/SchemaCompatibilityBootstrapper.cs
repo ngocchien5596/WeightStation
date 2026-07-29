@@ -81,7 +81,8 @@ public static class SchemaCompatibilityBootstrapper
     private static readonly IReadOnlyList<ColumnPatch> ProductColumnPatches =
     [
         new("ProductType", "nvarchar(30) NULL"),
-        new("StationCode", "nvarchar(50) NULL")
+        new("StationCode", "nvarchar(50) NULL"),
+        new("TransactionScope", "nvarchar(30) NOT NULL CONSTRAINT [DF_products_transaction_scope_bootstrap] DEFAULT (N'BOTH')")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> VehicleColumnPatches =
@@ -95,7 +96,8 @@ public static class SchemaCompatibilityBootstrapper
 
     private static readonly IReadOnlyList<ColumnPatch> CustomerColumnPatches =
     [
-        new("StationCode", "nvarchar(50) NULL")
+        new("StationCode", "nvarchar(50) NULL"),
+        new("CustomerBusinessRole", "nvarchar(30) NOT NULL CONSTRAINT [DF_customers_business_role_bootstrap] DEFAULT (N'BOTH')")
     ];
 
     private static readonly IReadOnlyList<ColumnPatch> WeighTicketCrusherColumnPatches =
@@ -188,8 +190,10 @@ public static class SchemaCompatibilityBootstrapper
         await EnsureTableColumnsAsync(db, logger, "users", UserColumnPatches, ct);
         await EnsureStationAccessTablesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "products", ProductColumnPatches, ct);
+        await NormalizeProductTypeLabelsAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "vehicles", VehicleColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "customers", CustomerColumnPatches, ct);
+        await EnsureIncomingSeedVehiclesTableAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketCrusherColumnPatches, ct);
         await EnsureWeighingSessionTablesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weighing_sessions", WeighingSessionColumnPatches, ct);
@@ -201,6 +205,74 @@ public static class SchemaCompatibilityBootstrapper
         await EnsurePrintTemplateProfileTableAsync(db, logger, ct);
         await EnsureDocumentCountersTableAsync(db, logger, ct);
         await DropLegacyDeviceConfigTableAsync(db, logger, ct);
+    }
+
+    private static async Task EnsureIncomingSeedVehiclesTableAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[incoming_seed_vehicles]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [incoming_seed_vehicles] (
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_incoming_seed_vehicles] PRIMARY KEY,
+        [StationCode] nvarchar(50) NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_station] DEFAULT (N'QN01'),
+        [TransactionType] nvarchar(20) NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_transaction_type] DEFAULT (N'INBOUND'),
+        [CustomerCode] nvarchar(50) NOT NULL,
+        [CustomerName] nvarchar(255) NOT NULL,
+        [ProductCode] nvarchar(50) NOT NULL,
+        [ProductName] nvarchar(255) NOT NULL,
+        [ProductType] nvarchar(30) NULL,
+        [SortOrder] int NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_sort_order] DEFAULT ((0)),
+        [IsActive] bit NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_is_active] DEFAULT ((1)),
+        [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_created_at] DEFAULT (sysdatetime()),
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL,
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] nvarchar(100) NULL
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_incoming_seed_vehicles_station_sort' AND object_id = OBJECT_ID(N'[incoming_seed_vehicles]'))
+BEGIN
+    CREATE INDEX [IX_incoming_seed_vehicles_station_sort] ON [incoming_seed_vehicles] ([StationCode], [SortOrder]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_incoming_seed_vehicles_station_customer_product_active' AND object_id = OBJECT_ID(N'[incoming_seed_vehicles]'))
+BEGIN
+    CREATE INDEX [IX_incoming_seed_vehicles_station_customer_product_active] ON [incoming_seed_vehicles] ([StationCode], [CustomerCode], [ProductCode], [IsActive]);
+END
+""";
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(sql, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Unable to ensure incoming seed vehicles table.");
+        }
+    }
+
+    private static async Task NormalizeProductTypeLabelsAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID(N'[products]', N'U') IS NOT NULL
+   AND COL_LENGTH('products', 'ProductType') IS NOT NULL
+BEGIN
+    UPDATE [products]
+    SET [ProductType] = N'Hàng nhập'
+    WHERE [ProductType] = N'Nhập hàng';
+END
+""";
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(sql, ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Không thể chuẩn hóa ProductType từ Nhập hàng sang Hàng nhập.");
+        }
     }
 
     private static async Task EnsureCutOrderSchemaAsync(StationDbContext db, ILogger? logger, CancellationToken ct)

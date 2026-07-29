@@ -160,6 +160,7 @@ public sealed class CentralApiClient : ICentralApiClient
             SyncAggregateTypes.Vehicle => "api/vehicles",
             SyncAggregateTypes.Customer => "api/customers",
             SyncAggregateTypes.Product => "api/products",
+            SyncAggregateTypes.IncomingSeedVehicle => "api/incoming-seed-vehicles",
             _ => throw new InvalidOperationException($"Unsupported sync aggregate type: {aggregateType}")
         };
     }

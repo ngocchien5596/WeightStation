@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Application.Services;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
 
@@ -40,7 +41,7 @@ public sealed class CreateExportVehicleSessionUseCase
 
     public async Task<CreateExportVehicleSessionResult> ExecuteAsync(CreateExportVehicleSessionRequest request, CancellationToken ct)
     {
-        var vehiclePlate = request.VehiclePlate?.Trim();
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(request.VehiclePlate);
         if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
             throw new InvalidOperationException("Vui lòng nhập biển số xe cho chuyến xuất khẩu.");
@@ -66,7 +67,7 @@ public sealed class CreateExportVehicleSessionUseCase
                 SessionNo = sessionNo,
                 TransactionType = TransactionType.OUTBOUND,
                 VehiclePlate = vehiclePlate,
-                MoocNumber = NormalizeOptional(request.MoocNumber),
+                MoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber),
                 DriverName = NormalizeOptional(request.DriverName),
                 SessionStatus = WeighingSessionStatus.PENDING_WEIGHT1,
                 OverweightResolutionStatus = OverweightResolutionStatus.NOT_APPLICABLE,
@@ -117,7 +118,7 @@ public sealed class CreateExportVehicleSessionUseCase
         DateTime now,
         CancellationToken ct)
     {
-        var moocNumber = NormalizeOptional(request.MoocNumber);
+        var moocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber);
         Vehicle? vehicle = null;
 
         if (!string.IsNullOrWhiteSpace(moocNumber))

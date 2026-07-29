@@ -1551,7 +1551,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
 
     private async Task<Vehicle?> EnsureInternalVehicleForWeighingAsync()
     {
-        var vehiclePlate = InternalVehiclePlateInput.Text?.Trim();
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(InternalVehiclePlateInput.Text);
         if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
             _toastService.ShowWarning("Vui lòng nhập số xe nội bộ.");
@@ -1823,7 +1823,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     [RelayCommand(CanExecute = nameof(CanConfirmInternalVehicle))]
     private async Task ConfirmInternalVehicleAsync()
     {
-        var vehiclePlate = InternalVehiclePlateInput.Text?.Trim();
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(InternalVehiclePlateInput.Text);
         if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
             _toastService.ShowWarning("Vui lòng nhập số xe nội bộ.");
@@ -2018,7 +2018,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     private async Task RefreshVehicleMasterInfoAsync()
     {
         var lookupVersion = Interlocked.Increment(ref _vehicleMasterLookupVersion);
-        var vehiclePlate = InternalVehiclePlateInput.Text?.Trim();
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(InternalVehiclePlateInput.Text);
 
         if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
@@ -2149,7 +2149,7 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
-        var results = await service.SearchAsync(new AutocompleteQuery(fieldType, keyword), ct);
+        var results = await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, TransactionType: TransactionType.INBOUND), ct);
 
         if (fieldType == AutocompleteFieldType.Vehicle)
         {

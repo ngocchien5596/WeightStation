@@ -42,6 +42,7 @@ public class CustomerEntityConfiguration : IEntityTypeConfiguration<Customer>
 
         builder.Property(e => e.CustomerCode).HasMaxLength(50).IsRequired();
         builder.Property(e => e.CustomerName).HasMaxLength(255).IsRequired();
+        builder.Property(e => e.CustomerBusinessRole).HasMaxLength(30).IsRequired().HasDefaultValue("BOTH");
 
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
@@ -61,12 +62,38 @@ public class ProductEntityConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(e => e.ProductCode).HasMaxLength(50).IsRequired();
         builder.Property(e => e.ProductName).HasMaxLength(255).IsRequired();
         builder.Property(e => e.ProductType).HasMaxLength(30);
+        builder.Property(e => e.TransactionScope).HasMaxLength(30).IsRequired().HasDefaultValue("BOTH");
 
         builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);
 
         builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
         builder.HasIndex(e => new { e.StationCode, e.ProductCode }).IsUnique().HasDatabaseName("UX_products_station_code");
+    }
+}
+
+public class IncomingSeedVehicleEntityConfiguration : IEntityTypeConfiguration<IncomingSeedVehicle>
+{
+    public void Configure(EntityTypeBuilder<IncomingSeedVehicle> builder)
+    {
+        builder.ToTable("incoming_seed_vehicles");
+        builder.HasKey(e => e.Id);
+
+        builder.Property(e => e.StationCode).HasMaxLength(50).IsRequired().HasDefaultValue("QN01");
+        builder.Property(e => e.TransactionType).HasMaxLength(20).IsRequired().HasDefaultValue("INBOUND");
+        builder.Property(e => e.CustomerCode).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.CustomerName).HasMaxLength(255).IsRequired();
+        builder.Property(e => e.ProductCode).HasMaxLength(50).IsRequired();
+        builder.Property(e => e.ProductName).HasMaxLength(255).IsRequired();
+        builder.Property(e => e.ProductType).HasMaxLength(30);
+        builder.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+        builder.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(e => e.CreatedBy).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.UpdatedBy).HasMaxLength(100);
+        builder.Property(e => e.DeletedBy).HasMaxLength(100);
+
+        builder.HasIndex(e => new { e.StationCode, e.SortOrder }).HasDatabaseName("IX_incoming_seed_vehicles_station_sort");
+        builder.HasIndex(e => new { e.StationCode, e.CustomerCode, e.ProductCode, e.IsActive }).HasDatabaseName("IX_incoming_seed_vehicles_station_customer_product_active");
     }
 }
 

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -66,7 +67,7 @@ public sealed class EnsureInboundMasterDataUseCase
             moocRegistrationNo,
             moocRegistrationExpiryDate,
             ct);
-        await EnsureCustomerAsync(customerCode, customerName, ct);
+        await EnsureCustomerAsync(customerCode, customerName, transactionType, ct);
         await EnsureProductAsync(productCode, productName, productType, transactionType, ct);
     }
 
@@ -82,13 +83,13 @@ public sealed class EnsureInboundMasterDataUseCase
         DateTime? moocRegistrationExpiryDate,
         CancellationToken ct)
     {
-        var normalizedPlate = vehiclePlate.Trim();
+        var normalizedPlate = VehicleIdentifierNormalizer.NormalizePlate(vehiclePlate);
         if (string.IsNullOrWhiteSpace(normalizedPlate))
         {
             return;
         }
 
-        var normalizedMooc = NormalizeOptional(moocNumber);
+        var normalizedMooc = VehicleIdentifierNormalizer.NormalizeOptional(moocNumber);
         var normalizedDriver = NormalizeOptional(driverName);
         var normalizedTransportMethod = transportMethod?.ToString();
         var normalizedVehicleRegNo = NormalizeOptional(vehicleRegistrationNo);
@@ -230,7 +231,10 @@ public sealed class EnsureInboundMasterDataUseCase
             ct);
     }
 
-    public async Task EnsureCustomerAsync(string? customerCode, string? customerName, CancellationToken ct)
+    public Task EnsureCustomerAsync(string? customerCode, string? customerName, CancellationToken ct)
+        => EnsureCustomerAsync(customerCode, customerName, TransactionType.INBOUND, ct);
+
+    public async Task EnsureCustomerAsync(string? customerCode, string? customerName, TransactionType transactionType, CancellationToken ct)
     {
         var normalizedCode = NormalizeOptional(customerCode);
         var normalizedName = NormalizeOptional(customerName);
@@ -253,6 +257,7 @@ public sealed class EnsureInboundMasterDataUseCase
                 Id = Guid.NewGuid(),
                 CustomerCode = normalizedCode,
                 CustomerName = normalizedName,
+                CustomerBusinessRole = CustomerBusinessRoles.ForTransaction(transactionType),
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = _currentUserContext.Username
@@ -272,6 +277,13 @@ public sealed class EnsureInboundMasterDataUseCase
         if (string.IsNullOrWhiteSpace(existing.CustomerName) && !string.IsNullOrWhiteSpace(normalizedName))
         {
             existing.CustomerName = normalizedName;
+            changed = true;
+        }
+
+        var mergedRole = CustomerBusinessRoles.MergeForTransaction(existing.CustomerBusinessRole, transactionType);
+        if (!string.Equals(existing.CustomerBusinessRole, mergedRole, StringComparison.Ordinal))
+        {
+            existing.CustomerBusinessRole = mergedRole;
             changed = true;
         }
 
@@ -316,6 +328,7 @@ public sealed class EnsureInboundMasterDataUseCase
                 ProductCode = normalizedCode,
                 ProductName = normalizedName,
                 ProductType = normalizedType,
+                TransactionScope = ProductTransactionScopes.ForTransaction(transactionType),
                 IsActive = true,
                 CreatedAt = now,
                 CreatedBy = _currentUserContext.Username
@@ -341,6 +354,13 @@ public sealed class EnsureInboundMasterDataUseCase
         if (!string.IsNullOrWhiteSpace(normalizedType) && !string.Equals(existing.ProductType, normalizedType, StringComparison.Ordinal))
         {
             existing.ProductType = normalizedType;
+            changed = true;
+        }
+
+        var mergedScope = ProductTransactionScopes.MergeForTransaction(existing.TransactionScope, transactionType);
+        if (!string.Equals(existing.TransactionScope, mergedScope, StringComparison.Ordinal))
+        {
+            existing.TransactionScope = mergedScope;
             changed = true;
         }
 

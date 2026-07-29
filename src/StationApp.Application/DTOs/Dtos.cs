@@ -123,6 +123,36 @@ public sealed record ExternalDatacanQueryResult(
     bool HasNextPage
 );
 
+public sealed record IncomingSeedVehicleListItem(
+    Guid Id,
+    string CustomerCode,
+    string CustomerName,
+    string ProductCode,
+    string ProductName,
+    string? ProductType,
+    int SortOrder,
+    bool IsActive,
+    DateTime CreatedAt,
+    string CreatedBy,
+    DateTime? UpdatedAt,
+    string? UpdatedBy
+);
+
+public sealed record CreateIncomingSeedVehicleRequest(
+    string CustomerCode,
+    string ProductCode,
+    int? SortOrder,
+    bool IsActive
+);
+
+public sealed record UpdateIncomingSeedVehicleRequest(
+    Guid Id,
+    string CustomerCode,
+    string ProductCode,
+    int SortOrder,
+    bool IsActive
+);
+
 public sealed record UpdateCameraSettingsRequest(
     bool Camera1Enabled,
     string Camera1Name,
@@ -972,7 +1002,8 @@ public enum AutocompleteFieldType
 public sealed record AutocompleteQuery(
     AutocompleteFieldType FieldType,
     string SearchText,
-    int Limit = 10
+    int Limit = 10,
+    TransactionType? TransactionType = null
 );
 
 public sealed record AutocompletePayload(

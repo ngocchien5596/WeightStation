@@ -19,6 +19,7 @@ public sealed class CentralSyncDbContext : DbContext
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<IncomingSeedVehicle> IncomingSeedVehicles => Set<IncomingSeedVehicle>();
     public DbSet<WeighingSession> WeighingSessions => Set<WeighingSession>();
     public DbSet<WeighingSessionLine> WeighingSessionLines => Set<WeighingSessionLine>();
     public DbSet<WeighingSessionImage> WeighingSessionImages => Set<WeighingSessionImage>();
@@ -35,6 +36,7 @@ public sealed class CentralSyncDbContext : DbContext
         modelBuilder.ApplyConfiguration(new VehicleEntityConfiguration());
         modelBuilder.ApplyConfiguration(new CustomerEntityConfiguration());
         modelBuilder.ApplyConfiguration(new ProductEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new IncomingSeedVehicleEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionLineEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionImageEntityConfiguration());

@@ -132,6 +132,8 @@ app.MapPost("/api/customers", (Customer payload, CentralSyncDbContext db, ILogge
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.Customer, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/products", (Product payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.Product, payload.Id, payload, logger, httpContext, ct));
+app.MapPost("/api/incoming-seed-vehicles", (IncomingSeedVehicle payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
+    SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.IncomingSeedVehicle, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/weighing-sessions", (WeighingSession payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.WeighingSession, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/weighing-session-lines", (WeighingSessionLine payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
@@ -283,6 +285,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
 
     await EnsureDeliveryTicketSyncStatusSchemaAsync(db);
     await EnsureStationMasterSchemaAsync(db);
+    await EnsureIncomingSeedVehiclesTableAsync(db);
     await EnsureColumnAsync(db, "sync_ingestion_logs", "StationCode", "nvarchar(50) NULL");
     await EnsureColumnAsync(db, "vehicles", "IsInternalVehicle", "bit NOT NULL CONSTRAINT [DF_vehicles_is_internal_vehicle_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "vehicles", "StandardTareSource", "nvarchar(50) NULL");
@@ -354,7 +357,10 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     // Master Data Partitioning Columns
     await EnsureColumnAsync(db, "vehicles", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_vehicles_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "customers", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_customers_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "customers", "CustomerBusinessRole", "nvarchar(30) NOT NULL CONSTRAINT [DF_customers_business_role_bootstrap] DEFAULT (N'BOTH')");
     await EnsureColumnAsync(db, "products", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_products_station_code_bootstrap] DEFAULT (N'QN01')");
+    await EnsureColumnAsync(db, "products", "TransactionScope", "nvarchar(30) NOT NULL CONSTRAINT [DF_products_transaction_scope_bootstrap] DEFAULT (N'BOTH')");
+    await NormalizeProductTypeLabelsAsync(db);
 
     // Master Data Index Migration
     const string masterIndexesSql = """
@@ -411,6 +417,21 @@ static Task EnsureColumnAsync(CentralSyncDbContext db, string tableName, string 
         ALTER TABLE [{tableName}] ADD [{columnName}] {sqlDefinition};
     END
     """;
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task NormalizeProductTypeLabelsAsync(CentralSyncDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[products]', N'U') IS NOT NULL
+   AND COL_LENGTH('products', 'ProductType') IS NOT NULL
+BEGIN
+    UPDATE [products]
+    SET [ProductType] = N'Hàng nhập'
+    WHERE [ProductType] = N'Nhập hàng';
+END
+""";
 
     return db.Database.ExecuteSqlRawAsync(sql);
 }
@@ -659,6 +680,45 @@ END
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_station_operation_settings_station_key' AND object_id = OBJECT_ID(N'[station_operation_settings]'))
 BEGIN
     CREATE UNIQUE INDEX [UX_station_operation_settings_station_key] ON [station_operation_settings]([StationCode], [SettingKey]);
+END
+""";
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task EnsureIncomingSeedVehiclesTableAsync(CentralSyncDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[incoming_seed_vehicles]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [incoming_seed_vehicles] (
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_incoming_seed_vehicles] PRIMARY KEY,
+        [StationCode] nvarchar(50) NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_station] DEFAULT (N'QN01'),
+        [TransactionType] nvarchar(20) NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_transaction_type] DEFAULT (N'INBOUND'),
+        [CustomerCode] nvarchar(50) NOT NULL,
+        [CustomerName] nvarchar(255) NOT NULL,
+        [ProductCode] nvarchar(50) NOT NULL,
+        [ProductName] nvarchar(255) NOT NULL,
+        [ProductType] nvarchar(30) NULL,
+        [SortOrder] int NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_sort_order] DEFAULT ((0)),
+        [IsActive] bit NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_is_active] DEFAULT ((1)),
+        [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_incoming_seed_vehicles_created_at] DEFAULT (sysdatetime()),
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL,
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] nvarchar(100) NULL
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_incoming_seed_vehicles_station_sort' AND object_id = OBJECT_ID(N'[incoming_seed_vehicles]'))
+BEGIN
+    CREATE INDEX [IX_incoming_seed_vehicles_station_sort] ON [incoming_seed_vehicles] ([StationCode], [SortOrder]);
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_incoming_seed_vehicles_station_customer_product_active' AND object_id = OBJECT_ID(N'[incoming_seed_vehicles]'))
+BEGIN
+    CREATE INDEX [IX_incoming_seed_vehicles_station_customer_product_active] ON [incoming_seed_vehicles] ([StationCode], [CustomerCode], [ProductCode], [IsActive]);
 END
 """;
 

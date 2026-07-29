@@ -233,6 +233,11 @@
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsProducts}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewSettingsIncomingSeedVehicles, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Settings_IncomingSeedVehicles">
+                                    <TextBlock Text="Xe nhập mẫu" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewSettingsSync, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Settings_Sync">
                                     <TextBlock Text="{StaticResource MainWindow.Nav.SettingsSync}" VerticalAlignment="Center"/>

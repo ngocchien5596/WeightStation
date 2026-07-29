@@ -310,6 +310,7 @@ public sealed class SyncOutboxWorker : BackgroundService
             case SyncAggregateTypes.Vehicle:
             case SyncAggregateTypes.Customer:
             case SyncAggregateTypes.Product:
+            case SyncAggregateTypes.IncomingSeedVehicle:
                 break;
         }
     }
@@ -370,6 +371,7 @@ public sealed class SyncOutboxWorker : BackgroundService
             case SyncAggregateTypes.Vehicle:
             case SyncAggregateTypes.Customer:
             case SyncAggregateTypes.Product:
+            case SyncAggregateTypes.IncomingSeedVehicle:
                 break;
         }
     }

@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Domain.Enums;
@@ -153,7 +154,10 @@ public partial class VehicleMasterViewModel : ObservableObject
 
         try
         {
-            var existing = await repo.GetByPlateAndMoocAsync(EditVehiclePlate, EditMoocNumber, CancellationToken.None);
+            var normalizedVehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(EditVehiclePlate);
+            var normalizedMoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(EditMoocNumber) ?? string.Empty;
+
+            var existing = await repo.GetByPlateAndMoocAsync(normalizedVehiclePlate, normalizedMoocNumber, CancellationToken.None);
             if (existing != null && (SelectedVehicle == null || existing.Id != SelectedVehicle.Id))
             {
                 await dialogService.ShowWarningAsync("Lỗi", "Cặp (Biển số, Số Mooc) đã tồn tại trên hệ thống!");
@@ -165,8 +169,8 @@ public partial class VehicleMasterViewModel : ObservableObject
                 var newVehicle = new Vehicle
                 {
                     Id = Guid.NewGuid(),
-                    VehiclePlate = EditVehiclePlate.Trim(),
-                    MoocNumber = EditMoocNumber.Trim(),
+                    VehiclePlate = normalizedVehiclePlate,
+                    MoocNumber = normalizedMoocNumber,
                     DriverName = EditDriverName.Trim(),
                     TransportMethod = EditTransportMethod?.ToString(),
                     TtcpWeight = EditTtcpWeight,
@@ -255,8 +259,8 @@ public partial class VehicleMasterViewModel : ObservableObject
 
     private void ApplyVehicleEdits(Vehicle vehicle, DateTime now)
     {
-        vehicle.VehiclePlate = EditVehiclePlate.Trim();
-        vehicle.MoocNumber = EditMoocNumber.Trim();
+        vehicle.VehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(EditVehiclePlate);
+        vehicle.MoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(EditMoocNumber) ?? string.Empty;
         vehicle.DriverName = EditDriverName.Trim();
         vehicle.TransportMethod = EditTransportMethod?.ToString();
         vehicle.TtcpWeight = EditTtcpWeight;

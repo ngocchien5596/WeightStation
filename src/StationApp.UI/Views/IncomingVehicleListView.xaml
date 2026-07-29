@@ -52,6 +52,14 @@
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
+            <Style x:Key="IncomingVehicleRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource SystemDataGridRowStyle}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsSeedVehicle}" Value="True">
+                        <Setter Property="Foreground" Value="#7F8C8D"/>
+                        <Setter Property="FontStyle" Value="Italic"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -185,32 +193,38 @@
                     <TextBlock Text="S&#x1ED1; &#x110;K Xe" Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="1"
                               Text="{Binding VehicleRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource FormBox}"/>
+                              Style="{StaticResource FormBox}"
+                              IsEnabled="{Binding CanEditSeedVehicleExtraFields}"/>
 
                     <TextBlock Text="S&#x1ED1; &#x110;K Mooc" Grid.Row="5" Grid.Column="2" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="3"
                               Text="{Binding MoocRegistrationNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              Style="{StaticResource FormBox}"/>
+                              Style="{StaticResource FormBox}"
+                              IsEnabled="{Binding CanEditSeedVehicleExtraFields}"/>
 
                     <TextBlock Text="TTCP (kg)" Grid.Row="5" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="5"
                               Text="{Binding TtcpWeight, Mode=TwoWay, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}"
-                              Style="{StaticResource FormBox}"/>
+                              Style="{StaticResource FormBox}"
+                              IsEnabled="{Binding CanEditSeedVehicleExtraFields}"/>
 
                     <TextBlock Text="H&#x1EA1;n &#x110;K Xe" Grid.Row="6" Grid.Column="0" Style="{StaticResource VehicleExpiryLabelStyle}"/>
                     <DatePicker Grid.Row="6" Grid.Column="1"
                                  SelectedDate="{Binding VehicleRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource VehicleExpiryDatePickerStyle}"/>
+                                 Style="{StaticResource VehicleExpiryDatePickerStyle}"
+                                 IsEnabled="{Binding CanEditSeedVehicleExtraFields}"/>
 
                     <TextBlock Text="H&#x1EA1;n &#x110;K Mooc" Grid.Row="6" Grid.Column="2" Style="{StaticResource MoocExpiryLabelStyle}"/>
                     <DatePicker Grid.Row="6" Grid.Column="3"
                                  SelectedDate="{Binding MoocRegistrationExpiry, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource MoocExpiryDatePickerStyle}"/>
+                                 Style="{StaticResource MoocExpiryDatePickerStyle}"
+                                 IsEnabled="{Binding CanEditSeedVehicleExtraFields}"/>
 
                     <TextBlock Text="TTCP 10% (kg)" Grid.Row="6" Grid.Column="4" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="6" Grid.Column="5"
                               Text="{Binding DisplayTtcp10PercentKg, Mode=OneWay, StringFormat='{}{0:N0}'}"
                               IsReadOnly="True"
+                              IsEnabled="{Binding CanEditSeedVehicleExtraFields}"
                               Style="{StaticResource FormBox}"
                               Background="#F8F9F9"/>
 
@@ -230,7 +244,7 @@
                     </ComboBox>
 
                     <TextBlock Text="SL &#x111;&#x1EB7;t" Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FormPlannedWeight, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
+                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FormPlannedWeight, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" IsReadOnly="{Binding IsPlannedWeightReadOnly}" IsEnabled="{Binding CanEditSeedVehicleExtraFields}"/>
 
                     <TextBlock Text="S&#x1ED1; bao" Grid.Row="4" Grid.Column="2" Style="{StaticResource FormLabel}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}"/>
                     <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding FormBagCount, StringFormat='{}{0:N0}', UpdateSourceTrigger=LostFocus}" Style="{StaticResource FormBox}" Visibility="{Binding IsFormProductBagged, Converter={StaticResource BoolToVis}}" IsReadOnly="{Binding IsOutboundDetailLockMode}"/>
@@ -269,7 +283,7 @@
             <DataGrid ItemsSource="{Binding Vehicles}" SelectedItem="{Binding SelectedVehicle}"
                       Style="{StaticResource SystemDataGridStyle}"
                       ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
-                      RowStyle="{StaticResource SystemDataGridRowStyle}"
+                      RowStyle="{StaticResource IncomingVehicleRowStyle}"
                       CellStyle="{StaticResource SystemDataGridCellStyle}"
                       FrozenColumnCount="4"
                       ScrollViewer.HorizontalScrollBarVisibility="Auto">
@@ -279,6 +293,7 @@
                             <DataTemplate>
                                 <CheckBox HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
+                                          IsEnabled="{Binding CanSelectForAction}"
                                           IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>

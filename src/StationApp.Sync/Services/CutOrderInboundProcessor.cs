@@ -120,12 +120,12 @@ public class CutOrderInboundProcessor : BackgroundService
         CancellationToken ct)
     {
         // 1. Normalize
-        reg.VehiclePlate = (reg.VehiclePlate ?? string.Empty).Trim().ToUpper();
+        reg.VehiclePlate = (reg.VehiclePlate ?? string.Empty).Trim().ToUpperInvariant();
         reg.ErpCutOrderId = string.IsNullOrWhiteSpace(reg.ErpCutOrderId) ? null : reg.ErpCutOrderId.Trim();
         reg.ErpRegistrationCode = string.IsNullOrWhiteSpace(reg.ErpRegistrationCode)
             ? reg.ErpCutOrderId
             : reg.ErpRegistrationCode.Trim();
-        reg.MoocNumber = (reg.MoocNumber ?? string.Empty).Trim();
+        reg.MoocNumber = (reg.MoocNumber ?? string.Empty).Trim().ToUpperInvariant();
         reg.CustomerCode = (reg.CustomerCode ?? string.Empty).Trim();
         reg.ProductCode = (reg.ProductCode ?? string.Empty).Trim();
         

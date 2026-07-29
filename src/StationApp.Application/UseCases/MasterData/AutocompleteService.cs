@@ -37,10 +37,10 @@ public class AutocompleteService : IAutocompleteService
             AutocompleteFieldType.Vehicle => await SearchVehicleAsync(keyword, limit, ct),
             AutocompleteFieldType.Mooc => await SearchMoocAsync(keyword, limit, ct),
             AutocompleteFieldType.Driver => await SearchDriverAsync(keyword, limit, ct),
-            AutocompleteFieldType.Customer => await SearchCustomerAsync(keyword, limit, ct),
-            AutocompleteFieldType.CustomerCode => await SearchCustomerCodeAsync(keyword, limit, ct),
-            AutocompleteFieldType.ProductCode => await SearchProductCodeAsync(keyword, limit, ct),
-            AutocompleteFieldType.ProductName => await SearchProductNameAsync(keyword, limit, ct),
+            AutocompleteFieldType.Customer => await SearchCustomerAsync(keyword, limit, query.TransactionType, ct),
+            AutocompleteFieldType.CustomerCode => await SearchCustomerCodeAsync(keyword, limit, query.TransactionType, ct),
+            AutocompleteFieldType.ProductCode => await SearchProductCodeAsync(keyword, limit, query.TransactionType, ct),
+            AutocompleteFieldType.ProductName => await SearchProductNameAsync(keyword, limit, query.TransactionType, ct),
             _ => Array.Empty<AutocompleteItem>()
         };
     }
@@ -134,10 +134,12 @@ public class AutocompleteService : IAutocompleteService
             .AsReadOnly();
     }
 
-    private async Task<IReadOnlyList<AutocompleteItem>> SearchCustomerAsync(string keyword, int limit, CancellationToken ct)
+    private async Task<IReadOnlyList<AutocompleteItem>> SearchCustomerAsync(string keyword, int limit, Domain.Enums.TransactionType? transactionType, CancellationToken ct)
     {
-        var master = await _customerRepository.SearchAutocompleteAsync(keyword, limit, ct);
-        var recent = await _vehicleRegistrationRepository.SearchCustomerHistorySourcesAsync(keyword, limit, ct);
+        var master = await _customerRepository.SearchAutocompleteAsync(keyword, limit, ct, transactionType);
+        var recent = transactionType.HasValue
+            ? Array.Empty<CustomerAutocompleteSource>()
+            : await _vehicleRegistrationRepository.SearchCustomerHistorySourcesAsync(keyword, limit, ct);
 
         return master
             .Concat(recent)
@@ -159,10 +161,12 @@ public class AutocompleteService : IAutocompleteService
             .AsReadOnly();
     }
 
-    private async Task<IReadOnlyList<AutocompleteItem>> SearchCustomerCodeAsync(string keyword, int limit, CancellationToken ct)
+    private async Task<IReadOnlyList<AutocompleteItem>> SearchCustomerCodeAsync(string keyword, int limit, Domain.Enums.TransactionType? transactionType, CancellationToken ct)
     {
-        var master = await _customerRepository.SearchAutocompleteAsync(keyword, limit, ct);
-        var recent = await _vehicleRegistrationRepository.SearchCustomerHistorySourcesAsync(keyword, limit, ct);
+        var master = await _customerRepository.SearchAutocompleteAsync(keyword, limit, ct, transactionType);
+        var recent = transactionType.HasValue
+            ? Array.Empty<CustomerAutocompleteSource>()
+            : await _vehicleRegistrationRepository.SearchCustomerHistorySourcesAsync(keyword, limit, ct);
 
         return master
             .Concat(recent)
@@ -185,10 +189,12 @@ public class AutocompleteService : IAutocompleteService
             .AsReadOnly();
     }
 
-    private async Task<IReadOnlyList<AutocompleteItem>> SearchProductCodeAsync(string keyword, int limit, CancellationToken ct)
+    private async Task<IReadOnlyList<AutocompleteItem>> SearchProductCodeAsync(string keyword, int limit, Domain.Enums.TransactionType? transactionType, CancellationToken ct)
     {
-        var master = await _productRepository.SearchAutocompleteAsync(keyword, limit, ct);
-        var recent = await _vehicleRegistrationRepository.SearchProductCodeHistorySourcesAsync(keyword, limit, ct);
+        var master = await _productRepository.SearchAutocompleteAsync(keyword, limit, ct, transactionType);
+        var recent = transactionType.HasValue
+            ? Array.Empty<ProductAutocompleteSource>()
+            : await _vehicleRegistrationRepository.SearchProductCodeHistorySourcesAsync(keyword, limit, ct);
 
         return master
             .Concat(recent)
@@ -211,10 +217,12 @@ public class AutocompleteService : IAutocompleteService
             .AsReadOnly();
     }
 
-    private async Task<IReadOnlyList<AutocompleteItem>> SearchProductNameAsync(string keyword, int limit, CancellationToken ct)
+    private async Task<IReadOnlyList<AutocompleteItem>> SearchProductNameAsync(string keyword, int limit, Domain.Enums.TransactionType? transactionType, CancellationToken ct)
     {
-        var master = await _productRepository.SearchAutocompleteAsync(keyword, limit, ct);
-        var recent = await _vehicleRegistrationRepository.SearchProductNameHistorySourcesAsync(keyword, limit, ct);
+        var master = await _productRepository.SearchAutocompleteAsync(keyword, limit, ct, transactionType);
+        var recent = transactionType.HasValue
+            ? Array.Empty<ProductAutocompleteSource>()
+            : await _vehicleRegistrationRepository.SearchProductNameHistorySourcesAsync(keyword, limit, ct);
 
         return master
             .Concat(recent)

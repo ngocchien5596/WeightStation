@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
+using StationApp.Application.Services;
 using StationApp.Application.UseCases.MasterData;
 using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
@@ -40,7 +41,10 @@ public sealed class CreateInboundRegistrationUseCase
 
     public async Task<OperationResult<CutOrder>> ExecuteAsync(CreateInboundRegistrationRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.VehiclePlate))
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(request.VehiclePlate);
+        var moocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber);
+
+        if (string.IsNullOrWhiteSpace(vehiclePlate))
             return OperationResult<CutOrder>.Fail("Biển số xe không được để trống.");
 
         var now = _clock.NowLocal;
@@ -53,8 +57,8 @@ public sealed class CreateInboundRegistrationUseCase
             TransactionType = request.TransactionType,
             TransportMethod = request.TransportMethod,
             ProcessingStage = ProcessingStage.IN_YARD,
-            VehiclePlate = request.VehiclePlate,
-            MoocNumber = request.MoocNumber,
+            VehiclePlate = vehiclePlate,
+            MoocNumber = moocNumber,
             ReceiverName = request.ReceiverName,
             CustomerCode = request.CustomerCode,
             CustomerName = request.CustomerName,

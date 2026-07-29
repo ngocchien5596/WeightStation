@@ -39,7 +39,11 @@ public static class ProductTypes
             return Bulk;
         }
 
-        if (string.Equals(trimmed, Inbound, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(trimmed, Inbound, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "H\u00e0ng nh\u1eadp", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Nh\u1eadp h\u00e0ng", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Hang nhap", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Nhap hang", StringComparison.OrdinalIgnoreCase))
         {
             return Inbound;
         }

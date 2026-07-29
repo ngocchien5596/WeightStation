@@ -38,7 +38,10 @@ public sealed class UpdateIncomingRegistrationUseCase
 
     public async Task<OperationResult<CutOrder>> ExecuteAsync(UpdateIncomingRegistrationRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.VehiclePlate))
+        var vehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(request.VehiclePlate);
+        var moocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber);
+
+        if (string.IsNullOrWhiteSpace(vehiclePlate))
         {
             return OperationResult<CutOrder>.Fail("Biển số xe không được để trống.");
         }
@@ -64,8 +67,8 @@ public sealed class UpdateIncomingRegistrationUseCase
 
         reg.TransactionType = request.TransactionType;
         reg.TransportMethod = request.TransportMethod;
-        reg.VehiclePlate = request.VehiclePlate.Trim();
-        reg.MoocNumber = request.MoocNumber?.Trim();
+        reg.VehiclePlate = vehiclePlate;
+        reg.MoocNumber = moocNumber;
         reg.ReceiverName = request.ReceiverName?.Trim();
         reg.CustomerCode = request.CustomerCode?.Trim();
         reg.CustomerName = request.CustomerName?.Trim();

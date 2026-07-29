@@ -77,7 +77,7 @@ BEGIN
     SET @TransactionType = UPPER(NULLIF(LTRIM(RTRIM(@TransactionType)), N''));
     SET @TransportMethod = UPPER(NULLIF(LTRIM(RTRIM(@TransportMethod)), N''));
     SET @VehiclePlate = UPPER(NULLIF(LTRIM(RTRIM(@VehiclePlate)), N''));
-    SET @MoocNumber = NULLIF(LTRIM(RTRIM(@MoocNumber)), N'');
+    SET @MoocNumber = UPPER(NULLIF(LTRIM(RTRIM(@MoocNumber)), N''));
     SET @ReceiverName = NULLIF(LTRIM(RTRIM(@ReceiverName)), N'');
     SET @CustomerCode = NULLIF(LTRIM(RTRIM(@CustomerCode)), N'');
     SET @CustomerName = NULLIF(LTRIM(RTRIM(@CustomerName)), N'');

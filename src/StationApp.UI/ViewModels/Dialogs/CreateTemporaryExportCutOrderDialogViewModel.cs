@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Domain.Constants;
+using StationApp.Domain.Enums;
 
 namespace StationApp.UI.ViewModels.Dialogs;
 
@@ -103,7 +104,7 @@ public sealed partial class CreateTemporaryExportCutOrderDialogViewModel : Obser
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IAutocompleteService>();
-        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword), ct);
+        return await service.SearchAsync(new AutocompleteQuery(fieldType, keyword, TransactionType: TransactionType.OUTBOUND), ct);
     }
 
     private static void WireTextState(AutocompleteInputViewModel state, Action<string?> setter)

@@ -99,6 +99,10 @@
                 <settings:ProductMasterView DataContext="{Binding ProductMasterVM}"/>
             </TabItem>
 
+            <TabItem Header="XE NHẬP MẪU" Visibility="{Binding CanAccessIncomingSeedVehicles, Converter={StaticResource BoolToVis}}">
+                <settings:IncomingSeedVehicleConfigView DataContext="{Binding IncomingSeedVehicleConfigVM}"/>
+            </TabItem>
+
             <TabItem Header="&#x110;&#x1ED2;NG B&#x1ED8;" Visibility="{Binding CanAccessSyncInfo, Converter={StaticResource BoolToVis}}">
                 <settings:SyncInfoView DataContext="{Binding SyncInfoVM}"/>
             </TabItem>

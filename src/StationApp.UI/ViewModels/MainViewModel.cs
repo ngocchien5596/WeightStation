@@ -80,6 +80,8 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsVehicles => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
     public bool CanViewSettingsCustomers => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
     public bool CanViewSettingsProducts => StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
+    public bool CanViewSettingsIncomingSeedVehicles => string.Equals(_currentStationContext.StationCode, "QN01", StringComparison.OrdinalIgnoreCase)
+        && StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode);
     public bool CanViewSettingsSync => StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode);
     public bool CanViewSettingsExternalDatacan => StationAuthorization.IsAdmin(_currentUserContext.RoleCode);
     public bool CanViewSettingsStations => StationAuthorization.CanManageStations(_currentUserContext.RoleCode);
@@ -400,6 +402,7 @@ public partial class MainViewModel : ObservableObject
                 case "Settings_Vehicles":
                 case "Settings_Customers":
                 case "Settings_Products":
+                case "Settings_IncomingSeedVehicles":
                 case "Settings_Sync":
                 case "Settings_ExternalDatacan":
                 case "Settings_Stations":
@@ -425,11 +428,12 @@ public partial class MainViewModel : ObservableObject
                             "Settings_Vehicles" => 3,
                             "Settings_Customers" => 4,
                             "Settings_Products" => 5,
-                            "Settings_Sync" => 6,
-                            "Settings_ExternalDatacan" => 7,
-                            "Settings_Stations" => 8,
-                            "Settings_Accounts" => 9,
-                            "Settings_Camera" => 10,
+                            "Settings_IncomingSeedVehicles" => 6,
+                            "Settings_Sync" => 7,
+                            "Settings_ExternalDatacan" => 8,
+                            "Settings_Stations" => 9,
+                            "Settings_Accounts" => 10,
+                            "Settings_Camera" => 11,
                             _ => (int?)null
                         };
                         _ = RunViewInitializationAsync(
@@ -497,6 +501,7 @@ public partial class MainViewModel : ObservableObject
             "Settings_Vehicles" => CanViewSettingsVehicles,
             "Settings_Customers" => CanViewSettingsCustomers,
             "Settings_Products" => CanViewSettingsProducts,
+            "Settings_IncomingSeedVehicles" => CanViewSettingsIncomingSeedVehicles,
             "Settings_Sync" => CanViewSettingsSync,
             "Settings_ExternalDatacan" => CanViewSettingsExternalDatacan,
             "Settings_Stations" => CanViewSettingsStations,
@@ -650,6 +655,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewSettingsVehicles));
         OnPropertyChanged(nameof(CanViewSettingsCustomers));
         OnPropertyChanged(nameof(CanViewSettingsProducts));
+        OnPropertyChanged(nameof(CanViewSettingsIncomingSeedVehicles));
         OnPropertyChanged(nameof(CanViewSettingsSync));
         OnPropertyChanged(nameof(CanViewSettingsExternalDatacan));
         OnPropertyChanged(nameof(CanViewSettingsStations));

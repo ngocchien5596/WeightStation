@@ -40,9 +40,11 @@
                 <Grid Grid.Row="0" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.1*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.4*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="180"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
@@ -60,7 +62,17 @@
                              helpers:EnterKeySearch.Command="{Binding SearchCommand}"
                              Margin="0,0,16,0"/>
 
-                    <Button Grid.Column="4" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Height="32" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="4" Text="Lo&#x1EA1;i" Style="{StaticResource FormLabel}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox Grid.Column="5"
+                              ItemsSource="{Binding SearchProductTypeOptions}"
+                              DisplayMemberPath="DisplayName"
+                              TextSearch.TextPath="DisplayName"
+                              SelectedItem="{Binding SelectedSearchProductTypeOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Style="{StaticResource StandardComboBoxStyle}"
+                              Height="32"
+                              Margin="0,0,16,0"/>
+
+                    <Button Grid.Column="6" Command="{Binding SearchCommand}" Style="{StaticResource UtilityButtonStyle}" Height="32" VerticalAlignment="Center">
                         <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
                     </Button>
                 </Grid>
@@ -97,11 +109,12 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <CheckBox Grid.Column="0"
-                              Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng"
-                              IsChecked="{Binding EditIsActive}"
-                              Style="{StaticResource StandardCheckBoxStyle}"
-                              VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <CheckBox Content="&#x0110;ang ho&#x1EA1;t &#x0111;&#x1ED9;ng"
+                                  IsChecked="{Binding EditIsActive}"
+                                  Style="{StaticResource StandardCheckBoxStyle}"
+                                  VerticalAlignment="Center"/>
+                    </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Command="{Binding ResetFormCommand}" Style="{StaticResource UtilityButtonStyle}" Margin="0,0,12,0">
