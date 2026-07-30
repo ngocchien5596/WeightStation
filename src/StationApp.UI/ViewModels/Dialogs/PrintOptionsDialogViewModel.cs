@@ -49,7 +49,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     [ObservableProperty] private string? _editableMoocNumber;
     [ObservableProperty] private bool _isSavingEditableMoocNumber;
     [ObservableProperty] private bool _isExportingFile;
-    [ObservableProperty] private bool _useRawDotMatrixMode;
+    [ObservableProperty] private bool _useDotMatrixMode;
 
     public PrintOptionsModel? DialogResultValue { get; private set; }
     public PrintBatchPreviewModel CurrentBatch => _batch;
@@ -60,7 +60,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     public bool CanManageProfiles => CanManageLayout && SelectedProfile != null;
     public bool CanEditDeliverySealNo => _editablePrintDataContext?.SaveSealNoAsync != null;
     public bool CanEditWeighMoocNumber => _editablePrintDataContext?.SaveMoocNumberAsync != null;
-    public bool CanUseRawDotMatrixMode => _template.Kind == PrintDocumentKind.DeliveryTicket;
+    public bool CanUseDotMatrixMode => _template.Kind == PrintDocumentKind.DeliveryTicket;
     public string PreviewHeader => CanManageLayout
         ? "Preview canh chỉnh vị trí in"
         : "Preview trước khi in";
@@ -127,12 +127,12 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         CanManageLayout = canManageLayout;
         EditableSealNo = editablePrintDataContext?.CurrentSealNo;
         EditableMoocNumber = editablePrintDataContext?.CurrentMoocNumber;
-        UseRawDotMatrixMode = CanUseRawDotMatrixMode;
+        UseDotMatrixMode = CanUseDotMatrixMode;
 
         OnPropertyChanged(nameof(PreviewHeader));
         OnPropertyChanged(nameof(PreviewDescription));
         OnPropertyChanged(nameof(RoleAwareDescription));
-        OnPropertyChanged(nameof(CanUseRawDotMatrixMode));
+        OnPropertyChanged(nameof(CanUseDotMatrixMode));
 
         Printers = new ObservableCollection<PrinterDescriptor>(printers);
         SelectedPrinter = Printers.FirstOrDefault(x => x.IsDefault) ?? Printers.FirstOrDefault();
@@ -247,7 +247,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         {
             SelectedPrinterName = SelectedPrinter?.Name,
             CopyCount = CopyCount,
-            UseRawDotMatrixMode = CanUseRawDotMatrixMode && UseRawDotMatrixMode,
+            UseDotMatrixMode = CanUseDotMatrixMode && UseDotMatrixMode,
             OffsetXmm = OffsetXmm,
             OffsetYmm = OffsetYmm,
             FieldPositions = BuildFieldPositions(),

@@ -78,10 +78,9 @@ public sealed class WpfPrintService : IPrintService
 
                     var jobName = BuildJobName(batch.Kind, page.DisplayNumber, copy + 1, options.CopyCount);
 
-                    if (options.UseRawDotMatrixMode && template.Kind == PrintDocumentKind.DeliveryTicket)
+                    if (options.UseDotMatrixMode && template.Kind == PrintDocumentKind.DeliveryTicket)
                     {
-                        var rawBytes = DotMatrixRawDocumentBuilder.Build(template, page, options);
-                        RawPrinterWriter.SendBytes(printerName, jobName, rawBytes);
+                        DotMatrixGdiTextPrinter.Print(printerName, jobName, template, page, options);
                     }
                     else
                     {
