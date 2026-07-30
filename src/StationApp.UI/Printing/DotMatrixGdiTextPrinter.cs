@@ -105,6 +105,11 @@ internal static class DotMatrixGdiTextPrinter
         var y = pageY + MmToPrintUnit(field.Y + options.OffsetYmm);
         var width = Math.Max(1f, (float)MmToPrintUnit(field.Width));
         var fontSizePoints = Math.Max(1f, (float)((field.FontSize + PrintFontSizeBoost) * WpfDipToPoint));
+
+        if (!IsFinite(x) || !IsFinite(y) || !float.IsFinite(width) || !float.IsFinite(fontSizePoints))
+        {
+            return;
+        }
         var style = FontStyle.Regular;
 
         if (field.FontWeight is PrintFieldWeight.Bold or PrintFieldWeight.SemiBold)
@@ -123,7 +128,6 @@ internal static class DotMatrixGdiTextPrinter
         }
 
         using var font = new Font("Times New Roman", fontSizePoints, style, GraphicsUnit.Point);
-        using var brush = Brushes.Black;
         using var format = CreateStringFormat(field);
 
         var lineHeight = font.GetHeight(graphics);
@@ -131,13 +135,27 @@ internal static class DotMatrixGdiTextPrinter
             (float)MmToPrintUnit(5.5d * Math.Max(1, field.MaxLines)),
             lineHeight * Math.Max(1, field.MaxLines) * 1.18f);
 
+        if (!float.IsFinite(height) || height <= 0)
+        {
+            return;
+        }
+
         var bounds = new RectangleF((float)x, (float)y, width, height);
-        graphics.DrawString(value, font, brush, bounds, format);
+        var text = SanitizeText(value);
+        try
+        {
+            graphics.DrawString(text, font, Brushes.Black, bounds, format);
+        }
+        catch (ArgumentException)
+        {
+            using var fallbackFormat = new StringFormat { Alignment = format.Alignment, LineAlignment = StringAlignment.Near };
+            graphics.DrawString(text, font, Brushes.Black, new PointF(bounds.X, bounds.Y), fallbackFormat);
+        }
     }
 
     private static StringFormat CreateStringFormat(PrintFieldDefinition field)
     {
-        var format = new StringFormat(StringFormat.GenericTypographic)
+        var format = new StringFormat
         {
             Alignment = field.Alignment switch
             {
@@ -158,6 +176,11 @@ internal static class DotMatrixGdiTextPrinter
 
         return format;
     }
+
+    private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static string SanitizeText(string value)
+        => value.Replace('\0', ' ').Replace("\r\n", "\n").Replace('\r', '\n');
 
     private static IReadOnlyList<PrintFieldDefinition> ApplyFieldPositions(
         IReadOnlyList<PrintFieldDefinition> fields,
