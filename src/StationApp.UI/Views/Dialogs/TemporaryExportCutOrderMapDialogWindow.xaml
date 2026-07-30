@@ -57,7 +57,7 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="M&#x00C3; T&#x1EA0;M" Binding="{Binding DisplayCode}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="M&#x00C3; KH" Binding="{Binding CustomerCode}" Width="110" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="KH&#x00C1;CH H&#x00C0;NG" Binding="{Binding CustomerName}" Width="230" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="KH&#x00C1;CH H&#x00C0;NG" Binding="{Binding CustomerName}" Width="299" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="M&#x00C3; SP" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="S&#x1EA2;N PH&#x1EA8;M" Binding="{Binding ProductName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="SL &#x110;&#x1EB6;T (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>

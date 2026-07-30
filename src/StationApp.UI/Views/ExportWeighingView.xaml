@@ -448,7 +448,7 @@
                         <DataGridTextColumn Header="M&#xC3; C&#x1EAE;T L&#x1EC6;NH" Binding="{Binding DisplayCutOrderCode, Mode=OneWay}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="BI&#x1EC2;N S&#x1ED0; XE G&#x1ED0;C" Binding="{Binding VehiclePlate}" Width="130" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="MOOC" Binding="{Binding MoocNumber}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="KH&#xC1;CH H&#xC0;NG" Binding="{Binding CustomerName}" Width="312" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="M&#xC3; SP" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="S&#x1EA2;N PH&#x1EA8;M" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="SL &#x111;&#x1EB7;t (KG)" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="120" ElementStyle="{StaticResource GridTextRight}"/>

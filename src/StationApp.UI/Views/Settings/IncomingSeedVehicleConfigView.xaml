@@ -135,7 +135,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="M&#x00E3; kh&#x00E1;ch" Binding="{Binding CustomerCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
-                    <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="338" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="M&#x00E3; SP" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="S&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridCheckBoxColumn Header="Ho&#x1EA1;t &#x0111;&#x1ED9;ng" Binding="{Binding IsActive, Mode=OneWay}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource GridCheckBoxCenter}"/>

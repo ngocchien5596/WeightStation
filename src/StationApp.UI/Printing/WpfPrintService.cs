@@ -76,90 +76,99 @@ public sealed class WpfPrintService : IPrintService
                         EnsureQueueCanAcceptJobs(queue);
                     }
 
-                    var document = _renderer.CreateDocument(template, [page], options, previewMode: false);
                     var jobName = BuildJobName(batch.Kind, page.DisplayNumber, copy + 1, options.CopyCount);
-                    
-                    // Render WPF FixedPage to RenderTargetBitmap. Higher DPI reduces dotted text artifacts
-                    // when shared/GDI printers rasterize the overlay before printing.
-                    var pageContent = document.Pages[0];
-                    var fixedPage = (System.Windows.Documents.FixedPage)pageContent.GetPageRoot(false);
 
-                    var pageWidth = MmToDip(template.PageWidthMm);
-                    var pageHeight = MmToDip(template.PageHeightMm);
-                    fixedPage.Measure(new System.Windows.Size(pageWidth, pageHeight));
-                    fixedPage.Arrange(new System.Windows.Rect(0, 0, pageWidth, pageHeight));
-                    fixedPage.UpdateLayout();
-
-                    const double printDpi = 600d;
-                    double dpiScale = printDpi / 96d;
-                    int pixelWidth = (int)Math.Round(pageWidth * dpiScale);
-                    int pixelHeight = (int)Math.Round(pageHeight * dpiScale);
-
-                    var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
-                        pixelWidth,
-                        pixelHeight,
-                        printDpi,
-                        printDpi,
-                        System.Windows.Media.PixelFormats.Pbgra32);
-
-                    renderTarget.Render(fixedPage);
-
-                    // Convert RenderTargetBitmap to System.Drawing.Bitmap
-                    using (var bmp = new System.Drawing.Bitmap(renderTarget.PixelWidth, renderTarget.PixelHeight, System.Drawing.Imaging.PixelFormat.Format32bppPArgb))
+                    if (options.UseRawDotMatrixMode && template.Kind == PrintDocumentKind.DeliveryTicket)
                     {
-                        var bmpData = bmp.LockBits(
-                            new System.Drawing.Rectangle(0, 0, bmp.Width, bmp.Height),
-                            System.Drawing.Imaging.ImageLockMode.WriteOnly,
-                            bmp.PixelFormat);
+                        var rawBytes = DotMatrixRawDocumentBuilder.Build(template, page, options);
+                        RawPrinterWriter.SendBytes(printerName, jobName, rawBytes);
+                    }
+                    else
+                    {
+                        var document = _renderer.CreateDocument(template, [page], options, previewMode: false);
 
-                        renderTarget.CopyPixels(
-                            System.Windows.Int32Rect.Empty,
-                            bmpData.Scan0,
-                            bmpData.Stride * bmpData.Height,
-                            bmpData.Stride);
+                        // Render WPF FixedPage to RenderTargetBitmap. Higher DPI reduces dotted text artifacts
+                        // when shared/GDI printers rasterize the overlay before printing.
+                        var pageContent = document.Pages[0];
+                        var fixedPage = (System.Windows.Documents.FixedPage)pageContent.GetPageRoot(false);
 
-                        bmp.UnlockBits(bmpData);
+                        var pageWidth = MmToDip(template.PageWidthMm);
+                        var pageHeight = MmToDip(template.PageHeightMm);
+                        fixedPage.Measure(new System.Windows.Size(pageWidth, pageHeight));
+                        fixedPage.Arrange(new System.Windows.Rect(0, 0, pageWidth, pageHeight));
+                        fixedPage.UpdateLayout();
 
-                        // Print using legacy GDI PrintDocument (directly compatible with GDI printers like Canon LBP2900)
-                        using (var printDoc = new System.Drawing.Printing.PrintDocument())
+                        const double printDpi = 600d;
+                        double dpiScale = printDpi / 96d;
+                        int pixelWidth = (int)Math.Round(pageWidth * dpiScale);
+                        int pixelHeight = (int)Math.Round(pageHeight * dpiScale);
+
+                        var renderTarget = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                            pixelWidth,
+                            pixelHeight,
+                            printDpi,
+                            printDpi,
+                            System.Windows.Media.PixelFormats.Pbgra32);
+
+                        renderTarget.Render(fixedPage);
+
+                        // Convert RenderTargetBitmap to System.Drawing.Bitmap
+                        using (var bmp = new System.Drawing.Bitmap(renderTarget.PixelWidth, renderTarget.PixelHeight, System.Drawing.Imaging.PixelFormat.Format32bppPArgb))
                         {
-                            printDoc.PrinterSettings.PrinterName = printerName;
-                            printDoc.DocumentName = jobName;
-                            printDoc.DefaultPageSettings.Margins = new System.Drawing.Printing.Margins(0, 0, 0, 0);
+                            var bmpData = bmp.LockBits(
+                                new System.Drawing.Rectangle(0, 0, bmp.Width, bmp.Height),
+                                System.Drawing.Imaging.ImageLockMode.WriteOnly,
+                                bmp.PixelFormat);
 
-                            // Page dimensions in hundredths of an inch (1 mm = 3.93701 hundredths of an inch)
-                            var paperWidth = (int)Math.Round(template.PageWidthMm * 3.93701);
-                            var paperHeight = (int)Math.Round(template.PageHeightMm * 3.93701);
-                            printDoc.DefaultPageSettings.PaperSize = new System.Drawing.Printing.PaperSize("Custom", paperWidth, paperHeight);
+                            renderTarget.CopyPixels(
+                                System.Windows.Int32Rect.Empty,
+                                bmpData.Scan0,
+                                bmpData.Stride * bmpData.Height,
+                                bmpData.Stride);
 
-                            var targetWidth = template.PageWidthMm * 3.93701;
-                            var targetHeight = template.PageHeightMm * 3.93701;
+                            bmp.UnlockBits(bmpData);
 
-                            printDoc.PrintPage += (sender, e) =>
+                            // Print using legacy GDI PrintDocument (directly compatible with GDI printers like Canon LBP2900)
+                            using (var printDoc = new System.Drawing.Printing.PrintDocument())
                             {
-                                if (e.Graphics == null) return;
-                                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
-                                e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                                printDoc.PrinterSettings.PrinterName = printerName;
+                                printDoc.DocumentName = jobName;
+                                printDoc.DefaultPageSettings.Margins = new System.Drawing.Printing.Margins(0, 0, 0, 0);
 
-                                double availablePhysicalHeight = (template.PageHeightMm <= 150.0 && e.PageBounds.Height > 800)
-                                    ? e.PageBounds.Height / 2.0
-                                    : e.PageBounds.Height;
+                                // Page dimensions in hundredths of an inch (1 mm = 3.93701 hundredths of an inch)
+                                var paperWidth = (int)Math.Round(template.PageWidthMm * 3.93701);
+                                var paperHeight = (int)Math.Round(template.PageHeightMm * 3.93701);
+                                printDoc.DefaultPageSettings.PaperSize = new System.Drawing.Printing.PaperSize("Custom", paperWidth, paperHeight);
 
-                                double px = (e.PageBounds.Width - targetWidth) / 2.0;
-                                double py = (availablePhysicalHeight - targetHeight) / 2.0;
+                                var targetWidth = template.PageWidthMm * 3.93701;
+                                var targetHeight = template.PageHeightMm * 3.93701;
 
-                                px = Math.Max(0.0, px);
-                                py = Math.Max(0.0, py);
+                                printDoc.PrintPage += (sender, e) =>
+                                {
+                                    if (e.Graphics == null) return;
+                                    e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
+                                    e.Graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
 
-                                float drawX = (float)(px - e.PageSettings.HardMarginX);
-                                float drawY = (float)(py - e.PageSettings.HardMarginY);
+                                    double availablePhysicalHeight = (template.PageHeightMm <= 150.0 && e.PageBounds.Height > 800)
+                                        ? e.PageBounds.Height / 2.0
+                                        : e.PageBounds.Height;
 
-                                e.Graphics.DrawImage(bmp, drawX, drawY, (float)targetWidth, (float)targetHeight);
-                                e.HasMorePages = false;
-                            };
+                                    double px = (e.PageBounds.Width - targetWidth) / 2.0;
+                                    double py = (availablePhysicalHeight - targetHeight) / 2.0;
 
-                            printDoc.Print();
+                                    px = Math.Max(0.0, px);
+                                    py = Math.Max(0.0, py);
+
+                                    float drawX = (float)(px - e.PageSettings.HardMarginX);
+                                    float drawY = (float)(py - e.PageSettings.HardMarginY);
+
+                                    e.Graphics.DrawImage(bmp, drawX, drawY, (float)targetWidth, (float)targetHeight);
+                                    e.HasMorePages = false;
+                                };
+
+                                printDoc.Print();
+                            }
                         }
                     }
 

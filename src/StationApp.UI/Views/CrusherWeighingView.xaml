@@ -290,7 +290,7 @@
                     <DataGridTextColumn Header="TL bì" Binding="{Binding StandardTareWeightSnapshot, StringFormat={}{0:N0}}" Width="105" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="TL hàng" Binding="{Binding NetWeight, StringFormat={}{0:N0}}" Width="105" ElementStyle="{StaticResource GridTextRight}"/>
                     <DataGridTextColumn Header="S&#x1EA3;n ph&#x1EA9;m" Binding="{Binding ProductName}" Width="135" ElementStyle="{StaticResource GridTextLeft}"/>
-                    <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
+                    <DataGridTextColumn Header="Kh&#x00E1;ch h&#x00E0;ng" Binding="{Binding CustomerName}" Width="234" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Tr&#x1EA1;ng th&#x00E1;i" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
                     <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
                     <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>

@@ -107,6 +107,7 @@ public sealed class PrintOptionsModel
 {
     public string? SelectedPrinterName { get; init; }
     public int CopyCount { get; init; } = 1;
+    public bool UseRawDotMatrixMode { get; init; }
     public double OffsetXmm { get; init; }
     public double OffsetYmm { get; init; }
     public IReadOnlyList<PrintFieldPosition> FieldPositions { get; init; } = [];

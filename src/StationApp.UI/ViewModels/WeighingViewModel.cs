@@ -98,7 +98,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     [ObservableProperty] private string? _notesSummary;
     [ObservableProperty] private bool _useActualWeightForBaggedCutOrders;
     [ObservableProperty] private decimal? _weight1;
+    [ObservableProperty] private DateTime? _weight1Time;
     [ObservableProperty] private decimal? _weight2;
+    [ObservableProperty] private DateTime? _weight2Time;
     [ObservableProperty] private decimal? _netWeight;
     [ObservableProperty] private decimal? _ttcp10WeightSnapshot;
     [ObservableProperty] private decimal _overweightAmount;
@@ -448,7 +450,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         MoocNumber = value.MoocNumber;
         DriverName = value.DriverName;
         Weight1 = value.Weight1;
+        Weight1Time = value.Weight1Time;
         Weight2 = value.Weight2;
+        Weight2Time = value.Weight2Time;
         NetWeight = value.NetWeight;
         Ttcp10WeightSnapshot = value.Ttcp10WeightSnapshot ?? ttcp10Fallback;
         IsOverweight = value.IsOverweight;
@@ -535,7 +539,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
             _isApplyingPortTransferState = false;
         }
         Weight1 = null;
+        Weight1Time = null;
         Weight2 = null;
+        Weight2Time = null;
         NetWeight = null;
         Ttcp10WeightSnapshot = null;
         IsOverweight = false;

@@ -85,6 +85,7 @@
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
                         <RowDefinition Height="30"/>
+                        <RowDefinition Height="30"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="{StaticResource Weighing.Label.SessionNo}" Grid.Row="0" Style="{StaticResource FormLabel}"/>
@@ -114,18 +115,24 @@
                     <TextBlock Text="{StaticResource Weighing.Label.Product}" Grid.Row="5" Style="{StaticResource FormLabel}"/>
                     <TextBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding ProductSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="Ghi chú" Grid.Row="6" Style="{StaticResource FormLabel}"/>
-                    <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding NotesSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+                    <TextBlock Text="Gi&#x1EDD; c&#x00E2;n l&#x1EA7;n 1" Grid.Row="6" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Weight1Time, StringFormat='{}{0:dd/MM/yyyy HH:mm:ss}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
 
-                    <TextBlock Text="" Grid.Row="7" Style="{StaticResource FormLabel}"/>
-                    <CheckBox Grid.Row="7" Grid.Column="1"
+                    <TextBlock Text="Gi&#x1EDD; c&#x00E2;n l&#x1EA7;n 2" Grid.Row="6" Grid.Column="2" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="6" Grid.Column="3" Text="{Binding Weight2Time, StringFormat='{}{0:dd/MM/yyyy HH:mm:ss}'}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="Ghi ch&#x00FA;" Grid.Row="7" Style="{StaticResource FormLabel}"/>
+                    <TextBox Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding NotesSummary}" IsReadOnly="True" Style="{StaticResource FormBox}" Background="#F8F9F9"/>
+
+                    <TextBlock Text="" Grid.Row="8" Style="{StaticResource FormLabel}"/>
+                    <CheckBox Grid.Row="8" Grid.Column="1"
                               IsChecked="{Binding UseActualWeightForBaggedCutOrders, Mode=TwoWay}"
                               VerticalAlignment="Center"
                               HorizontalAlignment="Left"
                               Margin="4,0,0,0"
                               Visibility="{Binding ShowBaggedActualWeightOverride, Converter={StaticResource BoolToVis}}"
                               Content="K LẤY ĐỦ SỐ LƯỢNG"/>
-                    <CheckBox Grid.Row="7" Grid.Column="2"
+                    <CheckBox Grid.Row="8" Grid.Column="2"
                               Grid.ColumnSpan="2"
                               IsChecked="{Binding IsNoLoadMarked, Mode=TwoWay}"
                               IsEnabled="{Binding CanToggleNoLoad}"
@@ -133,7 +140,7 @@
                               HorizontalAlignment="Left"
                               Margin="4,0,0,0"
                               Content="{StaticResource Weighing.Action.NoLoad}"/>
-                    <CheckBox Grid.Row="7" Grid.Column="3"
+                    <CheckBox Grid.Row="8" Grid.Column="3"
                               IsChecked="{Binding IsPortTransferMarked, Mode=TwoWay}"
                               IsEnabled="{Binding CanTogglePortTransfer}"
                               VerticalAlignment="Center"
@@ -331,7 +338,7 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" ElementStyle="{StaticResource GridTextCenter}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="312" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.ProductCode}" Binding="{Binding ProductCode}" Width="120" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="260" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="110" ElementStyle="{StaticResource GridTextRight}"/>
@@ -364,11 +371,13 @@
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="100" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Incoming.Column.Mooc}" Binding="{Binding MoocNumber}" Width="95" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Incoming.Column.DriverName}" Binding="{Binding DriverName}" Width="130" ElementStyle="{StaticResource GridTextLeft}"/>
-                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerSummary}" Width="220" ElementStyle="{StaticResource GridTextLeft}"/>
+                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerSummary}" Width="372" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductSummary}" Width="240" ElementStyle="{StaticResource GridTextLeft}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Label.Ttcp10}" Binding="{Binding Ttcp10WeightSnapshot, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Weight1}" Binding="{Binding Weight1, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1Time, StringFormat='{}{0:dd/MM/yyyy HH:mm:ss}'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Weight2}" Binding="{Binding Weight2, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
+                        <DataGridTextColumn Header="Gi&#x1EDD; c&#x00E2;n l&#x1EA7;n 2" Binding="{Binding Weight2Time, StringFormat='{}{0:dd/MM/yyyy HH:mm:ss}'}" Width="155" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Net}" Binding="{Binding NetWeight, StringFormat='{}{0:N0}'}" Width="100" ElementStyle="{StaticResource GridTextRight}"/>
                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Status}" Binding="{Binding SessionStatus, Converter={StaticResource SessionStatusDisplay}}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
                         <DataGridTextColumn Header="Ng&#x01B0;&#x1EDD;i c&#x00E2;n l&#x1EA7;n 1" Binding="{Binding Weight1User}" Width="180" ElementStyle="{StaticResource GridTextLeft}"/>
@@ -434,7 +443,7 @@
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.VehiclePlate}" Binding="{Binding VehiclePlate}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.Mooc}" Binding="{Binding MoocNumber}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.DriverName}" Binding="{Binding ReceiverName}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
-                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.CustomerName}" Binding="{Binding CustomerName}" Width="240" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
+                                        <DataGridTextColumn Header="{StaticResource Incoming.Column.CustomerName}" Binding="{Binding CustomerName}" Width="312" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.ProductCode}" Binding="{Binding ProductCode}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.ProductName}" Binding="{Binding ProductName}" Width="250" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
                                         <DataGridTextColumn Header="{StaticResource Incoming.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="115" IsReadOnly="True" ElementStyle="{StaticResource GridTextRight}"/>
@@ -484,7 +493,7 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="50" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
-                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="240" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
+                                    <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="312" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="250" IsReadOnly="True" ElementStyle="{StaticResource GridTextLeft}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedWeight}" Binding="{Binding PlannedWeight, StringFormat='{}{0:N0}'}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource GridTextRight}"/>
                                     <DataGridTextColumn Header="{StaticResource Weighing.Column.PlannedBags}" Binding="{Binding PlannedBagCount}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource GridTextCenter}"/>
@@ -579,7 +588,7 @@
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Group}" Binding="{Binding SplitSequence}" Width="50" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.SequenceNo}" Binding="{Binding SequenceNo}" Width="40" ElementStyle="{StaticResource GridTextCenter}"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.CutOrderId}" Binding="{Binding ErpCutOrderId}" Width="135" ElementStyle="{StaticResource GridTextCenter}"/>
-                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="225" ElementStyle="{StaticResource GridTextLeft}"/>
+                                        <DataGridTextColumn Header="{StaticResource Weighing.Column.Customer}" Binding="{Binding CustomerName}" Width="293" ElementStyle="{StaticResource GridTextLeft}"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Product}" Binding="{Binding ProductName}" Width="235" ElementStyle="{StaticResource GridTextLeft}"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.Weight}" Binding="{Binding AllocatedWeight, StringFormat='{}{0:N0}'}" Width="105" ElementStyle="{StaticResource GridTextRight}"/>
                                         <DataGridTextColumn Header="{StaticResource Weighing.Column.BagCount}" Binding="{Binding AllocatedBagCount}" Width="65" ElementStyle="{StaticResource GridTextCenter}"/>

@@ -112,6 +112,11 @@
                                   DisplayMemberPath="Name"
                                   Margin="0,6,0,14"/>
 
+                        <CheckBox Content="In m&#x00E1;y kim"
+                                  IsChecked="{Binding UseRawDotMatrixMode}"
+                                  Visibility="{Binding CanUseRawDotMatrixMode, Converter={StaticResource BoolToVis}}"
+                                  Margin="0,0,0,14"/>
+
                         <TextBlock Text="S&#x1ED1; l&#x01B0;&#x1EE3;ng b&#x1EA3;n in / m&#x1ED7;i phi&#x1EBF;u" FontWeight="SemiBold"/>
                         <TextBox Text="{Binding CopyCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,14"/>
 
