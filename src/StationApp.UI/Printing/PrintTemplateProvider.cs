@@ -592,7 +592,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("BagCount", 95, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
         new("ActualWeight", 118, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
         new("ActualBagCount", 134, 149, 14, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
-        new("LotNo", 155, 149, 17, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
+        new("LotNo", 155, 149, 17, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
         new("VehicleLine", 176, 146, 18, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
         new("SealNo", 31, 214, 56, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
         new("Weight1Hour", 121, 233, 8, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal),
