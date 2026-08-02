@@ -54,6 +54,11 @@ public static class IncomingVehicleComplianceValidator
             return $"Bắt buộc nhập TTCP trước khi chuyển xe vào Cân nội địa theo cấu hình trạm {stationCode}.";
         }
 
+        if (string.Equals(normalizedProductType, ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
         if (!rule.RequireRegistrationOnCreateSession)
         {
             return null;

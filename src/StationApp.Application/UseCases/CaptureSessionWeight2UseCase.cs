@@ -85,6 +85,11 @@ public sealed class CaptureSessionWeight2UseCase
         var netWeight = Math.Abs(session.Weight1.Value - request.Weight);
         var registrations = await _regRepo.GetByWeighingSessionIdAsync(session.Id, ct);
         var lines = await _sessionRepo.GetLinesBySessionIdAsync(session.Id, ct);
+        if (registrations.Count == 0 || lines.Count == 0 || !lines.Any(line => registrations.Any(registration => registration.Id == line.CutOrderId)))
+        {
+            throw new InvalidOperationException("Lượt cân này chưa có cắt lệnh hợp lệ trên giao diện nên không thể cân lần 2. Vui lòng ghép lại cắt lệnh vào lượt cân để tiếp tục.");
+        }
+
         var lineToAutoAllocate = lines.Count == 1 ? lines[0] : null;
         var autoAllocateRegistration = lineToAutoAllocate is null
             ? null

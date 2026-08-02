@@ -69,7 +69,7 @@ public class IncomingVehicleComplianceValidatorTests
     }
 
     [Fact]
-    public void ValidateForCreateSession_RequiresMoocRegistration_WhenMoocExists()
+    public void ValidateForCreateSession_DoesNotRequireRegistration_ForBaggedOutbound()
     {
         var result = IncomingVehicleComplianceValidator.ValidateForCreateSession(
             EnabledRules,
@@ -77,6 +77,25 @@ public class IncomingVehicleComplianceValidatorTests
                 "QN01",
                 TransactionType.OUTBOUND,
                 ProductTypes.Bagged,
+                5500m,
+                null,
+                null,
+                "MOOC-01",
+                null,
+                null));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ValidateForCreateSession_RequiresMoocRegistration_WhenMoocExists()
+    {
+        var result = IncomingVehicleComplianceValidator.ValidateForCreateSession(
+            EnabledRules,
+            new IncomingVehicleComplianceValidationInput(
+                "QN01",
+                TransactionType.OUTBOUND,
+                ProductTypes.Bulk,
                 5500m,
                 "DKX-01",
                 new DateTime(2027, 1, 1),
