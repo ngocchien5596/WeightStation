@@ -104,11 +104,11 @@ BEGIN
         SET @ReceiverName = @DriverName;
 
     SET @NormalizedProductType = @ProductType;
-    IF @NormalizedProductType = N'Bao'
+    IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI = N'Bao'
         SET @ProductType = N'Bao';
-    ELSE IF @NormalizedProductType = N'Roi/Xa' OR @NormalizedProductType LIKE N'R_i/X_'
-        SET @ProductType = N'Roi/Xa';
-    ELSE IF @NormalizedProductType = N'Xa dong bao' OR @NormalizedProductType LIKE N'X_ ____ bao'
+    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI IN (N'Roi/Xa', N'Rời/Xá', N'Roi Xa', N'Rời Xá', N'Roi_Xa', N'Rời_Xá', N'Bulk')
+        SET @ProductType = N'Rời/Xá';
+    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI IN (N'Xa dong bao', N'Xá đóng bao')
         SET @ProductType = N'Bao';
 
     IF @StationCode IS NULL
@@ -132,7 +132,7 @@ BEGIN
     IF @TransportMethod IS NOT NULL AND @TransportMethod NOT IN (N'ROAD', N'WATERWAY')
         THROW 51006, N'TransportMethod chi nhan ROAD hoac WATERWAY.', 1;
 
-    IF @ProductType IS NOT NULL AND @ProductType NOT IN (N'Bao', N'Roi/Xa')
+    IF @ProductType IS NOT NULL AND @ProductType NOT IN (N'Bao', N'Rời/Xá')
         THROW 51007, N'ProductType khong hop le.', 1;
 
     IF @PlannedWeight IS NOT NULL AND @PlannedWeight < 0
@@ -190,6 +190,37 @@ BEGIN
 
     IF @CutOrderId IS NOT NULL
     BEGIN
+        IF ISNULL(@ExistingIsCancelled, 0) = 0
+           AND (
+                @ExistingSessionId IS NOT NULL
+                OR ISNULL(@ExistingProcessingStage, N'') <> N'IN_YARD'
+                OR ISNULL(@ExistingStatus, N'') <> N'REGISTERED'
+           )
+           AND (
+                @LotNo IS NOT NULL
+                OR @RepresentativeName IS NOT NULL
+                OR @LoadingPlace IS NOT NULL
+                OR @SealNo IS NOT NULL
+                OR @Notes IS NOT NULL
+           )
+        BEGIN
+            UPDATE dbo.cut_orders
+            SET
+                LotNo = COALESCE(@LotNo, LotNo),
+                RepresentativeName = COALESCE(@RepresentativeName, RepresentativeName),
+                LoadingPlace = COALESCE(@LoadingPlace, LoadingPlace),
+                SealNo = COALESCE(@SealNo, SealNo),
+                Notes = COALESCE(@Notes, Notes),
+                SyncStatus = N'SYNC_QUEUED',
+                LastSyncAttemptAt = NULL,
+                LastSyncError = NULL,
+                UpdatedAt = @NowLocal,
+                UpdatedBy = @SystemUser
+            WHERE Id = @CutOrderId;
+
+            RETURN;
+        END
+
         IF @ExistingSessionId IS NOT NULL
             THROW 51011, N'Cut order dang gan voi luot can, khong duoc ERP update truc tiep. Hay dung luong soft delete / CO lai.', 1;
 
