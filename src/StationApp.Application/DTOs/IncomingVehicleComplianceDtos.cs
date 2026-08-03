@@ -87,7 +87,7 @@ public static class IncomingVehicleComplianceValidator
             return rules.BaggedOutbound;
         }
 
-        if (string.Equals(normalizedProductType, ProductTypes.Bulk, StringComparison.OrdinalIgnoreCase))
+        if (ProductTypes.IsBulkLike(normalizedProductType))
         {
             return rules.BulkOutbound;
         }

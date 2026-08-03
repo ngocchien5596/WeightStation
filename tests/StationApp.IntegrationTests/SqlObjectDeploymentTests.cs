@@ -50,6 +50,20 @@ SELECT * FROM #t;
         Assert.Contains("SELECT * FROM #t;", batches[2]);
     }
 
+    [Fact]
+    public void UpsertCutOrderScript_ValidatesProductTypeByNormalizedNull()
+    {
+        var content = SqlObjectScriptCatalog.ReadRequiredScript(
+            "StationApp.Infrastructure.SqlScripts.sp_UpsertCutOrderFromErp.sql");
+
+        Assert.Contains("SET @ProductType = NULL;", content);
+        Assert.Contains("IF @NormalizedProductType IS NOT NULL AND @ProductType IS NULL", content);
+        Assert.Contains("N'Roi'", content);
+        Assert.Contains("N'Clinker'", content);
+        Assert.Contains("N'Bao'", content);
+        Assert.DoesNotContain("@ProductType IS NOT NULL AND @ProductType NOT IN", content);
+    }
+
     public static IEnumerable<object[]> GetRequiredScriptNames()
     {
         return SqlObjectScriptCatalog.ResourceNames.Select(x => new object[] { x });

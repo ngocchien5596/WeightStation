@@ -18,7 +18,7 @@ internal static class PrintCopyCountHelper
             return DefaultCopyCount;
         }
 
-        return registrations.Any(x => string.Equals(ProductTypes.Normalize(x.ProductType), ProductTypes.Bulk, StringComparison.OrdinalIgnoreCase))
+        return registrations.Any(x => ProductTypes.IsBulkLike(x.ProductType))
             ? BulkWeighTicketCopyCount
             : DefaultCopyCount;
     }

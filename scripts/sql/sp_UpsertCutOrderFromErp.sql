@@ -104,11 +104,14 @@ BEGIN
         SET @ReceiverName = @DriverName;
 
     SET @NormalizedProductType = @ProductType;
+    SET @ProductType = NULL;
     IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI = N'Bao'
         SET @ProductType = N'Bao';
-    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI IN (N'Roi/Xa', N'Rời/Xá', N'Roi Xa', N'Rời Xá', N'Roi_Xa', N'Rời_Xá', N'Bulk')
+    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI IN (N'Roi', N'Roi/Xa', N'Roi Xa', N'Roi_Xa', N'Bulk')
         SET @ProductType = N'Rời/Xá';
-    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI IN (N'Xa dong bao', N'Xá đóng bao')
+    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI IN (N'Clinker', N'Roi clinker', N'Roi_clinker')
+        SET @ProductType = N'Clinker';
+    ELSE IF @NormalizedProductType COLLATE Latin1_General_100_CI_AI = N'Xa dong bao'
         SET @ProductType = N'Bao';
 
     IF @StationCode IS NULL
@@ -132,7 +135,7 @@ BEGIN
     IF @TransportMethod IS NOT NULL AND @TransportMethod NOT IN (N'ROAD', N'WATERWAY')
         THROW 51006, N'TransportMethod chi nhan ROAD hoac WATERWAY.', 1;
 
-    IF @ProductType IS NOT NULL AND @ProductType NOT IN (N'Bao', N'Rời/Xá')
+    IF @NormalizedProductType IS NOT NULL AND @ProductType IS NULL
         THROW 51007, N'ProductType khong hop le.', 1;
 
     IF @PlannedWeight IS NOT NULL AND @PlannedWeight < 0
@@ -210,6 +213,7 @@ BEGIN
                 RepresentativeName = COALESCE(@RepresentativeName, RepresentativeName),
                 LoadingPlace = COALESCE(@LoadingPlace, LoadingPlace),
                 SealNo = COALESCE(@SealNo, SealNo),
+                ProductType = COALESCE(@ProductType, ProductType),
                 Notes = COALESCE(@Notes, Notes),
                 SyncStatus = N'SYNC_QUEUED',
                 LastSyncAttemptAt = NULL,

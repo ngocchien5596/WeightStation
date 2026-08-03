@@ -73,6 +73,34 @@ function Add-PublishReleaseLog {
     Add-Content -Path $LogPath -Value $entry -Encoding UTF8
 }
 
+function Clear-SharedReleaseArtifacts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ReleaseRoot
+    )
+
+    if (-not (Test-Path $ReleaseRoot)) {
+        New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
+        return
+    }
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $ReleaseRoot).Path.TrimEnd('\')
+    if ([string]::IsNullOrWhiteSpace($resolvedRoot)) {
+        throw "Khong xac dinh duoc thu muc shared release de don dep."
+    }
+
+    $latestPath = Join-Path $resolvedRoot "latest.json"
+    if (Test-Path -LiteralPath $latestPath) {
+        Remove-Item -LiteralPath $latestPath -Force
+    }
+
+    Get-ChildItem -LiteralPath $resolvedRoot -File -Filter "StationApp_*.json" |
+        Remove-Item -Force
+
+    Get-ChildItem -LiteralPath $resolvedRoot -File -Filter "StationApp_*.zip" |
+        Remove-Item -Force
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $publishScriptPath = Join-Path $PSScriptRoot "publish-ui-release.ps1"
 
@@ -97,6 +125,8 @@ $publishLogPath = Join-Path $SharedReleaseRoot "publish-release-log.md"
 $sharedPrerequisitesDir = Join-Path $SharedReleaseRoot "prerequisites"
 $repoPrerequisitesDir = Join-Path $repoRoot "prerequisites"
 $aceInstallScriptPath = Join-Path $PSScriptRoot "install-access-database-engine-prerequisite.ps1"
+
+Clear-SharedReleaseArtifacts -ReleaseRoot $SharedReleaseRoot
 
 Invoke-PowerShellScript -ScriptPath $publishScriptPath -Arguments @(
     "-Configuration", $Configuration,
@@ -128,10 +158,6 @@ $latestManifest = [ordered]@{
 }
 
 $manifestJson = $latestManifest | ConvertTo-Json -Depth 5
-
-if (-not (Test-Path $SharedReleaseRoot)) {
-    New-Item -ItemType Directory -Path $SharedReleaseRoot -Force | Out-Null
-}
 
 Copy-Item $localZipPath $sharedZipPath -Force
 

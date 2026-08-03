@@ -8,12 +8,14 @@ public static class ProductTypes
 {
     public const string Bagged = "Bao";
     public const string Bulk = "R\u1eddi/X\u00e1";
+    public const string Clinker = "Clinker";
     public const string Inbound = "H\u00e0ng nh\u1eadp";
 
     public static readonly IReadOnlyList<string> All =
     [
         Bagged,
         Bulk,
+        Clinker,
         Inbound
     ];
 
@@ -34,9 +36,19 @@ public static class ProductTypes
         }
 
         if (string.Equals(trimmed, Bulk, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(trimmed, "Roi/Xa", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(trimmed, "Roi", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Roi/Xa", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Roi Xa", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Roi_Xa", StringComparison.OrdinalIgnoreCase))
         {
             return Bulk;
+        }
+
+        if (string.Equals(trimmed, Clinker, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Roi clinker", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Roi_clinker", StringComparison.OrdinalIgnoreCase))
+        {
+            return Clinker;
         }
 
         if (string.Equals(trimmed, Inbound, StringComparison.OrdinalIgnoreCase)
@@ -53,4 +65,11 @@ public static class ProductTypes
 
     public static string? InferForTransaction(TransactionType transactionType)
         => transactionType == TransactionType.INBOUND ? Inbound : null;
+
+    public static bool IsBulkLike(string? value)
+    {
+        var normalized = Normalize(value);
+        return string.Equals(normalized, Bulk, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, Clinker, StringComparison.OrdinalIgnoreCase);
+    }
 }

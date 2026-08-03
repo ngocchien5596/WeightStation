@@ -386,7 +386,11 @@ public partial class App : System.Windows.Application
             using var scope = _host!.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
             var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
-            await StationDatabaseInitializer.InitializeAsync(db, loggerFactory, CancellationToken.None);
+            await StationDatabaseInitializer.InitializeAsync(
+                db,
+                loggerFactory,
+                CancellationToken.None,
+                deploySqlObjects: true);
             await EnsureDefaultScaleConfigurationAsync(scope.ServiceProvider, CancellationToken.None);
         }
     }

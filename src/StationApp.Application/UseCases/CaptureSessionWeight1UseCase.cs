@@ -115,7 +115,7 @@ public sealed class CaptureSessionWeight1UseCase
         {
             requireTtcp = complianceRules.BaggedOutbound.RequireTtcpOnCreateSession;
         }
-        else if (normalizedProductType == ProductTypes.Bulk)
+        else if (ProductTypes.IsBulkLike(normalizedProductType))
         {
             requireTtcp = complianceRules.BulkOutbound.RequireTtcpOnCreateSession;
         }
