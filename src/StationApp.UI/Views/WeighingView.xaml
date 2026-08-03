@@ -401,7 +401,13 @@
                     </Border>
 
                     <Border Grid.Row="1" Style="{StaticResource ModalBodyStyle}">
-                        <StackPanel>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
                             <Border Margin="0,0,0,12"
                                     Padding="12,10"
                                     Background="#FFF7E6"
@@ -415,8 +421,41 @@
                                            TextWrapping="Wrap"/>
                             </Border>
 
-                            <Border Style="{StaticResource ModalSectionCardStyle}">
-                                <DataGrid ItemsSource="{Binding AppendCutOrderCandidates}"
+                            <Grid Grid.Row="1" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="Mã cắt lệnh"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Foreground="#1B3263"
+                                           Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1"
+                                         Height="32"
+                                         Style="{StaticResource StandardTextBoxStyle}"
+                                         Text="{Binding AppendCutOrderSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,18,0"/>
+
+                                <TextBlock Grid.Column="2"
+                                           Text="Biển số xe"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Foreground="#1B3263"
+                                           Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="3"
+                                         Height="32"
+                                         Style="{StaticResource StandardTextBoxStyle}"
+                                         Text="{Binding AppendVehiclePlateSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            </Grid>
+
+                            <Border Grid.Row="2" Style="{StaticResource ModalSectionCardStyle}">
+                                <DataGrid ItemsSource="{Binding FilteredAppendCutOrderCandidates}"
                                           Style="{StaticResource SystemDataGridStyle}"
                                           ColumnHeaderStyle="{StaticResource SystemDataGridColumnHeaderStyle}"
                                           RowStyle="{StaticResource SystemDataGridRowStyle}"
@@ -452,7 +491,7 @@
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Border>
-                        </StackPanel>
+                        </Grid>
                     </Border>
 
                     <Border Grid.Row="2" Style="{StaticResource ModalFooterStyle}">

@@ -137,6 +137,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     [ObservableProperty] private ObservableCollection<WeighingSessionLineRow> _allocationLines = new();
     [ObservableProperty] private bool _isAppendCutOrdersVisible;
     [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _appendCutOrderCandidates = new();
+    [ObservableProperty] private ObservableCollection<IncomingVehicleSelectionItem> _filteredAppendCutOrderCandidates = new();
+    [ObservableProperty] private string? _appendCutOrderSearchText;
+    [ObservableProperty] private string? _appendVehiclePlateSearchText;
     [ObservableProperty] private string? _appendCutOrdersWarningMessage;
     [ObservableProperty] private bool _isRelatedTicketsVisible;
     [ObservableProperty] private ObservableCollection<RelatedDocumentListItem> _relatedTickets = new();
@@ -913,7 +916,10 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
             return;
         }
 
+        AppendCutOrderSearchText = null;
+        AppendVehiclePlateSearchText = null;
         AppendCutOrderCandidates = new ObservableCollection<IncomingVehicleSelectionItem>(filtered);
+        ApplyAppendCutOrderFilter();
         RefreshAppendCutOrdersWarningMessage();
         IsAppendCutOrdersVisible = true;
     }
@@ -922,6 +928,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     private void CloseAppendCutOrders()
     {
         IsAppendCutOrdersVisible = false;
+        AppendCutOrderSearchText = null;
+        AppendVehiclePlateSearchText = null;
+        FilteredAppendCutOrderCandidates = new ObservableCollection<IncomingVehicleSelectionItem>();
         AppendCutOrdersWarningMessage = null;
     }
 
@@ -954,6 +963,9 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
 
             _toastService.ShowSuccess("Đã thêm cắt lệnh vào lượt cân.");
             IsAppendCutOrdersVisible = false;
+            AppendCutOrderSearchText = null;
+            AppendVehiclePlateSearchText = null;
+            FilteredAppendCutOrderCandidates = new ObservableCollection<IncomingVehicleSelectionItem>();
             AppendCutOrdersWarningMessage = null;
             await FocusSessionAsync(SelectedSession.SessionId);
         }
@@ -1128,7 +1140,18 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     partial void OnAppendCutOrderCandidatesChanged(ObservableCollection<IncomingVehicleSelectionItem> value)
     {
         RewireAppendCutOrderCandidateSubscriptions(null, value);
+        ApplyAppendCutOrderFilter();
         RefreshAppendCutOrdersWarningMessage();
+    }
+
+    partial void OnAppendCutOrderSearchTextChanged(string? value)
+    {
+        ApplyAppendCutOrderFilter();
+    }
+
+    partial void OnAppendVehiclePlateSearchTextChanged(string? value)
+    {
+        ApplyAppendCutOrderFilter();
     }
 
     private void RewireAppendCutOrderCandidateSubscriptions(
@@ -1173,6 +1196,45 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         }
 
         RefreshAppendCutOrdersWarningMessage();
+    }
+
+    private void ApplyAppendCutOrderFilter()
+    {
+        var cutOrderKeyword = NormalizeSearchKeyword(AppendCutOrderSearchText);
+        var vehicleKeyword = NormalizeSearchKeyword(AppendVehiclePlateSearchText);
+
+        var filteredItems = AppendCutOrderCandidates
+            .Where(x =>
+                MatchesAppendCutOrderFilter(x, cutOrderKeyword, vehicleKeyword))
+            .ToList();
+
+        FilteredAppendCutOrderCandidates = new ObservableCollection<IncomingVehicleSelectionItem>(filteredItems);
+    }
+
+    private static bool MatchesAppendCutOrderFilter(
+        IncomingVehicleSelectionItem item,
+        string? cutOrderKeyword,
+        string? vehicleKeyword)
+    {
+        var matchesCutOrder = string.IsNullOrWhiteSpace(cutOrderKeyword)
+            || ContainsIgnoreCase(item.ErpCutOrderId, cutOrderKeyword)
+            || ContainsIgnoreCase(item.ErpRegistrationCode, cutOrderKeyword);
+
+        var matchesVehicle = string.IsNullOrWhiteSpace(vehicleKeyword)
+            || ContainsIgnoreCase(item.VehiclePlate, vehicleKeyword)
+            || ContainsIgnoreCase(item.MoocNumber, vehicleKeyword);
+
+        return matchesCutOrder && matchesVehicle;
+    }
+
+    private static bool ContainsIgnoreCase(string? value, string keyword)
+        => !string.IsNullOrWhiteSpace(value)
+           && value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+
+    private static string? NormalizeSearchKeyword(string? value)
+    {
+        var trimmed = value?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
     private void AppendCutOrderCandidate_PropertyChanged(object? sender, PropertyChangedEventArgs e)
