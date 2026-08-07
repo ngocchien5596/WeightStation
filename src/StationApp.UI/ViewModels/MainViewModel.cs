@@ -1,3 +1,7 @@
+using System;
+using System.IO;
+using System.Text.Json;
+using System.Collections.Generic;
 using System.Windows;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -109,6 +113,7 @@ public partial class MainViewModel : ObservableObject
         };
         _clockTimer.Tick += (_, _) => CurrentTimeDisplay = DateTime.Now.ToString("HH:mm:ss tt", System.Globalization.CultureInfo.InvariantCulture);
         _clockTimer.Start();
+        _zoomLevel = LoadLocalZoomLevel();
 
         WeakReferenceMessenger.Default.Register<StationFeaturesChangedMessage>(
             this,
@@ -706,6 +711,133 @@ public partial class MainViewModel : ObservableObject
         {
             IsSettingsSubmenuVisible = false;
             IsReportsSubmenuVisible = false;
+        }
+    }
+
+    [ObservableProperty] private double _zoomLevel = 1.0;
+
+    public string ZoomPercentageText => $"{Math.Round(ZoomLevel * 100)}%";
+
+    partial void OnZoomLevelChanged(double value)
+    {
+        OnPropertyChanged(nameof(ZoomPercentageText));
+    }
+
+    [RelayCommand]
+    private void ZoomIn()
+    {
+        ZoomLevel = Math.Min(1.5, Math.Round(ZoomLevel + 0.05, 2));
+        SaveLocalZoomLevel(ZoomLevel);
+    }
+
+    [RelayCommand]
+    private void ZoomOut()
+    {
+        ZoomLevel = Math.Max(0.8, Math.Round(ZoomLevel - 0.05, 2));
+        SaveLocalZoomLevel(ZoomLevel);
+    }
+
+    [RelayCommand]
+    private void ResetZoom()
+    {
+        ZoomLevel = 1.0;
+        SaveLocalZoomLevel(ZoomLevel);
+    }
+
+    private const string AppSettingsFileName = "appsettings.json";
+    private static readonly string BackupConfigDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "StationApp");
+    private static readonly string BackupConfigPath = Path.Combine(BackupConfigDir, "zoomsettings.json");
+
+    private double LoadLocalZoomLevel()
+    {
+        try
+        {
+            var mainPath = Path.Combine(AppContext.BaseDirectory, AppSettingsFileName);
+            if (File.Exists(mainPath))
+            {
+                var content = File.ReadAllText(mainPath);
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("ZoomLevel", out var element) && element.TryGetDouble(out var mainZoom))
+                {
+                    return Math.Clamp(mainZoom, 0.8, 1.5);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to read from main config: {ex.Message}");
+        }
+
+        try
+        {
+            if (File.Exists(BackupConfigPath))
+            {
+                var content = File.ReadAllText(BackupConfigPath);
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("ZoomLevel", out var element) && element.TryGetDouble(out var backupZoom))
+                {
+                    return Math.Clamp(backupZoom, 0.8, 1.5);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to read from backup config: {ex.Message}");
+        }
+
+        return 1.0;
+    }
+
+    private void SaveLocalZoomLevel(double level)
+    {
+        var mainPath = Path.Combine(AppContext.BaseDirectory, AppSettingsFileName);
+        try
+        {
+            if (File.Exists(mainPath))
+            {
+                var content = File.ReadAllText(mainPath);
+                var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(content);
+                if (dict != null)
+                {
+                    dict["ZoomLevel"] = level;
+                    var newContent = JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(mainPath, newContent);
+                    return;
+                }
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine("Permission denied to write to main config. Using backup config.");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to write to main config: {ex.Message}");
+        }
+
+        try
+        {
+            if (!Directory.Exists(BackupConfigDir))
+            {
+                Directory.CreateDirectory(BackupConfigDir);
+            }
+
+            string content = "{}";
+            if (File.Exists(BackupConfigPath))
+            {
+                content = File.ReadAllText(BackupConfigPath);
+            }
+
+            var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(content) ?? new Dictionary<string, object>();
+            dict["ZoomLevel"] = level;
+            var newContent = JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(BackupConfigPath, newContent);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to write to backup config: {ex.Message}");
         }
     }
 }

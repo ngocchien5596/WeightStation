@@ -84,16 +84,21 @@ public sealed class CaptureSessionWeight1UseCase
             .ThenBy(x => x.ErpCutOrderId)
             .First();
 
+        // Use session.VehiclePlate (the real plate entered by operator) for vehicle lookup,
+        // not primaryRegistration.VehiclePlate which may be a temporary code (e.g. TL-xxx) for export scale.
         var vehicle = (Vehicle?)null;
-        if (!string.IsNullOrWhiteSpace(primaryRegistration.VehiclePlate))
+        var lookupPlate = !string.IsNullOrWhiteSpace(session.VehiclePlate)
+            ? session.VehiclePlate
+            : primaryRegistration.VehiclePlate;
+        if (!string.IsNullOrWhiteSpace(lookupPlate))
         {
             try
             {
                 vehicle = await _vehicleRepo.GetByPlateAndMoocAsync(
-                    primaryRegistration.VehiclePlate,
-                    primaryRegistration.MoocNumber ?? string.Empty,
+                    lookupPlate,
+                    session.MoocNumber ?? primaryRegistration.MoocNumber ?? string.Empty,
                     ct)
-                    ?? (await _vehicleRepo.GetByPlateAsync(primaryRegistration.VehiclePlate, ct)).FirstOrDefault();
+                    ?? (await _vehicleRepo.GetByPlateAsync(lookupPlate, ct)).FirstOrDefault();
             }
             catch
             {
@@ -146,9 +151,9 @@ public sealed class CaptureSessionWeight1UseCase
                     WeighingSessionId = session.Id,
                     CutOrderId = primaryRegistration.Id,
                     ErpCutOrderId = primaryRegistration.ErpCutOrderId,
-                    VehiclePlate = primaryRegistration.VehiclePlate,
-                    MoocNumber = primaryRegistration.MoocNumber,
-                    DriverName = primaryRegistration.ReceiverName,
+                    VehiclePlate = session.VehiclePlate,
+                    MoocNumber = session.MoocNumber,
+                    DriverName = session.DriverName,
                     CustomerCode = primaryRegistration.CustomerCode,
                     CustomerName = primaryRegistration.CustomerName,
                     ProductCode = primaryRegistration.ProductCode,
@@ -182,6 +187,11 @@ public sealed class CaptureSessionWeight1UseCase
             session.UpdatedBy = _userContext.Username;
 
             var masterTicket = ticket ?? throw new InvalidOperationException("Không thể khởi tạo phiếu cân tổng.");
+            // Always sync plate/mooc/driver from session (handles both new and existing tickets,
+            // and ensures export-scale temp codes are overwritten with real operator-entered values).
+            masterTicket.VehiclePlate = session.VehiclePlate;
+            masterTicket.MoocNumber = session.MoocNumber;
+            masterTicket.DriverName = session.DriverName;
             masterTicket.VehicleRegistrationNoSnapshot = vehicle?.VehicleRegistrationNo;
             masterTicket.VehicleRegistrationExpirySnapshot = vehicle?.VehicleRegistrationExpiryDate;
             masterTicket.MoocRegistrationNoSnapshot = vehicle?.MoocRegistrationNo;

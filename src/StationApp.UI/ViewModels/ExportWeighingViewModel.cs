@@ -1449,7 +1449,16 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                         ?? context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
                     var actualBagCount = ResolvePrintActualBagCount(context, ticket);
                     var isReturnedBrokenTrip = ResolvePrintReturnedBrokenTrip(context, ticket);
-                    var page = composer.Compose(registration, ticket, actualBagCount, isReturnedBrokenTrip, context.Vehicle, printedAtLocal, _currentUserContext.DisplayName);
+                    var page = composer.Compose(
+                        registration,
+                        ticket,
+                        actualBagCount,
+                        isReturnedBrokenTrip,
+                        context.Vehicle,
+                        printedAtLocal,
+                        _currentUserContext.DisplayName,
+                        sessionVehiclePlate: context.MasterSession.VehiclePlate,
+                        sessionMoocNumber: context.MasterSession.MoocNumber);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";
@@ -1552,7 +1561,9 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                 context.MasterSession.UseActualWeightForBaggedCutOrders,
                 context.Vehicle,
                 printedAtLocal,
-                _currentUserContext.DisplayName);
+                _currentUserContext.DisplayName,
+                sessionVehiclePlate: context.MasterSession.VehiclePlate,
+                sessionMoocNumber: context.MasterSession.MoocNumber);
             if (isDeliveryMasterTicket)
             {
                 page.PreviewGroupKey = "delivery-master";

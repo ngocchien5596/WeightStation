@@ -132,7 +132,9 @@ public interface IWeighTicketPrintComposer
         bool isReturnedBrokenTrip,
         Vehicle? vehicle,
         DateTime printedAtLocal,
-        string? printedByDisplayName);
+        string? printedByDisplayName,
+        string? sessionVehiclePlate = null,
+        string? sessionMoocNumber = null);
 }
 
 public interface IDeliveryTicketPrintComposer
@@ -145,7 +147,9 @@ public interface IDeliveryTicketPrintComposer
         bool useActualWeightForBaggedCutOrders,
         Vehicle? vehicle,
         DateTime printedAtLocal,
-        string? printedByDisplayName);
+        string? printedByDisplayName,
+        string? sessionVehiclePlate = null,
+        string? sessionMoocNumber = null);
 }
 
 public interface IPrintTemplateProvider
@@ -210,13 +214,17 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
         bool isReturnedBrokenTrip,
         Vehicle? vehicle,
         DateTime printedAtLocal,
-        string? printedByDisplayName)
+        string? printedByDisplayName,
+        string? sessionVehiclePlate = null,
+        string? sessionMoocNumber = null)
     {
         var emptyWeight = ticket.TransactionType == TransactionType.OUTBOUND ? ticket.Weight1 : ticket.Weight2;
         var grossWeight = ticket.TransactionType == TransactionType.OUTBOUND ? ticket.Weight2 : ticket.Weight1;
-        var vehicleLine = BuildVehicleLine(
-            FirstNonEmpty(ticket.VehiclePlate, registration.VehiclePlate),
-            FirstNonEmpty(ticket.MoocNumber, registration.MoocNumber));
+        // Prioritize session-level plate/mooc (passed in by caller) so that even tickets created
+        // before the plate-sync fix still print the correct operator-entered values.
+        var vehiclePlate = FirstNonEmpty(sessionVehiclePlate, ticket.VehiclePlate, registration.VehiclePlate);
+        var moocNumber = FirstNonEmpty(sessionMoocNumber, ticket.MoocNumber, registration.MoocNumber);
+        var vehicleLine = BuildVehicleLine(vehiclePlate, moocNumber);
         var notes = ResolveWeighTicketNotes(registration, ticket, actualBagCount, isReturnedBrokenTrip);
 
         return new WeighTicketPrintModel
@@ -225,11 +233,12 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
             DisplayNumber = BusinessNumberFormatter.ToDisplay(ticket.TicketNo),
             TicketNo = ticket.TicketNo,
             VehiclePlate = vehicleLine,
-            MoocNumber = ticket.MoocNumber ?? registration.MoocNumber,
+            MoocNumber = moocNumber,
             NetWeight = ticket.NetWeight,
             Fields = new[]
             {
                 Field("TicketNo", BusinessNumberFormatter.ToDisplay(ticket.TicketNo)),
+                // Biển số xe: only the actual license plate (+ mooc in parentheses)
                 Field("VehiclePlate", vehicleLine),
                 Field("VehicleRegistrationNo", FirstNonEmpty(ticket.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(ticket.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
@@ -306,9 +315,14 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         bool useActualWeightForBaggedCutOrders,
         Vehicle? vehicle,
         DateTime printedAtLocal,
-        string? printedByDisplayName)
+        string? printedByDisplayName,
+        string? sessionVehiclePlate = null,
+        string? sessionMoocNumber = null)
     {
-        var vehicleLine = string.Join(Environment.NewLine, new[] { FirstNonEmpty(weighTicket?.VehiclePlate, registration.VehiclePlate), FirstNonEmpty(weighTicket?.MoocNumber, registration.MoocNumber) }
+        // Prioritize session-level plate/mooc so that even stale ticket/registration values print correctly.
+        var plate = FirstNonEmpty(sessionVehiclePlate, weighTicket?.VehiclePlate, registration.VehiclePlate);
+        var mooc = FirstNonEmpty(sessionMoocNumber, weighTicket?.MoocNumber, registration.MoocNumber);
+        var vehicleLine = string.Join(Environment.NewLine, new[] { plate, mooc }
             .Where(v => !string.IsNullOrWhiteSpace(v)));
         var actualWeight = CutOrderNetWeightHelper.ResolveDeliveryTicketActualWeightKg(
             registration,

@@ -8,6 +8,9 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundBrush}">
     <Grid>
+        <Grid.LayoutTransform>
+            <ScaleTransform ScaleX="{Binding ZoomLevel}" ScaleY="{Binding ZoomLevel}"/>
+        </Grid.LayoutTransform>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="{Binding SidebarWidth}"/>
             <ColumnDefinition Width="*"/>
@@ -281,6 +284,12 @@
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersionText}" FontSize="11" Foreground="#9FB0C3"/>
                                 </DockPanel>
                             </StackPanel>
+                        </Border>
+                        <Border BorderThickness="0,1,0,0" BorderBrush="{StaticResource SidebarItemHoverBackground}" Padding="20,6,12,6">
+                            <DockPanel LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="Tỷ lệ thu phóng" FontSize="11.5" Foreground="#9FB0C3" VerticalAlignment="Center"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding ZoomPercentageText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SidebarItemForeground}" VerticalAlignment="Center"/>
+                            </DockPanel>
                         </Border>
                         <Button Style="{StaticResource SidebarMenuItemStyle}" Height="32" Command="{Binding LogoutCommand}">
                             <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center" FontSize="12.5"/>

@@ -531,13 +531,13 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("TicketNo", 168, 22, 22, PrintFieldAlignment.Left, 9.8, PrintFieldWeight.Bold, ShadedBackground: true),
         new("StaticVehicleSectionLine", 14, 28, 182, PrintFieldAlignment.Left, 8.5, PrintFieldWeight.Normal, IsLine: true),
 
-        new("StaticVehiclePlateLabel", 32, 32, 18, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "Bi\u1ec3n s\u1ed1 xe:"),
-        new("VehiclePlate", 52, 32, 78, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Bold),
+        new("StaticVehicleRegistrationLabel", 32, 32, 16, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "Tem xe:"),
+        new("VehicleRegistrationNo", 52, 32, 60, PrintFieldAlignment.Left, 10.4, PrintFieldWeight.Bold),
         new("StaticWeight1Label", 164, 32, 13, PrintFieldAlignment.Right, 9.4, PrintFieldWeight.Normal, LiteralValue: "Gi\u1edd v\u00e0o:"),
         new("Weight1DateTime", 182, 32, 29, PrintFieldAlignment.Left, 9.8, PrintFieldWeight.Normal),
 
-        new("StaticVehicleRegistrationLabel", 32, 42, 16, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "Tem xe:"),
-        new("VehicleRegistrationNo", 52, 42, 60, PrintFieldAlignment.Left, 10.4, PrintFieldWeight.Bold),
+        new("StaticVehiclePlateLabel", 32, 42, 18, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "Bi\u1ec3n s\u1ed1 xe:"),
+        new("VehiclePlate", 52, 42, 78, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Bold),
         new("StaticWeight2Label", 164, 42, 11, PrintFieldAlignment.Right, 9.4, PrintFieldWeight.Normal, LiteralValue: "Gi\u1edd ra:"),
         new("Weight2DateTime", 182, 42, 29, PrintFieldAlignment.Left, 9.8, PrintFieldWeight.Normal),
 
