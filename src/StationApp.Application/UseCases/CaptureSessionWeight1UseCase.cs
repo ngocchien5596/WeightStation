@@ -142,6 +142,7 @@ public sealed class CaptureSessionWeight1UseCase
                 {
                     Id = Guid.NewGuid(),
                     TicketNo = ticketNo,
+                    StationCode = primaryRegistration.StationCode,
                     WeighingSessionId = session.Id,
                     CutOrderId = primaryRegistration.Id,
                     ErpCutOrderId = primaryRegistration.ErpCutOrderId,
@@ -253,6 +254,7 @@ public sealed class CaptureSessionWeight1UseCase
                         {
                             Id = Guid.NewGuid(),
                             WeighingSessionId = sessionId,
+                            StationCode = _userContext.StationCode,
                             CaptureStage = stage,
                             CameraCode = capture.CameraCode,
                             CameraName = capture.CameraName,

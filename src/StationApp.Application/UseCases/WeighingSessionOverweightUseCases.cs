@@ -361,6 +361,7 @@ public sealed class ResolveWeighingSessionOverweightSplitUseCase
             CutOrderId = line.CutOrderId,
             WeighingSessionId = session.Id,
             TicketNo = ticketNo,
+            StationCode = session.StationCode,
             ErpCutOrderId = lineItem.ErpCutOrderId,
             VehiclePlate = masterTicket.VehiclePlate,
             MoocNumber = masterTicket.MoocNumber,

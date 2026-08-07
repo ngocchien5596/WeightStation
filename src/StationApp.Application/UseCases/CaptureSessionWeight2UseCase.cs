@@ -186,6 +186,7 @@ public sealed class CaptureSessionWeight2UseCase
                     CutOrderId = registration.Id,
                     WeighingSessionId = session.Id,
                     WeighingSessionLineId = lineToAutoAllocate.Id,
+                    StationCode = registration.StationCode,
                     DeliveryNo = string.Empty, // Sẽ sinh trong transaction
                     ErpCutOrderId = registration.ErpCutOrderId ?? string.Empty,
                     CustomerCode = registration.CustomerCode,
@@ -467,6 +468,7 @@ public sealed class CaptureSessionWeight2UseCase
                         {
                             Id = Guid.NewGuid(),
                             WeighingSessionId = sessionId,
+                            StationCode = _userContext.StationCode,
                             CaptureStage = stage,
                             CameraCode = capture.CameraCode,
                             CameraName = capture.CameraName,

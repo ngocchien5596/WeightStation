@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -124,6 +124,7 @@ public sealed class SplitOverweightTicketUseCase
             Id = Guid.NewGuid(),
             CutOrderId = reg.Id,
             TicketNo = await _ticketNoGen.GenerateAsync(ct),
+            StationCode = ticket1.StationCode,
             TransactionType = reg.TransactionType,
             TransportMethod = reg.TransportMethod,
             VehiclePlate = reg.VehiclePlate,

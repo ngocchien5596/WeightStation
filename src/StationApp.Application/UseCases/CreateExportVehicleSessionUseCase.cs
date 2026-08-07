@@ -65,6 +65,7 @@ public sealed class CreateExportVehicleSessionUseCase
             {
                 Id = Guid.NewGuid(),
                 SessionNo = sessionNo,
+                StationCode = cutOrder.StationCode,
                 TransactionType = TransactionType.OUTBOUND,
                 VehiclePlate = vehiclePlate,
                 MoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber),
@@ -83,6 +84,7 @@ public sealed class CreateExportVehicleSessionUseCase
                 Id = Guid.NewGuid(),
                 WeighingSessionId = session.Id,
                 CutOrderId = cutOrder.Id,
+                StationCode = cutOrder.StationCode,
                 SequenceNo = 1,
                 CustomerCode = cutOrder.CustomerCode,
                 CustomerName = cutOrder.CustomerName,

@@ -868,7 +868,7 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
     }
 
     private static bool CanComputeExportScaleBagMetrics(CutOrder cutOrder)
-        => cutOrder.BagWeightKg.GetValueOrDefault() > 0m && cutOrder.TareWeightKg.GetValueOrDefault() > 0m;
+        => cutOrder.BagWeightKg.GetValueOrDefault() > 0m && cutOrder.TareWeightKg.GetValueOrDefault() >= 0m;
 
     private static string ResolveShiftCode(DateTime time)
     {

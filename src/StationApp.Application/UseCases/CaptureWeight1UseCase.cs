@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -64,6 +64,7 @@ public sealed class CaptureWeight1UseCase
             Id = Guid.NewGuid(),
             CutOrderId = reg.Id,
             TicketNo = await _ticketNoGen.GenerateAsync(ct),
+            StationCode = reg.StationCode,
             ErpCutOrderId = reg.ErpCutOrderId,
             VehiclePlate = reg.VehiclePlate,
             MoocNumber = reg.MoocNumber,

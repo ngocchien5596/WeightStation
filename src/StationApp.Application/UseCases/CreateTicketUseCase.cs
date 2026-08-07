@@ -1,4 +1,4 @@
-﻿using StationApp.Application.DTOs;
+using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Services;
 using StationApp.Domain.Entities;
@@ -53,6 +53,7 @@ public sealed class CreateTicketUseCase
             {
                 Id = Guid.NewGuid(),
                 TicketNo = ticketNo,
+                StationCode = _userContext.StationCode,
                 ErpCutOrderId = request.ErpCutOrderId,
                 VehiclePlate = VehicleIdentifierNormalizer.NormalizePlate(request.VehiclePlate),
                 MoocNumber = VehicleIdentifierNormalizer.NormalizeOptional(request.MoocNumber),
