@@ -208,6 +208,7 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<IDialogService, WpfDialogService>();
                     services.AddSingleton<IAppUpdateService, SharedFolderAppUpdateService>();
                     services.AddSingleton<ScaleDeviceConfigurationResolver>();
+                    services.AddSingleton<LocalScaleDeviceSettingsStore>();
                     services.AddSingleton<ICameraPreviewService, OpenCvCameraPreviewService>();
                     services.AddSingleton<ICameraCaptureService, RtspCameraCaptureService>();
 
@@ -402,16 +403,6 @@ public partial class App : System.Windows.Application
 
         var defaults = new Dictionary<string, string>
         {
-            [AppConfigKeys.DeviceComPort] = AppConfigDefaults.DefaultDeviceComPort,
-            [AppConfigKeys.DeviceBaudrate] = AppConfigDefaults.DefaultDeviceBaudrate,
-            [AppConfigKeys.DeviceParity] = AppConfigDefaults.DefaultDeviceParity,
-            [AppConfigKeys.DeviceDataBits] = AppConfigDefaults.DefaultDeviceDataBits,
-            [AppConfigKeys.DeviceStopBits] = AppConfigDefaults.DefaultDeviceStopBits,
-            [AppConfigKeys.DeviceParserType] = AppConfigDefaults.DefaultDeviceParserType,
-            [AppConfigKeys.DeviceFrameEndChar] = AppConfigDefaults.DefaultDeviceFrameEndChar,
-            [AppConfigKeys.DeviceStableCycles] = AppConfigDefaults.DefaultDeviceStableCycles,
-            [AppConfigKeys.WeightSubstringStart] = AppConfigDefaults.DefaultWeightSubstringStart,
-            [AppConfigKeys.WeightSubstringLength] = AppConfigDefaults.DefaultWeightSubstringLength,
             [AppConfigKeys.Camera1Enabled] = AppConfigDefaults.DefaultCamera1Enabled,
             [AppConfigKeys.Camera1Name] = AppConfigDefaults.DefaultCamera1Name,
             [AppConfigKeys.Camera1RtspUrl] = AppConfigDefaults.DefaultCamera1RtspUrl,

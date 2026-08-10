@@ -59,7 +59,8 @@ public partial class SettingsViewModel : ObservableObject
         ICurrentUserContext currentUserContext,
         Device.Abstractions.IScaleDevice scaleDevice,
         AppUpdateViewModel appUpdateViewModel,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        Services.LocalScaleDeviceSettingsStore scaleDeviceSettingsStore)
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
@@ -68,7 +69,7 @@ public partial class SettingsViewModel : ObservableObject
 
         SystemSettingsVM = new Settings.SystemSettingsViewModel(_scopeFactory, _currentUserContext, configuration);
         CameraConfigVM = new Settings.CameraConfigViewModel(_scopeFactory, _currentUserContext);
-        ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice);
+        ScaleDeviceConfigVM = new Settings.ScaleDeviceConfigViewModel(_scopeFactory, _currentUserContext, scaleDevice, scaleDeviceSettingsStore);
         PrintConfigVM = new Settings.PrintConfigViewModel(_scopeFactory, _currentUserContext);
         VehicleMasterVM = new Settings.VehicleMasterViewModel(_scopeFactory, _currentStationContext);
         CustomerMasterVM = new Settings.CustomerMasterViewModel(_scopeFactory);

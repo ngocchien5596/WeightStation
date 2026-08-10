@@ -3,10 +3,8 @@ using System.IO.Ports;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
-using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
-using StationApp.Application.UseCases;
 using StationApp.Device.Abstractions;
 using StationApp.Device.Implementations;
 using StationApp.Domain.Constants;
@@ -18,15 +16,18 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICurrentUserContext _currentUserContext;
     private readonly IScaleDevice _scaleDevice;
+    private readonly Services.LocalScaleDeviceSettingsStore _settingsStore;
 
     public ScaleDeviceConfigViewModel(
         IServiceScopeFactory scopeFactory,
         ICurrentUserContext currentUserContext,
-        IScaleDevice scaleDevice)
+        IScaleDevice scaleDevice,
+        Services.LocalScaleDeviceSettingsStore settingsStore)
     {
         _scopeFactory = scopeFactory;
         _currentUserContext = currentUserContext;
         _scaleDevice = scaleDevice;
+        _settingsStore = settingsStore;
 
         AvailableBaudrates = new ObservableCollection<string>(["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"]);
         AvailableParities = new ObservableCollection<string>(["None", "Even", "Odd", "Mark", "Space"]);
@@ -76,19 +77,19 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
     {
         RefreshAvailablePortsInternal();
 
-        using var scope = _scopeFactory.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
+        await Task.CompletedTask;
+        var configuration = _settingsStore.GetConfiguration();
 
-        ComPort = await repo.GetValueAsync(AppConfigKeys.DeviceComPort, CancellationToken.None) ?? FirstOrDefault(AvailablePorts, AppConfigDefaults.DefaultDeviceComPort);
-        Baudrate = await repo.GetValueAsync(AppConfigKeys.DeviceBaudrate, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceBaudrate;
-        Parity = await repo.GetValueAsync(AppConfigKeys.DeviceParity, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceParity;
-        DataBits = await repo.GetValueAsync(AppConfigKeys.DeviceDataBits, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceDataBits;
-        StopBits = await repo.GetValueAsync(AppConfigKeys.DeviceStopBits, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceStopBits;
-        ParserType = await repo.GetValueAsync(AppConfigKeys.DeviceParserType, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceParserType;
-        FrameEndChar = await repo.GetValueAsync(AppConfigKeys.DeviceFrameEndChar, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceFrameEndChar;
-        StableCycles = await repo.GetValueAsync(AppConfigKeys.DeviceStableCycles, CancellationToken.None) ?? AppConfigDefaults.DefaultDeviceStableCycles;
-        WeightSubstringStart = await repo.GetValueAsync(AppConfigKeys.WeightSubstringStart, CancellationToken.None) ?? AppConfigDefaults.DefaultWeightSubstringStart;
-        WeightSubstringLength = await repo.GetValueAsync(AppConfigKeys.WeightSubstringLength, CancellationToken.None) ?? AppConfigDefaults.DefaultWeightSubstringLength;
+        ComPort = configuration.ComPort ?? FirstOrDefault(AvailablePorts, AppConfigDefaults.DefaultDeviceComPort);
+        Baudrate = configuration.BaudRate.ToString();
+        Parity = configuration.Parity ?? AppConfigDefaults.DefaultDeviceParity;
+        DataBits = configuration.DataBits ?? AppConfigDefaults.DefaultDeviceDataBits;
+        StopBits = configuration.StopBits ?? AppConfigDefaults.DefaultDeviceStopBits;
+        ParserType = configuration.ParserType ?? AppConfigDefaults.DefaultDeviceParserType;
+        FrameEndChar = configuration.FrameEndChar ?? AppConfigDefaults.DefaultDeviceFrameEndChar;
+        StableCycles = (configuration.StableCycles ?? ScaleConnectionSettings.ResolveStableCycles(AppConfigDefaults.DefaultDeviceStableCycles)).ToString();
+        WeightSubstringStart = (configuration.WeightSubstringStart ?? ScaleConnectionSettings.ResolveOptionalInt(AppConfigDefaults.DefaultWeightSubstringStart).GetValueOrDefault()).ToString();
+        WeightSubstringLength = (configuration.WeightSubstringLength ?? ScaleConnectionSettings.ResolveOptionalInt(AppConfigDefaults.DefaultWeightSubstringLength).GetValueOrDefault()).ToString();
 
         EnsureOption(AvailablePorts, ComPort);
         EnsureOption(AvailableBaudrates, Baudrate);
@@ -116,20 +117,7 @@ public partial class ScaleDeviceConfigViewModel : ObservableObject
 
         try
         {
-            var useCase = scope.ServiceProvider.GetRequiredService<UpdateScaleDeviceSettingsUseCase>();
-            await useCase.ExecuteAsync(
-                new UpdateScaleDeviceSettingsRequest(
-                    ComPort.Trim(),
-                    Baudrate.Trim(),
-                    Parity.Trim(),
-                    DataBits.Trim(),
-                    StopBits.Trim(),
-                    ParserType.Trim(),
-                    FrameEndChar.Trim(),
-                    StableCycles.Trim(),
-                    WeightSubstringStart.Trim(),
-                    WeightSubstringLength.Trim()),
-                CancellationToken.None);
+            await _settingsStore.SaveAsync(BuildCurrentConfiguration(), CancellationToken.None);
 
             await ReconnectScaleDeviceAsync();
             await dialogService.ShowInfoAsync("Thông báo", "Lưu tham số thiết bị cân thành công và đã áp dụng cấu hình mới.");

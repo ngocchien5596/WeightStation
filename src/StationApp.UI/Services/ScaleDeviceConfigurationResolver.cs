@@ -1,5 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using StationApp.Application.Interfaces;
 using StationApp.Device.Implementations;
 using StationApp.Domain.Constants;
 
@@ -7,30 +5,15 @@ namespace StationApp.UI.Services;
 
 public sealed class ScaleDeviceConfigurationResolver
 {
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly LocalScaleDeviceSettingsStore _settingsStore;
 
-    public ScaleDeviceConfigurationResolver(IServiceScopeFactory scopeFactory)
+    public ScaleDeviceConfigurationResolver(LocalScaleDeviceSettingsStore settingsStore)
     {
-        _scopeFactory = scopeFactory;
+        _settingsStore = settingsStore;
     }
 
-    public async Task<SerialScaleDeviceConfiguration?> GetSavedConfigurationAsync(CancellationToken ct)
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var appRepo = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-
-        return BuildConfiguration(
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceComPort, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceBaudrate, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceParity, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceDataBits, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceStopBits, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceParserType, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceFrameEndChar, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.DeviceStableCycles, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.WeightSubstringStart, ct),
-            await appRepo.GetValueAsync(AppConfigKeys.WeightSubstringLength, ct));
-    }
+    public Task<SerialScaleDeviceConfiguration?> GetSavedConfigurationAsync(CancellationToken ct)
+        => Task.FromResult<SerialScaleDeviceConfiguration?>(_settingsStore.GetConfiguration());
 
     public static SerialScaleDeviceConfiguration BuildConfiguration(
         string? comPort,
