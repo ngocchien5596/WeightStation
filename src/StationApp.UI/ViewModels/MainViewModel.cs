@@ -77,7 +77,8 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewSettingsMenu =>
         StationAuthorization.CanViewMasterData(_currentUserContext.RoleCode, _currentStationContext.StationCode)
         || StationAuthorization.CanViewSettingsAdministration(_currentUserContext.RoleCode)
-        || StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode);
+        || StationAuthorization.CanUpdateApplication(_currentUserContext.RoleCode)
+        || StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);
     public bool CanViewSettingsParams => StationAuthorization.CanManageSystemSettings(_currentUserContext.RoleCode);
     public bool CanViewSettingsDevice => StationAuthorization.CanManageDeviceConfiguration(_currentUserContext.RoleCode);
     public bool CanViewSettingsPrint => StationAuthorization.CanManagePrintLayout(_currentUserContext.RoleCode);

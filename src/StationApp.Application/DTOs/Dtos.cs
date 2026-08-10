@@ -556,7 +556,8 @@ public sealed record ExportVehicleTripListItem(
     bool HasPrintedDeliveryTicket,
     string? Note = null,
     string? Weight1User = null,
-    string? Weight2User = null)
+    string? Weight2User = null,
+    DateTime? CreatedAt = null)
 {
     public bool IsReturnedBrokenTrip { get; set; }
     public bool CanToggleReturnedBrokenTrip { get; set; }

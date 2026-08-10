@@ -35,7 +35,7 @@ public static class StationAuthorization
     public static bool CanManageAccounts(string? roleCode) => IsAdmin(roleCode);
     public static bool CanManageSystemSettings(string? roleCode) => IsAdmin(roleCode);
     public static bool CanManageDeviceConfiguration(string? roleCode) => IsAdmin(roleCode);
-    public static bool CanManagePrintLayout(string? roleCode) => IsAdmin(roleCode);
+    public static bool CanManagePrintLayout(string? roleCode) => IsAnyApplicationRole(roleCode);
     public static bool CanViewDiagnostics(string? roleCode) => IsAdmin(roleCode);
     public static bool CanViewSettingsAdministration(string? roleCode) => IsAdmin(roleCode);
     public static bool CanViewMasterData(string? roleCode) => CanViewMasterData(roleCode, null);

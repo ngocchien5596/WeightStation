@@ -1,6 +1,9 @@
+using System.IO;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using StationApp.Application.Interfaces;
 using StationApp.Application.Security;
+using StationApp.Domain.Constants;
 using StationApp.Domain.Entities;
 using StationApp.Infrastructure.Persistence;
 
@@ -118,6 +121,12 @@ public class AppConfigRepository : IAppConfigRepository
     private readonly StationDbContext _db;
     private readonly IClock _clock;
 
+    private static readonly string MainConfigPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    private static readonly string BackupConfigDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "StationApp");
+    private static readonly string BackupConfigPath = Path.Combine(BackupConfigDir, "printersettings.json");
+
     public AppConfigRepository(StationDbContext db, IClock clock)
     {
         _db = db;
@@ -126,15 +135,134 @@ public class AppConfigRepository : IAppConfigRepository
 
     public async Task<string?> GetValueAsync(string key, CancellationToken ct)
     {
+        if (IsPrinterConfigKey(key))
+        {
+            var localVal = GetLocalPrinterConfig(key);
+            if (!string.IsNullOrWhiteSpace(localVal))
+            {
+                return localVal;
+            }
+        }
+
         var config = await _db.AppConfigs.FindAsync(new object[] { key }, ct);
         return config?.ConfigValue;
     }
 
     public async Task SetValueAsync(string key, string value, CancellationToken ct)
     {
+        if (IsPrinterConfigKey(key))
+        {
+            SaveLocalPrinterConfig(key, value);
+        }
+
         var config = await _db.AppConfigs.FindAsync(new object[] { key }, ct);
         if (config != null) { config.ConfigValue = value; config.UpdatedAt = _clock.NowLocal; }
         else await _db.AppConfigs.AddAsync(new AppConfig { ConfigKey = key, ConfigValue = value, UpdatedAt = _clock.NowLocal }, ct);
+    }
+
+    private static bool IsPrinterConfigKey(string key)
+    {
+        return string.Equals(key, AppConfigKeys.DefaultWeighTicketPrinter, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, AppConfigKeys.DefaultDeliveryTicketPrinter, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, "DefaultWeighTicketPrinter", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(key, "DefaultDeliveryTicketPrinter", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string MapJsonPropName(string key)
+    {
+        if (string.Equals(key, AppConfigKeys.DefaultWeighTicketPrinter, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(key, "DefaultWeighTicketPrinter", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DefaultWeighTicketPrinter";
+        }
+        return "DefaultDeliveryTicketPrinter";
+    }
+
+    private static string? GetLocalPrinterConfig(string key)
+    {
+        var propName = MapJsonPropName(key);
+        try
+        {
+            if (File.Exists(MainConfigPath))
+            {
+                var content = File.ReadAllText(MainConfigPath);
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty(propName, out var elem) && elem.ValueKind == JsonValueKind.String)
+                {
+                    var val = elem.GetString();
+                    if (!string.IsNullOrWhiteSpace(val)) return val;
+                }
+                if (doc.RootElement.TryGetProperty(key, out var elem2) && elem2.ValueKind == JsonValueKind.String)
+                {
+                    var val = elem2.GetString();
+                    if (!string.IsNullOrWhiteSpace(val)) return val;
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
+            if (File.Exists(BackupConfigPath))
+            {
+                var content = File.ReadAllText(BackupConfigPath);
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty(propName, out var elem) && elem.ValueKind == JsonValueKind.String)
+                {
+                    var val = elem.GetString();
+                    if (!string.IsNullOrWhiteSpace(val)) return val;
+                }
+                if (doc.RootElement.TryGetProperty(key, out var elem2) && elem2.ValueKind == JsonValueKind.String)
+                {
+                    var val = elem2.GetString();
+                    if (!string.IsNullOrWhiteSpace(val)) return val;
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
+    private static void SaveLocalPrinterConfig(string key, string value)
+    {
+        var propName = MapJsonPropName(key);
+
+        try
+        {
+            if (File.Exists(MainConfigPath))
+            {
+                var content = File.ReadAllText(MainConfigPath);
+                var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(content);
+                if (dict != null)
+                {
+                    dict[propName] = value;
+                    var newContent = JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(MainConfigPath, newContent);
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
+            if (!Directory.Exists(BackupConfigDir))
+            {
+                Directory.CreateDirectory(BackupConfigDir);
+            }
+
+            var dict = new Dictionary<string, object>();
+            if (File.Exists(BackupConfigPath))
+            {
+                var content = File.ReadAllText(BackupConfigPath);
+                dict = JsonSerializer.Deserialize<Dictionary<string, object>>(content) ?? new Dictionary<string, object>();
+            }
+
+            dict[propName] = value;
+            var newContent = JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(BackupConfigPath, newContent);
+        }
+        catch { }
     }
 }
 

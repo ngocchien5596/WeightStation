@@ -150,21 +150,44 @@ internal static class UpdaterProgram
     {
         var extractedPath = Path.Combine(extractedDirectory, "appsettings.json");
         var existingPath = Path.Combine(appDirectory, "appsettings.json");
-        if (!File.Exists(extractedPath) || !File.Exists(existingPath))
+        if (!File.Exists(extractedPath))
         {
             return;
         }
 
-        var existingRoot = JsonNode.Parse(File.ReadAllText(existingPath)) as JsonObject;
-        var packageRoot = JsonNode.Parse(File.ReadAllText(extractedPath)) as JsonObject;
-        if (existingRoot == null || packageRoot == null)
+        if (!File.Exists(existingPath))
         {
-            logger.Info("Skip appsettings merge because JSON cannot be parsed.");
+            File.Copy(extractedPath, existingPath, overwrite: true);
             return;
         }
 
-        MergeLocalValues(existingRoot, packageRoot);
-        File.WriteAllText(extractedPath, packageRoot.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        try
+        {
+            var backupPath = existingPath + ".bak";
+            File.Copy(existingPath, backupPath, overwrite: true);
+
+            var existingContent = File.ReadAllText(existingPath);
+            var packageContent = File.ReadAllText(extractedPath);
+
+            var existingRoot = JsonNode.Parse(existingContent) as JsonObject;
+            var packageRoot = JsonNode.Parse(packageContent) as JsonObject;
+            if (existingRoot == null || packageRoot == null)
+            {
+                logger.Info("Skip appsettings merge because JSON cannot be parsed.");
+                return;
+            }
+
+            MergeLocalValues(existingRoot, packageRoot);
+
+            var mergedJson = packageRoot.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(existingPath, mergedJson);
+            File.WriteAllText(extractedPath, mergedJson);
+            logger.Info("Successfully merged appsettings.json.");
+        }
+        catch (Exception ex)
+        {
+            logger.Error("Failed to merge appsettings.json. Preserving existing local appsettings.json.", ex);
+        }
     }
 
     private static void MergeLocalValues(JsonObject existingRoot, JsonObject packageRoot)
@@ -208,6 +231,13 @@ internal static class UpdaterProgram
             var relative = Path.GetRelativePath(sourceDirectory, file);
             var targetFile = Path.Combine(destinationDirectory, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
+
+            if (Path.GetFileName(file).Equals("appsettings.json", StringComparison.OrdinalIgnoreCase) && File.Exists(targetFile))
+            {
+                logger.Info("Preserving existing target appsettings.json during file copy.");
+                continue;
+            }
+
             File.Copy(file, targetFile, overwrite: true);
         }
     }

@@ -1407,7 +1407,8 @@ public class CutOrderRepository : ICutOrderRepository
                 deliveryTicket?.IsPrinted ?? line.HasPrintedDeliveryTicket,
                 line.Note,
                 ResolveUserDisplayName(userDisplayByUsername, weighTicket?.Weight1User ?? session.CreatedBy),
-                ResolveUserDisplayName(userDisplayByUsername, weighTicket?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)))
+                ResolveUserDisplayName(userDisplayByUsername, weighTicket?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)),
+                session.CreatedAt)
             {
                 IsReturnedBrokenTrip = line.IsReturnedBrokenTrip,
                 CanToggleReturnedBrokenTrip =

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
 using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
@@ -10,6 +11,7 @@ namespace StationApp.UI.ViewModels;
 public partial class LoginViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<LoginViewModel>? _logger;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
@@ -37,10 +39,14 @@ public partial class LoginViewModel : ObservableObject
     public bool CanLogin => !IsBusy && !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password);
     public event EventHandler<bool>? CloseRequested;
 
-    public LoginViewModel(IServiceScopeFactory scopeFactory, IAppVersionProvider versionProvider)
+    public LoginViewModel(
+        IServiceScopeFactory scopeFactory,
+        IAppVersionProvider versionProvider,
+        ILogger<LoginViewModel>? logger = null)
     {
         _scopeFactory = scopeFactory;
         VersionText = $"Phiên bản {versionProvider.GetVersion()}";
+        _logger = logger;
     }
 
     partial void OnIsBusyChanged(bool value)
@@ -69,10 +75,11 @@ public partial class LoginViewModel : ObservableObject
 
             CloseRequested?.Invoke(this, true);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogError(ex, "Login failed unexpectedly.");
             Password = string.Empty;
-            ErrorMessage = "Không thể đăng nhập. Vui lòng thử lại.";
+            ErrorMessage = $"Không thể đăng nhập: {ex.Message}";
         }
         finally
         {
