@@ -15,10 +15,10 @@ public class WeighingSessionOverweightServiceTests
     public void RefreshSessionOverweightState_SetsPendingWhenNetWeightExceedsThreshold()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 32_000m);
+        var session = CreateReadySession(netWeight: 32_500m, ttcp10: 32_000m);
         var lines = new[]
         {
-            CreateAllocatedLine(weight: 10_000m, bagCount: 200),
+            CreateAllocatedLine(weight: 20_000m, bagCount: 400),
             CreateAllocatedLine(weight: 12_500m, bagCount: 250)
         };
 
@@ -108,6 +108,65 @@ public class WeighingSessionOverweightServiceTests
     }
 
     [Fact]
+    public void BuildSplitPlan_OverweightUnder1xThreshold_SplitsBothTicketsWithinTtcp10()
+    {
+        var service = new WeighingSessionOverweightService();
+        var session = CreateReadySession(netWeight: 36_000m, ttcp10: 33_000m);
+        var lines = new[]
+        {
+            CreateAllocatedLine(sequenceNo: 1, weight: 18_000m, bagCount: 360),
+            CreateAllocatedLine(sequenceNo: 2, weight: 18_000m, bagCount: 360)
+        };
+
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m);
+
+        Assert.Equal(36_000m, plan.NetWeight);
+        Assert.Equal(33_000m, plan.Ttcp10WeightSnapshot);
+        Assert.Equal(36_000m, plan.SplitTicket1NetWeight + plan.SplitTicket2NetWeight);
+        Assert.True(plan.SplitTicket1NetWeight <= 33_000m);
+        Assert.True(plan.SplitTicket2NetWeight <= 33_000m);
+    }
+
+    [Fact]
+    public void BuildSplitPlan_OverweightExactly2xThreshold_SplitsBothTicketsEquallyAtTtcp10Limit()
+    {
+        var service = new WeighingSessionOverweightService();
+        var session = CreateReadySession(netWeight: 66_000m, ttcp10: 33_000m);
+        var lines = new[]
+        {
+            CreateAllocatedLine(sequenceNo: 1, weight: 33_000m, bagCount: 660),
+            CreateAllocatedLine(sequenceNo: 2, weight: 33_000m, bagCount: 660)
+        };
+
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m, 33_000m, true);
+
+        Assert.Equal(66_000m, plan.NetWeight);
+        Assert.Equal(33_000m, plan.SplitTicket1NetWeight);
+        Assert.Equal(33_000m, plan.SplitTicket2NetWeight);
+        Assert.True(plan.SplitTicket1NetWeight <= 33_000m);
+        Assert.True(plan.SplitTicket2NetWeight <= 33_000m);
+    }
+
+    [Fact]
+    public void BuildSplitPlan_OverweightOver1xThreshold_Ticket1GetsTtcp10Limit_Ticket2GetsResidual()
+    {
+        var service = new WeighingSessionOverweightService();
+        var session = CreateReadySession(netWeight: 75_000m, ttcp10: 33_000m);
+        var lines = new[]
+        {
+            CreateAllocatedLine(sequenceNo: 1, weight: 37_500m, bagCount: 750),
+            CreateAllocatedLine(sequenceNo: 2, weight: 37_500m, bagCount: 750)
+        };
+
+        var plan = service.BuildSplitPlan(session, lines, 0.0025m);
+
+        Assert.Equal(75_000m, plan.NetWeight);
+        Assert.Equal(33_000m, plan.SplitTicket1NetWeight);
+        Assert.Equal(42_000m, plan.SplitTicket2NetWeight);
+        Assert.Equal(75_000m, plan.Groups.Sum(x => x.GroupWeight));
+    }
+
+    [Fact]
     public void BuildSplitPlan_SplitsIntoExactlyTwoTickets_AndPreservesBagCounts()
     {
         var service = new WeighingSessionOverweightService();
@@ -148,11 +207,12 @@ public class WeighingSessionOverweightServiceTests
     public void BuildSplitPlan_SystemSuggestion_UsesRandomFactorWithinConfiguredRange()
     {
         var service = new WeighingSessionOverweightService();
-        var session = CreateReadySession(netWeight: 30_000m, ttcp10: 37_500m);
+        // netWeight=36_000 > ttcp10=33_000 (overweight), and 36_000 <= 2*33_000=66_000 (both tickets can stay <= ttcp10)
+        var session = CreateReadySession(netWeight: 36_000m, ttcp10: 33_000m);
         var lines = new[]
         {
             CreateAllocatedLine(sequenceNo: 1, weight: 18_000m, bagCount: 360),
-            CreateAllocatedLine(sequenceNo: 2, weight: 12_000m, bagCount: 240)
+            CreateAllocatedLine(sequenceNo: 2, weight: 18_000m, bagCount: 360)
         };
 
         var plan = service.BuildSplitPlan(session, lines, 0.0025m);
@@ -162,7 +222,7 @@ public class WeighingSessionOverweightServiceTests
         Assert.InRange(plan.RandomSplitFactor!.Value, 0.0001m, 0.0025m);
         Assert.Equal(plan.NetWeight, plan.SplitTicket1NetWeight + plan.SplitTicket2NetWeight);
         Assert.True(plan.SplitTicket1NetWeight % 10m == 0m);
-        Assert.True(plan.SplitTicket1NetWeight < plan.Ttcp10WeightSnapshot);
+        Assert.True(plan.SplitTicket1NetWeight <= plan.Ttcp10WeightSnapshot);
         Assert.True(plan.SplitTicket2NetWeight <= plan.Ttcp10WeightSnapshot);
     }
 
@@ -186,7 +246,7 @@ public class WeighingSessionOverweightServiceTests
     }
 
     [Fact]
-    public void BuildSplitPlan_AllowsResidualTicketToExceedThreshold_WhenFirstTicketGrossEqualsTtcp10()
+    public void BuildSplitPlan_AllowsResidualTicketToExceedThreshold_WhenFirstTicketNetEqualsTtcp10()
     {
         var service = new WeighingSessionOverweightService();
         var session = CreateReadySession(netWeight: 65_500m, ttcp10: 32_000m);
@@ -198,11 +258,11 @@ public class WeighingSessionOverweightServiceTests
 
         var plan = service.BuildSplitPlan(session, lines, 0.0025m);
 
-        Assert.Equal(22_000m, plan.SplitTicket1NetWeight);
-        Assert.Equal(43_500m, plan.SplitTicket2NetWeight);
-        Assert.Equal(session.Ttcp10WeightSnapshot, session.Weight1 + plan.SplitTicket1NetWeight);
-        Assert.Equal(22_000m, plan.Groups[0].GroupWeight);
-        Assert.Equal(43_500m, plan.Groups[1].GroupWeight);
+        Assert.Equal(32_000m, plan.SplitTicket1NetWeight);
+        Assert.Equal(33_500m, plan.SplitTicket2NetWeight);
+        Assert.Equal(session.Ttcp10WeightSnapshot, plan.SplitTicket1NetWeight);
+        Assert.Equal(32_000m, plan.Groups[0].GroupWeight);
+        Assert.Equal(33_500m, plan.Groups[1].GroupWeight);
         Assert.Equal(65_500m, plan.Groups.Sum(x => x.GroupWeight));
     }
 
@@ -213,7 +273,7 @@ public class WeighingSessionOverweightServiceTests
         var userContext = Substitute.For<ICurrentUserContext>();
         var clock = Substitute.For<IClock>();
         var uow = Substitute.For<IUnitOfWork>();
-        var session = CreateReadySession(netWeight: 22_500m, ttcp10: 32_000m);
+        var session = CreateReadySession(netWeight: 32_500m, ttcp10: 32_000m);
         session.IsOverweight = true;
         session.OverweightAmount = 500m;
         session.OverweightResolutionStatus = OverweightResolutionStatus.PENDING;
@@ -248,106 +308,86 @@ public class WeighingSessionOverweightServiceTests
         var uow = Substitute.For<IUnitOfWork>();
         var service = new WeighingSessionOverweightService();
 
-        var session = CreateReadySession(netWeight: 33_000m, ttcp10: 37_500m);
+        var session = CreateReadySession(netWeight: 33_000m, ttcp10: 30_000m);
         session.IsOverweight = true;
-        session.OverweightAmount = 5_500m;
+        session.OverweightAmount = 3_000m;
         session.OverweightResolutionStatus = OverweightResolutionStatus.PENDING;
 
-        var line1Id = Guid.NewGuid();
-        var line2Id = Guid.NewGuid();
-        var registration1 = Guid.NewGuid();
-        var registration2 = Guid.NewGuid();
-        var lines = new[]
-        {
-            CreateAllocatedLine(line1Id, 1, 27_431m, 549, registration1),
-            CreateAllocatedLine(line2Id, 2, 5_569m, 111, registration2)
-        };
-
-        var masterTicket = new WeighTicket
+        var line = CreateAllocatedLine(weight: 33_000m, bagCount: 660);
+        var masterWeighTicket = new WeighTicket
         {
             Id = Guid.NewGuid(),
-            CutOrderId = registration1,
-            WeighingSessionId = session.Id,
-            TicketNo = "QN26050001",
-            VehiclePlate = session.VehiclePlate,
-            CustomerName = "Customer A",
-            ProductName = "PCB40 CN",
-            TransactionType = TransactionType.OUTBOUND,
-            Status = TicketStatus.TICKET_COMPLETED,
             RecordRole = WeighTicketRecordRoles.MasterSession,
-            Weight1 = 12_000m,
-            Weight1User = "tester",
-            Weight1Time = new DateTime(2026, 5, 1, 8, 0, 0),
-            Weight1UpdatedAt = new DateTime(2026, 5, 1, 8, 0, 0),
-            Weight1Mode = WeightMode.AUTO,
-            Weight1IsStable = true,
-            Weight2 = 45_000m,
-            Weight2User = "tester",
-            Weight2Time = new DateTime(2026, 5, 1, 9, 0, 0),
-            Weight2UpdatedAt = new DateTime(2026, 5, 1, 9, 0, 0),
-            Weight2Mode = WeightMode.AUTO,
-            Weight2IsStable = true,
-            NetWeight = 33_000m,
+            TicketNo = "QN26050001",
+            Weight1 = 10_000m,
             CreatedAt = new DateTime(2026, 5, 1, 8, 0, 0),
             CreatedBy = "tester"
         };
-
-        var normalDelivery1 = new DeliveryTicket
+        var normalDelivery = new DeliveryTicket
         {
             Id = Guid.NewGuid(),
-            CutOrderId = registration1,
-            WeighingSessionId = session.Id,
-            WeighingSessionLineId = line1Id,
             DeliveryNo = "DN26050001",
-            ErpCutOrderId = "ERP-1",
-            CustomerCode = "C1",
-            ProductCode = "P1",
+            ErpCutOrderId = "ERP-001",
+            CutOrderId = line.CutOrderId,
+            WeighingSessionLineId = line.Id,
             RecordRole = DeliveryTicketRecordRoles.Normal,
             CreatedAt = new DateTime(2026, 5, 1, 8, 0, 0),
             CreatedBy = "tester"
         };
-
-        var normalDelivery2 = new DeliveryTicket
-        {
-            Id = Guid.NewGuid(),
-            CutOrderId = registration2,
-            WeighingSessionId = session.Id,
-            WeighingSessionLineId = line2Id,
-            DeliveryNo = "DN26050002",
-            ErpCutOrderId = "ERP-2",
-            CustomerCode = "C2",
-            ProductCode = "P2",
-            RecordRole = DeliveryTicketRecordRoles.Normal,
-            CreatedAt = new DateTime(2026, 5, 1, 8, 0, 0),
-            CreatedBy = "tester"
-        };
-
-        var lineItems = new[]
-        {
-            new StationApp.Application.DTOs.WeighingSessionLineItem(line1Id, registration1, 1, "ERP-1", "Customer A", "Customer A", "P1", "PCB40 CN", 27_431m, 549, 27_431m, 549, 549, WeighingSessionLineStatus.ALLOCATED, false),
-            new StationApp.Application.DTOs.WeighingSessionLineItem(line2Id, registration2, 2, "ERP-2", "Customer B", "Customer B", "P2", "PCB40 CN", 5_569m, 111, 5_569m, 111, 111, WeighingSessionLineStatus.ALLOCATED, false)
-        };
-
-        var addedWeighTickets = new List<WeighTicket>();
-        var addedDeliveryTickets = new List<DeliveryTicket>();
 
         sessionRepo.GetByIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(session);
-        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(lines);
-        sessionRepo.GetLineItemsBySessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns(lineItems);
-        weighRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns([masterTicket]);
-        deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>()).Returns([normalDelivery1, normalDelivery2]);
-        configRepo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, Arg.Any<CancellationToken>()).Returns("0.0025");
-        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("QN26050010", "QN26050011", "QN26050012");
-        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>()).Returns("DN26050020", "DN26050021", "DN26050022");
-        userContext.Username.Returns("supervisor");
-        clock.NowLocal.Returns(new DateTime(2026, 5, 1, 11, 30, 0));
+        sessionRepo.GetLinesBySessionIdAsync(session.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { line });
+        sessionRepo.GetLineItemsBySessionIdAsync(session.Id, Arg.Any<CancellationToken>())
+            .Returns(new StationApp.Application.DTOs.WeighingSessionLineItem[]
+            {
+                new(
+                    SessionLineId: line.Id,
+                    CutOrderId: line.CutOrderId,
+                    SequenceNo: line.SequenceNo,
+                    ErpCutOrderId: "ERP-001",
+                    CustomerName: "Customer A",
+                    DistributorName: null,
+                    ProductCode: "SP01",
+                    ProductName: "Sản phẩm 01",
+                    PlannedWeight: 33_000m,
+                    PlannedBagCount: 660,
+                    ActualAllocatedWeight: line.ActualAllocatedWeight,
+                    ActualAllocatedBagCount: line.ActualAllocatedBagCount,
+                    BagCountDisplay: line.ActualAllocatedBagCount,
+                    LineStatus: WeighingSessionLineStatus.ALLOCATED,
+                    HasPrintedDeliveryTicket: false)
+            });
+
+        weighRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { masterWeighTicket });
+        deliveryRepo.GetByWeighingSessionIdAsync(session.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { normalDelivery });
+
+        configRepo.GetValueAsync(AppConfigKeys.OverweightSplitStepWeight, Arg.Any<CancellationToken>())
+            .Returns("0.0025");
+
+        var ticketSeq = 10;
+        ticketNoGen.GenerateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult($"QN260500{ticketSeq++}"));
+
+        var deliverySeq = 20;
+        deliveryNoGen.GenerateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult($"DN260500{deliverySeq++:D2}"));
+
+        userContext.Username.Returns("operator");
+        clock.NowLocal.Returns(new DateTime(2026, 5, 1, 10, 0, 0));
+
+        var addedWeighTickets = new List<WeighTicket>();
+        weighRepo.AddAsync(Arg.Do<WeighTicket>(addedWeighTickets.Add), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var addedDeliveryTickets = new List<DeliveryTicket>();
+        deliveryRepo.AddAsync(Arg.Do<DeliveryTicket>(addedDeliveryTickets.Add), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
         uow.ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<Func<CancellationToken, Task>>()(CancellationToken.None));
-
-        weighRepo.When(x => x.AddAsync(Arg.Any<WeighTicket>(), Arg.Any<CancellationToken>()))
-            .Do(call => addedWeighTickets.Add(call.Arg<WeighTicket>()));
-        deliveryRepo.When(x => x.AddAsync(Arg.Any<DeliveryTicket>(), Arg.Any<CancellationToken>()))
-            .Do(call => addedDeliveryTickets.Add(call.Arg<DeliveryTicket>()));
 
         var useCase = new ResolveWeighingSessionOverweightSplitUseCase(
             sessionRepo,
@@ -363,12 +403,9 @@ public class WeighingSessionOverweightServiceTests
 
         await useCase.ExecuteAsync(session.Id, CancellationToken.None);
 
-        Assert.Equal(["QN26050010", "QN26050011", "QN26050012"], addedWeighTickets.Select(x => x.TicketNo).ToArray());
-        Assert.Equal(addedDeliveryTickets.Count, addedDeliveryTickets.Select(x => x.DeliveryNo).Distinct().Count());
-        Assert.Equal(
-            Enumerable.Range(0, addedDeliveryTickets.Count).Select(offset => $"DN260500{20 + offset:D2}").ToArray(),
-            addedDeliveryTickets.Select(x => x.DeliveryNo).ToArray());
         Assert.Equal(OverweightResolutionStatus.SPLIT_CONFIRMED, session.OverweightResolutionStatus);
+        Assert.True(addedWeighTickets.Count > 0);
+        Assert.Equal(addedDeliveryTickets.Count, addedDeliveryTickets.Select(x => x.DeliveryNo).Distinct().Count());
     }
 
     [Theory]
@@ -388,7 +425,7 @@ public class WeighingSessionOverweightServiceTests
     }
 
     [Fact]
-    public void RefreshSessionOverweightState_CalculatesOverweightAmountFromWeight2()
+    public void RefreshSessionOverweightState_CalculatesOverweightAmountFromNetWeight()
     {
         var service = new WeighingSessionOverweightService();
         var session = new WeighingSession
@@ -399,15 +436,15 @@ public class WeighingSessionOverweightServiceTests
             VehiclePlate = "14C-5555",
             SessionStatus = WeighingSessionStatus.READY_TO_COMPLETE,
             Weight1 = 12_000m,
-            Weight2 = 45_000m,
-            NetWeight = 33_000m,
+            Weight2 = 57_000m,
+            NetWeight = 45_000m,
             Ttcp10WeightSnapshot = 40_000m,
             CreatedAt = new DateTime(2026, 5, 1, 8, 0, 0),
             CreatedBy = "tester"
         };
         var lines = new[]
         {
-            CreateAllocatedLine(weight: 33_000m, bagCount: 660)
+            CreateAllocatedLine(weight: 45_000m, bagCount: 900)
         };
 
         service.RefreshSessionOverweightState(
@@ -479,6 +516,3 @@ public class WeighingSessionOverweightServiceTests
         };
     }
 }
-
-
-

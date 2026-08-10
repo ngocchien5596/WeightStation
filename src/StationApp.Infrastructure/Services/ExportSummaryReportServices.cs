@@ -222,14 +222,14 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
 
     public async Task<ExportScaleSummaryReportDocument> BuildExportScaleReportAsync(
         Guid? cutOrderId,
+        DateTime fromTime,
+        DateTime toTime,
         DateTime? targetDateForShiftReport,
         string preparedByDisplayName,
         CancellationToken ct)
     {
         var stationCode = await ResolveStationCodeAsync(ct);
-        var effectiveShiftReportDate = targetDateForShiftReport?.Date ?? DateTime.Today;
-        var fromTime = effectiveShiftReportDate;
-        var toTime = effectiveShiftReportDate.AddDays(1);
+        var effectiveShiftReportDate = targetDateForShiftReport?.Date ?? fromTime.Date;
 
         CutOrder? selectedCutOrder = null;
         if (cutOrderId.HasValue)
@@ -272,9 +272,9 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
                 && session.Weight2Time.HasValue
                 && (session.SessionStatus == WeighingSessionStatus.READY_TO_COMPLETE
                     || session.SessionStatus == WeighingSessionStatus.COMPLETED)
-                && (cutOrderId.HasValue
-                    ? line.CutOrderId == cutOrderId.Value
-                    : session.Weight2Time.Value >= fromTime && session.Weight2Time.Value < toTime)
+                && (!cutOrderId.HasValue || line.CutOrderId == cutOrderId.Value)
+                && session.Weight2Time.Value >= fromTime
+                && session.Weight2Time.Value <= toTime
             orderby session.Weight2Time, session.SessionNo, line.SequenceNo
             select new
             {
@@ -323,6 +323,8 @@ public sealed class ExportSummaryReportService : IExportSummaryReportService
             tareWeightKg,
             netCementWeightKg,
             grossWeightKg,
+            fromTime,
+            toTime,
             effectiveShiftReportDate,
             preparedByDisplayName,
             mappedRows);
@@ -963,6 +965,7 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         var titleRange = sheet.Range("B5:T5");
         titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         titleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
         titleRange.Style.Font.Bold = true;
         titleRange.Style.Font.FontSize = 16;
     }
@@ -1321,6 +1324,12 @@ public sealed class ExportSummaryReportExcelExporter : IExportSummaryReportExpor
         titleRange.Style.Font.FontSize = 16;
         titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         titleRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+        sheet.Range("J3:K3").Merge().Value = "Kho\u1EA3ng th\u1EDDi gian";
+        sheet.Range("J3:K3").Style.Font.Bold = true;
+        sheet.Range("L3:N3").Merge().Value = $"{document.FromTime:HH:mm:ss dd/MM/yyyy} - {document.ToTime:HH:mm:ss dd/MM/yyyy}";
+        sheet.Range("L3:N3").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.Range("L3:N3").Style.Font.Bold = true;
 
         sheet.Range("C4:D4").Merge().Value = "Khách hàng";
         sheet.Range("C4:D4").Style.Font.Bold = true;

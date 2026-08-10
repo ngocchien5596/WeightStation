@@ -11,6 +11,8 @@ public interface IExportSummaryReportService
 
     Task<ExportScaleSummaryReportDocument> BuildExportScaleReportAsync(
         Guid? cutOrderId,
+        DateTime fromTime,
+        DateTime toTime,
         DateTime? targetDateForShiftReport,
         string preparedByDisplayName,
         CancellationToken ct);

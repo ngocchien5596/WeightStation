@@ -50,7 +50,7 @@ public sealed class WeighingSessionOverweightService
         }
 
         var overweightAmount = decimal.Round(
-            session.Weight2!.Value - session.Ttcp10WeightSnapshot!.Value,
+            session.NetWeight!.Value - session.Ttcp10WeightSnapshot!.Value,
             3,
             MidpointRounding.AwayFromZero);
 
@@ -83,7 +83,7 @@ public sealed class WeighingSessionOverweightService
             throw new InvalidOperationException("Lượt cân chưa đủ dữ liệu để lập phương án tách tải.");
         }
 
-        var target = session.Ttcp10WeightSnapshot.Value - session.Weight1.Value;
+        var target = session.Ttcp10WeightSnapshot.Value;
         if (target <= 0m)
         {
             throw new InvalidOperationException("Ngưỡng TTCP 10% không hợp lệ.");

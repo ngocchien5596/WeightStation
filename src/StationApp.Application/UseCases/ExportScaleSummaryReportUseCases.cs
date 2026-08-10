@@ -18,14 +18,21 @@ public sealed class BuildExportScaleSummaryReportUseCase
 
     public Task<ExportScaleSummaryReportDocument> ExecuteAsync(
         Guid? cutOrderId,
+        DateTime fromTime,
+        DateTime toTime,
         DateTime? targetDateForShiftReport,
         CancellationToken ct)
     {
+        if (fromTime > toTime)
+        {
+            throw new InvalidOperationException("Từ giờ không được lớn hơn Đến giờ.");
+        }
+
         var preparedBy = string.IsNullOrWhiteSpace(_currentUserContext.DisplayName)
             ? _currentUserContext.Username
             : _currentUserContext.DisplayName;
 
-        return _service.BuildExportScaleReportAsync(cutOrderId, targetDateForShiftReport, preparedBy, ct);
+        return _service.BuildExportScaleReportAsync(cutOrderId, fromTime, toTime, targetDateForShiftReport, preparedBy, ct);
     }
 }
 

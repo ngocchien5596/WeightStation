@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using StationApp.Application.DTOs;
+using StationApp.Application.Interfaces;
 using StationApp.Application.UseCases;
 using StationApp.UI.Services;
 
@@ -16,9 +17,21 @@ public partial class ExportScaleReportViewModel : ObservableObject
     private readonly BuildExportScaleSummaryReportUseCase _buildUseCase;
     private readonly ExportExportScaleSummaryReportUseCase _exportUseCase;
     private readonly GetExportScaleSummaryReportLookupOptionsUseCase _lookupOptionsUseCase;
+    private readonly IClock _clock;
     private readonly IToastService _toastService;
     private bool _suppressCutOrderSearchSync;
 
+    [ObservableProperty] private DateTime? _fromDate;
+    [ObservableProperty] private string? _fromHour;
+    [ObservableProperty] private string? _fromMinute;
+    [ObservableProperty] private string? _fromSecond;
+    [ObservableProperty] private DateTime? _toDate;
+    [ObservableProperty] private string? _toHour;
+    [ObservableProperty] private string? _toMinute;
+    [ObservableProperty] private string? _toSecond;
+    [ObservableProperty] private ObservableCollection<string> _hourOptions = [];
+    [ObservableProperty] private ObservableCollection<string> _minuteOptions = [];
+    [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
     [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _cutOrderOptions = [];
     [ObservableProperty] private ICollectionView? _cutOrderOptionsView;
     [ObservableProperty] private string? _cutOrderSearchText;
@@ -55,16 +68,23 @@ public partial class ExportScaleReportViewModel : ObservableObject
         BuildExportScaleSummaryReportUseCase buildUseCase,
         ExportExportScaleSummaryReportUseCase exportUseCase,
         GetExportScaleSummaryReportLookupOptionsUseCase lookupOptionsUseCase,
+        IClock clock,
         IToastService toastService)
     {
         _buildUseCase = buildUseCase;
         _exportUseCase = exportUseCase;
         _lookupOptionsUseCase = lookupOptionsUseCase;
+        _clock = clock;
         _toastService = toastService;
     }
 
     public async Task InitializeAsync()
     {
+        HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
+        MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        ApplyCurrentShift();
+
         var options = await _lookupOptionsUseCase.GetCutOrdersAsync(CancellationToken.None);
         CutOrderOptions = new ObservableCollection<ReportLookupOptionDto>(options);
         CutOrderOptionsView = CollectionViewSource.GetDefaultView(CutOrderOptions);
@@ -93,13 +113,18 @@ public partial class ExportScaleReportViewModel : ObservableObject
 
         var cutOrderId = ResolveSelectedCutOrderId();
 
+        if (!TryBuildDateRange(out var fromTime, out var toTime, out var errorMessage))
+        {
+            _toastService.ShowWarning(errorMessage);
+            return;
+        }
 
         try
         {
             IsBusy = true;
             CleanupOldPreview();
 
-            var document = await _buildUseCase.ExecuteAsync(cutOrderId, TargetDate, CancellationToken.None);
+            var document = await _buildUseCase.ExecuteAsync(cutOrderId, fromTime, toTime, TargetDate, CancellationToken.None);
             ApplyPreview(document);
 
             if (document.Rows.Count == 0)
@@ -145,6 +170,11 @@ public partial class ExportScaleReportViewModel : ObservableObject
 
         var cutOrderId = ResolveSelectedCutOrderId();
 
+        if (!TryBuildDateRange(out var fromTime, out var toTime, out var errorMessage))
+        {
+            _toastService.ShowWarning(errorMessage);
+            return;
+        }
 
         var cutOrderCode = ResolveSelectedCutOrderCode();
         var saveDialog = new SaveFileDialog
@@ -154,7 +184,7 @@ public partial class ExportScaleReportViewModel : ObservableObject
             DefaultExt = ".xlsx",
             AddExtension = true,
             InitialDirectory = GetDefaultReportFolder(),
-            FileName = $"BaoCaoXuatXK_{cutOrderCode}_{(TargetDate ?? DateTime.Today):yyyyMMdd}.xlsx"
+            FileName = $"BaoCaoXuatXK_{cutOrderCode}_{fromTime:yyyyMMdd_HHmmss}_{toTime:yyyyMMdd_HHmmss}.xlsx"
         };
 
         if (saveDialog.ShowDialog() != true)
@@ -165,7 +195,7 @@ public partial class ExportScaleReportViewModel : ObservableObject
         try
         {
             IsBusy = true;
-            var document = await _buildUseCase.ExecuteAsync(cutOrderId, TargetDate, CancellationToken.None);
+            var document = await _buildUseCase.ExecuteAsync(cutOrderId, fromTime, toTime, TargetDate, CancellationToken.None);
             ApplyPreview(document);
             await _exportUseCase.ExecuteAsync(document, saveDialog.FileName, CancellationToken.None);
             _toastService.ShowSuccess($"Đã xuất báo cáo XK thành công:\n{saveDialog.FileName}");
@@ -262,6 +292,122 @@ public partial class ExportScaleReportViewModel : ObservableObject
         return options.FirstOrDefault(x =>
             string.Equals(x.DisplayName, normalized, StringComparison.OrdinalIgnoreCase)
             || string.Equals(x.Code, normalized, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ApplyCurrentShift()
+    {
+        var (fromTime, toTime) = ResolveShiftRange(_clock.NowLocal);
+        FromDate = fromTime.Date;
+        FromHour = fromTime.Hour.ToString("00");
+        FromMinute = fromTime.Minute.ToString("00");
+        FromSecond = fromTime.Second.ToString("00");
+        ToDate = toTime.Date;
+        ToHour = toTime.Hour.ToString("00");
+        ToMinute = toTime.Minute.ToString("00");
+        ToSecond = toTime.Second.ToString("00");
+        TargetDate = _clock.NowLocal.Date;
+    }
+
+    private static (DateTime FromTime, DateTime ToTime) ResolveShiftRange(DateTime now)
+    {
+        var today = now.Date;
+        var timeOfDay = now.TimeOfDay;
+
+        if (timeOfDay >= TimeSpan.FromHours(6) && timeOfDay < TimeSpan.FromHours(14))
+        {
+            return (today.AddHours(6), today.AddHours(14).AddSeconds(-1));
+        }
+
+        if (timeOfDay >= TimeSpan.FromHours(14) && timeOfDay < TimeSpan.FromHours(22))
+        {
+            return (today.AddHours(14), today.AddHours(22).AddSeconds(-1));
+        }
+
+        if (timeOfDay >= TimeSpan.FromHours(22))
+        {
+            return (today.AddHours(22), today.AddDays(1).AddHours(6).AddSeconds(-1));
+        }
+
+        return (today.AddDays(-1).AddHours(22), today.AddHours(6).AddSeconds(-1));
+    }
+
+    private bool TryBuildDateRange(out DateTime fromTime, out DateTime toTime, out string errorMessage)
+    {
+        if (!FromDate.HasValue)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Vui l\u00F2ng ch\u1ECDn ng\u00E0y cho T\u1EEB gi\u1EDD.";
+            return false;
+        }
+
+        if (!ToDate.HasValue)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Vui l\u00F2ng ch\u1ECDn ng\u00E0y cho \u0110\u1EBFn gi\u1EDD.";
+            return false;
+        }
+
+        if (!int.TryParse(FromHour, out var fromHour) || fromHour is < 0 or > 23)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Gi\u1EDD c\u1EE7a T\u1EEB gi\u1EDD kh\u00F4ng h\u1EE3p l\u1EC7.";
+            return false;
+        }
+
+        if (!int.TryParse(FromMinute, out var fromMinute) || fromMinute is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Ph\u00FAt c\u1EE7a T\u1EEB gi\u1EDD kh\u00F4ng h\u1EE3p l\u1EC7.";
+            return false;
+        }
+
+        if (!int.TryParse(FromSecond, out var fromSecond) || fromSecond is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Gi\u00E2y c\u1EE7a T\u1EEB gi\u1EDD kh\u00F4ng h\u1EE3p l\u1EC7.";
+            return false;
+        }
+
+        if (!int.TryParse(ToHour, out var toHour) || toHour is < 0 or > 23)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Gi\u1EDD c\u1EE7a \u0110\u1EBFn gi\u1EDD kh\u00F4ng h\u1EE3p l\u1EC7.";
+            return false;
+        }
+
+        if (!int.TryParse(ToMinute, out var toMinute) || toMinute is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Ph\u00FAt c\u1EE7a \u0110\u1EBFn gi\u1EDD kh\u00F4ng h\u1EE3p l\u1EC7.";
+            return false;
+        }
+
+        if (!int.TryParse(ToSecond, out var toSecond) || toSecond is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Gi\u00E2y c\u1EE7a \u0110\u1EBFn gi\u1EDD kh\u00F4ng h\u1EE3p l\u1EC7.";
+            return false;
+        }
+
+        fromTime = FromDate.Value.Date.AddHours(fromHour).AddMinutes(fromMinute).AddSeconds(fromSecond);
+        toTime = ToDate.Value.Date.AddHours(toHour).AddMinutes(toMinute).AddSeconds(toSecond);
+
+        if (fromTime > toTime)
+        {
+            errorMessage = "T\u1EEB gi\u1EDD kh\u00F4ng \u0111\u01B0\u1EE3c l\u1EDBn h\u01A1n \u0110\u1EBFn gi\u1EDD.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
     }
 
     private static string GetDefaultReportFolder()

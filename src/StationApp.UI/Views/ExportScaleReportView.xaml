@@ -16,6 +16,70 @@
                 <Setter Property="Height" Value="34"/>
             </Style>
 
+            <Style x:Key="ReportTimeComboStyle" TargetType="ComboBox">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Foreground" Value="#111827"/>
+                <Setter Property="Background" Value="#FFFFFF"/>
+                <Setter Property="BorderBrush" Value="#9AA4AA"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Height" Value="34"/>
+                <Setter Property="Width" Value="42"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Grid>
+                                <ToggleButton Focusable="False"
+                                              IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ClickMode="Press"
+                                              Background="Transparent"
+                                              BorderThickness="0">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <Border x:Name="OuterBorder"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="3">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="16"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ContentPresenter Grid.Column="0"
+                                                              Margin="4,0,1,0"
+                                                              VerticalAlignment="Center"
+                                                              HorizontalAlignment="Center"
+                                                              Content="{TemplateBinding SelectionBoxItem}"
+                                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
+                                            <Border Grid.Column="1" Background="#F8FAFC" BorderBrush="#D1D5DB" BorderThickness="1,0,0,0" CornerRadius="0,3,3,0">
+                                                <Path Width="7" Height="4" Stretch="Fill" Fill="#4B5563" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0 0 L 7 0 L 3.5 4 Z"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </ToggleButton>
+                                <Popup Placement="Bottom"
+                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                       AllowsTransparency="True"
+                                       Focusable="False"
+                                       PopupAnimation="Slide">
+                                    <Border Background="#FFFFFF" BorderBrush="#9AA4AA" BorderThickness="1" CornerRadius="3" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                        <ScrollViewer MaxHeight="220">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="ReportLookupComboStyle" TargetType="ComboBox">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
                 <Setter Property="FontSize" Value="13"/>
@@ -60,14 +124,45 @@
                 CornerRadius="10">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="T&#x1EEB; gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding FromMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding FromSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Text="&#x0110;&#x1EBF;n gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding ToMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding ToSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                    <TextBlock Text="Ng&#xE0;y b&#xE1;o c&#xE1;o ca" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <DatePicker SelectedDate="{Binding TargetDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Margin="0,0,12,0">
                     <TextBlock Text="C&#x1EAF;t l&#x1EC7;nh xu&#x1EA5;t kh&#x1EA9;u" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <Grid>
+                    <Grid MinWidth="280">
                         <ComboBox x:Name="CutOrderComboBox"
                                   Height="34"
                                   Style="{StaticResource ReportLookupComboStyle}"
@@ -88,12 +183,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                    <TextBlock Text="Ng&#xE0;y b&#xE1;o c&#xE1;o ca" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <DatePicker SelectedDate="{Binding TargetDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
                         <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>

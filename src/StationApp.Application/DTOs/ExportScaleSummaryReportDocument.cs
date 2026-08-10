@@ -10,6 +10,8 @@ public sealed record ExportScaleSummaryReportDocument(
     decimal TareWeightKg,
     decimal NetCementWeightKg,
     decimal GrossWeightKg,
+    DateTime FromTime,
+    DateTime ToTime,
     DateTime? TargetDateForShiftReport,
     string PreparedByDisplayName,
     IReadOnlyList<ExportScaleSummaryReportRow> Rows

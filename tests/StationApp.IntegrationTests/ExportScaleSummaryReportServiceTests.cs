@@ -85,7 +85,13 @@ public sealed class ExportScaleSummaryReportServiceTests : IDisposable
             var configuration = new ConfigurationBuilder().AddInMemoryCollection().Build();
             var service = new ExportSummaryReportService(db, repo, configuration);
 
-            var document = await service.BuildExportScaleReportAsync(cutOrderId, null, "Tester", CancellationToken.None);
+            var document = await service.BuildExportScaleReportAsync(
+                cutOrderId,
+                baseDate,
+                baseDate.AddDays(2).AddSeconds(-1),
+                baseDate.AddDays(1),
+                "Tester",
+                CancellationToken.None);
 
             Assert.Equal("CLXK-0001", document.CutOrderCode);
             Assert.Equal(122.4m, document.PlannedWeightTon);
@@ -239,6 +245,8 @@ public sealed class ExportScaleSummaryReportServiceTests : IDisposable
                 3.5m,
                 50m,
                 53.5m,
+                new DateTime(2026, 6, 22, 6, 0, 0),
+                new DateTime(2026, 6, 22, 13, 59, 59),
                 new DateTime(2026, 6, 22),
                 "Bùi Ngọc Chiến",
                 new[]
