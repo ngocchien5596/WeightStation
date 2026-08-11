@@ -78,7 +78,7 @@ public sealed class WpfPrintService : IPrintService
 
                     var jobName = BuildJobName(batch.Kind, page.DisplayNumber, copy + 1, options.CopyCount);
 
-                    if (options.UseDotMatrixMode && template.Kind == PrintDocumentKind.DeliveryTicket)
+                    if (options.UseDotMatrixMode && template.SupportsDotMatrixTextMode)
                     {
                         DotMatrixGdiTextPrinter.Print(printerName, jobName, template, page, options);
                     }

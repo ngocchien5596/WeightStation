@@ -41,6 +41,7 @@ public class CutOrderEntityConfiguration : IEntityTypeConfiguration<CutOrder>
         builder.Property(e => e.ConsumptionPlace).HasMaxLength(255);
         builder.Property(e => e.LoadingPlace).HasMaxLength(255);
         builder.Property(e => e.SealNo).HasMaxLength(100);
+        builder.Property(e => e.PackagePrinterName).HasMaxLength(100);
 
         builder.Property(e => e.PlannedWeight).HasColumnType("decimal(18,3)");
         builder.Property(e => e.TareWeightKg).HasColumnType("decimal(18,3)");

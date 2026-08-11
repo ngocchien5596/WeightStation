@@ -32,6 +32,7 @@ public class CutOrder
     public string? ConsumptionPlace { get; set; }
     public string? LoadingPlace { get; set; }
     public string? SealNo { get; set; }
+    public string? PackagePrinterName { get; set; }
 
     public decimal? PlannedWeight { get; set; }
     public int? BagCount { get; set; }

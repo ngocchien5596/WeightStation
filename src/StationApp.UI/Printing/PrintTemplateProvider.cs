@@ -12,6 +12,10 @@ namespace StationApp.UI.Printing;
 public sealed class PrintTemplateProvider : IPrintTemplateProvider
 {
     private const string ProfilesFileName = "print-template-profiles.json";
+    private const string WeighTicketA5V2ProfileKey = "weigh-pc-ver-2-a5-mau-moi";
+    private const string WeighTicketA5V2DisplayName = "PC ver 2 - A5 mẫu mới";
+    private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
+    private const string DeliveryTicketA5V2DisplayName = "PGN ver 2 - A5 m\u1eabu m\u1edbi";
     private const double DeliveryTicketFontSize = 12.5d;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly StationDbContext _dbContext;
@@ -38,6 +42,8 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
     {
         var store = await LoadStoreAsync(ct);
         var profile = ResolveProfile(store, kind, profileKey);
+        var fields = GetDefaultFields(kind, profile);
+        var supportsDotMatrixTextMode = kind == PrintDocumentKind.DeliveryTicket || IsWeighTicketA5V2Profile(profile);
         return kind switch
         {
             PrintDocumentKind.WeighTicket => new PrintTemplateDefinition
@@ -50,19 +56,21 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
                 DefaultOffsetYmm = profile.OffsetYmm,
                 ActiveProfileKey = profile.ProfileKey,
                 ActiveProfileName = profile.DisplayName,
-                Fields = ApplyProfileLayout(WeighTicketFields, profile)
+                SupportsDotMatrixTextMode = supportsDotMatrixTextMode,
+                Fields = ApplyProfileLayout(fields, profile)
             },
             PrintDocumentKind.DeliveryTicket => new PrintTemplateDefinition
             {
                 Kind = kind,
                 TemplateName = "DeliveryTicketPrintTemplate",
                 PageWidthMm = 210d,
-                PageHeightMm = 297d,
+                PageHeightMm = IsDeliveryTicketA5V2Profile(profile) ? 148.5d : 297d,
                 DefaultOffsetXmm = profile.OffsetXmm,
                 DefaultOffsetYmm = profile.OffsetYmm,
                 ActiveProfileKey = profile.ProfileKey,
                 ActiveProfileName = profile.DisplayName,
-                Fields = ApplyProfileLayout(DeliveryTicketFields, profile)
+                SupportsDotMatrixTextMode = supportsDotMatrixTextMode,
+                Fields = ApplyProfileLayout(fields, profile)
             },
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
@@ -211,7 +219,19 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         }
 
         changed |= await EnsureSeedProfileAsync(store, PrintDocumentKind.WeighTicket, "PC ver 1", WeighTicketFields, ct);
+        changed |= EnsureAdditionalSeedProfile(
+            store,
+            PrintDocumentKind.WeighTicket,
+            WeighTicketA5V2ProfileKey,
+            WeighTicketA5V2DisplayName,
+            WeighTicketA5V2Fields);
         changed |= await EnsureSeedProfileAsync(store, PrintDocumentKind.DeliveryTicket, "PGN ver 1", DeliveryTicketFields, ct);
+        changed |= EnsureAdditionalSeedProfile(
+            store,
+            PrintDocumentKind.DeliveryTicket,
+            DeliveryTicketA5V2ProfileKey,
+            DeliveryTicketA5V2DisplayName,
+            DeliveryTicketA5V2Fields);
 
         if (changed)
         {
@@ -300,6 +320,39 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         return true;
     }
 
+    private static bool EnsureAdditionalSeedProfile(
+        PersistedPrintTemplateStore store,
+        PrintDocumentKind kind,
+        string profileKey,
+        string displayName,
+        IReadOnlyList<PrintFieldDefinition> defaults)
+    {
+        var profiles = GetProfiles(store, kind);
+        if (profiles.Any(x => string.Equals(x.ProfileKey, profileKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        profiles.Add(new PersistedPrintTemplateProfile
+        {
+            ProfileKey = profileKey,
+            DisplayName = displayName,
+            OffsetXmm = 0d,
+            OffsetYmm = 0d,
+            TemplateVersion = GetCurrentTemplateVersion(kind),
+            Fields = defaults.Select(field => new PersistedPrintFieldPosition
+            {
+                FieldKey = field.FieldKey,
+                X = field.X,
+                Y = field.Y,
+                Width = field.Width,
+                IsEnabled = field.IsEnabled
+            }).ToList()
+        });
+
+        return true;
+    }
+
     private async Task<PersistedPrintTemplateProfile> MigrateLegacyProfileAsync(
         PrintDocumentKind kind,
         string displayName,
@@ -376,6 +429,27 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
                 : field)
             .ToList();
     }
+
+    private static IReadOnlyList<PrintFieldDefinition> GetDefaultFields(PrintDocumentKind kind, PersistedPrintTemplateProfile profile)
+        => kind switch
+        {
+            PrintDocumentKind.WeighTicket => IsWeighTicketA5V2Profile(profile) ? WeighTicketA5V2Fields : WeighTicketFields,
+            PrintDocumentKind.DeliveryTicket => IsDeliveryTicketA5V2Profile(profile) ? DeliveryTicketA5V2Fields : DeliveryTicketFields,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+        };
+
+    private static bool IsWeighTicketA5V2Profile(PersistedPrintTemplateProfile profile)
+        => string.Equals(profile.ProfileKey, WeighTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
+           || profile.Fields.Any(x =>
+               string.Equals(x.FieldKey, "TransactionTypeDisplayShort", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(x.FieldKey, "CutOrderCode", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(x.FieldKey, "NetWeightKg", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsDeliveryTicketA5V2Profile(PersistedPrintTemplateProfile profile)
+        => string.Equals(profile.ProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
+           || profile.Fields.Any(x =>
+               string.Equals(x.FieldKey, "PackagePrinterName", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(x.FieldKey, "ReceiverName", StringComparison.OrdinalIgnoreCase));
 
     private static PersistedPrintTemplateProfile ResolveProfile(PersistedPrintTemplateStore store, PrintDocumentKind kind, string? profileKey)
     {
@@ -559,7 +633,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("StaticCustomerLabel", 32, 85, 18, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "Kh\u00e1ch h\u00e0ng:"),
         new("CustomerName", 52, 85, 82, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
         new("StaticNotesLabel", 170, 85, 10, PrintFieldAlignment.Right, 9.4, PrintFieldWeight.Normal, LiteralValue: "Ghi ch\u00fa:"),
-        new("Notes", 182, 85, 30, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("Notes", 182, 85, 30, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Normal, 4, PrintWrapMode.Wrap),
 
         new("StaticRepresentativeLabel", 32, 101, 16, PrintFieldAlignment.Left, 9.6, PrintFieldWeight.Bold, LiteralValue: "\u0110\u1ea1i di\u1ec7n:"),
         new("RepresentativeName", 52, 101, 68, PrintFieldAlignment.Left, 10.2, PrintFieldWeight.Normal),
@@ -576,6 +650,30 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
 
         new("StaticFooterLeft", 20, 132, 32, PrintFieldAlignment.Left, 7.2, PrintFieldWeight.Bold, LiteralValue: "XMCP c\u00e2n 120 t\u1ea5n - C2"),
         new("StaticFooterRight", 70, 141, 100, PrintFieldAlignment.Center, 7.2, PrintFieldWeight.Normal, LiteralValue: "Copyright (2026) by CAMPHACEMENT - www.camphacement.vn")
+    ];
+
+    private static readonly IReadOnlyList<PrintFieldDefinition> WeighTicketA5V2Fields =
+    [
+        new("VehiclePlate", 30, 39, 56, PrintFieldAlignment.Left, 11.5, PrintFieldWeight.Bold),
+        new("TicketNo", 154, 39, 34, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+
+        new("VehicleRegistrationNo", 30, 51, 52, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal),
+        new("Weight1DateTime", 154, 51, 40, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal),
+
+        new("MoocRegistrationNo", 30, 63, 52, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal),
+        new("CustomerName", 30, 75, 78, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
+        new("TransactionTypeDisplayShort", 30, 90, 28, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold),
+        new("Weight2DateTime", 154, 75, 40, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal),
+
+        new("Weight1", 54, 96, 30, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+        new("BagCount", 154, 96, 25, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+        new("Weight2", 54, 108, 30, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+        new("CutOrderCode", 154, 108, 44, PrintFieldAlignment.Left, 10.2, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
+        new("NetWeightKg", 54, 120, 30, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+        new("LotNo", 154, 120, 32, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal),
+
+        new("ProductName", 30, 132, 86, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("PrintedBy", 158, 132, 36, PrintFieldAlignment.Center, 10.5, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap)
     ];
 
     private static readonly IReadOnlyList<PrintFieldDefinition> DeliveryTicketFields =
@@ -603,6 +701,42 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("Weight2Date", 161, 249, 24, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal),
         new("Notes", 18, 267, 166, PrintFieldAlignment.Left, DeliveryTicketFontSize, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
         new("PrintedBy", 24, 287, 46, PrintFieldAlignment.Center, DeliveryTicketFontSize, PrintFieldWeight.Normal)
+    ];
+
+    private static readonly IReadOnlyList<PrintFieldDefinition> DeliveryTicketA5V2Fields =
+    [
+        new("DeliveryNo", 158, 30, 34, PrintFieldAlignment.Left, 11.4, PrintFieldWeight.Bold),
+        new("ReferenceCode", 158, 39, 40, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+        new("PackagePrinterName", 158, 48, 40, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
+
+        new("CustomerName", 35, 58, 102, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
+        new("CustomerCode", 158, 58, 36, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold),
+        new("ConsumptionPlace", 35, 69, 102, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("VehicleLine", 158, 69, 42, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
+
+        new("ProductName", 25, 90, 45, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, 3, PrintWrapMode.Wrap),
+        new("BagCount", 76, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
+        new("PlannedWeight", 96, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
+        new("ActualBagCount", 118, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
+        new("ActualWeight", 139, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
+        new("ReceiverName", 164, 90, 37, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+
+        new("SealNo", 35, 113, 60, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal),
+        new("LotNo", 158, 113, 38, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal),
+        new("LoadingPlace", 35, 123, 98, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("Notes", 158, 123, 42, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 7, PrintWrapMode.Wrap),
+
+        new("Weight1Hour", 86, 31, 8, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight1Minute", 104, 31, 8, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight1Day", 124, 31, 7, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight1Month", 135, 31, 7, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight1Year", 146, 31, 14, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight2Hour", 86, 39, 8, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight2Minute", 104, 39, 8, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight2Day", 124, 39, 7, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight2Month", 135, 39, 7, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("Weight2Year", 146, 39, 14, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
+        new("PrintedBy", 33, 137, 48, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap)
     ];
 }
 

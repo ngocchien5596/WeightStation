@@ -1123,7 +1123,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
             }
 
             var batchToPrint = dialogVm.CurrentBatch;
-            var result = await printService.PrintAsync(template, batchToPrint, printOptions, CancellationToken.None);
+            var result = await printService.PrintAsync(dialogVm.CurrentTemplate, batchToPrint, printOptions, CancellationToken.None);
             await PersistPrintResultAsync(scope, context, kind, result);
 
             if (result.HasFailures)
@@ -1449,6 +1449,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                         ?? context.RegistrationsById.Values.OrderBy(x => x.CreatedAt).First();
                     var actualBagCount = ResolvePrintActualBagCount(context, ticket);
                     var isReturnedBrokenTrip = ResolvePrintReturnedBrokenTrip(context, ticket);
+                    var cutOrderCode = ResolvePrintCutOrderCode(context, registration, ticket);
                     var page = composer.Compose(
                         registration,
                         ticket,
@@ -1458,7 +1459,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                         printedAtLocal,
                         _currentUserContext.DisplayName,
                         sessionVehiclePlate: context.MasterSession.VehiclePlate,
-                        sessionMoocNumber: context.MasterSession.MoocNumber);
+                        sessionMoocNumber: context.MasterSession.MoocNumber,
+                        cutOrderCodeOverride: cutOrderCode);
                     if (ticket.RecordRole == WeighTicketRecordRoles.MasterSession)
                     {
                         page.PreviewGroupKey = "weigh-master";
@@ -1731,6 +1733,30 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
             UpdatedBy = primaryRegistration.UpdatedBy
         };
     }
+
+    private static string? ResolvePrintCutOrderCode(SessionPrintContext context, CutOrder registration, WeighTicket ticket)
+    {
+        if (string.Equals(ticket.RecordRole, WeighTicketRecordRoles.MasterSession, StringComparison.OrdinalIgnoreCase))
+        {
+            var codes = context.RegistrationsById.Values
+                .OrderBy(x => x.CreatedAt)
+                .Select(GetCutOrderDisplayCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return codes.Count == 0 ? null : string.Join(" / ", codes);
+        }
+
+        return GetCutOrderDisplayCode(registration);
+    }
+
+    private static string? GetCutOrderDisplayCode(CutOrder registration)
+        => !string.IsNullOrWhiteSpace(registration.TemporaryExportDisplayCode)
+            ? registration.TemporaryExportDisplayCode
+            : !string.IsNullOrWhiteSpace(registration.ErpCutOrderId)
+                ? registration.ErpCutOrderId
+                : registration.OrderCode;
 
     private static WeighingSessionLine BuildDeliveryMasterLine(SessionPrintContext context)
     {

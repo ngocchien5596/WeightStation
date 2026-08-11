@@ -50,17 +50,19 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     [ObservableProperty] private bool _isSavingEditableMoocNumber;
     [ObservableProperty] private bool _isExportingFile;
     [ObservableProperty] private bool _useDotMatrixMode;
+    [ObservableProperty] private bool _isLoadingProfile;
 
     public PrintOptionsModel? DialogResultValue { get; private set; }
     public PrintBatchPreviewModel CurrentBatch => _batch;
+    public PrintTemplateDefinition CurrentTemplate => BuildPreviewTemplate();
     public event EventHandler<bool>? CloseRequested;
 
-    public bool CanPrint => SelectedPrinter != null && CopyCount > 0;
+    public bool CanPrint => SelectedPrinter != null && CopyCount > 0 && !IsLoadingProfile;
     public bool HasSelectedField => SelectedField != null;
     public bool CanManageProfiles => CanManageLayout && SelectedProfile != null;
     public bool CanEditDeliverySealNo => _editablePrintDataContext?.SaveSealNoAsync != null;
     public bool CanEditWeighMoocNumber => _editablePrintDataContext?.SaveMoocNumberAsync != null;
-    public bool CanUseDotMatrixMode => _template.Kind == PrintDocumentKind.DeliveryTicket;
+    public bool CanUseDotMatrixMode => _template.SupportsDotMatrixTextMode;
     public string PreviewHeader => CanManageLayout
         ? "Preview canh chỉnh vị trí in"
         : "Preview trước khi in";
@@ -238,6 +240,12 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(CanManageProfiles));
         SetDefaultProfileCommand.NotifyCanExecuteChanged();
         _ = LoadSelectedProfileAsync(value);
+    }
+
+    partial void OnIsLoadingProfileChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanPrint));
+        PrintCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanPrint))]
@@ -637,6 +645,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             return;
         }
 
+        IsLoadingProfile = true;
         try
         {
             var template = await _templateProvider.GetTemplateAsync(_template.Kind, profile.ProfileKey, CancellationToken.None);
@@ -646,6 +655,10 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         catch (Exception ex)
         {
             ValidationMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoadingProfile = false;
         }
     }
 
@@ -657,6 +670,8 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         OffsetYmm = template.DefaultOffsetYmm;
         OffsetXmmText = FormatEditableNumber(OffsetXmm);
         OffsetYmmText = FormatEditableNumber(OffsetYmm);
+        UseDotMatrixMode = template.SupportsDotMatrixTextMode;
+        OnPropertyChanged(nameof(CanUseDotMatrixMode));
 
         foreach (var field in Fields)
         {
@@ -686,6 +701,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             DefaultOffsetYmm = _template.DefaultOffsetYmm,
             ActiveProfileKey = _template.ActiveProfileKey,
             ActiveProfileName = _template.ActiveProfileName,
+            SupportsDotMatrixTextMode = _template.SupportsDotMatrixTextMode,
             Fields = _template.Fields
                 .Select(field => positionsByKey.TryGetValue(field.FieldKey, out var position)
                     ? field with
@@ -778,8 +794,14 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             ["LotNo"] = "Lô hàng",
             ["RepresentativeName"] = "Đại diện",
             ["Notes"] = "Ghi chú",
-            ["Weight1DateTime"] = "Giờ vào",
-            ["Weight2DateTime"] = "Giờ ra",
+            ["Weight1DateTime"] = "Ngày giờ cân lần 1",
+            ["Weight2DateTime"] = "Ngày giờ cân lần 2",
+            ["TransactionTypeDisplayShort"] = "Xuất/Nhập",
+            ["CutOrderCode"] = "Mã số",
+            ["BagCount"] = "Số bao",
+            ["Weight1"] = "Khối lượng lần 1",
+            ["Weight2"] = "Khối lượng lần 2",
+            ["NetWeightKg"] = "Khối lượng hàng",
             ["EmptyWeight"] = "Trọng lượng xe (tấn)",
             ["GrossWeight"] = "Trọng lượng tổng (tấn)",
             ["NetWeight"] = "Trọng lượng hàng (tấn)",
@@ -813,6 +835,54 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             ["PrintedBy"] = "Người giao hàng",
             ["Notes"] = "Ghi chú"
         };
+
+        if (kind == PrintDocumentKind.DeliveryTicket)
+        {
+            if (string.Equals(field.FieldKey, "PackagePrinterName", StringComparison.OrdinalIgnoreCase))
+            {
+                return "M\u00e3 in v\u1ecf bao";
+            }
+
+            if (string.Equals(field.FieldKey, "VehicleLine", StringComparison.OrdinalIgnoreCase))
+            {
+                return "S\u1ed1 ph\u01b0\u01a1ng ti\u1ec7n v\u1eadn chuy\u1ec3n";
+            }
+
+            if (string.Equals(field.FieldKey, "ReceiverName", StringComparison.OrdinalIgnoreCase))
+            {
+                return "T\u00ean l\u00e1i xe";
+            }
+
+            if (string.Equals(field.FieldKey, "Weight1Day", StringComparison.OrdinalIgnoreCase))
+            {
+                return "V\u00e0o l\u00fac - Ng\u00e0y";
+            }
+
+            if (string.Equals(field.FieldKey, "Weight1Month", StringComparison.OrdinalIgnoreCase))
+            {
+                return "V\u00e0o l\u00fac - Th\u00e1ng";
+            }
+
+            if (string.Equals(field.FieldKey, "Weight1Year", StringComparison.OrdinalIgnoreCase))
+            {
+                return "V\u00e0o l\u00fac - N\u0103m";
+            }
+
+            if (string.Equals(field.FieldKey, "Weight2Day", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Ra l\u00fac - Ng\u00e0y";
+            }
+
+            if (string.Equals(field.FieldKey, "Weight2Month", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Ra l\u00fac - Th\u00e1ng";
+            }
+
+            if (string.Equals(field.FieldKey, "Weight2Year", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Ra l\u00fac - N\u0103m";
+            }
+        }
 
         var map = kind == PrintDocumentKind.WeighTicket ? weighMap : deliveryMap;
         return map.TryGetValue(field.FieldKey, out var displayName) ? displayName : field.FieldKey;

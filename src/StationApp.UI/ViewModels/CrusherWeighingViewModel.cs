@@ -1449,7 +1449,7 @@ public partial class CrusherWeighingViewModel : ObservableObject, IDisposable, I
             }
 
             var batchToPrint = dialogVm.CurrentBatch;
-            var result = await printService.PrintAsync(template, batchToPrint, printOptions, CancellationToken.None);
+            var result = await printService.PrintAsync(dialogVm.CurrentTemplate, batchToPrint, printOptions, CancellationToken.None);
             
             if (result.HasFailures)
             {

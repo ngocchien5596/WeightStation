@@ -139,6 +139,7 @@ public class CutOrderInboundProcessor : BackgroundService
         if (!string.IsNullOrWhiteSpace(reg.ConsumptionPlace)) reg.ConsumptionPlace = reg.ConsumptionPlace.Trim();
         if (!string.IsNullOrWhiteSpace(reg.LoadingPlace)) reg.LoadingPlace = reg.LoadingPlace.Trim();
         if (!string.IsNullOrWhiteSpace(reg.SealNo)) reg.SealNo = reg.SealNo.Trim();
+        if (!string.IsNullOrWhiteSpace(reg.PackagePrinterName)) reg.PackagePrinterName = reg.PackagePrinterName.Trim();
 
         // 2. Validate
         bool isValid = !string.IsNullOrEmpty(reg.VehiclePlate) &&

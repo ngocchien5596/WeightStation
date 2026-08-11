@@ -95,6 +95,97 @@ public class PrintComposerTests
     }
 
     [Fact]
+    public void WeighTicketComposer_ProvidesA5V2DynamicFields()
+    {
+        var composer = new WeighTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            ErpCutOrderId = "QN.CL.2608/0001",
+            VehiclePlate = "14R-3584",
+            MoocNumber = "14RM-3642",
+            CustomerName = "Công ty A",
+            ProductName = "Xi măng PCB40",
+            ProductType = "Bao",
+            LotNo = "LO-02",
+            TransactionType = TransactionType.INBOUND
+        };
+
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            TicketNo = "PC26080001",
+            CutOrderId = registration.Id,
+            VehiclePlate = "14R-3584",
+            MoocNumber = "14RM-3642",
+            TransactionType = TransactionType.INBOUND,
+            Weight1 = 54000m,
+            Weight2 = 14000m,
+            NetWeight = 40000m,
+            Weight1Time = new DateTime(2026, 8, 1, 7, 5, 6),
+            Weight2Time = new DateTime(2026, 8, 1, 8, 9, 10)
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            actualBagCount: 800,
+            isReturnedBrokenTrip: false,
+            vehicle: null,
+            printedAtLocal: new DateTime(2026, 8, 1, 8, 10, 0),
+            printedByDisplayName: "Nguyễn Văn A",
+            cutOrderCodeOverride: "QN.CL.2608/0001 / QN.CL.2608/0002");
+
+        Assert.Equal("14R-3584 (14RM-3642)", model.Fields.Single(x => x.FieldKey == "VehiclePlate").Value);
+        Assert.Equal("Nhập", model.Fields.Single(x => x.FieldKey == "TransactionTypeDisplayShort").Value);
+        Assert.Equal("QN.CL.2608/0001 / QN.CL.2608/0002", model.Fields.Single(x => x.FieldKey == "CutOrderCode").Value);
+        Assert.Equal("800", model.Fields.Single(x => x.FieldKey == "BagCount").Value);
+        Assert.Equal("54,000", model.Fields.Single(x => x.FieldKey == "Weight1").Value);
+        Assert.Equal("14,000", model.Fields.Single(x => x.FieldKey == "Weight2").Value);
+        Assert.Equal("40,000", model.Fields.Single(x => x.FieldKey == "NetWeightKg").Value);
+        Assert.Equal("Nguyễn Văn A", model.Fields.Single(x => x.FieldKey == "PrintedBy").Value);
+    }
+
+    [Fact]
+    public void WeighTicketComposer_LeavesA5V2BagCountBlank_WhenProductTypeIsNotBagged()
+    {
+        var composer = new WeighTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            ErpCutOrderId = "QN.CL.2608/0002",
+            VehiclePlate = "14R-3584",
+            ProductName = "Clinker",
+            ProductType = "Rời/Xá",
+            TransactionType = TransactionType.OUTBOUND
+        };
+
+        var ticket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            TicketNo = "PC26080002",
+            CutOrderId = registration.Id,
+            VehiclePlate = "14R-3584",
+            TransactionType = TransactionType.OUTBOUND,
+            Weight1 = 14000m,
+            Weight2 = 54000m,
+            NetWeight = 40000m,
+            BagCount = 800
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            actualBagCount: 800,
+            isReturnedBrokenTrip: false,
+            vehicle: null,
+            printedAtLocal: new DateTime(2026, 8, 1, 8, 10, 0),
+            printedByDisplayName: "Nguyễn Văn A");
+
+        Assert.Null(model.Fields.Single(x => x.FieldKey == "BagCount").Value);
+    }
+
+    [Fact]
     public void DeliveryTicketComposer_FallsBackToRegistrationData_AndLeavesActualBagCountBlank()
     {
         var composer = new DeliveryTicketPrintComposer();
@@ -145,6 +236,65 @@ public class PrintComposerTests
         Assert.Null(model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
         Assert.Equal("Noi tieu thu", model.Fields.Single(x => x.FieldKey == "ConsumptionPlace").Value);
         Assert.Equal("Noi xuat hang", model.Fields.Single(x => x.FieldKey == "LoadingPlace").Value);
+    }
+
+    [Fact]
+    public void DeliveryTicketComposer_ProvidesA5V2DynamicFields_FromCutOrder()
+    {
+        var composer = new DeliveryTicketPrintComposer();
+        var registration = new CutOrder
+        {
+            Id = Guid.NewGuid(),
+            VehiclePlate = "14R-3584",
+            MoocNumber = "14RM-3642",
+            ReceiverName = "Nguyen Van A",
+            ErpCutOrderId = "QN.CL.2608/0001",
+            OrderCode = "QN.DH.2608/0001",
+            CustomerName = "Cong ty A",
+            CustomerCode = "KH001",
+            ProductName = "Xi mang PCB40",
+            ProductType = "Bao",
+            PlannedWeight = 60000m,
+            BagCount = 1200,
+            PackagePrinterName = "MPVB-01"
+        };
+
+        var ticket = new DeliveryTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            DeliveryNo = "PGN26080001",
+            ErpCutOrderId = "QN.CL.2608/0001"
+        };
+
+        var weighTicket = new WeighTicket
+        {
+            Id = Guid.NewGuid(),
+            CutOrderId = registration.Id,
+            Weight1Time = new DateTime(2026, 8, 11, 7, 5, 0),
+            Weight2Time = new DateTime(2026, 8, 11, 8, 15, 0)
+        };
+
+        var model = composer.Compose(
+            registration,
+            ticket,
+            weighTicket,
+            sessionLine: null,
+            useActualWeightForBaggedCutOrders: false,
+            vehicle: null,
+            printedAtLocal: new DateTime(2026, 8, 1, 9, 30, 0),
+            printedByDisplayName: "Nguoi In");
+
+        Assert.Equal("MPVB-01", model.Fields.Single(x => x.FieldKey == "PackagePrinterName").Value);
+        Assert.Equal("QN.CL.2608/0001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
+        Assert.Equal("14R-3584 (14RM-3642)", model.Fields.Single(x => x.FieldKey == "VehicleLine").Value);
+        Assert.Equal("Nguyen Van A", model.Fields.Single(x => x.FieldKey == "ReceiverName").Value);
+        Assert.Equal("11", model.Fields.Single(x => x.FieldKey == "Weight1Day").Value);
+        Assert.Equal("08", model.Fields.Single(x => x.FieldKey == "Weight1Month").Value);
+        Assert.Equal("2026", model.Fields.Single(x => x.FieldKey == "Weight1Year").Value);
+        Assert.Equal("11", model.Fields.Single(x => x.FieldKey == "Weight2Day").Value);
+        Assert.Equal("08", model.Fields.Single(x => x.FieldKey == "Weight2Month").Value);
+        Assert.Equal("2026", model.Fields.Single(x => x.FieldKey == "Weight2Year").Value);
     }
 
     [Fact]

@@ -11,6 +11,7 @@ internal static class DotMatrixGdiTextPrinter
     private const double PrintUnitsPerMm = 100d / 25.4d;
     private const double WpfDipToPoint = 72d / 96d;
     private const double PrintFontSizeBoost = 4d;
+    private const double NormalTextSecondStrikeOffsetMm = 0.06d;
 
     public static void Print(
         string printerName,
@@ -24,6 +25,7 @@ internal static class DotMatrixGdiTextPrinter
         printDoc.DocumentName = jobName;
         printDoc.OriginAtMargins = false;
         printDoc.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
+        ApplyBestPrinterResolution(printDoc);
 
         var paperWidth = (int)Math.Round(template.PageWidthMm * PrintUnitsPerMm);
         var paperHeight = (int)Math.Round(template.PageHeightMm * PrintUnitsPerMm);
@@ -145,12 +147,38 @@ internal static class DotMatrixGdiTextPrinter
         try
         {
             graphics.DrawString(text, font, Brushes.Black, bounds, format);
+            DrawSecondStrikeIfNeeded(graphics, font, bounds, format, text, field);
         }
         catch (ArgumentException)
         {
             using var fallbackFormat = new StringFormat { Alignment = format.Alignment, LineAlignment = StringAlignment.Near };
             graphics.DrawString(text, font, Brushes.Black, new PointF(bounds.X, bounds.Y), fallbackFormat);
+            DrawSecondStrikeIfNeeded(graphics, font, bounds, fallbackFormat, text, field);
         }
+    }
+
+    private static void DrawSecondStrikeIfNeeded(
+        Graphics graphics,
+        Font font,
+        RectangleF bounds,
+        StringFormat format,
+        string text,
+        PrintFieldDefinition field)
+    {
+        if (field.FontWeight is PrintFieldWeight.Bold or PrintFieldWeight.SemiBold)
+        {
+            return;
+        }
+
+        var secondStrikeOffset = (float)MmToPrintUnit(NormalTextSecondStrikeOffsetMm);
+        if (!float.IsFinite(secondStrikeOffset) || secondStrikeOffset <= 0)
+        {
+            return;
+        }
+
+        var secondBounds = bounds;
+        secondBounds.X += secondStrikeOffset;
+        graphics.DrawString(text, font, Brushes.Black, secondBounds, format);
     }
 
     private static StringFormat CreateStringFormat(PrintFieldDefinition field)
@@ -178,6 +206,20 @@ internal static class DotMatrixGdiTextPrinter
     }
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static void ApplyBestPrinterResolution(PrintDocument printDoc)
+    {
+        var bestResolution = printDoc.PrinterSettings.PrinterResolutions
+            .Cast<PrinterResolution>()
+            .Where(x => x.Kind != PrinterResolutionKind.Custom && x.X > 0 && x.Y > 0)
+            .OrderByDescending(x => x.X * x.Y)
+            .FirstOrDefault();
+
+        if (bestResolution != null)
+        {
+            printDoc.DefaultPageSettings.PrinterResolution = bestResolution;
+        }
+    }
 
     private static string SanitizeText(string value)
         => value.Replace('\0', ' ').Replace("\r\n", "\n").Replace('\r', '\n');

@@ -17,6 +17,7 @@ public static class SchemaCompatibilityBootstrapper
         new("ConsumptionPlace", "nvarchar(255) NULL"),
         new("LoadingPlace", "nvarchar(255) NULL"),
         new("SealNo", "nvarchar(100) NULL"),
+        new("PackagePrinterName", "nvarchar(100) NULL"),
         new("CarryForwardWeight1", "decimal(18,3) NULL"),
         new("CarryForwardWeight1Time", "datetime2 NULL"),
         new("TareWeightKg", "decimal(18,3) NULL"),

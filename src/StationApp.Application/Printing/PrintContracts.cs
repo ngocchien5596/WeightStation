@@ -69,6 +69,7 @@ public sealed class PrintTemplateDefinition
     public double DefaultOffsetYmm { get; init; }
     public string? ActiveProfileKey { get; init; }
     public string? ActiveProfileName { get; init; }
+    public bool SupportsDotMatrixTextMode { get; init; }
     public required IReadOnlyList<PrintFieldDefinition> Fields { get; init; }
 }
 
@@ -134,7 +135,8 @@ public interface IWeighTicketPrintComposer
         DateTime printedAtLocal,
         string? printedByDisplayName,
         string? sessionVehiclePlate = null,
-        string? sessionMoocNumber = null);
+        string? sessionMoocNumber = null,
+        string? cutOrderCodeOverride = null);
 }
 
 public interface IDeliveryTicketPrintComposer
@@ -216,7 +218,8 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
         DateTime printedAtLocal,
         string? printedByDisplayName,
         string? sessionVehiclePlate = null,
-        string? sessionMoocNumber = null)
+        string? sessionMoocNumber = null,
+        string? cutOrderCodeOverride = null)
     {
         var emptyWeight = ticket.TransactionType == TransactionType.OUTBOUND ? ticket.Weight1 : ticket.Weight2;
         var grossWeight = ticket.TransactionType == TransactionType.OUTBOUND ? ticket.Weight2 : ticket.Weight1;
@@ -226,6 +229,9 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
         var moocNumber = FirstNonEmpty(sessionMoocNumber, ticket.MoocNumber, registration.MoocNumber);
         var vehicleLine = BuildVehicleLine(vehiclePlate, moocNumber);
         var notes = ResolveWeighTicketNotes(registration, ticket, actualBagCount, isReturnedBrokenTrip);
+        var bagCount = IsBaggedProduct(registration)
+            ? actualBagCount?.ToString("N0", CultureInfo.InvariantCulture) ?? ticket.BagCount?.ToString("N0", CultureInfo.InvariantCulture)
+            : null;
 
         return new WeighTicketPrintModel
         {
@@ -253,6 +259,12 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
                 Field("Notes", notes),
                 Field("Weight1DateTime", FormatDateTimeWithSeconds(ticket.Weight1Time)),
                 Field("Weight2DateTime", FormatDateTimeWithSeconds(ticket.Weight2Time)),
+                Field("TransactionTypeDisplayShort", FormatTransactionTypeShort(ticket.TransactionType)),
+                Field("CutOrderCode", FirstNonEmpty(cutOrderCodeOverride, registration.TemporaryExportDisplayCode, registration.ErpCutOrderId, registration.OrderCode)),
+                Field("BagCount", bagCount),
+                Field("Weight1", FormatWeightKg(ticket.Weight1)),
+                Field("Weight2", FormatWeightKg(ticket.Weight2)),
+                Field("NetWeightKg", FormatWeightKg(ticket.NetWeight)),
                 Field("EmptyWeight", FormatWeight(emptyWeight)),
                 Field("GrossWeight", FormatWeight(grossWeight)),
                 Field("NetWeight", FormatWeight(ticket.NetWeight)),
@@ -301,6 +313,13 @@ public sealed class WeighTicketPrintComposer : IWeighTicketPrintComposer
 
     private static string? FormatDateTimeWithSeconds(DateTime? value) => value?.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.InvariantCulture);
     private static string? FormatDateTimePrinted(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatTransactionTypeShort(TransactionType value)
+        => value == TransactionType.INBOUND ? "Nhập" : "Xuất";
+    private static bool IsBaggedProduct(CutOrder registration)
+        => string.Equals(ProductTypes.Normalize(registration.ProductType), ProductTypes.Bagged, StringComparison.OrdinalIgnoreCase);
+
+    private static string? FormatWeightKg(decimal? value)
+        => value.HasValue ? value.Value.ToString("N0", CultureInfo.InvariantCulture) : null;
     private static string? FormatWeight(decimal? value)
         => value.HasValue ? (value.Value / 1000m).ToString("0.0##", CultureInfo.InvariantCulture) : null;
 }
@@ -322,8 +341,7 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
         // Prioritize session-level plate/mooc so that even stale ticket/registration values print correctly.
         var plate = FirstNonEmpty(sessionVehiclePlate, weighTicket?.VehiclePlate, registration.VehiclePlate);
         var mooc = FirstNonEmpty(sessionMoocNumber, weighTicket?.MoocNumber, registration.MoocNumber);
-        var vehicleLine = string.Join(Environment.NewLine, new[] { plate, mooc }
-            .Where(v => !string.IsNullOrWhiteSpace(v)));
+        var vehicleLine = BuildVehicleLine(plate, mooc);
         var actualWeight = CutOrderNetWeightHelper.ResolveDeliveryTicketActualWeightKg(
             registration,
             deliveryTicket.AllocatedWeight ?? sessionLine?.ActualAllocatedWeight ?? weighTicket?.NetWeight,
@@ -338,17 +356,19 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
             isBagged,
             useActualWeightForBaggedCutOrders)?.ToString(CultureInfo.InvariantCulture);
 
+        var referenceCode = ResolveCutOrderReferenceCode(registration, deliveryTicket);
+
         return new DeliveryTicketPrintModel
         {
             DocumentId = deliveryTicket.Id,
             DisplayNumber = BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
             DeliveryNo = deliveryTicket.DeliveryNo,
-            OrderCode = FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId),
+            OrderCode = referenceCode,
             ActualWeight = actualWeight,
             Fields = new[]
             {
                 Field("DeliveryNo", BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo)),
-                Field("ReferenceCode", FirstNonEmpty(registration.OrderCode, deliveryTicket.ErpCutOrderId, registration.ErpCutOrderId)),
+                Field("ReferenceCode", referenceCode),
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),
                 Field("ProductName", registration.ProductName),
@@ -357,20 +377,28 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
                 Field("LoadingPlace", registration.LoadingPlace),
                 Field("LotNo", registration.LotNo),
                 Field("SealNo", registration.SealNo),
+                Field("PackagePrinterName", registration.PackagePrinterName),
                 Field("PlannedWeight", FormatWeight(registration.PlannedWeight)),
                 Field("BagCount", plannedBagCount),
                 Field("ActualWeight", FormatWeight(actualWeight)),
                 Field("ActualBagCount", actualBagCount),
                 Field("VehicleLine", vehicleLine),
+                Field("ReceiverName", registration.ReceiverName),
                 Field("VehicleRegistrationNo", FirstNonEmpty(weighTicket?.VehicleRegistrationNoSnapshot, vehicle?.VehicleRegistrationNo)),
                 Field("MoocRegistrationNo", FirstNonEmpty(weighTicket?.MoocRegistrationNoSnapshot, vehicle?.MoocRegistrationNo)),
                 Field("Notes", FirstNonEmpty(deliveryTicket.Notes, registration.Notes)),
                 Field("Weight1Hour", FormatHour(weighTicket?.Weight1Time)),
                 Field("Weight1Minute", FormatMinute(weighTicket?.Weight1Time)),
                 Field("Weight1Date", FormatDateOnly(weighTicket?.Weight1Time)),
+                Field("Weight1Day", FormatDay(weighTicket?.Weight1Time)),
+                Field("Weight1Month", FormatMonth(weighTicket?.Weight1Time)),
+                Field("Weight1Year", FormatYear(weighTicket?.Weight1Time)),
                 Field("Weight2Hour", FormatHour(weighTicket?.Weight2Time)),
                 Field("Weight2Minute", FormatMinute(weighTicket?.Weight2Time)),
                 Field("Weight2Date", FormatDateOnly(weighTicket?.Weight2Time)),
+                Field("Weight2Day", FormatDay(weighTicket?.Weight2Time)),
+                Field("Weight2Month", FormatMonth(weighTicket?.Weight2Time)),
+                Field("Weight2Year", FormatYear(weighTicket?.Weight2Time)),
                 Field("PrintedDate", FormatDateOnly(printedAtLocal)),
                 Field("PrintedTime", printedAtLocal.ToString("HH:mm", CultureInfo.InvariantCulture)),
                 Field("PrintedBy", printedByDisplayName)
@@ -380,6 +408,25 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
 
     private static PrintFieldValue Field(string key, string? value) => new(key, value);
     private static string? FirstNonEmpty(params string?[] values) => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+    private static string? ResolveCutOrderReferenceCode(CutOrder registration, DeliveryTicket deliveryTicket)
+        => FirstNonEmpty(
+            registration.TemporaryExportDisplayCode,
+            deliveryTicket.ErpCutOrderId,
+            registration.ErpCutOrderId,
+            registration.OrderCode);
+
+    private static string BuildVehicleLine(string? vehiclePlate, string? moocNumber)
+    {
+        if (string.IsNullOrWhiteSpace(moocNumber))
+        {
+            return vehiclePlate ?? string.Empty;
+        }
+
+        return string.IsNullOrWhiteSpace(vehiclePlate)
+            ? moocNumber
+            : $"{vehiclePlate} ({moocNumber})";
+    }
+
     private static int? ResolveActualBagCount(
         CutOrder registration,
         DeliveryTicket deliveryTicket,
@@ -446,6 +493,9 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
 
     private static string? FormatHour(DateTime? value) => value?.ToString("HH", CultureInfo.InvariantCulture);
     private static string? FormatMinute(DateTime? value) => value?.ToString("mm", CultureInfo.InvariantCulture);
+    private static string? FormatDay(DateTime? value) => value?.ToString("dd", CultureInfo.InvariantCulture);
+    private static string? FormatMonth(DateTime? value) => value?.ToString("MM", CultureInfo.InvariantCulture);
+    private static string? FormatYear(DateTime? value) => value?.ToString("yyyy", CultureInfo.InvariantCulture);
     private static string? FormatDateOnly(DateTime? value) => value?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static string? FormatDateOnly(DateTime value) => value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     private static bool IsBaggedProduct(CutOrder registration)

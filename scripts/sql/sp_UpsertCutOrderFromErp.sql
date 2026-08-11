@@ -53,7 +53,8 @@ ALTER PROCEDURE [dbo].[sp_UpsertCutOrderFromErp]
     @VehicleRegistrationNo NVARCHAR(50) = NULL,
     @VehicleRegistrationExpiryDate DATETIME2(7) = NULL,
     @MoocRegistrationNo NVARCHAR(50) = NULL,
-    @MoocRegistrationExpiryDate DATETIME2(7) = NULL
+    @MoocRegistrationExpiryDate DATETIME2(7) = NULL,
+    @PrinterName NVARCHAR(100) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -99,6 +100,7 @@ BEGIN
     SET @DriverName = NULLIF(LTRIM(RTRIM(@DriverName)), N'');
     SET @VehicleRegistrationNo = NULLIF(LTRIM(RTRIM(@VehicleRegistrationNo)), N'');
     SET @MoocRegistrationNo = NULLIF(LTRIM(RTRIM(@MoocRegistrationNo)), N'');
+    SET @PrinterName = NULLIF(LTRIM(RTRIM(@PrinterName)), N'');
 
     IF @ReceiverName IS NULL AND @DriverName IS NOT NULL
         SET @ReceiverName = @DriverName;
@@ -204,6 +206,7 @@ BEGIN
                 OR @RepresentativeName IS NOT NULL
                 OR @LoadingPlace IS NOT NULL
                 OR @SealNo IS NOT NULL
+                OR @PrinterName IS NOT NULL
                 OR @Notes IS NOT NULL
            )
         BEGIN
@@ -213,6 +216,7 @@ BEGIN
                 RepresentativeName = COALESCE(@RepresentativeName, RepresentativeName),
                 LoadingPlace = COALESCE(@LoadingPlace, LoadingPlace),
                 SealNo = COALESCE(@SealNo, SealNo),
+                PackagePrinterName = COALESCE(@PrinterName, PackagePrinterName),
                 ProductType = COALESCE(@ProductType, ProductType),
                 Notes = COALESCE(@Notes, Notes),
                 SyncStatus = N'SYNC_QUEUED',
@@ -260,6 +264,7 @@ BEGIN
             ConsumptionPlace = @ConsumptionPlace,
             LoadingPlace = @LoadingPlace,
             SealNo = @SealNo,
+            PackagePrinterName = @PrinterName,
             PlannedWeight = @PlannedWeight,
             BagCount = CASE WHEN @BagCount IS NULL THEN NULL ELSE CAST(ROUND(@BagCount, 0) AS INT) END,
             Notes = @Notes,
@@ -306,6 +311,7 @@ BEGIN
         ConsumptionPlace,
         LoadingPlace,
         SealNo,
+        PackagePrinterName,
         PlannedWeight,
         BagCount,
         Notes,
@@ -353,6 +359,7 @@ BEGIN
         @ConsumptionPlace,
         @LoadingPlace,
         @SealNo,
+        @PrinterName,
         @PlannedWeight,
         CASE WHEN @BagCount IS NULL THEN NULL ELSE CAST(ROUND(@BagCount, 0) AS INT) END,
         @Notes,
