@@ -25,6 +25,14 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="..\..\Mau_A5_Phieu_Can_EDITABLE_v4.docx" Link="Mau_A5_Phieu_Can_EDITABLE_v4.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\Mau_A5_Phieu_Giao_Nhan_EDITABLE_v4.docx" Link="Mau_A5_Phieu_Giao_Nhan_EDITABLE_v4.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\**" />

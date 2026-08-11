@@ -13,6 +13,8 @@ namespace StationApp.UI.ViewModels.Dialogs;
 
 public partial class PrintOptionsDialogViewModel : ObservableObject
 {
+    private const string WeighTicketA5V2ProfileKey = "weigh-pc-ver-2-a5-mau-moi";
+    private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
     private readonly PrintOverlayRenderer _renderer;
     private readonly IPrintTemplateProvider _templateProvider;
     private readonly IPrintDocumentExporter _printDocumentExporter;
@@ -264,6 +266,14 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         };
 
         CloseRequested?.Invoke(this, true);
+    }
+
+    [RelayCommand]
+    private async Task DownloadAsync()
+    {
+        var template = BuildPreviewTemplate();
+        var format = IsA5V2Template(template) ? PrintExportFormat.Word : PrintExportFormat.Excel;
+        await ExportFileAsync(format);
     }
 
     [RelayCommand]
@@ -637,6 +647,11 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
 
         return rawName;
     }
+
+    private static bool IsA5V2Template(PrintTemplateDefinition template)
+        => template.Kind == PrintDocumentKind.WeighTicket
+            ? string.Equals(template.ActiveProfileKey, WeighTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
+            : string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase);
 
     private async Task LoadSelectedProfileAsync(PrintTemplateProfileDescriptor? profile)
     {

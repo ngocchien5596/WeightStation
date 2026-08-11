@@ -5,6 +5,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Extensions.Configuration;
 using StationApp.Application.Printing;
+using V = DocumentFormat.OpenXml.Vml;
 
 namespace StationApp.Infrastructure.Services;
 
@@ -38,6 +39,10 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     private const double WordGridColumnMm = 3d;
     private const double WordGridRowMm = 4.2d;
     private const double PrintFontSizeBoost = 4d;
+    private const string WeighTicketA5V2ProfileKey = "weigh-pc-ver-2-a5-mau-moi";
+    private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
+    private const string WeighTicketA5V2TemplateFileName = "Mau_A5_Phieu_Can_EDITABLE_v4.docx";
+    private const string DeliveryTicketA5V2TemplateFileName = "Mau_A5_Phieu_Giao_Nhan_EDITABLE_v4.docx";
 
     public Task ExportExcelAsync(
         PrintTemplateDefinition template,
@@ -68,6 +73,12 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     {
         ct.ThrowIfCancellationRequested();
         EnsureDirectory(outputPath);
+
+        if (TryResolveA5V2SourceTemplatePath(template, out var sourceTemplatePath))
+        {
+            ExportWordOverlayFromSourceTemplate(sourceTemplatePath, template, batch, outputPath, ct);
+            return Task.CompletedTask;
+        }
 
         using var document = WordprocessingDocument.Create(outputPath, WordprocessingDocumentType.Document);
         var mainPart = document.AddMainDocumentPart();
@@ -106,9 +117,60 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return Task.CompletedTask;
     }
 
+    private void ExportWordOverlayFromSourceTemplate(
+        string sourceTemplatePath,
+        PrintTemplateDefinition template,
+        PrintBatchPreviewModel batch,
+        string outputPath,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (Path.GetFullPath(sourceTemplatePath).Equals(Path.GetFullPath(outputPath), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Không thể ghi đè trực tiếp lên file mẫu phiếu in.");
+        }
+
+        File.Copy(sourceTemplatePath, outputPath, overwrite: true);
+
+        using var document = WordprocessingDocument.Open(outputPath, true);
+        var body = document.MainDocumentPart?.Document.Body
+            ?? throw new InvalidOperationException("File mẫu phiếu in không có nội dung hợp lệ.");
+
+        var sectionProperties = body.Elements<SectionProperties>().LastOrDefault();
+        var originalContent = body.ChildElements
+            .Where(x => x is not SectionProperties)
+            .Select(x => x.CloneNode(true))
+            .ToList();
+
+        if (batch.Pages.Count == 0)
+        {
+            document.MainDocumentPart!.Document.Save();
+            return;
+        }
+
+        var firstContent = body.ChildElements.FirstOrDefault(x => x is not SectionProperties);
+        body.InsertBefore(CreateWordOverlayParagraph(template, batch.Pages[0]), firstContent);
+
+        for (var pageIndex = 1; pageIndex < batch.Pages.Count; pageIndex++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var insertBefore = sectionProperties ?? body.LastChild;
+            body.InsertBefore(new Paragraph(new Run(new Break { Type = BreakValues.Page })), insertBefore);
+            body.InsertBefore(CreateWordOverlayParagraph(template, batch.Pages[pageIndex]), insertBefore);
+            foreach (var element in originalContent)
+            {
+                body.InsertBefore(element.CloneNode(true), insertBefore);
+            }
+        }
+
+        document.MainDocumentPart!.Document.Save();
+    }
+
     private void BuildExcelPage(IXLWorksheet sheet, PrintTemplateDefinition template, PrintPreviewPageModel page)
     {
-        if (template.Kind == PrintDocumentKind.WeighTicket)
+        if (template.Kind == PrintDocumentKind.WeighTicket
+            && !string.Equals(template.ActiveProfileKey, WeighTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase))
         {
             BuildWeighTicketExcelPage(sheet, template, page);
             return;
@@ -604,6 +666,84 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return new Paragraph(paragraphProperties, new Run(runProperties, new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
     }
 
+    private Paragraph CreateWordOverlayParagraph(PrintTemplateDefinition template, PrintPreviewPageModel page)
+    {
+        var valuesByKey = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        var paragraph = new Paragraph(new ParagraphProperties(
+            new SpacingBetweenLines { Before = "0", After = "0" }));
+
+        foreach (var field in template.Fields.Where(x => x.IsEnabled && !x.IsImage && !x.IsLine).OrderBy(x => x.Y).ThenBy(x => x.X))
+        {
+            var value = ResolveFieldValue(field, valuesByKey);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            paragraph.Append(new Run(new Picture(CreateWordOverlayShape(field, value))));
+        }
+
+        return paragraph;
+    }
+
+    private static V.Shape CreateWordOverlayShape(PrintFieldDefinition field, string value)
+    {
+        var heightMm = Math.Max(5.5d * Math.Max(1, field.MaxLines), field.FontSize * 0.55d * Math.Max(1, field.MaxLines));
+        var shape = new V.Shape
+        {
+            Id = $"Field_{field.FieldKey}_{Guid.NewGuid():N}",
+            Type = "#_x0000_t202",
+            Style = string.Join(';',
+                "position:absolute",
+                $"margin-left:{ToPointString(field.X)}pt",
+                $"margin-top:{ToPointString(field.Y)}pt",
+                $"width:{ToPointString(field.Width)}pt",
+                $"height:{ToPointString(heightMm)}pt",
+                "z-index:251659264",
+                "mso-position-horizontal-relative:page",
+                "mso-position-vertical-relative:page",
+                "mso-width-relative:page",
+                "mso-height-relative:page"),
+            Filled = false,
+            Stroked = false
+        };
+
+        var textBox = new V.TextBox { Style = "mso-fit-shape-to-text:false" };
+        textBox.Append(new TextBoxContent(CreateWordParagraph(value, field)));
+        shape.Append(textBox);
+        return shape;
+    }
+
+    private static bool TryResolveA5V2SourceTemplatePath(PrintTemplateDefinition template, out string sourceTemplatePath)
+    {
+        var fileName = template.Kind switch
+        {
+            PrintDocumentKind.WeighTicket when string.Equals(template.ActiveProfileKey, WeighTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
+                => WeighTicketA5V2TemplateFileName,
+            PrintDocumentKind.DeliveryTicket when string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
+                => DeliveryTicketA5V2TemplateFileName,
+            _ => null
+        };
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            sourceTemplatePath = string.Empty;
+            return false;
+        }
+
+        foreach (var basePath in EnumerateTemplateSearchRoots())
+        {
+            var candidate = Path.Combine(basePath, fileName);
+            if (File.Exists(candidate))
+            {
+                sourceTemplatePath = candidate;
+                return true;
+            }
+        }
+
+        throw new FileNotFoundException($"Không tìm thấy file mẫu phiếu in: {fileName}", fileName);
+    }
+
     private string ResolveFieldValue(PrintFieldDefinition field, IReadOnlyDictionary<string, string> valuesByKey)
     {
         if (!string.IsNullOrWhiteSpace(field.LiteralValue))
@@ -708,6 +848,30 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     private static UInt32Value ToTwips(double mm) => (uint)ToTwipsValue(mm);
     private static int ToTwipsValue(double mm) => (int)Math.Max(1, Math.Round(mm * 56.6929133858d));
     private static string ToHalfPointString(double points) => Math.Max(1, (int)Math.Round(points * 2d)).ToString();
+    private static string ToPointString(double mm) => Math.Round(mm * 72d / 25.4d, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static IEnumerable<string> EnumerateTemplateSearchRoots()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var current = AppContext.BaseDirectory;
+        while (!string.IsNullOrWhiteSpace(current))
+        {
+            if (seen.Add(current))
+            {
+                yield return current;
+                yield return Path.Combine(current, "Templates");
+                yield return Path.Combine(current, "PrintTemplates");
+            }
+
+            var parent = Directory.GetParent(current);
+            if (parent == null)
+            {
+                break;
+            }
+
+            current = parent.FullName;
+        }
+    }
 
     private static readonly string[] WeighTicketExcelMerges =
     [

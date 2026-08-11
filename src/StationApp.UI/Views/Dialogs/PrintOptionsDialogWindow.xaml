@@ -50,7 +50,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="T&#x1EA3;i" Width="90" Height="36" Margin="0,0,10,0"
-                                    Command="{Binding ExportExcelCommand}"
+                                    Command="{Binding DownloadCommand}"
                                     Background="#047857" Foreground="White" BorderThickness="0"/>
                             <Button Content="L&#x1B0;u layout" Width="120" Height="36" Margin="0,0,10,0"
                                     Command="{Binding SaveLayoutCommand}"
