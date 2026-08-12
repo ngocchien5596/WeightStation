@@ -36,9 +36,14 @@ public partial class SystemSettingsViewModel : ObservableObject
     [ObservableProperty] private string _overweightSplitStepWeight = AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", CultureInfo.InvariantCulture);
     [ObservableProperty] private string _centralApiUrl = string.Empty;
     [ObservableProperty] private string _centralApiKey = string.Empty;
+    [ObservableProperty] private string _backupSyncApiUrl = string.Empty;
+    [ObservableProperty] private string _backupSyncApiKey = string.Empty;
+    [ObservableProperty] private bool _backupSyncEnabled = true;
+    [ObservableProperty] private string _backupSyncStationCodes = AppConfigDefaults.DefaultBackupSyncStationCodes;
     [ObservableProperty] private string _localDatabaseBackupDirectory = string.Empty;
     [ObservableProperty] private string _localDatabaseBackupTime = AppConfigDefaults.DefaultLocalDatabaseBackupTime;
     [ObservableProperty] private string _centralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
+    [ObservableProperty] private string _backupSyncHealthMessage = "Chưa kiểm tra kết nối BackupSync.";
     [ObservableProperty] private string _localDatabaseBackupMessage = "Chưa chạy sao lưu DB local thủ công.";
     [ObservableProperty] private string _telegramStatusMessage = "Chưa kiểm tra cấu hình Telegram.";
 
@@ -63,11 +68,17 @@ public partial class SystemSettingsViewModel : ObservableObject
             ?? AppConfigDefaults.DefaultOverweightSplitStepWeight.ToString("0.####", CultureInfo.InvariantCulture);
         CentralApiUrl = await repo.GetValueAsync(AppConfigKeys.CentralApiUrl, CancellationToken.None) ?? string.Empty;
         CentralApiKey = await repo.GetValueAsync(AppConfigKeys.CentralApiKey, CancellationToken.None) ?? string.Empty;
+        BackupSyncApiUrl = await repo.GetValueAsync(AppConfigKeys.BackupSyncApiUrl, CancellationToken.None) ?? string.Empty;
+        BackupSyncApiKey = await repo.GetValueAsync(AppConfigKeys.BackupSyncApiKey, CancellationToken.None) ?? string.Empty;
+        BackupSyncEnabled = ParseBool(await repo.GetValueAsync(AppConfigKeys.BackupSyncEnabled, CancellationToken.None), true);
+        BackupSyncStationCodes = await repo.GetValueAsync(AppConfigKeys.BackupSyncStationCodes, CancellationToken.None)
+            ?? AppConfigDefaults.DefaultBackupSyncStationCodes;
         LocalDatabaseBackupDirectory = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, CancellationToken.None)
             ?? AppConfigDefaults.DefaultLocalDatabaseBackupDirectory;
         LocalDatabaseBackupTime = await repo.GetValueAsync(AppConfigKeys.LocalDatabaseBackupTime, CancellationToken.None)
             ?? AppConfigDefaults.DefaultLocalDatabaseBackupTime;
         CentralApiHealthMessage = "Chưa kiểm tra kết nối Central API.";
+        BackupSyncHealthMessage = "Chưa kiểm tra kết nối BackupSync.";
         LocalDatabaseBackupMessage = $"Thư mục backup hiện tại: {LocalDatabaseBackupDirectory}";
         TelegramStatusMessage = BuildTelegramStatusMessage();
     }
@@ -92,6 +103,10 @@ public partial class SystemSettingsViewModel : ObservableObject
                     OverweightSplitStepWeight,
                     CentralApiUrl,
                     CentralApiKey,
+                    BackupSyncApiUrl,
+                    BackupSyncApiKey,
+                    BackupSyncEnabled,
+                    BackupSyncStationCodes,
                     LocalDatabaseBackupDirectory,
                     LocalDatabaseBackupTime),
                 CancellationToken.None);
@@ -115,6 +130,24 @@ public partial class SystemSettingsViewModel : ObservableObject
         var checker = scope.ServiceProvider.GetRequiredService<ICentralApiHealthChecker>();
         var result = await checker.CheckAsync(CentralApiUrl, CentralApiKey, CancellationToken.None);
         CentralApiHealthMessage = result.Message;
+
+        if (result.Success)
+        {
+            await dialogService.ShowInfoAsync("Thông báo", result.Message);
+            return;
+        }
+
+        await dialogService.ShowWarningAsync("Cảnh báo", result.Message);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanManageSystemSettings))]
+    private async Task TestBackupSyncConnectionAsync()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dialogService = scope.ServiceProvider.GetRequiredService<Services.IDialogService>();
+        var checker = scope.ServiceProvider.GetRequiredService<ICentralApiHealthChecker>();
+        var result = await checker.CheckAsync(BackupSyncApiUrl, BackupSyncApiKey, CancellationToken.None);
+        BackupSyncHealthMessage = result.Message;
 
         if (result.Success)
         {
@@ -196,6 +229,18 @@ public partial class SystemSettingsViewModel : ObservableObject
 
     private static string FormatStationCode(string? stationCode)
         => string.IsNullOrWhiteSpace(stationCode) ? "chưa xác định" : stationCode.Trim().ToUpperInvariant();
+
+    private static bool ParseBool(string? value, bool defaultValue)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        return bool.TryParse(value, out var parsed)
+            ? parsed
+            : value.Trim() == "1";
+    }
 
     private static string MaskToken(string? token)
     {

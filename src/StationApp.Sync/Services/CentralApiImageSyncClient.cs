@@ -26,21 +26,26 @@ public sealed class CentralApiImageSyncClient : IWeighingSessionImageSyncClient
 
     public async Task<SyncWeighTicketResponse> PushImageAsync(WeighingSessionImage image, CancellationToken ct)
     {
-        var baseUri = await ResolveBaseUriAsync(ct);
-        if (baseUri == null)
+        var route = await ResolveRouteAsync(image.StationCode, ct);
+        if (route.BaseUri == null)
         {
             return new SyncWeighTicketResponse
             {
                 Success = false,
                 ErrorCode = "CONFIG_INVALID",
-                ErrorMessage = "Central API URL chua duoc cau hinh hop le."
+                ErrorMessage = route.ErrorMessage ?? "Sync API URL chua duoc cau hinh hop le."
             };
         }
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, "api/weighing-session-images"));
+            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(route.BaseUri, "api/weighing-session-images"));
             request.Headers.Add("Idempotency-Key", image.Id.ToString());
+            if (!string.IsNullOrWhiteSpace(route.ApiKey))
+            {
+                request.Headers.Remove("X-Api-Key");
+                request.Headers.Add("X-Api-Key", route.ApiKey);
+            }
             request.Content = JsonContent.Create(new SyncWeighingSessionImageRequest
             {
                 Id = image.Id,
@@ -86,20 +91,9 @@ public sealed class CentralApiImageSyncClient : IWeighingSessionImageSyncClient
         }
     }
 
-    private async Task<Uri?> ResolveBaseUriAsync(CancellationToken ct)
+    private async Task<SyncEndpointRoute> ResolveRouteAsync(string? stationCode, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var config = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-        var configuredUrl = await config.GetValueAsync(AppConfigKeys.CentralApiUrl, ct)
-            ?? await config.GetValueAsync("central_api_url", ct);
-
-        if (string.IsNullOrWhiteSpace(configuredUrl))
-        {
-            return _httpClient.BaseAddress;
-        }
-
-        return Uri.TryCreate(configuredUrl, UriKind.Absolute, out var configuredUri)
-            ? (configuredUri.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? configuredUri : new Uri($"{configuredUri.AbsoluteUri}/"))
-            : null;
+        var resolver = new BackupSyncRouteResolver(_scopeFactory, _logger);
+        return await resolver.ResolveForImageAsync(stationCode, _httpClient.BaseAddress, ct);
     }
 }

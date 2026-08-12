@@ -7,6 +7,10 @@ public static class AppConfigKeys
     public const string DefaultStationCode = "default_station_code";
     public const string CentralApiUrl = "central_api_url";
     public const string CentralApiKey = "central_api_key";
+    public const string BackupSyncApiUrl = "backup_sync_api_url";
+    public const string BackupSyncApiKey = "backup_sync_api_key";
+    public const string BackupSyncEnabled = "backup_sync_enabled";
+    public const string BackupSyncStationCodes = "backup_sync_station_codes";
     public const string LocalDatabaseBackupDirectory = "local_database_backup_directory";
     public const string LocalDatabaseBackupTime = "local_database_backup_time";
     public const string SyncIntervalSeconds = "sync_interval_seconds";
@@ -69,6 +73,10 @@ public static class AppConfigDefaults
 {
     public const string DefaultCentralApiUrl = "";
     public const string DefaultCentralApiKey = "";
+    public const string DefaultBackupSyncApiUrl = "";
+    public const string DefaultBackupSyncApiKey = "";
+    public const string DefaultBackupSyncEnabled = "true";
+    public const string DefaultBackupSyncStationCodes = "QN02,QN03";
     public const string DefaultLocalDatabaseBackupDirectory = "";
     public const string DefaultLocalDatabaseBackupTime = "01:00";
     public const string DefaultSyncIntervalSeconds = "30";

@@ -29,28 +29,35 @@ public sealed class CentralApiClient : ICentralApiClient
     {
         try
         {
-            var baseUri = await ResolveBaseUriAsync(ct);
-            if (baseUri == null)
+            var route = await ResolveRouteAsync(payloadJson, ct);
+            if (route.BaseUri == null)
             {
                 return new SyncWeighTicketResponse
                 {
                     Success = false,
                     ErrorCode = "CONFIG_INVALID",
-                    ErrorMessage = "Central API URL chưa được cấu hình hợp lệ."
+                    ErrorMessage = route.ErrorMessage ?? "Sync API URL chưa được cấu hình hợp lệ."
                 };
             }
 
             var endpoint = ResolveOutboundEndpoint(aggregateType);
-            var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, endpoint))
+            var request = new HttpRequestMessage(HttpMethod.Post, new Uri(route.BaseUri, endpoint))
             {
                 Content = new StringContent(payloadJson, System.Text.Encoding.UTF8, "application/json")
             };
             request.Headers.Add("Idempotency-Key", idempotencyKey.ToString());
+            if (!string.IsNullOrWhiteSpace(route.ApiKey))
+            {
+                request.Headers.Remove("X-Api-Key");
+                request.Headers.Add("X-Api-Key", route.ApiKey);
+            }
 
             _logger?.LogDebug(
-                "Pushing aggregate {AggregateType} to Central API endpoint {Endpoint}. Idempotency-Key: {Key}",
+                "Pushing aggregate {AggregateType} to {SyncChannel} endpoint {Endpoint}. StationCode={StationCode}. Idempotency-Key: {Key}",
                 aggregateType,
+                route.Channel,
                 endpoint,
+                route.StationCode ?? "-",
                 idempotencyKey);
 
             var response = await _httpClient.SendAsync(request, ct);
@@ -58,16 +65,20 @@ public sealed class CentralApiClient : ICentralApiClient
             if (response.IsSuccessStatusCode)
             {
                 _logger?.LogInformation(
-                    "Aggregate {AggregateType} pushed successfully. Idempotency-Key: {Key}",
+                    "Aggregate {AggregateType} pushed successfully to {SyncChannel}. StationCode={StationCode}. Idempotency-Key: {Key}",
                     aggregateType,
+                    route.Channel,
+                    route.StationCode ?? "-",
                     idempotencyKey);
                 return new SyncWeighTicketResponse { Success = true };
             }
 
             var body = await response.Content.ReadAsStringAsync(ct);
             _logger?.LogWarning(
-                "Push aggregate {AggregateType} failed. Status: {Status}, Body: {Body}",
+                "Push aggregate {AggregateType} to {SyncChannel} failed. StationCode={StationCode}. Status: {Status}, Body: {Body}",
                 aggregateType,
+                route.Channel,
+                route.StationCode ?? "-",
                 response.StatusCode,
                 body);
             return new SyncWeighTicketResponse
@@ -102,42 +113,20 @@ public sealed class CentralApiClient : ICentralApiClient
     public Task<SyncWeighTicketResponse> PushTicketAsync(string payloadJson, Guid idempotencyKey, CancellationToken ct)
         => PushAggregateAsync(SyncAggregateTypes.WeighTicket, payloadJson, idempotencyKey, ct);
 
-    private async Task<Uri?> ResolveBaseUriAsync(CancellationToken ct)
-    {
-        var configuredUrl = await TryGetConfiguredBaseUrlAsync(ct);
-        if (!string.IsNullOrWhiteSpace(configuredUrl))
-        {
-            if (!Uri.TryCreate(configuredUrl, UriKind.Absolute, out var configuredUri))
-            {
-                _logger?.LogWarning("Central API URL is invalid: {Url}", configuredUrl);
-                return null;
-            }
-
-            return EnsureTrailingSlash(configuredUri);
-        }
-
-        return _httpClient.BaseAddress is null ? null : EnsureTrailingSlash(_httpClient.BaseAddress);
-    }
-
-    private async Task<string?> TryGetConfiguredBaseUrlAsync(CancellationToken ct)
+    private async Task<SyncEndpointRoute> ResolveRouteAsync(string payloadJson, CancellationToken ct)
     {
         if (_scopeFactory == null)
         {
-            return null;
+            return new SyncEndpointRoute(
+                _httpClient.BaseAddress is null ? null : EnsureTrailingSlash(_httpClient.BaseAddress),
+                null,
+                "CENTRAL",
+                null,
+                _httpClient.BaseAddress is null ? "Central API URL chưa được cấu hình hợp lệ." : null);
         }
 
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var config = scope.ServiceProvider.GetRequiredService<IAppConfigRepository>();
-            return await config.GetValueAsync(AppConfigKeys.CentralApiUrl, ct)
-                ?? await config.GetValueAsync("central_api_url", ct);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "Failed to read central_api_url from app config.");
-            return null;
-        }
+        var resolver = new BackupSyncRouteResolver(_scopeFactory, _logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CentralApiClient>.Instance);
+        return await resolver.ResolveForPayloadAsync(payloadJson, _httpClient.BaseAddress, ct);
     }
 
     private static Uri EnsureTrailingSlash(Uri uri)
@@ -161,6 +150,10 @@ public sealed class CentralApiClient : ICentralApiClient
             SyncAggregateTypes.Customer => "api/customers",
             SyncAggregateTypes.Product => "api/products",
             SyncAggregateTypes.IncomingSeedVehicle => "api/incoming-seed-vehicles",
+            SyncAggregateTypes.AuditLog => "api/audit-logs",
+            SyncAggregateTypes.User => "api/users",
+            SyncAggregateTypes.UserStationAssignment => "api/user-station-assignments",
+            SyncAggregateTypes.PrintTemplateProfile => "api/print-template-profiles",
             _ => throw new InvalidOperationException($"Unsupported sync aggregate type: {aggregateType}")
         };
     }

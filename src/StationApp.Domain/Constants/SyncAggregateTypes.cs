@@ -12,5 +12,10 @@ public static class SyncAggregateTypes
     public const string Customer = nameof(Entities.Customer);
     public const string Product = nameof(Entities.Product);
     public const string IncomingSeedVehicle = nameof(Entities.IncomingSeedVehicle);
+    public const string AuditLog = nameof(Entities.AuditLog);
+    public const string User = nameof(Entities.User);
+    public const string UserStationAssignment = nameof(Entities.UserStationAssignment);
+    public const string AppConfig = nameof(Entities.AppConfig);
+    public const string PrintTemplateProfile = nameof(Entities.PrintTemplateProfile);
 }
 

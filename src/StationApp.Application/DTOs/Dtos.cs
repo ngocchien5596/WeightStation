@@ -100,6 +100,10 @@ public sealed record UpdateSystemSettingsRequest(
     string OverweightSplitStepWeight,
     string CentralApiUrl,
     string CentralApiKey,
+    string BackupSyncApiUrl,
+    string BackupSyncApiKey,
+    bool BackupSyncEnabled,
+    string BackupSyncStationCodes,
     string LocalDatabaseBackupDirectory,
     string LocalDatabaseBackupTime
 );

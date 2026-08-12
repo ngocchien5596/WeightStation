@@ -12,10 +12,37 @@ namespace StationApp.Infrastructure.Repositories;
 public class AuditLogRepository : IAuditLogRepository
 {
     private readonly StationDbContext _db;
-    public AuditLogRepository(StationDbContext db) => _db = db;
+    private readonly ISyncOutboxRepository _syncOutbox;
+    private readonly ISyncPayloadFactory _syncPayloadFactory;
+
+    public AuditLogRepository(
+        StationDbContext db,
+        ISyncOutboxRepository syncOutbox,
+        ISyncPayloadFactory syncPayloadFactory)
+    {
+        _db = db;
+        _syncOutbox = syncOutbox;
+        _syncPayloadFactory = syncPayloadFactory;
+    }
 
     public async Task AddAsync(AuditLog log, CancellationToken ct)
-        => await _db.AuditLogs.AddAsync(log, ct);
+    {
+        await _db.AuditLogs.AddAsync(log, ct);
+
+        await _syncOutbox.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = log.Id,
+            AggregateType = SyncAggregateTypes.AuditLog,
+            PayloadJson = _syncPayloadFactory.CreatePayload(log),
+            IdempotencyKey = log.Id,
+            StationCode = log.StationCode ?? string.Empty,
+            Status = Domain.Enums.OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = log.CreatedAt,
+            UpdatedAt = log.CreatedAt
+        }, ct);
+    }
 
     public async Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, Guid entityId, CancellationToken ct)
         => await _db.AuditLogs.Where(l => l.EntityType == entityType && l.EntityId == entityId)

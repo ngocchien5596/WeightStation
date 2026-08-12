@@ -15,4 +15,5 @@ public interface ISyncPayloadFactory
     string CreatePayload(Customer customer);
     string CreatePayload(Product product);
     string CreatePayload(IncomingSeedVehicle seedVehicle);
+    string CreatePayload(AuditLog auditLog);
 }

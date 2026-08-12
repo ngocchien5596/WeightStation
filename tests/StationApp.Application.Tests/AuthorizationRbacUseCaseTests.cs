@@ -232,7 +232,7 @@ public class AuthorizationRbacUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             sut.ExecuteAsync(
-                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025", "", "", "", "01:00"),
+                new UpdateSystemSettingsRequest("ST", "QN", "DN", "0", "30", "15", "0.0025", "", "", "", "", true, "QN02,QN03", "", "01:00"),
                 CancellationToken.None));
     }
 

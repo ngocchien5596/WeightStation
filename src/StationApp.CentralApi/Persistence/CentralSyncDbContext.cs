@@ -23,6 +23,11 @@ public sealed class CentralSyncDbContext : DbContext
     public DbSet<WeighingSession> WeighingSessions => Set<WeighingSession>();
     public DbSet<WeighingSessionLine> WeighingSessionLines => Set<WeighingSessionLine>();
     public DbSet<WeighingSessionImage> WeighingSessionImages => Set<WeighingSessionImage>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<UserStationAssignment> UserStationAssignments => Set<UserStationAssignment>();
+    public DbSet<AppConfig> AppConfigs => Set<AppConfig>();
+    public DbSet<PrintTemplateProfile> PrintTemplateProfiles => Set<PrintTemplateProfile>();
     public DbSet<SyncIngestionLog> SyncIngestionLogs => Set<SyncIngestionLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -40,6 +45,11 @@ public sealed class CentralSyncDbContext : DbContext
         modelBuilder.ApplyConfiguration(new WeighingSessionEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionLineEntityConfiguration());
         modelBuilder.ApplyConfiguration(new WeighingSessionImageEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new AuditLogEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new UserEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new UserStationAssignmentEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new AppConfigEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new PrintTemplateProfileEntityConfiguration());
 
         modelBuilder.Entity<SyncIngestionLog>(builder =>
         {

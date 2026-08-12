@@ -40,6 +40,19 @@ public sealed class UpdateSystemSettingsUseCase
             throw new InvalidOperationException("Central API URL is invalid.");
         }
 
+        var backupSyncApiUrl = request.BackupSyncApiUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(backupSyncApiUrl) &&
+            !Uri.TryCreate(backupSyncApiUrl, UriKind.Absolute, out _))
+        {
+            throw new InvalidOperationException("Backup Sync API URL is invalid.");
+        }
+
+        var backupSyncStationCodes = NormalizeStationCodeList(request.BackupSyncStationCodes);
+        if (request.BackupSyncEnabled && string.IsNullOrWhiteSpace(backupSyncStationCodes))
+        {
+            throw new InvalidOperationException("Backup Sync station codes is required when Backup Sync is enabled.");
+        }
+
         var localDatabaseBackupDirectory = request.LocalDatabaseBackupDirectory.Trim();
         if (!string.IsNullOrWhiteSpace(localDatabaseBackupDirectory))
         {
@@ -68,6 +81,10 @@ public sealed class UpdateSystemSettingsUseCase
         await _configRepository.SetValueAsync(AppConfigKeys.OverweightSplitStepWeight, request.OverweightSplitStepWeight.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CentralApiUrl, centralApiUrl, ct);
         await _configRepository.SetValueAsync(AppConfigKeys.CentralApiKey, request.CentralApiKey.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.BackupSyncApiUrl, backupSyncApiUrl, ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.BackupSyncApiKey, request.BackupSyncApiKey.Trim(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.BackupSyncEnabled, request.BackupSyncEnabled.ToString().ToLowerInvariant(), ct);
+        await _configRepository.SetValueAsync(AppConfigKeys.BackupSyncStationCodes, backupSyncStationCodes, ct);
         await _configRepository.SetValueAsync(AppConfigKeys.LocalDatabaseBackupDirectory, localDatabaseBackupDirectory, ct);
         await _configRepository.SetValueAsync(AppConfigKeys.LocalDatabaseBackupTime, backupTime.ToString(@"hh\:mm", CultureInfo.InvariantCulture), ct);
 
@@ -83,6 +100,15 @@ public sealed class UpdateSystemSettingsUseCase
 
         return TimeSpan.TryParseExact(value, @"hh\:mm", CultureInfo.InvariantCulture, out backupTime)
             || TimeSpan.TryParseExact(value, @"hh\:mm\:ss", CultureInfo.InvariantCulture, out backupTime);
+    }
+
+    private static string NormalizeStationCodeList(string value)
+    {
+        return string.Join(
+            ',',
+            value.Split([',', ';', '|', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(x => x.ToUpperInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase));
     }
 }
 

@@ -454,10 +454,23 @@ public class AuditService : IAuditService
     private readonly ICurrentUserContext _userContext;
     private readonly ICurrentStationContext _currentStationContext;
     private readonly IClock _clock;
+    private readonly ISyncOutboxRepository _syncOutbox;
+    private readonly ISyncPayloadFactory _syncPayloadFactory;
 
-    public AuditService(StationDbContext db, ICurrentUserContext userContext, ICurrentStationContext currentStationContext, IClock clock)
+    public AuditService(
+        StationDbContext db,
+        ICurrentUserContext userContext,
+        ICurrentStationContext currentStationContext,
+        IClock clock,
+        ISyncOutboxRepository syncOutbox,
+        ISyncPayloadFactory syncPayloadFactory)
     {
-        _db = db; _userContext = userContext; _currentStationContext = currentStationContext; _clock = clock;
+        _db = db;
+        _userContext = userContext;
+        _currentStationContext = currentStationContext;
+        _clock = clock;
+        _syncOutbox = syncOutbox;
+        _syncPayloadFactory = syncPayloadFactory;
     }
 
     public async Task LogAsync(string action, string entityType, Guid entityId, object? detail, CancellationToken ct)
@@ -474,6 +487,19 @@ public class AuditService : IAuditService
             StationCode = _currentStationContext.StationCode
         };
         await _db.AuditLogs.AddAsync(log, ct);
+        await _syncOutbox.EnqueueAsync(new SyncOutbox
+        {
+            Id = Guid.NewGuid(),
+            AggregateId = log.Id,
+            AggregateType = SyncAggregateTypes.AuditLog,
+            PayloadJson = _syncPayloadFactory.CreatePayload(log),
+            IdempotencyKey = log.Id,
+            StationCode = log.StationCode ?? string.Empty,
+            Status = Domain.Enums.OutboxStatus.PENDING,
+            RetryCount = 0,
+            CreatedAt = log.CreatedAt,
+            UpdatedAt = log.CreatedAt
+        }, ct);
         await _db.SaveChangesAsync(ct);
     }
 }
@@ -509,4 +535,7 @@ public class SyncPayloadFactory : ISyncPayloadFactory
 
     public string CreatePayload(IncomingSeedVehicle seedVehicle)
         => JsonSerializer.Serialize(seedVehicle, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+    public string CreatePayload(AuditLog auditLog)
+        => JsonSerializer.Serialize(auditLog, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 }

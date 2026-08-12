@@ -128,6 +128,14 @@ public class SyncOutboxRepository : ISyncOutboxRepository
                 .Where(x => x.Id == message.AggregateId)
                 .Select(x => x.StationCode)
                 .FirstOrDefaultAsync(ct),
+            SyncAggregateTypes.AuditLog => await _db.AuditLogs.AsNoTracking()
+                .Where(x => x.Id == message.AggregateId)
+                .Select(x => x.StationCode)
+                .FirstOrDefaultAsync(ct),
+            SyncAggregateTypes.UserStationAssignment => await _db.UserStationAssignments.AsNoTracking()
+                .Where(x => x.Id == message.AggregateId)
+                .Select(x => x.StationCode)
+                .FirstOrDefaultAsync(ct),
             _ => null
         };
     }

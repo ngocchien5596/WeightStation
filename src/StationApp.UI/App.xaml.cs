@@ -443,6 +443,10 @@ public partial class App : System.Windows.Application
             [AppConfigKeys.AppUpdateSharedReleaseRoot] = AppConfigDefaults.DefaultAppUpdateSharedReleaseRoot,
             [AppConfigKeys.CentralApiUrl] = AppConfigDefaults.DefaultCentralApiUrl,
             [AppConfigKeys.CentralApiKey] = AppConfigDefaults.DefaultCentralApiKey,
+            [AppConfigKeys.BackupSyncApiUrl] = AppConfigDefaults.DefaultBackupSyncApiUrl,
+            [AppConfigKeys.BackupSyncApiKey] = AppConfigDefaults.DefaultBackupSyncApiKey,
+            [AppConfigKeys.BackupSyncEnabled] = AppConfigDefaults.DefaultBackupSyncEnabled,
+            [AppConfigKeys.BackupSyncStationCodes] = AppConfigDefaults.DefaultBackupSyncStationCodes,
             [AppConfigKeys.LocalDatabaseBackupDirectory] = AppConfigDefaults.DefaultLocalDatabaseBackupDirectory,
             [AppConfigKeys.LocalDatabaseBackupTime] = AppConfigDefaults.DefaultLocalDatabaseBackupTime,
             [AppConfigKeys.SyncIntervalSeconds] = AppConfigDefaults.DefaultSyncIntervalSeconds,
@@ -554,6 +558,11 @@ internal class ApiKeyDelegatingHandler : DelegatingHandler
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.Headers.Contains("X-Api-Key"))
+        {
+            return await base.SendAsync(request, cancellationToken);
+        }
+
         try
         {
             using var scope = _scopeFactory.CreateScope();

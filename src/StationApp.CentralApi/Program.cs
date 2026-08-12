@@ -14,6 +14,7 @@ using StationApp.Domain.Entities;
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, services, configuration) =>
 {
+    var enableFileLog = context.Configuration.GetValue("CentralApi:EnableFileLog", true);
     var logDirectory = context.Configuration["CentralApi:LogDirectory"];
     if (string.IsNullOrWhiteSpace(logDirectory))
     {
@@ -34,13 +35,17 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
         .Enrich.FromLogContext()
         .WriteTo.Console(
-            outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
-        .WriteTo.File(
+            outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
+
+    if (enableFileLog)
+    {
+        configuration.WriteTo.File(
             path: logPath,
             rollingInterval: RollingInterval.Day,
             retainedFileCountLimit: 30,
             shared: true,
             outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
+    }
 });
 
 builder.Services.Configure<CentralApiOptions>(builder.Configuration.GetSection(CentralApiOptions.SectionName));
@@ -134,6 +139,14 @@ app.MapPost("/api/products", (Product payload, CentralSyncDbContext db, ILogger<
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.Product, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/incoming-seed-vehicles", (IncomingSeedVehicle payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.IncomingSeedVehicle, payload.Id, payload, logger, httpContext, ct));
+app.MapPost("/api/audit-logs", (AuditLog payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
+    SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.AuditLog, payload.Id, payload, logger, httpContext, ct));
+app.MapPost("/api/users", (User payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
+    SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.User, payload.Id, payload, logger, httpContext, ct));
+app.MapPost("/api/user-station-assignments", (UserStationAssignment payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
+    SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.UserStationAssignment, payload.Id, payload, logger, httpContext, ct));
+app.MapPost("/api/print-template-profiles", (PrintTemplateProfile payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
+    SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.PrintTemplateProfile, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/weighing-sessions", (WeighingSession payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
     SyncEndpointHandler.UpsertAsync(db, SyncAggregateTypes.WeighingSession, payload.Id, payload, logger, httpContext, ct));
 app.MapPost("/api/weighing-session-lines", (WeighingSessionLine payload, CentralSyncDbContext db, ILogger<Program> logger, HttpContext httpContext, CancellationToken ct) =>
@@ -163,8 +176,112 @@ app.MapPost("/api/weighing-session-images", async (SyncWeighingSessionImageReque
     return await SyncEndpointHandler.UpsertAsync(db, "WeighingSessionImage", payload.Id, entity, logger, httpContext, ct);
 });
 
+MapBackupExportEndpoints(app);
+
 startupLogger.LogInformation("StationApp.CentralApi startup complete. Listening for requests.");
 await app.RunAsync();
+
+static void MapBackupExportEndpoints(WebApplication app)
+{
+    app.MapGet("/api/backup-export/stations/{stationCode}/summary", async (string stationCode, CentralSyncDbContext db, CancellationToken ct) =>
+    {
+        stationCode = NormalizeStationCode(stationCode);
+        return Results.Ok(new
+        {
+            StationCode = stationCode,
+            CutOrders = await db.CutOrders.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            WeighTickets = await db.WeighTickets.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            DeliveryTickets = await db.DeliveryTickets.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            WeighingSessions = await db.WeighingSessions.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            WeighingSessionLines = await db.WeighingSessionLines.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            WeighingSessionImages = await db.WeighingSessionImages.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            Vehicles = await db.Vehicles.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            Customers = await db.Customers.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            Products = await db.Products.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            IncomingSeedVehicles = await db.IncomingSeedVehicles.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            AuditLogs = await db.AuditLogs.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct),
+            UserStationAssignments = await db.UserStationAssignments.AsNoTracking().CountAsync(x => x.StationCode == stationCode, ct)
+        });
+    });
+
+    app.MapGet("/api/backup-export/stations/{stationCode}/cut-orders", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.CutOrders.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/weigh-tickets", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.WeighTickets.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/delivery-tickets", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.DeliveryTickets.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/weighing-sessions", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.WeighingSessions.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/weighing-session-lines", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.WeighingSessionLines.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/weighing-session-images", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.WeighingSessionImages.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CapturedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/vehicles", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.Vehicles.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.VehiclePlate), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/customers", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.Customers.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CustomerCode), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/products", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.Products.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.ProductCode), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/incoming-seed-vehicles", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.IncomingSeedVehicles.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.SortOrder), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/audit-logs", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.AuditLogs.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/stations/{stationCode}/user-station-assignments", (string stationCode, CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+    {
+        var code = NormalizeStationCode(stationCode);
+        return ExportAsync(Page(db.UserStationAssignments.AsNoTracking().Where(x => x.StationCode == code).OrderBy(x => x.CreatedAt), skip, take), ct);
+    });
+    app.MapGet("/api/backup-export/users", (CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+        ExportAsync(Page(db.Users.AsNoTracking().OrderBy(x => x.Username), skip, take), ct));
+    app.MapGet("/api/backup-export/print-template-profiles", (CentralSyncDbContext db, int? skip, int? take, CancellationToken ct) =>
+        ExportAsync(Page(db.PrintTemplateProfiles.AsNoTracking().OrderBy(x => x.TemplateKind).ThenBy(x => x.ProfileKey), skip, take), ct));
+}
+
+static async Task<IResult> ExportAsync<T>(IQueryable<T> query, CancellationToken ct)
+    => Results.Ok(await query.ToListAsync(ct));
+
+static IQueryable<T> Page<T>(IQueryable<T> query, int? skip, int? take)
+{
+    var normalizedSkip = Math.Max(0, skip.GetValueOrDefault());
+    var normalizedTake = Math.Clamp(take.GetValueOrDefault(500), 1, 1000);
+    return query.Skip(normalizedSkip).Take(normalizedTake);
+}
+
+static string NormalizeStationCode(string stationCode)
+    => string.IsNullOrWhiteSpace(stationCode) ? string.Empty : stationCode.Trim().ToUpperInvariant();
 
 static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
 {
@@ -288,6 +405,7 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureDeliveryTicketSyncStatusSchemaAsync(db);
     await EnsureStationMasterSchemaAsync(db);
     await EnsureIncomingSeedVehiclesTableAsync(db);
+    await EnsureBackupSupplementalTablesAsync(db);
     await EnsureColumnAsync(db, "sync_ingestion_logs", "StationCode", "nvarchar(50) NULL");
     await EnsureColumnAsync(db, "vehicles", "IsInternalVehicle", "bit NOT NULL CONSTRAINT [DF_vehicles_is_internal_vehicle_bootstrap] DEFAULT ((0))");
     await EnsureColumnAsync(db, "vehicles", "StandardTareSource", "nvarchar(50) NULL");
@@ -764,6 +882,92 @@ END
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_incoming_seed_vehicles_station_customer_product_active' AND object_id = OBJECT_ID(N'[incoming_seed_vehicles]'))
 BEGIN
     CREATE INDEX [IX_incoming_seed_vehicles_station_customer_product_active] ON [incoming_seed_vehicles] ([StationCode], [CustomerCode], [ProductCode], [IsActive]);
+END
+""";
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task EnsureBackupSupplementalTablesAsync(CentralSyncDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[audit_logs]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [audit_logs](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_audit_logs] PRIMARY KEY,
+        [Actor] nvarchar(100) NOT NULL,
+        [Action] nvarchar(100) NOT NULL,
+        [EntityType] nvarchar(50) NOT NULL,
+        [EntityId] uniqueidentifier NOT NULL,
+        [DetailJson] nvarchar(max) NULL,
+        [OldValueJson] nvarchar(max) NULL,
+        [NewValueJson] nvarchar(max) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [StationCode] nvarchar(20) NULL
+    );
+END
+
+IF OBJECT_ID(N'[users]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [users](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_users] PRIMARY KEY,
+        [Username] nvarchar(100) NOT NULL,
+        [DisplayName] nvarchar(150) NOT NULL,
+        [RoleCode] nvarchar(30) NOT NULL,
+        [PasswordHash] nvarchar(255) NULL,
+        [IsActive] bit NOT NULL CONSTRAINT [DF_users_is_active_backup] DEFAULT ((1)),
+        [LastLoginAt] datetime2 NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL
+    );
+END
+
+IF OBJECT_ID(N'[user_station_assignments]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [user_station_assignments](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_user_station_assignments] PRIMARY KEY,
+        [UserId] uniqueidentifier NOT NULL,
+        [StationCode] nvarchar(50) NOT NULL,
+        [IsDefault] bit NOT NULL CONSTRAINT [DF_user_station_assignments_is_default_backup] DEFAULT ((0)),
+        [IsActive] bit NOT NULL CONSTRAINT [DF_user_station_assignments_is_active_backup] DEFAULT ((1)),
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(100) NULL
+    );
+END
+
+IF OBJECT_ID(N'[app_config]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [app_config](
+        [ConfigKey] nvarchar(100) NOT NULL CONSTRAINT [PK_app_config] PRIMARY KEY,
+        [ConfigValue] nvarchar(1000) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        [UpdatedBy] nvarchar(100) NULL
+    );
+END
+
+IF OBJECT_ID(N'[print_template_profiles]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [print_template_profiles](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [PK_print_template_profiles] PRIMARY KEY,
+        [TemplateKind] nvarchar(30) NOT NULL,
+        [ProfileKey] nvarchar(100) NOT NULL,
+        [DisplayName] nvarchar(150) NOT NULL,
+        [IsDefault] bit NOT NULL,
+        [OffsetXmm] decimal(18,3) NOT NULL,
+        [OffsetYmm] decimal(18,3) NOT NULL,
+        [TemplateVersion] int NOT NULL,
+        [LayoutJson] nvarchar(max) NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(100) NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        [UpdatedBy] nvarchar(100) NOT NULL
+    );
 END
 """;
 
