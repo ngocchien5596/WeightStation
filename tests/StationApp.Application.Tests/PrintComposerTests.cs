@@ -199,6 +199,7 @@ public class PrintComposerTests
             CustomerCode = "C001",
             ProductName = "Xi mang",
             ProductType = "Roi",
+            OrderCode = "SO-001",
             PlannedWeight = 21000,
             BagCount = 400,
             ConsumptionPlace = "Noi tieu thu",
@@ -231,7 +232,8 @@ public class PrintComposerTests
         var model = composer.Compose(registration, ticket, weigh, sessionLine: null, useActualWeightForBaggedCutOrders: false, vehicle: null, new DateTime(2026, 4, 27, 9, 30, 0), "Test User");
 
         Assert.Equal("PGN0001", model.DeliveryNo);
-        Assert.Equal("ERP-001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
+        Assert.Equal("ERP-001", model.Fields.Single(x => x.FieldKey == "DeliveryNo").Value);
+        Assert.Equal("SO-001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
         Assert.Equal("20.5", model.Fields.Single(x => x.FieldKey == "ActualWeight").Value);
         Assert.Null(model.Fields.Single(x => x.FieldKey == "ActualBagCount").Value);
         Assert.Equal("Noi tieu thu", model.Fields.Single(x => x.FieldKey == "ConsumptionPlace").Value);
@@ -249,7 +251,7 @@ public class PrintComposerTests
             MoocNumber = "14RM-3642",
             ReceiverName = "Nguyen Van A",
             ErpCutOrderId = "QN.CL.2608/0001",
-            OrderCode = "QN.DH.2608/0001",
+            OrderCode = "SO-001, SO-002;SO-001",
             CustomerName = "Cong ty A",
             CustomerCode = "KH001",
             ProductName = "Xi mang PCB40",
@@ -286,7 +288,8 @@ public class PrintComposerTests
             printedByDisplayName: "Nguoi In");
 
         Assert.Equal("MPVB-01", model.Fields.Single(x => x.FieldKey == "PackagePrinterName").Value);
-        Assert.Equal("QN.CL.2608/0001", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
+        Assert.Equal("QN.CL.2608/0001", model.Fields.Single(x => x.FieldKey == "DeliveryNo").Value);
+        Assert.Equal($"SO-001{Environment.NewLine}SO-002", model.Fields.Single(x => x.FieldKey == "ReferenceCode").Value);
         Assert.Equal("14R-3584 (14RM-3642)", model.Fields.Single(x => x.FieldKey == "VehicleLine").Value);
         Assert.Equal("Nguyen Van A", model.Fields.Single(x => x.FieldKey == "ReceiverName").Value);
         Assert.Equal("11", model.Fields.Single(x => x.FieldKey == "Weight1Day").Value);

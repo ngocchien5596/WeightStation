@@ -196,7 +196,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         => kind switch
         {
             PrintDocumentKind.WeighTicket => 2,
-            PrintDocumentKind.DeliveryTicket => 2,
+            PrintDocumentKind.DeliveryTicket => 3,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -231,7 +231,8 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
             PrintDocumentKind.DeliveryTicket,
             DeliveryTicketA5V2ProfileKey,
             DeliveryTicketA5V2DisplayName,
-            DeliveryTicketA5V2Fields);
+            DeliveryTicketA5V2Fields,
+            replaceWhenOlder: true);
 
         if (changed)
         {
@@ -325,11 +326,29 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         PrintDocumentKind kind,
         string profileKey,
         string displayName,
-        IReadOnlyList<PrintFieldDefinition> defaults)
+        IReadOnlyList<PrintFieldDefinition> defaults,
+        bool replaceWhenOlder = false)
     {
         var profiles = GetProfiles(store, kind);
-        if (profiles.Any(x => string.Equals(x.ProfileKey, profileKey, StringComparison.OrdinalIgnoreCase)))
+        var existing = profiles.FirstOrDefault(x => string.Equals(x.ProfileKey, profileKey, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
         {
+            if (replaceWhenOlder && existing.TemplateVersion < GetCurrentTemplateVersion(kind))
+            {
+                existing.DisplayName = displayName;
+                existing.TemplateVersion = GetCurrentTemplateVersion(kind);
+                existing.Fields = defaults.Select(field => new PersistedPrintFieldPosition
+                {
+                    FieldKey = field.FieldKey,
+                    X = field.X,
+                    Y = field.Y,
+                    Width = field.Width,
+                    IsEnabled = field.IsEnabled
+                }).ToList();
+
+                return true;
+            }
+
             return false;
         }
 
@@ -707,23 +726,22 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
     [
         new("DeliveryNo", 158, 30, 34, PrintFieldAlignment.Left, 11.4, PrintFieldWeight.Bold),
         new("ReferenceCode", 158, 39, 40, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
-        new("PackagePrinterName", 158, 48, 40, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold),
 
         new("CustomerName", 35, 58, 102, PrintFieldAlignment.Left, 11.2, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
         new("CustomerCode", 158, 58, 36, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold),
         new("ConsumptionPlace", 35, 69, 102, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
-        new("VehicleLine", 158, 69, 42, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
+        new("LoadingPlace", 158, 69, 42, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap),
 
         new("ProductName", 25, 90, 45, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, 3, PrintWrapMode.Wrap),
         new("BagCount", 76, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
         new("PlannedWeight", 96, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
         new("ActualBagCount", 118, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
         new("ActualWeight", 139, 90, 18, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Normal),
-        new("ReceiverName", 164, 90, 37, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("VehicleLine", 164, 90, 37, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
 
         new("SealNo", 35, 113, 60, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal),
         new("LotNo", 158, 113, 38, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal),
-        new("LoadingPlace", 35, 123, 98, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
+        new("PackagePrinterName", 35, 123, 98, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap),
         new("Notes", 158, 123, 42, PrintFieldAlignment.Left, 10.8, PrintFieldWeight.Normal, 7, PrintWrapMode.Wrap),
 
         new("Weight1Hour", 86, 31, 8, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),

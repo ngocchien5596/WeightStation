@@ -356,19 +356,20 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
             isBagged,
             useActualWeightForBaggedCutOrders)?.ToString(CultureInfo.InvariantCulture);
 
-        var referenceCode = ResolveCutOrderReferenceCode(registration, deliveryTicket);
+        var cutOrderCode = ResolveCutOrderReferenceCode(registration, deliveryTicket);
+        var orderCode = FormatMultilineCodes(registration.OrderCode);
 
         return new DeliveryTicketPrintModel
         {
             DocumentId = deliveryTicket.Id,
             DisplayNumber = BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo),
             DeliveryNo = deliveryTicket.DeliveryNo,
-            OrderCode = referenceCode,
+            OrderCode = orderCode,
             ActualWeight = actualWeight,
             Fields = new[]
             {
-                Field("DeliveryNo", BusinessNumberFormatter.ToDisplay(deliveryTicket.DeliveryNo)),
-                Field("ReferenceCode", referenceCode),
+                Field("DeliveryNo", cutOrderCode),
+                Field("ReferenceCode", orderCode),
                 Field("CustomerName", registration.CustomerName),
                 Field("CustomerCode", registration.CustomerCode),
                 Field("ProductName", registration.ProductName),
@@ -414,6 +415,24 @@ public sealed class DeliveryTicketPrintComposer : IDeliveryTicketPrintComposer
             deliveryTicket.ErpCutOrderId,
             registration.ErpCutOrderId,
             registration.OrderCode);
+
+    private static string? FormatMultilineCodes(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var lines = value
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split(['\n', ',', ';', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return lines.Length == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
 
     private static string BuildVehicleLine(string? vehiclePlate, string? moocNumber)
     {

@@ -29,7 +29,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\..\Mau_A5_Phieu_Giao_Nhan_EDITABLE_v4.docx" Link="Mau_A5_Phieu_Giao_Nhan_EDITABLE_v4.docx">
+    <Content Include="..\..\Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx" Link="Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
