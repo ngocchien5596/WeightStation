@@ -250,7 +250,9 @@ static async Task EnsureCentralSchemaCompatibilityAsync(CentralSyncDbContext db)
     await EnsureColumnAsync(db, "cut_orders", "StationCode", "nvarchar(50) NOT NULL CONSTRAINT [DF_cut_orders_station_code_bootstrap] DEFAULT (N'QN01')");
     await EnsureColumnAsync(db, "cut_orders", "WeighingSessionId", "uniqueidentifier NULL");
     await EnsureColumnAsync(db, "cut_orders", "ProductType", "nvarchar(30) NULL");
-    await EnsureColumnAsync(db, "cut_orders", "OrderCode", "nvarchar(100) NULL");
+    await EnsureColumnAsync(db, "cut_orders", "OrderCode", "nvarchar(500) NULL");
+    await EnsureColumnDefinitionAsync(db, "cut_orders", "OrderCode", "nvarchar(500) NULL", "max_length > 0 AND max_length < 1000");
+    await DropLegacyCutOrderSalesOrderCodeAsync(db);
     await EnsureColumnAsync(db, "cut_orders", "LotNo", "nvarchar(100) NULL");
     await EnsureColumnAsync(db, "cut_orders", "RepresentativeName", "nvarchar(150) NULL");
     await EnsureColumnAsync(db, "cut_orders", "Market", "nvarchar(255) NULL");
@@ -417,6 +419,49 @@ static Task EnsureColumnAsync(CentralSyncDbContext db, string tableName, string 
         ALTER TABLE [{tableName}] ADD [{columnName}] {sqlDefinition};
     END
     """;
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task EnsureColumnDefinitionAsync(CentralSyncDbContext db, string tableName, string columnName, string sqlDefinition, string predicate)
+{
+    var sql = $"""
+    IF OBJECT_ID(N'[{tableName}]', N'U') IS NOT NULL
+       AND COL_LENGTH('{tableName}', '{columnName}') IS NOT NULL
+       AND EXISTS (
+            SELECT 1
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID(N'[{tableName}]')
+              AND name = N'{columnName}'
+              AND {predicate}
+       )
+    BEGIN
+        ALTER TABLE [{tableName}] ALTER COLUMN [{columnName}] {sqlDefinition};
+    END
+    """;
+
+    return db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static Task DropLegacyCutOrderSalesOrderCodeAsync(CentralSyncDbContext db)
+{
+    const string sql = """
+IF OBJECT_ID(N'[cut_orders]', N'U') IS NOT NULL
+   AND COL_LENGTH('cut_orders', 'SalesOrderCode') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('cut_orders', 'OrderCode') IS NULL
+    BEGIN
+        ALTER TABLE [cut_orders] ADD [OrderCode] nvarchar(500) NULL;
+    END
+
+    UPDATE [cut_orders]
+    SET [OrderCode] = NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'')
+    WHERE NULLIF(LTRIM(RTRIM(ISNULL([OrderCode], N''))), N'') IS NULL
+      AND NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'') IS NOT NULL;
+
+    ALTER TABLE [cut_orders] DROP COLUMN [SalesOrderCode];
+END
+""";
 
     return db.Database.ExecuteSqlRawAsync(sql);
 }

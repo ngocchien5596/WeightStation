@@ -10,7 +10,7 @@ public static class SchemaCompatibilityBootstrapper
         new("StationCode", "nvarchar(50) NULL"),
         new("WeighingSessionId", "uniqueidentifier NULL"),
         new("ProductType", "nvarchar(30) NULL"),
-        new("OrderCode", "nvarchar(100) NULL"),
+        new("OrderCode", "nvarchar(500) NULL"),
         new("LotNo", "nvarchar(100) NULL"),
         new("RepresentativeName", "nvarchar(150) NULL"),
         new("Market", "nvarchar(255) NULL"),
@@ -183,6 +183,8 @@ public static class SchemaCompatibilityBootstrapper
     {
         await EnsureCutOrderSchemaAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "cut_orders", CutOrderColumnPatches, ct);
+        await EnsureCutOrderOrderCodeLengthAsync(db, logger, ct);
+        await DropLegacyCutOrderSalesOrderCodeAsync(db, logger, ct);
         await EnsureCutOrderIndexesAsync(db, logger, ct);
         await EnsureTableColumnsAsync(db, logger, "weigh_tickets", WeighTicketColumnPatches, ct);
         await EnsureTableColumnsAsync(db, logger, "delivery_tickets", DeliveryTicketColumnPatches, ct);
@@ -409,6 +411,52 @@ END";
                 tableName,
                 patch.ColumnName);
         }
+    }
+
+    private static async Task EnsureCutOrderOrderCodeLengthAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID('cut_orders', 'U') IS NOT NULL
+   AND COL_LENGTH('cut_orders', 'OrderCode') IS NOT NULL
+   AND EXISTS (
+        SELECT 1
+        FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'[cut_orders]')
+          AND name = N'OrderCode'
+          AND max_length > 0
+          AND max_length < 1000
+   )
+BEGIN
+    ALTER TABLE [cut_orders] ALTER COLUMN [OrderCode] nvarchar(500) NULL;
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for cut_orders.OrderCode length.");
+    }
+
+    private static async Task DropLegacyCutOrderSalesOrderCodeAsync(StationDbContext db, ILogger? logger, CancellationToken ct)
+    {
+        const string sql = """
+IF OBJECT_ID('cut_orders', 'U') IS NOT NULL
+   AND COL_LENGTH('cut_orders', 'SalesOrderCode') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('cut_orders', 'OrderCode') IS NULL
+    BEGIN
+        ALTER TABLE [cut_orders] ADD [OrderCode] nvarchar(500) NULL;
+    END
+
+    UPDATE [cut_orders]
+    SET [OrderCode] = NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'')
+    WHERE NULLIF(LTRIM(RTRIM(ISNULL([OrderCode], N''))), N'') IS NULL
+      AND NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'') IS NOT NULL;
+
+    ALTER TABLE [cut_orders] DROP COLUMN [SalesOrderCode];
+END
+""";
+
+        await db.Database.ExecuteSqlRawAsync(sql, ct);
+        logger?.LogDebug("Schema compatibility check completed for dropping legacy cut_orders.SalesOrderCode.");
     }
 
     private static async Task EnsureStationAccessTablesAsync(StationDbContext db, ILogger? logger, CancellationToken ct)

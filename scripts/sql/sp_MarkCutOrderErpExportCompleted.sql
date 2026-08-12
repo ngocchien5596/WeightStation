@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[sp_MarkCutOrderErpExportCompleted]
     @StationCode NVARCHAR(50),
     @ErpCutOrderId NVARCHAR(100),
     @ErpRegistrationCode NVARCHAR(100) = NULL,
-    @OrderCode NVARCHAR(100) = NULL,
+    @OrderCode NVARCHAR(500) = NULL,
     @IsCompleted BIT = 1,
     @UpdatedAt DATETIME2(7) = NULL,
     @UpdatedBy NVARCHAR(200) = NULL

@@ -17,7 +17,8 @@ ALTER PROCEDURE [dbo].[sp_UpdateCutOrderErpExtras]
     @LoadingPlace NVARCHAR(255) = NULL,
     @UpdatedAt DATETIME2(7) = NULL,
     @UpdatedBy NVARCHAR(200) = NULL,
-    @Description NVARCHAR(500) = NULL
+    @Description NVARCHAR(500) = NULL,
+    @PrinterName NVARCHAR(100) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -32,6 +33,7 @@ BEGIN
     SET @SealNo = NULLIF(LTRIM(RTRIM(@SealNo)), N'');
     SET @LoadingPlace = NULLIF(LTRIM(RTRIM(@LoadingPlace)), N'');
     SET @Description = NULLIF(LTRIM(RTRIM(@Description)), N'');
+    SET @PrinterName = NULLIF(LTRIM(RTRIM(@PrinterName)), N'');
 
     IF @StationCode IS NULL
         THROW 51090, N'StationCode la bat buoc.', 1;
@@ -53,6 +55,7 @@ BEGIN
         LotNo = COALESCE(@LotNo, LotNo),
         SealNo = COALESCE(@SealNo, SealNo),
         LoadingPlace = COALESCE(@LoadingPlace, LoadingPlace),
+        PackagePrinterName = COALESCE(@PrinterName, PackagePrinterName),
         Notes = COALESCE(@Description, Notes),
         SyncStatus = N'SYNC_QUEUED',
         LastSyncAttemptAt = NULL,
