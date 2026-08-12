@@ -11,6 +11,7 @@ namespace StationApp.UI.Printing;
 
 public sealed class PrintOverlayRenderer
 {
+    private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
     private static readonly FontFamily PrintFontFamily = new("Times New Roman");
     private static readonly Brush ShadedFieldBrush = new SolidColorBrush(Color.FromRgb(217, 217, 217));
     private const double PrintFontSizeBoost = 4d;
@@ -71,6 +72,7 @@ public sealed class PrintOverlayRenderer
 
             var values = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
             var positionedFields = ApplyFieldPositions(template.Fields, options.FieldPositions);
+            var shouldPrintNotes = IsDeliveryTicketA5V2Template(template);
 
             foreach (var field in positionedFields)
             {
@@ -114,7 +116,7 @@ public sealed class PrintOverlayRenderer
                     fixedPage.Children.Add(BuildFieldOutline(field, options, isSelected, isDisabled));
                 }
 
-                if (!previewMode && string.Equals(field.FieldKey, "Notes", StringComparison.OrdinalIgnoreCase))
+                if (!previewMode && !shouldPrintNotes && string.Equals(field.FieldKey, "Notes", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -190,6 +192,10 @@ public sealed class PrintOverlayRenderer
     }
 
     private static double MmToDip(double mm) => mm * 96d / 25.4d;
+
+    private static bool IsDeliveryTicketA5V2Template(PrintTemplateDefinition template)
+        => template.Kind == PrintDocumentKind.DeliveryTicket
+           && string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase);
 
     private static FrameworkElement? BuildImageElement(PrintFieldDefinition field, PrintOptionsModel options, bool isDisabled, bool previewMode)
     {

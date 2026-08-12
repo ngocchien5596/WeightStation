@@ -2,7 +2,7 @@
 
 ## 1. Mục tiêu
 
-Tạo thêm một version phiếu cân mới dựa trên file `Mau_A5_Phieu_Can_EDITABLE_v4.docx`, dùng song song với version phiếu cân hiện tại. Người dùng vẫn in được phiếu cân cũ, đồng thời có thể chọn phiếu cân A5 mẫu mới trong màn in/cấu hình in.
+Tạo thêm một version phiếu cân mới dựa trên file `Mau_A5_Phieu_Can_EDITABLE_final.docx`, dùng song song với version phiếu cân hiện tại. Người dùng vẫn in được phiếu cân cũ, đồng thời có thể chọn phiếu cân A5 mẫu mới trong màn in/cấu hình in.
 
 ## 2. Hiện trạng code đã rà soát
 
@@ -16,7 +16,7 @@ Tạo thêm một version phiếu cân mới dựa trên file `Mau_A5_Phieu_Can_
 
 ## 3. Thông tin mẫu Word
 
-File `Mau_A5_Phieu_Can_EDITABLE_v4.docx` là A5 ngang:
+File `Mau_A5_Phieu_Can_EDITABLE_final.docx` là A5 ngang:
 
 - Kích thước trang: khoảng `210 x 148 mm`.
 - Lề: khoảng `5-6 mm`.
@@ -122,7 +122,7 @@ Trong `WeighTicketPrintComposer`, bổ sung các field mới để template A5 m
 
 ### Task 3: Seed profile `PC ver 2 - A5 mẫu mới`
 
-**Mô tả:** Thêm danh sách field động theo tọa độ mm dựa trên bố cục `Mau_A5_Phieu_Can_EDITABLE_v4.docx`. Chỉ đưa các field dữ liệu động vào profile in thực tế; không seed các text/line/logo tĩnh vì các phần đó đã in sẵn trên phôi.
+**Mô tả:** Thêm danh sách field động theo tọa độ mm dựa trên bố cục `Mau_A5_Phieu_Can_EDITABLE_final.docx`. Chỉ đưa các field dữ liệu động vào profile in thực tế; không seed các text/line/logo tĩnh vì các phần đó đã in sẵn trên phôi.
 
 **Acceptance criteria:**
 - `GetProfilesAsync(PrintDocumentKind.WeighTicket)` trả thêm profile mới.

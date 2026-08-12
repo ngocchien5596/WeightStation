@@ -25,17 +25,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\..\Mau_A5_Phieu_Can_EDITABLE_v4.docx" Link="Mau_A5_Phieu_Can_EDITABLE_v4.docx">
+    <Content Include="Assets\PrintTemplates\Mau_A5_Phieu_Can_EDITABLE_final.docx">
+      <TargetPath>Mau_A5_Phieu_Can_EDITABLE_final.docx</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
-    <Content Include="..\..\Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx" Link="Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx">
+    <Content Include="Assets\PrintTemplates\Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx">
+      <TargetPath>Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Assets\**" />
+    <Resource Include="Assets\**" Exclude="Assets\PrintTemplates\**" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />

@@ -8,6 +8,7 @@ namespace StationApp.UI.Printing;
 
 internal static class DotMatrixGdiTextPrinter
 {
+    private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
     private const double PrintUnitsPerMm = 100d / 25.4d;
     private const double WpfDipToPoint = 72d / 96d;
     private const double PrintFontSizeBoost = 4d;
@@ -69,6 +70,7 @@ internal static class DotMatrixGdiTextPrinter
         var pageY = Math.Max(0.0, (availablePhysicalHeight - targetHeight) / 2.0) - pageSettings.HardMarginY;
 
         var values = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        var shouldPrintNotes = IsDeliveryTicketA5V2Template(template);
         var fields = ApplyFieldPositions(template.Fields, options.FieldPositions)
             .Where(x => x.IsEnabled && !x.IsImage && !x.IsLine)
             .OrderBy(x => x.Y)
@@ -76,7 +78,7 @@ internal static class DotMatrixGdiTextPrinter
 
         foreach (var field in fields)
         {
-            if (string.Equals(field.FieldKey, "Notes", StringComparison.OrdinalIgnoreCase))
+            if (!shouldPrintNotes && string.Equals(field.FieldKey, "Notes", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -248,4 +250,8 @@ internal static class DotMatrixGdiTextPrinter
     }
 
     private static double MmToPrintUnit(double mm) => mm * PrintUnitsPerMm;
+
+    private static bool IsDeliveryTicketA5V2Template(PrintTemplateDefinition template)
+        => template.Kind == PrintDocumentKind.DeliveryTicket
+           && string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase);
 }

@@ -454,12 +454,12 @@ BEGIN
         ALTER TABLE [cut_orders] ADD [OrderCode] nvarchar(500) NULL;
     END
 
-    UPDATE [cut_orders]
-    SET [OrderCode] = NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'')
-    WHERE NULLIF(LTRIM(RTRIM(ISNULL([OrderCode], N''))), N'') IS NULL
-      AND NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'') IS NOT NULL;
+    EXEC(N'UPDATE [cut_orders]
+    SET [OrderCode] = NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'''')
+    WHERE NULLIF(LTRIM(RTRIM(ISNULL([OrderCode], N''''))), N'''') IS NULL
+      AND NULLIF(LTRIM(RTRIM([SalesOrderCode])), N'''') IS NOT NULL;');
 
-    ALTER TABLE [cut_orders] DROP COLUMN [SalesOrderCode];
+    EXEC(N'ALTER TABLE [cut_orders] DROP COLUMN [SalesOrderCode];');
 END
 """;
 

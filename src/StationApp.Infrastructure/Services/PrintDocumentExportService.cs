@@ -41,7 +41,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     private const double PrintFontSizeBoost = 4d;
     private const string WeighTicketA5V2ProfileKey = "weigh-pc-ver-2-a5-mau-moi";
     private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
-    private const string WeighTicketA5V2TemplateFileName = "Mau_A5_Phieu_Can_EDITABLE_v4.docx";
+    private const string WeighTicketA5V2TemplateFileName = "Mau_A5_Phieu_Can_EDITABLE_final.docx";
     private const string DeliveryTicketA5V2TemplateFileName = "Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx";
 
     public Task ExportExcelAsync(
