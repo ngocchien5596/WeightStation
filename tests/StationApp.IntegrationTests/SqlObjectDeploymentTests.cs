@@ -51,6 +51,26 @@ SELECT * FROM #t;
     }
 
     [Fact]
+    public void SplitBatches_IgnoresUseDatabaseBatch()
+    {
+        const string script = """
+USE [StationAppLocal]
+GO
+CREATE OR ALTER PROCEDURE dbo.TestProc AS
+BEGIN
+    SELECT 1;
+END
+GO
+""";
+
+        var batches = SqlObjectDeploymentService.SplitBatches(script);
+
+        Assert.Single(batches);
+        Assert.DoesNotContain("USE [StationAppLocal]", batches[0]);
+        Assert.Contains("CREATE OR ALTER PROCEDURE dbo.TestProc", batches[0]);
+    }
+
+    [Fact]
     public void UpsertCutOrderScript_ValidatesProductTypeByNormalizedNull()
     {
         var content = SqlObjectScriptCatalog.ReadRequiredScript(
@@ -62,6 +82,18 @@ SELECT * FROM #t;
         Assert.Contains("N'Clinker'", content);
         Assert.Contains("N'Bao'", content);
         Assert.DoesNotContain("@ProductType IS NOT NULL AND @ProductType NOT IN", content);
+    }
+
+    [Fact]
+    public void UpdateCutOrderErpExtrasScript_ContainsLatestErpExtrasContract()
+    {
+        var content = SqlObjectScriptCatalog.ReadRequiredScript(
+            "StationApp.Infrastructure.SqlScripts.sp_UpdateCutOrderErpExtras.sql");
+
+        Assert.Contains("@Description NVARCHAR(500) = NULL", content);
+        Assert.Contains("@PrinterName NVARCHAR(100) = NULL", content);
+        Assert.Contains("PackagePrinterName = COALESCE(@PrinterName, PackagePrinterName)", content);
+        Assert.Contains("Notes = COALESCE(@Description, Notes)", content);
     }
 
     public static IEnumerable<object[]> GetRequiredScriptNames()
