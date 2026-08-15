@@ -1011,7 +1011,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         AllocateByPlanInternal(AllocationLines.ToList(), NetWeight.Value);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanConfirmAllocation))]
     private async Task ConfirmAllocationAsync()
     {
         if (SelectedSession == null)
@@ -1099,6 +1099,13 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         }
     }
 
+    private bool CanConfirmAllocation()
+    {
+        return SelectedSession != null
+            && AllocationLines.Count > 0
+            && AllocationLines.All(x => x.ActualAllocatedWeight.HasValue);
+    }
+
     partial void OnAllocationLinesChanging(ObservableCollection<WeighingSessionLineRow> value)
     {
         RewireAllocationLineSubscriptions(AllocationLines, null);
@@ -1107,6 +1114,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     partial void OnAllocationLinesChanged(ObservableCollection<WeighingSessionLineRow> value)
     {
         RewireAllocationLineSubscriptions(null, value);
+        ConfirmAllocationCommand.NotifyCanExecuteChanged();
     }
 
     private void RewireAllocationLineSubscriptions(
@@ -1413,10 +1421,17 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
                 item.PropertyChanged += AllocationLine_PropertyChanged;
             }
         }
+
+        ConfirmAllocationCommand.NotifyCanExecuteChanged();
     }
 
     private void AllocationLine_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(WeighingSessionLineRow.ActualAllocatedWeight) or nameof(WeighingSessionLineRow.IsPriority))
+        {
+            ConfirmAllocationCommand.NotifyCanExecuteChanged();
+        }
+
         if (_isUpdatingPriorityAllocation || sender is not WeighingSessionLineRow row || !NetWeight.HasValue)
         {
             return;
