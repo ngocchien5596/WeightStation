@@ -134,6 +134,214 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task IncomingList_SuggestsReusableEmptyPendingSession_ByVehiclePlateWithin24Hours()
+    {
+        var now = DateTime.Now;
+        var sessionId = Guid.NewGuid();
+
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+
+            db.WeighingSessions.Add(new WeighingSession
+            {
+                Id = sessionId,
+                SessionNo = $"{SessionNoPrefix}006",
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                DriverName = "Hoang Van Vinh",
+                Weight1 = 16_666m,
+                Weight1Time = now.AddMinutes(-30),
+                SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+                CreatedAt = now.AddHours(-1),
+                CreatedBy = "tester"
+            });
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = Guid.NewGuid(),
+                ErpCutOrderId = $"{ErpCutOrderPrefix}NEW-006",
+                ErpRegistrationCode = $"{RegistrationCodePrefix}006",
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.REGISTERED,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                ReceiverName = "Hoang Van Vinh",
+                CustomerCode = "C6",
+                CustomerName = "Customer 6",
+                ProductCode = "XM6",
+                ProductName = "Xi mang 6",
+                PlannedWeight = 36_000m,
+                ProcessingStage = ProcessingStage.IN_YARD,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = now,
+                CreatedBy = "erp"
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _services.CreateScope())
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+
+            var list = await repo.GetIncomingListAsync(
+                new IncomingVehicleListFilter($"{ErpCutOrderPrefix}NEW-006", null, null, null, null, null, null),
+                CancellationToken.None);
+
+            var item = Assert.Single(list);
+            Assert.Null(item.CarryForwardWeight1);
+            Assert.Equal("006", item.SuggestedSessionNo);
+        }
+    }
+
+    [Fact]
+    public async Task IncomingList_SuggestsReusableEmptyPendingSession_WhenVehiclePlateHasExtraPunctuation()
+    {
+        var now = DateTime.Now;
+        var sessionId = Guid.NewGuid();
+
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+
+            db.WeighingSessions.Add(new WeighingSession
+            {
+                Id = sessionId,
+                SessionNo = $"{SessionNoPrefix}008",
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14H12345.",
+                Weight1 = 18_888m,
+                Weight1Time = now.AddMinutes(-30),
+                SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+                CreatedAt = now.AddHours(-1),
+                CreatedBy = "tester"
+            });
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = Guid.NewGuid(),
+                ErpCutOrderId = $"{ErpCutOrderPrefix}NEW-008",
+                ErpRegistrationCode = $"{RegistrationCodePrefix}008",
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.REGISTERED,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14H-12345",
+                ProductCode = "XM8",
+                ProductName = "Xi mang 8",
+                PlannedWeight = 36_000m,
+                ProcessingStage = ProcessingStage.IN_YARD,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = now,
+                CreatedBy = "erp"
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _services.CreateScope())
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+
+            var list = await repo.GetIncomingListAsync(
+                new IncomingVehicleListFilter($"{ErpCutOrderPrefix}NEW-008", null, null, null, null, null, null),
+                CancellationToken.None);
+
+            var item = Assert.Single(list);
+            Assert.Equal("008", item.SuggestedSessionNo);
+        }
+    }
+
+    [Fact]
+    public async Task IncomingList_DoesNotSuggestReusableSession_WhenPendingSessionStillHasActiveCutOrderLine()
+    {
+        var now = DateTime.Now;
+        var sessionId = Guid.NewGuid();
+        var existingCutOrderId = Guid.NewGuid();
+
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StationDbContext>();
+
+            db.WeighingSessions.Add(new WeighingSession
+            {
+                Id = sessionId,
+                SessionNo = $"{SessionNoPrefix}007",
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                DriverName = "Hoang Van Vinh",
+                Weight1 = 17_777m,
+                Weight1Time = now.AddMinutes(-30),
+                SessionStatus = WeighingSessionStatus.PENDING_WEIGHT2,
+                CreatedAt = now.AddHours(-1),
+                CreatedBy = "tester"
+            });
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = existingCutOrderId,
+                ErpCutOrderId = $"{ErpCutOrderPrefix}ACTIVE-007",
+                ErpRegistrationCode = $"{RegistrationCodePrefix}ACTIVE-007",
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.IN_SESSION,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                WeighingSessionId = sessionId,
+                ProcessingStage = ProcessingStage.WEIGHING,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = now.AddMinutes(-40),
+                CreatedBy = "erp"
+            });
+
+            db.WeighingSessionLines.Add(new WeighingSessionLine
+            {
+                Id = Guid.NewGuid(),
+                WeighingSessionId = sessionId,
+                CutOrderId = existingCutOrderId,
+                SequenceNo = 1,
+                LineStatus = WeighingSessionLineStatus.PENDING,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = now.AddMinutes(-35),
+                CreatedBy = "tester"
+            });
+
+            db.CutOrders.Add(new CutOrder
+            {
+                Id = Guid.NewGuid(),
+                ErpCutOrderId = $"{ErpCutOrderPrefix}NEW-007",
+                ErpRegistrationCode = $"{RegistrationCodePrefix}007",
+                CutOrderSource = CutOrderSource.ERP,
+                CutOrderStatus = CutOrderStatus.REGISTERED,
+                TransactionType = TransactionType.OUTBOUND,
+                VehiclePlate = "14C-18011",
+                MoocNumber = "29R-00409",
+                ProcessingStage = ProcessingStage.IN_YARD,
+                SyncStatus = SyncStatus.SYNC_QUEUED,
+                CreatedAt = now,
+                CreatedBy = "erp"
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _services.CreateScope())
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<ICutOrderRepository>();
+
+            var list = await repo.GetIncomingListAsync(
+                new IncomingVehicleListFilter($"{ErpCutOrderPrefix}NEW-007", null, null, null, null, null, null),
+                CancellationToken.None);
+
+            var item = Assert.Single(list);
+            Assert.Null(item.SuggestedSessionNo);
+        }
+    }
+
+    [Fact]
     public async Task IncomingList_DoesNotSuggestCompletedSession_ButStillKeepsCarryForward_FromDeletedCutOrderWithSameRegistrationCode()
     {
         var now = DateTime.Now;
@@ -211,7 +419,7 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task IncomingList_DoesNotSuggestSession_WhenRegistrationCodeHistoryHasNoValidSessionReference()
+    public async Task IncomingList_FallsBackToReusableEmptySession_WhenRegistrationCodeHistoryHasNoValidSessionReference()
     {
         var now = DateTime.Now;
         var sessionId = Guid.NewGuid();
@@ -290,7 +498,7 @@ public class ReissueRegistrationCodeIntegrationTests : IDisposable
 
             var item = Assert.Single(list);
             Assert.Equal(13_579m, item.CarryForwardWeight1);
-            Assert.Null(item.SuggestedSessionNo);
+            Assert.Equal("003", item.SuggestedSessionNo);
         }
     }
 

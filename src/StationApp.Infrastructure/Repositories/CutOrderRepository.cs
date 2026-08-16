@@ -457,6 +457,7 @@ public class CutOrderRepository : ICutOrderRepository
                 .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
         var deletedSessionIds = deletedCarryForwardByRegistrationCode.Values
+            .Concat(deletedCarryForwardLookup.Values)
             .Where(x => x.WeighingSessionId.HasValue)
             .Select(x => x.WeighingSessionId!.Value)
             .Distinct()
@@ -475,16 +476,66 @@ public class CutOrderRepository : ICutOrderRepository
                     && deletedSessionIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, ct);
 
+        var reusableSessionVehiclePlateKeys = registrations
+            .Select(x => x.VehiclePlate?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => NormalizeVehiclePlateForReuse(x!))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var reusableEmptySessionCandidates = reusableSessionVehiclePlateKeys.Count == 0
+            ? new List<WeighingSession>()
+            : await _db.WeighingSessions.AsNoTracking()
+                .Where(x => !x.IsDeleted
+                    && x.StationCode == stationCode
+                    && !x.IsCancelled
+                    && x.SessionStatus == WeighingSessionStatus.PENDING_WEIGHT2
+                    && x.Weight1.HasValue
+                    && !x.Weight2.HasValue
+                    && x.Weight1Time.HasValue
+                    && x.Weight1Time.Value >= reuseCutoff
+                    && !_db.WeighingSessionLines.Any(line =>
+                        line.StationCode == stationCode
+                        && line.WeighingSessionId == x.Id
+                        && !line.IsDeleted)
+                    && !_db.CutOrders.Any(cutOrder =>
+                        cutOrder.StationCode == stationCode
+                        && cutOrder.WeighingSessionId == x.Id
+                        && !cutOrder.IsDeleted
+                        && !cutOrder.IsCancelled))
+                .OrderByDescending(x => x.Weight1Time)
+                .ThenByDescending(x => x.CreatedAt)
+                .ToListAsync(ct);
+        var reusableSessionVehiclePlateKeySet = reusableSessionVehiclePlateKeys.ToHashSet(StringComparer.Ordinal);
+        var reusableEmptySessions = reusableEmptySessionCandidates
+            .Where(x => reusableSessionVehiclePlateKeySet.Contains(NormalizeVehiclePlateForReuse(x.VehiclePlate)))
+            .ToList();
+        var reusableEmptySessionLookup = reusableEmptySessions
+            .GroupBy(x => BuildReusableSessionLookupKey(x.TransactionType, x.VehiclePlate), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
         var list = registrations.Select(vr =>
         {
             string? suggestedSessionNo = null;
-            if (!string.IsNullOrWhiteSpace(vr.ErpRegistrationCode)
+            var deletedCarryForwardForSuggestion =
+                !string.IsNullOrWhiteSpace(vr.ErpRegistrationCode)
                 && deletedCarryForwardByRegistrationCode.TryGetValue(vr.ErpRegistrationCode.Trim(), out var deletedByRegCode)
-                && deletedByRegCode.WeighingSessionId.HasValue
-                && deletedSessionLookup.TryGetValue(deletedByRegCode.WeighingSessionId.Value, out var suggestedSession)
+                    ? deletedByRegCode
+                    : !string.IsNullOrWhiteSpace(vr.ErpCutOrderId)
+                    && deletedCarryForwardLookup.TryGetValue(vr.ErpCutOrderId.Trim(), out var deletedByErpId)
+                        ? deletedByErpId
+                        : null;
+
+            if (deletedCarryForwardForSuggestion?.WeighingSessionId.HasValue == true
+                && deletedSessionLookup.TryGetValue(deletedCarryForwardForSuggestion.WeighingSessionId.Value, out var suggestedSession)
                 && suggestedSession.TransactionType == vr.TransactionType)
             {
                 suggestedSessionNo = suggestedSession.SessionNo;
+            }
+            else if (!string.IsNullOrWhiteSpace(vr.VehiclePlate)
+                && reusableEmptySessionLookup.TryGetValue(BuildReusableSessionLookupKey(vr.TransactionType, vr.VehiclePlate), out var reusableEmptySession))
+            {
+                suggestedSessionNo = reusableEmptySession.SessionNo;
             }
 
             return new IncomingVehicleListItem(
@@ -545,6 +596,23 @@ public class CutOrderRepository : ICutOrderRepository
         }
 
         return list.AsReadOnly();
+    }
+
+    private static string BuildReusableSessionLookupKey(TransactionType transactionType, string vehiclePlate)
+        => $"{transactionType}|{NormalizeVehiclePlateForReuse(vehiclePlate)}";
+
+    private static string NormalizeVehiclePlateForReuse(string vehiclePlate)
+    {
+        if (string.IsNullOrWhiteSpace(vehiclePlate))
+        {
+            return string.Empty;
+        }
+
+        return new string(vehiclePlate
+            .Trim()
+            .ToUpperInvariant()
+            .Where(char.IsLetterOrDigit)
+            .ToArray());
     }
 
     private static DateTime NormalizeCreatedAtForDisplay(CutOrderSource source, DateTime createdAt)
