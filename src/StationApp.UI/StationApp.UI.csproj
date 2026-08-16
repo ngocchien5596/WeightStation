@@ -35,6 +35,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="Assets\PrintTemplates\BienBan_KiemTraSoLuongHangTrenXe.docx">
+      <TargetPath>BienBan_KiemTraSoLuongHangTrenXe.docx</TargetPath>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\**" Exclude="Assets\PrintTemplates\**" />

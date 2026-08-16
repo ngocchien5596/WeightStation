@@ -9,7 +9,8 @@ namespace StationApp.Application.Printing;
 public enum PrintDocumentKind
 {
     WeighTicket,
-    DeliveryTicket
+    DeliveryTicket,
+    OverToleranceInspectionReport
 }
 
 public enum PrintWrapMode
@@ -95,6 +96,14 @@ public sealed class DeliveryTicketPrintModel : PrintPreviewPageModel
     public required string DeliveryNo { get; init; }
     public string? OrderCode { get; init; }
     public decimal? ActualWeight { get; init; }
+}
+
+public sealed class OverToleranceInspectionReportPrintModel : PrintPreviewPageModel
+{
+    public required Guid SessionId { get; init; }
+    public required string SessionNo { get; init; }
+    public required string InspectorName { get; init; }
+    public required string ProductNames { get; init; }
 }
 
 public sealed class PrintBatchPreviewModel

@@ -43,6 +43,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
     private const string WeighTicketA5V2TemplateFileName = "Mau_A5_Phieu_Can_EDITABLE_final.docx";
     private const string DeliveryTicketA5V2TemplateFileName = "Mau_A5_Phieu_Giao_Nhan_EDITABLE_final.docx";
+    private const string OverToleranceInspectionReportTemplateFileName = "BienBan_KiemTraSoLuongHangTrenXe.docx";
 
     public Task ExportExcelAsync(
         PrintTemplateDefinition template,
@@ -73,6 +74,12 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     {
         ct.ThrowIfCancellationRequested();
         EnsureDirectory(outputPath);
+
+        if (template.Kind == PrintDocumentKind.OverToleranceInspectionReport)
+        {
+            ExportWordFromPlaceholderTemplate(template, batch, outputPath, ct);
+            return Task.CompletedTask;
+        }
 
         if (TryResolveA5V2SourceTemplatePath(template, out var sourceTemplatePath))
         {
@@ -686,6 +693,224 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         return paragraph;
     }
 
+    private void ExportWordFromPlaceholderTemplate(
+        PrintTemplateDefinition template,
+        PrintBatchPreviewModel batch,
+        string outputPath,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (!TryResolveSourceTemplatePath(template, out var sourceTemplatePath))
+        {
+            throw new FileNotFoundException($"Kh\u00f4ng t\u00ecm th\u1ea5y file m\u1eabu bi\u00ean b\u1ea3n: {OverToleranceInspectionReportTemplateFileName}", OverToleranceInspectionReportTemplateFileName);
+        }
+
+        if (Path.GetFullPath(sourceTemplatePath).Equals(Path.GetFullPath(outputPath), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Kh\u00f4ng th\u1ec3 ghi \u0111\u00e8 tr\u1ef1c ti\u1ebfp l\u00ean file m\u1eabu bi\u00ean b\u1ea3n.");
+        }
+
+        File.Copy(sourceTemplatePath, outputPath, overwrite: true);
+
+        if (batch.Pages.Count == 0)
+        {
+            return;
+        }
+
+        using var document = WordprocessingDocument.Open(outputPath, true);
+        ReplaceOverToleranceInspectionPlaceholders(document, template, batch.Pages[0]);
+        document.MainDocumentPart?.Document.Save();
+    }
+
+    private void ReplaceOverToleranceInspectionPlaceholders(
+        WordprocessingDocument document,
+        PrintTemplateDefinition template,
+        PrintPreviewPageModel page)
+    {
+        var values = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        values.TryGetValue("InspectorName1", out var inspectorName);
+        values.TryGetValue("ProductNames", out var productNames);
+        values.TryGetValue("SalesDepartmentSignerName", out var signerName);
+        values.TryGetValue("StationCode", out var stationCode);
+        values.TryGetValue("VehiclePlate", out var vehiclePlate);
+        values.TryGetValue("PrintHour", out var printHour);
+        values.TryGetValue("PrintMinute", out var printMinute);
+        values.TryGetValue("PrintDay", out var printDay);
+        values.TryGetValue("PrintMonth", out var printMonth);
+        values.TryGetValue("PrintYear", out var printYear);
+
+        var body = document.MainDocumentPart?.Document.Body;
+        if (body == null)
+        {
+            return;
+        }
+
+        var context = new OverTolerancePlaceholderContext(
+            inspectorName ?? string.Empty,
+            signerName ?? inspectorName ?? string.Empty,
+            productNames ?? string.Empty,
+            stationCode ?? _printingStationName,
+            vehiclePlate ?? string.Empty,
+            printHour ?? string.Empty,
+            printMinute ?? string.Empty,
+            printDay ?? string.Empty,
+            printMonth ?? string.Empty,
+            printYear ?? string.Empty);
+
+        foreach (var paragraph in body.Descendants<Paragraph>())
+        {
+            ReplacePlaceholdersInParagraph(paragraph, context);
+        }
+    }
+
+    private static void ReplacePlaceholdersInParagraph(Paragraph paragraph, OverTolerancePlaceholderContext context)
+    {
+        var textElements = paragraph.Descendants<Text>().ToList();
+        if (textElements.Count == 0)
+        {
+            return;
+        }
+
+        var changedInline = false;
+        foreach (var text in textElements)
+        {
+            var value = text.Text;
+            var replaced = ReplaceOverTolerancePlaceholders(value, context);
+            if (!string.Equals(value, replaced, StringComparison.Ordinal))
+            {
+                text.Text = replaced;
+                text.Space = SpaceProcessingModeValues.Preserve;
+                changedInline = true;
+            }
+        }
+
+        if (changedInline)
+        {
+            return;
+        }
+
+        var paragraphText = string.Concat(textElements.Select(x => x.Text));
+        var replacedParagraphText = ReplaceOverTolerancePlaceholders(paragraphText, context);
+        if (string.Equals(paragraphText, replacedParagraphText, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var firstRunProperties = paragraph.Descendants<Run>().FirstOrDefault()?.RunProperties?.CloneNode(true);
+        paragraph.RemoveAllChildren<Run>();
+        var run = new Run();
+        if (firstRunProperties != null)
+        {
+            run.Append(firstRunProperties);
+        }
+
+        run.Append(new Text(replacedParagraphText) { Space = SpaceProcessingModeValues.Preserve });
+        paragraph.Append(run);
+    }
+
+    private static string ReplaceOverTolerancePlaceholders(string value, OverTolerancePlaceholderContext context)
+    {
+        value = ReplaceNamePlaceholder(value, "{t\u00ean nh\u00e2n vi\u00ean }", context);
+        value = ReplaceNamePlaceholder(value, "{t\u00ean nh\u00e2n vi\u00ean}", context);
+        value = value.Replace("{t\u00ean h\u00e0ng h\u00f3a}", context.ProductNames, StringComparison.Ordinal);
+        value = value.Replace("{h\u00e0ng h\u00f3a}", context.ProductNames, StringComparison.Ordinal);
+        value = value.Replace("{m\u00e3 tr\u1ea1m c\u00e2n}", context.StationCode, StringComparison.Ordinal);
+        value = value.Replace("{ma tram can}", context.StationCode, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{bi\u1ec3n s\u1ed1 xe}", context.VehiclePlate, StringComparison.Ordinal);
+        value = value.Replace("{bien so xe}", context.VehiclePlate, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{gi\u1edd}", context.PrintHour, StringComparison.Ordinal);
+        value = value.Replace("{gio}", context.PrintHour, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{ph\u00fat}", context.PrintMinute, StringComparison.Ordinal);
+        value = value.Replace("{phut}", context.PrintMinute, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{ng\u00e0y}", context.PrintDay, StringComparison.Ordinal);
+        value = value.Replace("{ngay}", context.PrintDay, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{th\u00e1ng}", context.PrintMonth, StringComparison.Ordinal);
+        value = value.Replace("{thang}", context.PrintMonth, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{n\u0103m}", context.PrintYear, StringComparison.Ordinal);
+        value = value.Replace("{nam}", context.PrintYear, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{P.CLKD}", context.SignerName, StringComparison.Ordinal);
+        return value;
+    }
+
+    private static string ReplaceNamePlaceholder(string value, string placeholder, OverTolerancePlaceholderContext context)
+    {
+        var index = value.IndexOf(placeholder, StringComparison.Ordinal);
+        while (index >= 0)
+        {
+            context.NamePlaceholderIndex++;
+            var replacement = context.NamePlaceholderIndex == 1
+                ? context.InspectorName
+                : context.SignerName;
+            value = value[..index] + replacement + value[(index + placeholder.Length)..];
+            index = value.IndexOf(placeholder, index + replacement.Length, StringComparison.Ordinal);
+        }
+
+        return value;
+    }
+
+    private sealed class OverTolerancePlaceholderContext
+    {
+        public OverTolerancePlaceholderContext(
+            string inspectorName,
+            string signerName,
+            string productNames,
+            string stationCode,
+            string vehiclePlate,
+            string printHour,
+            string printMinute,
+            string printDay,
+            string printMonth,
+            string printYear)
+        {
+            InspectorName = inspectorName;
+            SignerName = signerName;
+            ProductNames = productNames;
+            StationCode = stationCode;
+            VehiclePlate = vehiclePlate;
+            PrintHour = printHour;
+            PrintMinute = printMinute;
+            PrintDay = printDay;
+            PrintMonth = printMonth;
+            PrintYear = printYear;
+        }
+
+        public string InspectorName { get; }
+        public string SignerName { get; }
+        public string ProductNames { get; }
+        public string StationCode { get; }
+        public string VehiclePlate { get; }
+        public string PrintHour { get; }
+        public string PrintMinute { get; }
+        public string PrintDay { get; }
+        public string PrintMonth { get; }
+        public string PrintYear { get; }
+        public int NamePlaceholderIndex { get; set; }
+    }
+
+    private Paragraph CreateWordOverlayParagraph(
+        PrintTemplateDefinition template,
+        PrintPreviewPageModel page,
+        Func<PrintFieldDefinition, bool> fieldPredicate)
+    {
+        var valuesByKey = page.Fields.ToDictionary(x => x.FieldKey, x => x.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        var paragraph = new Paragraph(new ParagraphProperties(
+            new SpacingBetweenLines { Before = "0", After = "0" }));
+
+        foreach (var field in template.Fields.Where(x => x.IsEnabled && !x.IsImage && !x.IsLine && fieldPredicate(x)).OrderBy(x => x.Y).ThenBy(x => x.X))
+        {
+            var value = valuesByKey.TryGetValue(field.FieldKey, out var resolved) ? resolved : string.Empty;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            paragraph.Append(new Run(new Picture(CreateWordOverlayShape(field, value))));
+        }
+
+        return paragraph;
+    }
+
     private static V.Shape CreateWordOverlayShape(PrintFieldDefinition field, string value)
     {
         var heightMm = Math.Max(5.5d * Math.Max(1, field.MaxLines), field.FontSize * 0.55d * Math.Max(1, field.MaxLines));
@@ -715,6 +940,9 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     }
 
     private static bool TryResolveA5V2SourceTemplatePath(PrintTemplateDefinition template, out string sourceTemplatePath)
+        => TryResolveSourceTemplatePath(template, out sourceTemplatePath);
+
+    private static bool TryResolveSourceTemplatePath(PrintTemplateDefinition template, out string sourceTemplatePath)
     {
         var fileName = template.Kind switch
         {
@@ -722,6 +950,7 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
                 => WeighTicketA5V2TemplateFileName,
             PrintDocumentKind.DeliveryTicket when string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
                 => DeliveryTicketA5V2TemplateFileName,
+            PrintDocumentKind.OverToleranceInspectionReport => OverToleranceInspectionReportTemplateFileName,
             _ => null
         };
 
@@ -854,14 +1083,10 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var current = AppContext.BaseDirectory;
+        var ancestors = new List<string>();
         while (!string.IsNullOrWhiteSpace(current))
         {
-            if (seen.Add(current))
-            {
-                yield return current;
-                yield return Path.Combine(current, "Templates");
-                yield return Path.Combine(current, "PrintTemplates");
-            }
+            ancestors.Add(current);
 
             var parent = Directory.GetParent(current);
             if (parent == null)
@@ -870,6 +1095,35 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
             }
 
             current = parent.FullName;
+        }
+
+        foreach (var root in ancestors)
+        {
+            var sourceTemplateRoot = Path.Combine(root, "src", "StationApp.UI", "Assets", "PrintTemplates");
+            if (Directory.Exists(sourceTemplateRoot) && seen.Add(sourceTemplateRoot))
+            {
+                yield return sourceTemplateRoot;
+            }
+        }
+
+        foreach (var root in ancestors)
+        {
+            if (seen.Add(root))
+            {
+                yield return root;
+            }
+
+            var templatesRoot = Path.Combine(root, "Templates");
+            if (seen.Add(templatesRoot))
+            {
+                yield return templatesRoot;
+            }
+
+            var printTemplatesRoot = Path.Combine(root, "PrintTemplates");
+            if (seen.Add(printTemplatesRoot))
+            {
+                yield return printTemplatesRoot;
+            }
         }
     }
 

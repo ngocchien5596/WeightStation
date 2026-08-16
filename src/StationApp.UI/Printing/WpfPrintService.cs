@@ -327,7 +327,13 @@ public sealed class WpfPrintService : IPrintService
 
     private static string BuildJobName(PrintDocumentKind kind, string displayNumber, int copy, int copyCount)
     {
-        var kindText = kind == PrintDocumentKind.WeighTicket ? "PC" : "PGN";
+        var kindText = kind switch
+        {
+            PrintDocumentKind.WeighTicket => "PC",
+            PrintDocumentKind.DeliveryTicket => "PGN",
+            PrintDocumentKind.OverToleranceInspectionReport => "BB",
+            _ => "PRINT"
+        };
         return copyCount <= 1
             ? $"StationApp {kindText} {displayNumber}"
             : $"StationApp {kindText} {displayNumber} copy {copy}/{copyCount}";

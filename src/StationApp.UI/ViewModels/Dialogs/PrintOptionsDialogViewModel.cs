@@ -272,7 +272,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
     private async Task DownloadAsync()
     {
         var template = BuildPreviewTemplate();
-        var format = IsA5V2Template(template) ? PrintExportFormat.Word : PrintExportFormat.Excel;
+        var format = IsWordTemplateBacked(template) ? PrintExportFormat.Word : PrintExportFormat.Excel;
         await ExportFileAsync(format);
     }
 
@@ -574,7 +574,7 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
                 : "Word Document (*.docx)|*.docx",
             DefaultExt = extension,
             AddExtension = true,
-            FileName = BuildDefaultExportFileName(extension)
+            FileName = BuildDefaultExportFileName(extension, selectedPages)
         };
 
         if (saveDialog.ShowDialog() != true)
@@ -632,11 +632,18 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         return _batch.Pages;
     }
 
-    private string BuildDefaultExportFileName(string extension)
+    private string BuildDefaultExportFileName(string extension, IReadOnlyList<PrintPreviewPageModel> selectedPages)
     {
-        var prefix = _batch.Kind == PrintDocumentKind.WeighTicket ? "PhieuCan" : "PhieuGiaoNhan";
-        var selection = SelectedPreviewItem?.DisplayName;
-        var selectionPart = string.IsNullOrWhiteSpace(selection) || SelectedPreviewItem?.IsAll == true
+        var prefix = _batch.Kind switch
+        {
+            PrintDocumentKind.WeighTicket => "PhieuCan",
+            PrintDocumentKind.DeliveryTicket => "PhieuGiaoNhan",
+            PrintDocumentKind.OverToleranceInspectionReport => "BienBanKiemTraSoLuongHang",
+            _ => "TaiLieuIn"
+        };
+        var selection = BuildExportSelectionPart(selectedPages);
+        var selectionPart = string.IsNullOrWhiteSpace(selection)
+            || (SelectedPreviewItem?.IsAll == true && _batch.Kind != PrintDocumentKind.OverToleranceInspectionReport)
             ? "TatCa"
             : selection;
         var rawName = $"{prefix}_{selectionPart}_{DateTime.Now:yyyyMMdd_HHmmss}{extension}";
@@ -648,10 +655,30 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
         return rawName;
     }
 
-    private static bool IsA5V2Template(PrintTemplateDefinition template)
-        => template.Kind == PrintDocumentKind.WeighTicket
-            ? string.Equals(template.ActiveProfileKey, WeighTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase)
-            : string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase);
+    private string? BuildExportSelectionPart(IReadOnlyList<PrintPreviewPageModel> selectedPages)
+    {
+        if (_batch.Kind == PrintDocumentKind.OverToleranceInspectionReport && selectedPages.Count == 1)
+        {
+            var page = selectedPages[0];
+            var vehiclePlate = page.Fields
+                .FirstOrDefault(x => string.Equals(x.FieldKey, "VehiclePlate", StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+            return string.IsNullOrWhiteSpace(vehiclePlate)
+                ? page.DisplayNumber
+                : $"{page.DisplayNumber}_{vehiclePlate}";
+        }
+
+        return SelectedPreviewItem?.DisplayName;
+    }
+
+    private static bool IsWordTemplateBacked(PrintTemplateDefinition template)
+        => template.Kind switch
+        {
+            PrintDocumentKind.WeighTicket => string.Equals(template.ActiveProfileKey, WeighTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase),
+            PrintDocumentKind.DeliveryTicket => string.Equals(template.ActiveProfileKey, DeliveryTicketA5V2ProfileKey, StringComparison.OrdinalIgnoreCase),
+            PrintDocumentKind.OverToleranceInspectionReport => true,
+            _ => false
+        };
 
     private async Task LoadSelectedProfileAsync(PrintTemplateProfileDescriptor? profile)
     {
@@ -743,7 +770,13 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
 
     private string GetSuggestedProfileName()
     {
-        var prefix = _template.Kind == PrintDocumentKind.WeighTicket ? "PC ver " : "PGN ver ";
+        var prefix = _template.Kind switch
+        {
+            PrintDocumentKind.WeighTicket => "PC ver ",
+            PrintDocumentKind.DeliveryTicket => "PGN ver ",
+            PrintDocumentKind.OverToleranceInspectionReport => "BienBan ver ",
+            _ => "MauIn ver "
+        };
         var maxNumber = Profiles
             .Select(x => x.DisplayName)
             .Where(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -850,6 +883,21 @@ public partial class PrintOptionsDialogViewModel : ObservableObject
             ["PrintedBy"] = "Người giao hàng",
             ["Notes"] = "Ghi chú"
         };
+
+        var overToleranceMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["InspectorName1"] = "T\u00ean \u00d4ng/b\u00e0 th\u1ee9 nh\u1ea5t",
+            ["ProductNames"] = "H\u00e0ng h\u00f3a",
+            ["SalesDepartmentSignerName"] = "Ch\u00e2n k\u00fd P.CLKD",
+            ["VehiclePlate"] = "Bi\u1ec3n ki\u1ec3m so\u00e1t ph\u01b0\u01a1ng ti\u1ec7n"
+        };
+
+        if (kind == PrintDocumentKind.OverToleranceInspectionReport)
+        {
+            return overToleranceMap.TryGetValue(field.FieldKey, out var overToleranceDisplayName)
+                ? overToleranceDisplayName
+                : field.FieldKey;
+        }
 
         if (kind == PrintDocumentKind.DeliveryTicket)
         {

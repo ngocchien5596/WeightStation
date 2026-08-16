@@ -16,6 +16,8 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
     private const string WeighTicketA5V2DisplayName = "PC ver 2 - A5 mẫu mới";
     private const string DeliveryTicketA5V2ProfileKey = "delivery-pgn-ver-2-a5-mau-moi";
     private const string DeliveryTicketA5V2DisplayName = "PGN ver 2 - A5 m\u1eabu m\u1edbi";
+    private const string OverToleranceInspectionReportProfileKey = "bien-ban-kiem-tra-so-luong-hang-tren-xe-a4";
+    private const string OverToleranceInspectionReportDisplayName = "Bi\u00ean b\u1ea3n ki\u1ec3m tra SL h\u00e0ng - A4";
     private const double DeliveryTicketFontSize = 12.5d;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly StationDbContext _dbContext;
@@ -43,7 +45,9 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         var store = await LoadStoreAsync(ct);
         var profile = ResolveProfile(store, kind, profileKey);
         var fields = GetDefaultFields(kind, profile);
-        var supportsDotMatrixTextMode = kind == PrintDocumentKind.DeliveryTicket || IsWeighTicketA5V2Profile(profile);
+        var supportsDotMatrixTextMode = kind == PrintDocumentKind.DeliveryTicket
+            || kind == PrintDocumentKind.OverToleranceInspectionReport
+            || IsWeighTicketA5V2Profile(profile);
         return kind switch
         {
             PrintDocumentKind.WeighTicket => new PrintTemplateDefinition
@@ -65,6 +69,19 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
                 TemplateName = "DeliveryTicketPrintTemplate",
                 PageWidthMm = 210d,
                 PageHeightMm = IsDeliveryTicketA5V2Profile(profile) ? 148.5d : 297d,
+                DefaultOffsetXmm = profile.OffsetXmm,
+                DefaultOffsetYmm = profile.OffsetYmm,
+                ActiveProfileKey = profile.ProfileKey,
+                ActiveProfileName = profile.DisplayName,
+                SupportsDotMatrixTextMode = supportsDotMatrixTextMode,
+                Fields = ApplyProfileLayout(fields, profile)
+            },
+            PrintDocumentKind.OverToleranceInspectionReport => new PrintTemplateDefinition
+            {
+                Kind = kind,
+                TemplateName = "OverToleranceInspectionReportPrintTemplate",
+                PageWidthMm = 210d,
+                PageHeightMm = 297d,
                 DefaultOffsetXmm = profile.OffsetXmm,
                 DefaultOffsetYmm = profile.OffsetYmm,
                 ActiveProfileKey = profile.ProfileKey,
@@ -172,6 +189,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         {
             PrintDocumentKind.WeighTicket => isX ? "print_weigh_offset_x_mm" : "print_weigh_offset_y_mm",
             PrintDocumentKind.DeliveryTicket => isX ? "print_delivery_offset_x_mm" : "print_delivery_offset_y_mm",
+            PrintDocumentKind.OverToleranceInspectionReport => isX ? "print_over_tolerance_report_offset_x_mm" : "print_over_tolerance_report_offset_y_mm",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -186,6 +204,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         {
             PrintDocumentKind.WeighTicket => "weigh",
             PrintDocumentKind.DeliveryTicket => "delivery",
+            PrintDocumentKind.OverToleranceInspectionReport => "over_tolerance_report",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -197,6 +216,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         {
             PrintDocumentKind.WeighTicket => 2,
             PrintDocumentKind.DeliveryTicket => 3,
+            PrintDocumentKind.OverToleranceInspectionReport => 1,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -233,6 +253,18 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
             DeliveryTicketA5V2DisplayName,
             DeliveryTicketA5V2Fields,
             replaceWhenOlder: true);
+        changed |= EnsureAdditionalSeedProfile(
+            store,
+            PrintDocumentKind.OverToleranceInspectionReport,
+            OverToleranceInspectionReportProfileKey,
+            OverToleranceInspectionReportDisplayName,
+            OverToleranceInspectionReportFields,
+            replaceWhenOlder: true);
+        if (!store.DefaultProfileKeys.ContainsKey(GetDefaultProfileStorageKey(PrintDocumentKind.OverToleranceInspectionReport)))
+        {
+            store.DefaultProfileKeys[GetDefaultProfileStorageKey(PrintDocumentKind.OverToleranceInspectionReport)] = OverToleranceInspectionReportProfileKey;
+            changed = true;
+        }
 
         if (changed)
         {
@@ -454,6 +486,7 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         {
             PrintDocumentKind.WeighTicket => IsWeighTicketA5V2Profile(profile) ? WeighTicketA5V2Fields : WeighTicketFields,
             PrintDocumentKind.DeliveryTicket => IsDeliveryTicketA5V2Profile(profile) ? DeliveryTicketA5V2Fields : DeliveryTicketFields,
+            PrintDocumentKind.OverToleranceInspectionReport => OverToleranceInspectionReportFields,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -755,6 +788,54 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("Weight2Month", 135, 39, 7, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
         new("Weight2Year", 146, 39, 14, PrintFieldAlignment.Center, 10.4, PrintFieldWeight.Normal),
         new("PrintedBy", 33, 137, 48, PrintFieldAlignment.Center, 10.8, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap)
+    ];
+
+    private static readonly IReadOnlyList<PrintFieldDefinition> OverToleranceInspectionReportFields =
+    [
+        new("StaticCompanyName", 18, 12, 174, PrintFieldAlignment.Center, 11.5, PrintFieldWeight.Bold, LiteralValue: "C\u00d4NG TY C\u1ed4 PH\u1ea6N XI M\u0102NG C\u1ea8M PH\u1ea2"),
+        new("StaticCompanyAddress", 18, 20, 174, PrintFieldAlignment.Center, 9.5, PrintFieldWeight.Normal, LiteralValue: "\u0110\u1ecba ch\u1ec9: Km6, Qu\u1ed1c l\u1ed9 18A, Ph\u01b0\u1eddng Quang Hanh, T\u1ec9nh Qu\u1ea3ng Ninh"),
+        new("StaticCompanyPhone", 18, 27, 174, PrintFieldAlignment.Center, 9.5, PrintFieldWeight.Normal, LiteralValue: "\u0110i\u1ec7n tho\u1ea1i: 0203 721996 - Fax: 0203 714605"),
+
+        new("StaticTitle", 18, 43, 174, PrintFieldAlignment.Center, 16, PrintFieldWeight.Bold, LiteralValue: "BI\u00caN B\u1ea2N X\u00c1C NH\u1eacN"),
+        new("StaticTimeLine", 18, 57, 174, PrintFieldAlignment.Center, 11, PrintFieldWeight.Normal, LiteralValue: "H\u00f4m nay v\u00e0o h\u1ed3i .... gi\u1edd .... ph\u00fat, ng\u00e0y .... th\u00e1ng .... n\u0103m ...."),
+        new("PrintHour", 75, 57, 9, PrintFieldAlignment.Center, 11, PrintFieldWeight.Bold),
+        new("PrintMinute", 96, 57, 9, PrintFieldAlignment.Center, 11, PrintFieldWeight.Bold),
+        new("PrintDay", 119, 57, 9, PrintFieldAlignment.Center, 11, PrintFieldWeight.Bold),
+        new("PrintMonth", 138, 57, 9, PrintFieldAlignment.Center, 11, PrintFieldWeight.Bold),
+        new("PrintYear", 157, 57, 15, PrintFieldAlignment.Center, 11, PrintFieldWeight.Bold),
+        new("StaticLocationLine", 18, 66, 174, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "T\u1ea1i Tr\u1ea1m c\u00e2n Nh\u00e0 m\u00e1y Xi m\u0103ng C\u1ea9m Ph\u1ea3, ch\u00fang t\u00f4i g\u1ed3m:"),
+        new("StationCode", 50, 66, 20, PrintFieldAlignment.Left, 11, PrintFieldWeight.Bold),
+
+        new("StaticPerson1Label", 24, 80, 30, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "1. \u00d4ng/b\u00e0:"),
+        new("InspectorName1", 53, 80, 75, PrintFieldAlignment.Left, 11, PrintFieldWeight.Bold),
+        new("StaticPerson1Role", 131, 80, 45, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "Ch\u1ee9c v\u1ee5: NV P.CLKD"),
+        new("StaticPerson2", 24, 90, 152, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "2. \u00d4ng/b\u00e0: ........................................ Ch\u1ee9c v\u1ee5: PX.NX & \u0110B"),
+        new("StaticPerson3", 24, 100, 152, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "3. \u00d4ng/b\u00e0: ........................................ Ch\u1ee9c v\u1ee5: VP"),
+        new("StaticPerson4", 24, 110, 152, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "4. \u00d4ng/b\u00e0: ........................................ L\u00e1i xe"),
+
+        new("StaticIntro", 18, 125, 174, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, 2, PrintWrapMode.Wrap, LiteralValue: "\u0110\u00e3 c\u00f9ng nhau ti\u1ebfn h\u00e0nh ki\u1ec3m tra h\u00e0ng h\u00f3a tr\u00ean ph\u01b0\u01a1ng ti\u1ec7n, c\u1ee5 th\u1ec3 nh\u01b0 sau:"),
+        new("StaticVehicleLabel", 24, 140, 52, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "Bi\u1ec3n ki\u1ec3m so\u00e1t ph\u01b0\u01a1ng ti\u1ec7n:"),
+        new("VehiclePlate", 78, 140, 75, PrintFieldAlignment.Left, 11, PrintFieldWeight.Bold),
+        new("StaticProductLabel", 24, 151, 26, PrintFieldAlignment.Left, 11, PrintFieldWeight.Normal, LiteralValue: "H\u00e0ng h\u00f3a:"),
+        new("ProductNames", 50, 151, 130, PrintFieldAlignment.Left, 11, PrintFieldWeight.Bold, 4, PrintWrapMode.Wrap),
+
+        new("StaticTableHeader", 20, 178, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Bold, LiteralValue: "Stt     N\u1ed9i dung                              Ph\u01b0\u01a1ng th\u1ee9c                         S\u1ed1 l\u01b0\u1ee3ng     \u0110VT"),
+        new("StaticTableLine1", 20, 188, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "1       Xu\u1ea5t t\u1ea1i m\u00e1ng \u0111\u00f3ng                  Theo s\u1ed1 \u0111\u1ebfm bao t\u1ef1 \u0111\u1ed9ng"),
+        new("StaticTableLine2", 20, 198, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "2       Qua c\u00e2n \u00f4 t\u00f4                         C\u00e2n \u00f4 t\u00f4 \u0111i\u1ec7n t\u1eed"),
+        new("StaticTableLine3", 20, 208, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "3       Ch\u00eanh l\u1ec7ch (3 = 2 - 1)"),
+        new("StaticTableLine4", 20, 218, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "4       T\u1ef7 l\u1ec7 ch\u00eanh l\u1ec7ch % (4 = 3 : 1)"),
+        new("StaticTableLine5", 20, 228, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "5       S\u1ed1 ki\u1ec3m \u0111\u1ebfm l\u1ea1i                     Ki\u1ec3m \u0111\u1ebfm h\u00e0ng tr\u00ean xe theo h\u00e0ng, c\u1ed9t"),
+
+        new("StaticComment", 20, 244, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "Nh\u1eadn x\u00e9t: ........................................................................................................"),
+        new("StaticReason", 20, 254, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "Nguy\u00ean nh\u00e2n: ....................................................................................................."),
+        new("StaticAction", 20, 264, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "Bi\u1ec7n ph\u00e1p x\u1eed l\u00fd: ............................................................................................"),
+
+        new("StaticCopyCount", 20, 278, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "Bi\u00ean b\u1ea3n \u0111\u01b0\u1ee3c l\u1eadp th\u00e0nh 02 b\u1ea3n, c\u00f3 gi\u00e1 tr\u1ecb nh\u01b0 nhau, m\u1ed7i b\u00ean l\u01b0u gi\u1eef 01 b\u1ea3n v\u00e0 c\u00f9ng nhau x\u00e1c nh\u1eadn./."),
+        new("StaticSign1", 22, 286, 36, PrintFieldAlignment.Center, 10.5, PrintFieldWeight.Bold, LiteralValue: "P.CLKD"),
+        new("StaticSign2", 68, 286, 30, PrintFieldAlignment.Center, 10.5, PrintFieldWeight.Bold, LiteralValue: "VP"),
+        new("StaticSign3", 109, 286, 40, PrintFieldAlignment.Center, 10.5, PrintFieldWeight.Bold, LiteralValue: "PX.NX & \u0110B"),
+        new("StaticSign4", 158, 286, 34, PrintFieldAlignment.Center, 10.5, PrintFieldWeight.Bold, LiteralValue: "PH\u01af\u01a0NG TI\u1ec6N"),
+        new("SalesDepartmentSignerName", 22, 292, 36, PrintFieldAlignment.Center, 10.5, PrintFieldWeight.Bold, 2, PrintWrapMode.Wrap)
     ];
 }
 

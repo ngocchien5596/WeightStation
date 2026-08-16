@@ -1,0 +1,118 @@
+<Window x:Class="StationApp.UI.Views.Dialogs.OverToleranceWarningDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="{Binding Title}"
+        Width="560"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" GlassFrameThickness="0" CornerRadius="8" ResizeBorderThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource CardBrush}"
+            CornerRadius="8"
+            BorderBrush="{StaticResource AccentBrush}"
+            BorderThickness="1"
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="10" Color="#55000000" ShadowDepth="2"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="64"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource SidebarBrush}" CornerRadius="7,7,0,0">
+                <Grid>
+                    <TextBlock Text="{Binding Title}"
+                               Foreground="White"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Left"
+                               Margin="16,0,0,0"
+                               FontSize="14"/>
+                    <Button Content="X"
+                            Foreground="White"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            FontSize="16"
+                            HorizontalAlignment="Right"
+                            Width="40"
+                            VerticalAlignment="Stretch"
+                            WindowChrome.IsHitTestVisibleInChrome="True"
+                            Command="{Binding CloseCommand}"/>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Padding="20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Path Grid.Column="0"
+                          Data="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"
+                          Fill="#F1C40F"
+                          Width="42"
+                          Height="42"
+                          Stretch="Uniform"
+                          VerticalAlignment="Top"
+                          HorizontalAlignment="Center"
+                          Margin="0,4,0,0"/>
+
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                        <TextBlock Text="{Binding Message}"
+                                   Foreground="{StaticResource ForegroundBrush}"
+                                   FontSize="14"
+                                   TextWrapping="Wrap"
+                                   LineHeight="20"/>
+                        <TextBlock Text="{Binding PrintStatusMessage}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Background="{StaticResource SubCardBrush}" CornerRadius="0,0,7,7" Padding="15,10">
+                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="In biên bản"
+                            MinWidth="120"
+                            Height="34"
+                            Margin="0,0,10,0"
+                            Style="{StaticResource UtilityButtonStyle}"
+                            Command="{Binding PrintInspectionReportCommand}"/>
+                    <Button Content="Hủy"
+                            MinWidth="100"
+                            Height="34"
+                            Margin="0,0,10,0"
+                            Background="#D1D5DB"
+                            Foreground="#1F355C"
+                            FontWeight="SemiBold"
+                            BorderThickness="0"
+                            Command="{Binding CancelCommand}"/>
+                    <Button Content="Vẫn lưu"
+                            MinWidth="110"
+                            Height="34"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding SaveCommand}"/>
+                </WrapPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

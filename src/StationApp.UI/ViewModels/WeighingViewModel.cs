@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StationApp.Application.DTOs;
@@ -42,6 +43,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
     private readonly IDialogService _dialogService;
     private readonly IClock _clock;
     private readonly ICurrentUserContext _currentUserContext;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<WeighingViewModel>? _logger;
     private readonly Dispatcher _uiDispatcher;
     private Guid? _focusSessionId;
@@ -186,6 +188,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         IDialogService dialogService,
         IClock clock,
         ICurrentUserContext currentUserContext,
+        IConfiguration configuration,
         ILogger<WeighingViewModel>? logger = null)
     {
         _scopeFactory = scopeFactory;
@@ -195,6 +198,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         _dialogService = dialogService;
         _clock = clock;
         _currentUserContext = currentUserContext;
+        _configuration = configuration;
         _logger = logger;
         _uiDispatcher = Dispatcher.CurrentDispatcher;
         _deviceConnector = new WeighingDeviceConnector(this, scaleDevice, cameraPreviewService, logger);
@@ -794,12 +798,11 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
                         SelectedSession.SessionId,
                         SelectedSession.SessionNo,
                         _pendingCapturedWeight2);
-                    var confirmed = await _dialogService.ShowConfirmAsync(
-                        "Cảnh báo vượt dung sai",
+                    var dialogVm = new OverToleranceWarningDialogViewModel(
                         $"{ex.Message}\n\nBạn vẫn muốn tiếp tục lưu cân lần 2?",
-                        "Vẫn lưu",
-                        "Hủy");
-                    if (!confirmed)
+                        _ => PrintOverToleranceInspectionReportAsync(SelectedSession.SessionId));
+                    var dialogResult = await _dialogService.ShowCustomDialogAsync<OverToleranceWarningDialogViewModel, OverToleranceWarningDialogResult>(dialogVm);
+                    if (dialogResult != OverToleranceWarningDialogResult.Save)
                     {
                         _logger?.LogInformation(
                             "SaveCapturedWeight cancelled by user after tolerance warning for session {SessionId}/{SessionNo}.",
@@ -2328,6 +2331,131 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
             _toastService.ShowError(string.Format(UiText.Weighing.PrintErrorFormat, displayName));
         }
     }
+
+    private async Task<bool> PrintOverToleranceInspectionReportAsync(Guid sessionId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var templateProvider = scope.ServiceProvider.GetRequiredService<IPrintTemplateProvider>();
+        var printerDiscovery = scope.ServiceProvider.GetRequiredService<IPrinterDiscoveryService>();
+        var renderer = scope.ServiceProvider.GetRequiredService<PrintOverlayRenderer>();
+        var printDocumentExporter = scope.ServiceProvider.GetRequiredService<IPrintDocumentExporter>();
+
+        var template = await templateProvider.GetTemplateAsync(PrintDocumentKind.OverToleranceInspectionReport, CancellationToken.None);
+        var profiles = await templateProvider.GetProfilesAsync(PrintDocumentKind.OverToleranceInspectionReport, CancellationToken.None);
+        var preview = BuildOverToleranceInspectionReportPreview(sessionId);
+
+        var dialogVm = new PrintOptionsDialogViewModel(
+            "In biên bản kiểm tra số lượng hàng",
+            template,
+            preview,
+            profiles,
+            printerDiscovery.GetInstalledPrinters(),
+            renderer,
+            templateProvider,
+            printDocumentExporter,
+            false,
+            defaultCopyCount: 2);
+
+        var printOptions = await _dialogService.ShowCustomDialogAsync<PrintOptionsDialogViewModel, PrintOptionsModel>(dialogVm);
+        if (printOptions == null)
+        {
+            return false;
+        }
+
+        var tempPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"BienBanKiemTraSoLuongHang_{sessionId:N}_{DateTime.Now:yyyyMMddHHmmssfff}.docx");
+        try
+        {
+            var exportBatch = new PrintBatchPreviewModel
+            {
+                Kind = dialogVm.CurrentBatch.Kind,
+                Title = dialogVm.CurrentBatch.Title,
+                Pages = printOptions.SelectedDocumentIds.Count == 0
+                    ? dialogVm.CurrentBatch.Pages
+                    : dialogVm.CurrentBatch.Pages.Where(x => printOptions.SelectedDocumentIds.Contains(x.DocumentId)).ToList()
+            };
+            await printDocumentExporter.ExportWordAsync(dialogVm.CurrentTemplate, exportBatch, tempPath, CancellationToken.None);
+            WordDocumentPrinter.Print(tempPath, printOptions.SelectedPrinterName!, printOptions.CopyCount);
+        }
+        finally
+        {
+            try
+            {
+                if (System.IO.File.Exists(tempPath))
+                {
+                    System.IO.File.Delete(tempPath);
+                }
+            }
+            catch
+            {
+                // Temporary file cleanup is best effort.
+            }
+        }
+
+        return true;
+    }
+
+    private PrintBatchPreviewModel BuildOverToleranceInspectionReportPreview(Guid sessionId)
+    {
+        var sessionNo = SelectedSession?.SessionNo ?? SessionNo ?? sessionId.ToString("N");
+        var vehicleLine = string.IsNullOrWhiteSpace(MoocNumber)
+            ? VehiclePlate
+            : $"{VehiclePlate} ({MoocNumber})";
+        var productNames = string.Join(
+            Environment.NewLine,
+            SessionLines
+                .Select(x => x.ProductName?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(productNames))
+        {
+            productNames = ProductSummary ?? string.Empty;
+        }
+
+        var operatorName = ResolveCurrentOperatorDisplayName();
+        var printedAt = _clock.NowLocal;
+        var stationCode = ResolvePrintingStationName();
+        var page = new OverToleranceInspectionReportPrintModel
+        {
+            DocumentId = sessionId,
+            DisplayNumber = sessionNo,
+            SessionId = sessionId,
+            SessionNo = sessionNo,
+            InspectorName = operatorName,
+            ProductNames = productNames,
+            Fields =
+            [
+                new PrintFieldValue("InspectorName1", operatorName),
+                new PrintFieldValue("ProductNames", productNames),
+                new PrintFieldValue("SalesDepartmentSignerName", operatorName),
+                new PrintFieldValue("VehiclePlate", vehicleLine),
+                new PrintFieldValue("StationCode", stationCode),
+                new PrintFieldValue("PrintHour", printedAt.ToString("HH", System.Globalization.CultureInfo.InvariantCulture)),
+                new PrintFieldValue("PrintMinute", printedAt.ToString("mm", System.Globalization.CultureInfo.InvariantCulture)),
+                new PrintFieldValue("PrintDay", printedAt.ToString("dd", System.Globalization.CultureInfo.InvariantCulture)),
+                new PrintFieldValue("PrintMonth", printedAt.ToString("MM", System.Globalization.CultureInfo.InvariantCulture)),
+                new PrintFieldValue("PrintYear", printedAt.ToString("yyyy", System.Globalization.CultureInfo.InvariantCulture))
+            ]
+        };
+
+        return new PrintBatchPreviewModel
+        {
+            Kind = PrintDocumentKind.OverToleranceInspectionReport,
+            Title = "Biên bản kiểm tra số lượng hàng",
+            Pages = [page]
+        };
+    }
+
+    private string ResolveCurrentOperatorDisplayName()
+        => !string.IsNullOrWhiteSpace(_currentUserContext.DisplayName)
+            ? _currentUserContext.DisplayName.Trim()
+            : string.IsNullOrWhiteSpace(_currentUserContext.Username) ? "SYSTEM" : _currentUserContext.Username.Trim();
+
+    private string ResolvePrintingStationName()
+        => string.IsNullOrWhiteSpace(_configuration["PrintingStationName"])
+            ? string.Empty
+            : _configuration["PrintingStationName"]!.Trim();
 
     private async Task<SessionPrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid sessionId)
     {
