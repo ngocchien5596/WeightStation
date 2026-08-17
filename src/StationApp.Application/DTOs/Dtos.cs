@@ -865,6 +865,7 @@ public sealed record WeighingSessionListItem(
     DateTime? UpdatedAt,
     string? CustomerSummary = null,
     string? ProductSummary = null,
+    string? WeighTicketNo = null,
     string? Weight1User = null,
     string? Weight2User = null
 );

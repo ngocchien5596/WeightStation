@@ -739,6 +739,9 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         values.TryGetValue("PrintDay", out var printDay);
         values.TryGetValue("PrintMonth", out var printMonth);
         values.TryGetValue("PrintYear", out var printYear);
+        values.TryGetValue("ScaleWeightTon", out var scaleWeightTon);
+        values.TryGetValue("DifferenceWeightTon", out var differenceWeightTon);
+        values.TryGetValue("DifferencePercent", out var differencePercent);
 
         var body = document.MainDocumentPart?.Document.Body;
         if (body == null)
@@ -756,12 +759,83 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
             printMinute ?? string.Empty,
             printDay ?? string.Empty,
             printMonth ?? string.Empty,
-            printYear ?? string.Empty);
+            printYear ?? string.Empty,
+            scaleWeightTon ?? string.Empty,
+            differenceWeightTon ?? string.Empty,
+            differencePercent ?? string.Empty);
 
         foreach (var paragraph in body.Descendants<Paragraph>())
         {
             ReplacePlaceholdersInParagraph(paragraph, context);
         }
+
+        FillOverToleranceInspectionQuantityTable(body, context);
+    }
+
+    private static void FillOverToleranceInspectionQuantityTable(Body body, OverTolerancePlaceholderContext context)
+    {
+        foreach (var row in body.Descendants<TableRow>())
+        {
+            var cells = row.Elements<TableCell>().ToList();
+            if (cells.Count < 4)
+            {
+                continue;
+            }
+
+            var rowText = string.Concat(cells.Select(GetCellText));
+            if (ContainsVietnameseInvariant(rowText, "Qua cân ô tô"))
+            {
+                SetCellText(cells[3], context.ScaleWeightTon);
+                if (cells.Count > 4)
+                {
+                    SetCellText(cells[4], string.IsNullOrWhiteSpace(context.ScaleWeightTon) ? string.Empty : "Tấn");
+                }
+            }
+            else if (ContainsVietnameseInvariant(rowText, "Tỷ lệ chênh lệch"))
+            {
+                SetCellText(cells[3], context.DifferencePercent);
+                if (cells.Count > 4)
+                {
+                    SetCellText(cells[4], string.IsNullOrWhiteSpace(context.DifferencePercent) ? string.Empty : "%");
+                }
+            }
+            else if (ContainsVietnameseInvariant(rowText, "Chênh lệch"))
+            {
+                SetCellText(cells[3], context.DifferenceWeightTon);
+                if (cells.Count > 4)
+                {
+                    SetCellText(cells[4], string.IsNullOrWhiteSpace(context.DifferenceWeightTon) ? string.Empty : "Tấn");
+                }
+            }
+        }
+    }
+
+    private static string GetCellText(TableCell cell)
+        => string.Concat(cell.Descendants<Text>().Select(x => x.Text));
+
+    private static bool ContainsVietnameseInvariant(string source, string keyword)
+        => source.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+
+    private static void SetCellText(TableCell cell, string value)
+    {
+        var paragraph = cell.Elements<Paragraph>().FirstOrDefault();
+        if (paragraph == null)
+        {
+            paragraph = new Paragraph();
+            cell.Append(paragraph);
+        }
+
+        var runProperties = paragraph.Descendants<Run>().FirstOrDefault()?.RunProperties?.CloneNode(true);
+        paragraph.RemoveAllChildren<Run>();
+
+        var run = new Run();
+        if (runProperties != null)
+        {
+            run.Append(runProperties);
+        }
+
+        run.Append(new Text(value) { Space = SpaceProcessingModeValues.Preserve });
+        paragraph.Append(run);
     }
 
     private static void ReplacePlaceholdersInParagraph(Paragraph paragraph, OverTolerancePlaceholderContext context)
@@ -829,6 +903,16 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         value = value.Replace("{thang}", context.PrintMonth, StringComparison.OrdinalIgnoreCase);
         value = value.Replace("{n\u0103m}", context.PrintYear, StringComparison.Ordinal);
         value = value.Replace("{nam}", context.PrintYear, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{s\u1ed1 l\u01b0\u1ee3ng qua c\u00e2n}", context.ScaleWeightTon, StringComparison.Ordinal);
+        value = value.Replace("{so luong qua can}", context.ScaleWeightTon, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{tr\u1ecdng l\u01b0\u1ee3ng qua c\u00e2n}", context.ScaleWeightTon, StringComparison.Ordinal);
+        value = value.Replace("{trong luong qua can}", context.ScaleWeightTon, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{ch\u00eanh l\u1ec7ch}", context.DifferenceWeightTon, StringComparison.Ordinal);
+        value = value.Replace("{chenh lech}", context.DifferenceWeightTon, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{t\u1ef7 l\u1ec7 ch\u00eanh l\u1ec7ch}", context.DifferencePercent, StringComparison.Ordinal);
+        value = value.Replace("{ty le chenh lech}", context.DifferencePercent, StringComparison.OrdinalIgnoreCase);
+        value = value.Replace("{t\u1ef7 l\u1ec7 ch\u00eanh l\u1ec7ch %}", context.DifferencePercent, StringComparison.Ordinal);
+        value = value.Replace("{ty le chenh lech %}", context.DifferencePercent, StringComparison.OrdinalIgnoreCase);
         value = value.Replace("{P.CLKD}", context.SignerName, StringComparison.Ordinal);
         return value;
     }
@@ -861,7 +945,10 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
             string printMinute,
             string printDay,
             string printMonth,
-            string printYear)
+            string printYear,
+            string scaleWeightTon,
+            string differenceWeightTon,
+            string differencePercent)
         {
             InspectorName = inspectorName;
             SignerName = signerName;
@@ -873,6 +960,9 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
             PrintDay = printDay;
             PrintMonth = printMonth;
             PrintYear = printYear;
+            ScaleWeightTon = scaleWeightTon;
+            DifferenceWeightTon = differenceWeightTon;
+            DifferencePercent = differencePercent;
         }
 
         public string InspectorName { get; }
@@ -885,6 +975,9 @@ public sealed class PrintDocumentExporter : IPrintDocumentExporter
         public string PrintDay { get; }
         public string PrintMonth { get; }
         public string PrintYear { get; }
+        public string ScaleWeightTon { get; }
+        public string DifferenceWeightTon { get; }
+        public string DifferencePercent { get; }
         public int NamePlaceholderIndex { get; set; }
     }
 

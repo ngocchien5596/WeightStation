@@ -822,8 +822,11 @@ public sealed class PrintTemplateProvider : IPrintTemplateProvider
         new("StaticTableHeader", 20, 178, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Bold, LiteralValue: "Stt     N\u1ed9i dung                              Ph\u01b0\u01a1ng th\u1ee9c                         S\u1ed1 l\u01b0\u1ee3ng     \u0110VT"),
         new("StaticTableLine1", 20, 188, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "1       Xu\u1ea5t t\u1ea1i m\u00e1ng \u0111\u00f3ng                  Theo s\u1ed1 \u0111\u1ebfm bao t\u1ef1 \u0111\u1ed9ng"),
         new("StaticTableLine2", 20, 198, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "2       Qua c\u00e2n \u00f4 t\u00f4                         C\u00e2n \u00f4 t\u00f4 \u0111i\u1ec7n t\u1eed"),
+        new("ScaleWeightTon", 137, 198, 22, PrintFieldAlignment.Right, 10.5, PrintFieldWeight.Bold),
         new("StaticTableLine3", 20, 208, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "3       Ch\u00eanh l\u1ec7ch (3 = 2 - 1)"),
+        new("DifferenceWeightTon", 137, 208, 22, PrintFieldAlignment.Right, 10.5, PrintFieldWeight.Bold),
         new("StaticTableLine4", 20, 218, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "4       T\u1ef7 l\u1ec7 ch\u00eanh l\u1ec7ch % (4 = 3 : 1)"),
+        new("DifferencePercent", 137, 218, 22, PrintFieldAlignment.Right, 10.5, PrintFieldWeight.Bold),
         new("StaticTableLine5", 20, 228, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "5       S\u1ed1 ki\u1ec3m \u0111\u1ebfm l\u1ea1i                     Ki\u1ec3m \u0111\u1ebfm h\u00e0ng tr\u00ean xe theo h\u00e0ng, c\u1ed9t"),
 
         new("StaticComment", 20, 244, 170, PrintFieldAlignment.Left, 10.5, PrintFieldWeight.Normal, LiteralValue: "Nh\u1eadn x\u00e9t: ........................................................................................................"),

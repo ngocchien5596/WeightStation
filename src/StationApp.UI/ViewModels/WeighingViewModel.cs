@@ -350,14 +350,20 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         {
             using var scope = _scopeFactory.CreateScope();
             var uc = scope.ServiceProvider.GetRequiredService<GetWeighingSessionsUseCase>();
-            var list = await uc.ExecuteAsync(null, null, CancellationToken.None);
+            var sessionKeyword = string.IsNullOrWhiteSpace(SearchSessionNo)
+                ? null
+                : BusinessNumberFormatter.ToDisplay(SearchSessionNo.Trim());
+            var list = await uc.ExecuteAsync(sessionKeyword, null, CancellationToken.None);
             var sessionRepo = scope.ServiceProvider.GetRequiredService<IWeighingSessionRepository>();
             var filtered = new List<WeighingSessionListItem>();
             var cutOrderKeyword = SearchErpCutOrderId?.Trim();
 
             foreach (var item in list)
             {
-                if (!MatchesSearch(item.SessionNo, SearchSessionNo)
+                var matchesSessionOrTicket = MatchesSearch(item.SessionNo, sessionKeyword)
+                    || MatchesSearch(item.WeighTicketNo, sessionKeyword);
+
+                if (!matchesSessionOrTicket
                     || !MatchesSearch(item.VehiclePlate, SearchVehiclePlate))
                 {
                     continue;
@@ -2389,7 +2395,7 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
             }
             catch
             {
-                // Temporary file cleanup is best effort.
+                // Temporary file cleanup is best effort. Word may keep the file open briefly after printto.
             }
         }
 
@@ -2416,6 +2422,14 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         var operatorName = ResolveCurrentOperatorDisplayName();
         var printedAt = _clock.NowLocal;
         var stationCode = ResolvePrintingStationName();
+        var plannedWeightKg = SessionLines.Sum(x => x.PlannedWeight ?? 0m);
+        var scaleWeightKg = NetWeight ?? SelectedSession?.NetWeight;
+        var differenceKg = scaleWeightKg.HasValue && plannedWeightKg > 0m
+            ? scaleWeightKg.Value - plannedWeightKg
+            : (decimal?)null;
+        var differencePercent = differenceKg.HasValue && plannedWeightKg > 0m
+            ? differenceKg.Value / plannedWeightKg * 100m
+            : (decimal?)null;
         var page = new OverToleranceInspectionReportPrintModel
         {
             DocumentId = sessionId,
@@ -2435,7 +2449,10 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
                 new PrintFieldValue("PrintMinute", printedAt.ToString("mm", System.Globalization.CultureInfo.InvariantCulture)),
                 new PrintFieldValue("PrintDay", printedAt.ToString("dd", System.Globalization.CultureInfo.InvariantCulture)),
                 new PrintFieldValue("PrintMonth", printedAt.ToString("MM", System.Globalization.CultureInfo.InvariantCulture)),
-                new PrintFieldValue("PrintYear", printedAt.ToString("yyyy", System.Globalization.CultureInfo.InvariantCulture))
+                new PrintFieldValue("PrintYear", printedAt.ToString("yyyy", System.Globalization.CultureInfo.InvariantCulture)),
+                new PrintFieldValue("ScaleWeightTon", FormatInspectionTon(scaleWeightKg)),
+                new PrintFieldValue("DifferenceWeightTon", FormatInspectionTon(differenceKg)),
+                new PrintFieldValue("DifferencePercent", FormatInspectionPercent(differencePercent))
             ]
         };
 
@@ -2456,6 +2473,16 @@ public partial class WeighingViewModel : ObservableObject, IDisposable, IWeighin
         => string.IsNullOrWhiteSpace(_configuration["PrintingStationName"])
             ? string.Empty
             : _configuration["PrintingStationName"]!.Trim();
+
+    private static string FormatInspectionTon(decimal? weightKg)
+        => weightKg.HasValue
+            ? (weightKg.Value / 1000m).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
+
+    private static string FormatInspectionPercent(decimal? value)
+        => value.HasValue
+            ? value.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
 
     private async Task<SessionPrintContext?> LoadPrintContextAsync(IServiceScope scope, Guid sessionId)
     {

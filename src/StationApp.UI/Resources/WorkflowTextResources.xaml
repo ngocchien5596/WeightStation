@@ -51,7 +51,7 @@
     <sys:String x:Key="Incoming.Column.CreatedAt">TH&#x1EDC;I GIAN T&#x1EA0;O</sys:String>
 
     <sys:String x:Key="Weighing.Title">C&#x00C2;N N&#x1ED8;I &#x0110;&#x1ECA;A</sys:String>
-    <sys:String x:Key="Weighing.Search.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
+    <sys:String x:Key="Weighing.Search.SessionNo">S&#x1ED1; phi&#x1EBF;u:</sys:String>
     <sys:String x:Key="Weighing.Search.VehiclePlate">Bi&#x1EC3;n s&#x1ED1; xe:</sys:String>
     <sys:String x:Key="Weighing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n</sys:String>
     <sys:String x:Key="Weighing.Label.TransactionType">Lo&#x1EA1;i</sys:String>
@@ -121,7 +121,7 @@
     <sys:String x:Key="Weighing.Column.CreatedAt">Ng&#x00E0;y t&#x1EA1;o</sys:String>
 
     <sys:String x:Key="Outgoing.Title">DANH S&#x00C1;CH XE RA</sys:String>
-    <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; l&#x01B0;&#x1EE3;t c&#x00E2;n:</sys:String>
+    <sys:String x:Key="Outgoing.Label.SessionNo">S&#x1ED1; phi&#x1EBF;u:</sys:String>
     <sys:String x:Key="Outgoing.Label.CompletedDate">Th&#x1EDD;i gian xong:</sys:String>
     <sys:String x:Key="Outgoing.Action.ViewDetails">XEM CHI TI&#x1EBE;T</sys:String>
     <sys:String x:Key="Outgoing.Action.BaggedActualWeightOverride">K L&#x1EA4;Y &#x0110;&#x1EE6; S&#x1ED0; L&#x01AF;&#x1EE2;NG</sys:String>

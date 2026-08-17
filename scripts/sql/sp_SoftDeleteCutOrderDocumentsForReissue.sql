@@ -35,6 +35,7 @@ BEGIN
     DECLARE @Weight1Time DATETIME2(7);
     DECLARE @Weight2 DECIMAL(18,3);
     DECLARE @SessionStatus NVARCHAR(60);
+    DECLARE @IsNoLoad BIT = 0;
     DECLARE @ActiveLineCount INT;
     DECLARE @PreserveSessionForReuse BIT = 0;
     DECLARE @IsExportScale BIT = 0;
@@ -302,7 +303,8 @@ BEGIN
             @Weight1 = ws.Weight1,
             @Weight1Time = ws.Weight1Time,
             @Weight2 = ws.Weight2,
-            @SessionStatus = ws.SessionStatus
+            @SessionStatus = ws.SessionStatus,
+            @IsNoLoad = ISNULL(ws.IsNoLoad, 0)
         FROM dbo.weighing_sessions ws
         WHERE ws.Id = @SessionId;
 
@@ -318,7 +320,7 @@ BEGIN
             THROW 50013, N'Chua ho tro soft delete khi luot can cu con nhieu hon 1 cat lenh.', 1;
         END;
 
-        IF (@Weight2 IS NOT NULL)
+        IF (@Weight2 IS NOT NULL AND ISNULL(@IsNoLoad, 0) = 0)
         BEGIN
             THROW 50014, N'Khong cho phep RA cat lenh khi luot can da co so can lan 2.', 1;
         END;

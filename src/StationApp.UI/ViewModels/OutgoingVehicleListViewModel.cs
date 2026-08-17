@@ -276,7 +276,9 @@ public partial class OutgoingVehicleListViewModel : ObservableObject
                     SelectedFlowType?.Value ?? OutgoingFlowType.All),
                 CancellationToken.None);
             var filtered = items
-                .Where(x => string.IsNullOrWhiteSpace(sessionNoSearch) || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(sessionNoSearch, StringComparison.OrdinalIgnoreCase)))
+                .Where(x => string.IsNullOrWhiteSpace(sessionNoSearch)
+                    || (!string.IsNullOrWhiteSpace(x.SessionNo) && x.SessionNo.Contains(sessionNoSearch, StringComparison.OrdinalIgnoreCase))
+                    || (!string.IsNullOrWhiteSpace(x.WeighTicketNo) && x.WeighTicketNo.Contains(sessionNoSearch, StringComparison.OrdinalIgnoreCase)))
                 .Where(x => string.IsNullOrWhiteSpace(SearchVehiclePlate) || x.VehiclePlate.Contains(SearchVehiclePlate, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 

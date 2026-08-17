@@ -146,12 +146,23 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
             sessionsQuery = sessionsQuery.Where(x => x.TransactionType == transactionType.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(keyword))
+        var keywordText = keyword?.Trim();
+        if (!string.IsNullOrWhiteSpace(keywordText))
         {
+            var sessionIdsByTicketNo = await _db.WeighTickets.AsNoTracking()
+                .Where(x => x.StationCode == stationCode
+                    && !x.IsDeleted
+                    && x.WeighingSessionId.HasValue
+                    && x.TicketNo.Contains(keywordText))
+                .Select(x => x.WeighingSessionId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
             sessionsQuery = sessionsQuery.Where(x =>
-                x.SessionNo.Contains(keyword) ||
-                x.VehiclePlate.Contains(keyword) ||
-                (x.MoocNumber != null && x.MoocNumber.Contains(keyword)));
+                x.SessionNo.Contains(keywordText) ||
+                x.VehiclePlate.Contains(keywordText) ||
+                (x.MoocNumber != null && x.MoocNumber.Contains(keywordText)) ||
+                sessionIdsByTicketNo.Contains(x.Id));
         }
 
         var sessions = await sessionsQuery
@@ -215,6 +226,8 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 ? null
                 : string.Join(" / ", productGroups.Select(x => $"{x.ProductName} ({x.PlannedWeight:N0})"));
 
+            var primaryTicket = ticketBySessionId.GetValueOrDefault(session.Id);
+
             return new WeighingSessionListItem(
                 session.Id,
                 BusinessNumberFormatter.ToDisplay(session.SessionNo),
@@ -242,12 +255,13 @@ public sealed class WeighingSessionRepository : IWeighingSessionRepository
                 session.UpdatedAt,
                 customerSummary,
                 productSummary,
+                primaryTicket is null ? null : BusinessNumberFormatter.ToDisplay(primaryTicket.TicketNo),
                 ResolveUserDisplayName(
                     userDisplayByUsername,
-                    ticketBySessionId.GetValueOrDefault(session.Id)?.Weight1User ?? session.CreatedBy),
+                    primaryTicket?.Weight1User ?? session.CreatedBy),
                 ResolveUserDisplayName(
                     userDisplayByUsername,
-                    ticketBySessionId.GetValueOrDefault(session.Id)?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)));
+                    primaryTicket?.Weight2User ?? (session.Weight2Time.HasValue ? session.UpdatedBy ?? session.CreatedBy : null)));
         }).ToList();
     }
 

@@ -651,9 +651,21 @@ public class CutOrderRepository : ICutOrderRepository
             query = query.Where(x => x.Registration.TransactionType == TransactionType.INBOUND);
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.SessionNo))
+        var sessionOrTicketKeyword = filter.SessionNo?.Trim();
+        if (!string.IsNullOrWhiteSpace(sessionOrTicketKeyword))
         {
-            query = query.Where(x => x.Session != null && x.Session.SessionNo.Contains(filter.SessionNo));
+            var sessionIdsByTicketNo = await _db.WeighTickets.AsNoTracking()
+                .Where(x => x.StationCode == stationCode
+                    && !x.IsDeleted
+                    && x.WeighingSessionId.HasValue
+                    && x.TicketNo.Contains(sessionOrTicketKeyword))
+                .Select(x => x.WeighingSessionId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+            query = query.Where(x => x.Session != null
+                && (x.Session.SessionNo.Contains(sessionOrTicketKeyword)
+                    || sessionIdsByTicketNo.Contains(x.Session.Id)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
@@ -904,9 +916,20 @@ public class CutOrderRepository : ICutOrderRepository
             return [];
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.SessionNo))
+        var sessionOrTicketKeyword = filter.SessionNo?.Trim();
+        if (!string.IsNullOrWhiteSpace(sessionOrTicketKeyword))
         {
-            query = query.Where(x => x.Session.SessionNo.Contains(filter.SessionNo));
+            var sessionIdsByTicketNo = await _db.WeighTickets.AsNoTracking()
+                .Where(x => x.StationCode == stationCode
+                    && !x.IsDeleted
+                    && x.WeighingSessionId.HasValue
+                    && x.TicketNo.Contains(sessionOrTicketKeyword))
+                .Select(x => x.WeighingSessionId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+            query = query.Where(x => x.Session.SessionNo.Contains(sessionOrTicketKeyword)
+                || sessionIdsByTicketNo.Contains(x.Session.Id));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
