@@ -151,6 +151,11 @@
                                     <TextBlock Text="B&#xE1;o c&#xE1;o xu&#x1EA5;t - XK" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
+                                        Visibility="{Binding CanViewShiftProductOutputReport, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding NavigateCommand}" CommandParameter="Reports_ShiftProductOutput">
+                                    <TextBlock Text="B&#xE1;o c&#xE1;o s&#x1EA3;n l&#x01B0;&#x1EE3;ng theo ca" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Style="{StaticResource SidebarSubmenuItemStyle}" Padding="30,0,12,0"
                                         Visibility="{Binding CanViewInboundSummaryReport, Converter={StaticResource BoolToVis}}"
                                         Command="{Binding NavigateCommand}" CommandParameter="Reports_InboundSummary">
                                     <TextBlock Text="{Binding InboundSummaryReportMenuText}" VerticalAlignment="Center"/>

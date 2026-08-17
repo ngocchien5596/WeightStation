@@ -168,6 +168,8 @@ public partial class App : System.Windows.Application
                     services.AddScoped<IWeighingSessionImageRepository, WeighingSessionImageRepository>();
                     services.AddScoped<IExportSummaryReportService, ExportSummaryReportService>();
                     services.AddScoped<IExportSummaryReportExporter, ExportSummaryReportExcelExporter>();
+                    services.AddScoped<IShiftProductOutputReportService, ShiftProductOutputReportService>();
+                    services.AddScoped<IShiftProductOutputReportExporter, ShiftProductOutputReportExcelExporter>();
                     services.AddScoped<IInboundSummaryReportService, InboundSummaryReportService>();
                     services.AddScoped<IInboundSummaryReportExporter, InboundSummaryReportExcelExporter>();
                     services.AddScoped<ICrusherInboundReportService, CrusherInboundReportService>();
@@ -293,6 +295,9 @@ public partial class App : System.Windows.Application
                     services.AddScoped<BuildExportScaleSummaryReportUseCase>();
                     services.AddScoped<ExportExportScaleSummaryReportUseCase>();
                     services.AddScoped<GetExportScaleSummaryReportLookupOptionsUseCase>();
+                    services.AddScoped<BuildShiftProductOutputReportUseCase>();
+                    services.AddScoped<ExportShiftProductOutputReportUseCase>();
+                    services.AddScoped<GetShiftProductOutputReportLookupOptionsUseCase>();
                     services.AddScoped<BuildInboundSummaryReportUseCase>();
                     services.AddScoped<ExportInboundSummaryReportUseCase>();
                     services.AddScoped<GetInboundSummaryReportLookupOptionsUseCase>();
@@ -362,6 +367,7 @@ public partial class App : System.Windows.Application
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<ExportSummaryReportViewModel>();
                     services.AddTransient<ExportScaleReportViewModel>();
+                    services.AddTransient<ShiftProductOutputReportViewModel>();
                     services.AddTransient<InboundSummaryReportViewModel>();
                     services.AddTransient<CrusherInboundReportViewModel>();
                     services.AddTransient<ClayInboundReportViewModel>();

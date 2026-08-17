@@ -65,9 +65,10 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewClayWeighing => StationFeatures.ShowMenuClayWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewExportWeighing => StationFeatures.ShowMenuExportWeighing && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
     public bool CanViewOutgoingVehicles => StationFeatures.ShowMenuOutgoingVehicleList && StationAuthorization.CanViewOperationalScreens(_currentUserContext.RoleCode);
-    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport || CanViewEditHistoryReport;
+    public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewShiftProductOutputReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport || CanViewEditHistoryReport;
     public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewExportScaleReport => CanViewExportSummaryReport;
+    public bool CanViewShiftProductOutputReport => CanViewExportSummaryReport;
     public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
@@ -346,6 +347,14 @@ public partial class MainViewModel : ObservableObject
                         destination,
                         navigationVersion);
                     break;
+                case "Reports_ShiftProductOutput":
+                    var shiftProductOutputVm = _serviceProvider.GetRequiredService<ShiftProductOutputReportViewModel>();
+                    CurrentView = new ShiftProductOutputReportView { DataContext = shiftProductOutputVm };
+                    _ = RunViewInitializationAsync(
+                        () => shiftProductOutputVm.InitializeAsync(),
+                        destination,
+                        navigationVersion);
+                    break;
                 case "Reports_InboundSummary":
                     var inboundSummaryVm = _serviceProvider.GetRequiredService<InboundSummaryReportViewModel>();
                     CurrentView = new InboundSummaryReportView { DataContext = inboundSummaryVm };
@@ -493,6 +502,7 @@ public partial class MainViewModel : ObservableObject
             "OutgoingVehicles" => CanViewOutgoingVehicles,
             "Reports_ExportSummary" => CanViewExportSummaryReport,
             "Reports_ExportScale" => CanViewExportScaleReport,
+            "Reports_ShiftProductOutput" => CanViewShiftProductOutputReport,
             "Reports_InboundSummary" => CanViewInboundSummaryReport,
             "Reports_CrusherInbound" => CanViewCrusherInboundReport,
             "Reports_ClayInbound" => CanViewClayInboundReport,
