@@ -676,11 +676,6 @@ public sealed class ClayInboundReportExcelExporter : IClayInboundReportExporter
 
     private static string BuildTimeRangeText(DateTime fromTime, DateTime toTime)
     {
-        if (fromTime.Date == toTime.Date)
-        {
-            return $"Ngày: {fromTime:dd/MM/yyyy}";
-        }
-
-        return $"Từ ngày {fromTime:dd/MM/yyyy} đến ngày {toTime:dd/MM/yyyy}";
+        return $"{fromTime:HH:mm:ss dd/MM/yyyy} - {toTime:HH:mm:ss dd/MM/yyyy}";
     }
 }

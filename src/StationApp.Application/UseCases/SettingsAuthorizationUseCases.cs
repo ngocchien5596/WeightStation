@@ -199,7 +199,10 @@ public sealed class UpdateScaleDeviceSettingsUseCase
 
     public async Task ExecuteAsync(UpdateScaleDeviceSettingsRequest request, CancellationToken ct)
     {
-        StationAuthorization.EnsureAdmin(_currentUser, "update scale device settings");
+        if (!StationAuthorization.CanManageDeviceConfiguration(_currentUser.RoleCode))
+        {
+            throw new UnauthorizedAccessException("Current user is not allowed to update scale device settings.");
+        }
 
         await _configRepository.SetValueAsync(AppConfigKeys.DeviceComPort, request.ComPort.Trim(), ct);
         await _configRepository.SetValueAsync(AppConfigKeys.DeviceBaudrate, request.Baudrate.Trim(), ct);

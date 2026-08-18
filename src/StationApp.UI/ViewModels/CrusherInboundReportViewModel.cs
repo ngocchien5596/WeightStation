@@ -24,6 +24,7 @@ public partial class CrusherInboundReportViewModel : ObservableObject
     private readonly IClock _clock;
     private readonly IToastService _toastService;
     private CrusherInboundReportDocument? _currentDocument;
+    private bool _suppressTimeChanged;
 
     [ObservableProperty] private DateTime? _fromDate;
     [ObservableProperty] private string? _fromHour;
@@ -37,6 +38,8 @@ public partial class CrusherInboundReportViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<string> _hourOptions = [];
     [ObservableProperty] private ObservableCollection<string> _minuteOptions = [];
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
+    [ObservableProperty] private ObservableCollection<ShiftReportShiftOption> _shiftOptions = [];
+    [ObservableProperty] private ShiftReportShiftOption? _selectedShift;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<CrusherInboundReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
@@ -79,6 +82,12 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        ShiftOptions =
+        [
+            new("CA1", "Ca 1"),
+            new("CA2", "Ca 2"),
+            new("CUSTOM", "Tùy chỉnh")
+        ];
         ApplyCurrentShift();
         VehicleSearchText = null;
         _currentDocument = null;
@@ -244,9 +253,57 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         PreviewSummaryText = $"Số dòng: {document.Rows.Count:N0} | Nhập: {document.TotalNetWeightTon:N3} tấn | Hoàn: {document.ReturnedBrokenWeightTon:N3} tấn | Thực nhập: {document.ActualInboundWeightTon:N3} tấn";
     }
 
+    partial void OnSelectedShiftChanged(ShiftReportShiftOption? value)
+    {
+        if (value == null || string.Equals(value.Code, "CUSTOM", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        ApplyShift(FromDate ?? _clock.NowLocal.Date, value.Code);
+    }
+
+    partial void OnFromDateChanged(DateTime? value) => MarkCustomShift();
+    partial void OnFromHourChanged(string? value) => MarkCustomShift();
+    partial void OnFromMinuteChanged(string? value) => MarkCustomShift();
+    partial void OnFromSecondChanged(string? value) => MarkCustomShift();
+    partial void OnToDateChanged(DateTime? value) => MarkCustomShift();
+    partial void OnToHourChanged(string? value) => MarkCustomShift();
+    partial void OnToMinuteChanged(string? value) => MarkCustomShift();
+    partial void OnToSecondChanged(string? value) => MarkCustomShift();
+
     private void ApplyCurrentShift()
     {
-        var (fromTime, toTime) = ResolveShiftRange(_clock.NowLocal);
+        var now = _clock.NowLocal;
+        var (fromTime, toTime) = ResolveShiftRange(now);
+        _suppressTimeChanged = true;
+        try
+        {
+            SelectedShift = ResolveCurrentShift(now);
+            SetDateTimeRange(fromTime, toTime);
+        }
+        finally
+        {
+            _suppressTimeChanged = false;
+        }
+    }
+
+    private void ApplyShift(DateTime reportDate, string shiftCode)
+    {
+        var (fromTime, toTime) = ResolveShiftRange(reportDate.Date, shiftCode);
+        _suppressTimeChanged = true;
+        try
+        {
+            SetDateTimeRange(fromTime, toTime);
+        }
+        finally
+        {
+            _suppressTimeChanged = false;
+        }
+    }
+
+    private void SetDateTimeRange(DateTime fromTime, DateTime toTime)
+    {
         FromDate = fromTime.Date;
         FromHour = fromTime.Hour.ToString("00");
         FromMinute = fromTime.Minute.ToString("00");
@@ -255,6 +312,20 @@ public partial class CrusherInboundReportViewModel : ObservableObject
         ToHour = toTime.Hour.ToString("00");
         ToMinute = toTime.Minute.ToString("00");
         ToSecond = toTime.Second.ToString("00");
+    }
+
+    private void MarkCustomShift()
+    {
+        if (_suppressTimeChanged || ShiftOptions.Count == 0)
+        {
+            return;
+        }
+
+        var custom = ShiftOptions.FirstOrDefault(x => string.Equals(x.Code, "CUSTOM", StringComparison.OrdinalIgnoreCase));
+        if (custom != null && !ReferenceEquals(SelectedShift, custom))
+        {
+            SelectedShift = custom;
+        }
     }
 
     private static string GetDefaultReportFolder()
@@ -290,6 +361,22 @@ public partial class CrusherInboundReportViewModel : ObservableObject
 
         return (today.AddHours(5), today.AddHours(12).AddSeconds(-1));
     }
+
+    private ShiftReportShiftOption ResolveCurrentShift(DateTime now)
+    {
+        var code = now.TimeOfDay >= TimeSpan.FromHours(12) && now.TimeOfDay <= TimeSpan.FromHours(21)
+            ? "CA2"
+            : "CA1";
+
+        return ShiftOptions.First(x => x.Code == code);
+    }
+
+    private static (DateTime FromTime, DateTime ToTime) ResolveShiftRange(DateTime reportDate, string shiftCode)
+        => shiftCode switch
+        {
+            "CA2" => (reportDate.AddHours(12), reportDate.AddHours(21)),
+            _ => (reportDate.AddHours(5), reportDate.AddHours(12).AddSeconds(-1))
+        };
 
     private bool TryBuildDateRange(out DateTime fromTime, out DateTime toTime, out string errorMessage)
     {

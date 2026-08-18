@@ -289,29 +289,16 @@ public class AuthorizationRbacUseCaseTests
         await uow.Received().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task UpdateScaleDeviceSettings_Operator_IsBlocked()
+    [Theory]
+    [InlineData("ADMIN")]
+    [InlineData("MANAGER")]
+    [InlineData("OPERATOR")]
+    public async Task UpdateScaleDeviceSettings_AllApplicationRoles_SaveAllSerialParameters(string roleCode)
     {
         var configRepo = Substitute.For<IAppConfigRepository>();
         var uow = Substitute.For<IUnitOfWork>();
         var currentUser = Substitute.For<ICurrentUserContext>();
-        currentUser.RoleCode.Returns("OPERATOR");
-
-        var sut = new UpdateScaleDeviceSettingsUseCase(configRepo, uow, currentUser);
-
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            sut.ExecuteAsync(
-                new UpdateScaleDeviceSettingsRequest("COM1", "9600", "None", "8", "One", "DEFAULT", "CR", "3", "", ""),
-                CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task UpdateScaleDeviceSettings_Admin_SavesAllSerialParameters()
-    {
-        var configRepo = Substitute.For<IAppConfigRepository>();
-        var uow = Substitute.For<IUnitOfWork>();
-        var currentUser = Substitute.For<ICurrentUserContext>();
-        currentUser.RoleCode.Returns("ADMIN");
+        currentUser.RoleCode.Returns(roleCode);
 
         var sut = new UpdateScaleDeviceSettingsUseCase(configRepo, uow, currentUser);
 

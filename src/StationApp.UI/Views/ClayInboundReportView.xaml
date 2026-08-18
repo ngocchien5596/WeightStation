@@ -116,21 +116,45 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                    <TextBlock Text="T&#x1EEB; ng&#xE0;y" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
+                    <TextBlock Text="Ca" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Width="110"
+                              ItemsSource="{Binding ShiftOptions}"
+                              SelectedItem="{Binding SelectedShift, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              Style="{StaticResource ReportLookupComboStyle}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                    <TextBlock Text="&#x110;&#x1EBF;n ng&#xE0;y" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                    <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}"/>
+                    <TextBlock Text="T&#x1EEB; gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding FromMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding FromSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <DatePicker SelectedDate="{Binding FromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                    <TextBlock Text="&#x110;&#x1EBF;n gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding MinuteOptions}" SelectedItem="{Binding ToMinute, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <TextBlock Text=":" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox ItemsSource="{Binding SecondOptions}" SelectedItem="{Binding ToSecond, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
+                        <DatePicker SelectedDate="{Binding ToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportDatePickerStyle}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Margin="0,0,12,0">
                     <TextBlock Text="S&#x1EA3;n ph&#x1EA9;m" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Grid Width="190">
                         <ComboBox x:Name="ProductComboBox"
@@ -153,7 +177,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                <StackPanel Grid.Column="4" Margin="0,0,12,0">
                     <TextBlock Text="&#x110;&#x01A1;n v&#x1ECB; v&#x1EAD;n chuy&#x1EC3;n" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Grid Width="220">
                         <ComboBox x:Name="CarrierComboBox"
@@ -176,13 +200,13 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Column="4" VerticalAlignment="Bottom" Margin="0,0,12,0">
+                <StackPanel Grid.Column="5" VerticalAlignment="Bottom" Margin="0,0,12,0">
                     <Button Command="{Binding SearchVesselsCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="90">
                         <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" FontWeight="SemiBold"/>
                     </Button>
                 </StackPanel>
 
-                <StackPanel Grid.Column="5" HorizontalAlignment="Stretch" Margin="0,0,12,0">
+                <StackPanel Grid.Column="6" HorizontalAlignment="Stretch" Margin="0,0,12,0">
                     <TextBlock Text="Chuy&#x1EBF;n t&#xE0;u" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Grid MinWidth="320">
                         <ComboBox x:Name="VesselComboBox"
@@ -206,7 +230,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
                         <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>

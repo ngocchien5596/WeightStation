@@ -20,6 +20,7 @@ public partial class ExportScaleReportViewModel : ObservableObject
     private readonly IClock _clock;
     private readonly IToastService _toastService;
     private bool _suppressCutOrderSearchSync;
+    private bool _suppressTimeChanged;
 
     [ObservableProperty] private DateTime? _fromDate;
     [ObservableProperty] private string? _fromHour;
@@ -32,6 +33,8 @@ public partial class ExportScaleReportViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<string> _hourOptions = [];
     [ObservableProperty] private ObservableCollection<string> _minuteOptions = [];
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
+    [ObservableProperty] private ObservableCollection<ShiftReportShiftOption> _shiftOptions = [];
+    [ObservableProperty] private ShiftReportShiftOption? _selectedShift;
     [ObservableProperty] private ObservableCollection<ReportLookupOptionDto> _cutOrderOptions = [];
     [ObservableProperty] private ICollectionView? _cutOrderOptionsView;
     [ObservableProperty] private string? _cutOrderSearchText;
@@ -83,6 +86,13 @@ public partial class ExportScaleReportViewModel : ObservableObject
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        ShiftOptions =
+        [
+            new("CA1", "Ca 1"),
+            new("CA2", "Ca 2"),
+            new("CA3", "Ca 3"),
+            new("CUSTOM", "Tùy chỉnh")
+        ];
         ApplyCurrentShift();
 
         var options = await _lookupOptionsUseCase.GetCutOrdersAsync(CancellationToken.None);
@@ -294,9 +304,58 @@ public partial class ExportScaleReportViewModel : ObservableObject
             || string.Equals(x.Code, normalized, StringComparison.OrdinalIgnoreCase));
     }
 
+    partial void OnSelectedShiftChanged(ShiftReportShiftOption? value)
+    {
+        if (value == null || string.Equals(value.Code, "CUSTOM", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        ApplyShift(FromDate ?? _clock.NowLocal.Date, value.Code);
+    }
+
+    partial void OnFromDateChanged(DateTime? value) => MarkCustomShift();
+    partial void OnFromHourChanged(string? value) => MarkCustomShift();
+    partial void OnFromMinuteChanged(string? value) => MarkCustomShift();
+    partial void OnFromSecondChanged(string? value) => MarkCustomShift();
+    partial void OnToDateChanged(DateTime? value) => MarkCustomShift();
+    partial void OnToHourChanged(string? value) => MarkCustomShift();
+    partial void OnToMinuteChanged(string? value) => MarkCustomShift();
+    partial void OnToSecondChanged(string? value) => MarkCustomShift();
+
     private void ApplyCurrentShift()
     {
-        var (fromTime, toTime) = ResolveShiftRange(_clock.NowLocal);
+        var now = _clock.NowLocal;
+        var (fromTime, toTime) = ResolveShiftRange(now);
+        _suppressTimeChanged = true;
+        try
+        {
+            SelectedShift = ResolveCurrentShift(now);
+            SetDateTimeRange(fromTime, toTime);
+            TargetDate = now.Date;
+        }
+        finally
+        {
+            _suppressTimeChanged = false;
+        }
+    }
+
+    private void ApplyShift(DateTime reportDate, string shiftCode)
+    {
+        var (fromTime, toTime) = ResolveShiftRange(reportDate.Date, shiftCode);
+        _suppressTimeChanged = true;
+        try
+        {
+            SetDateTimeRange(fromTime, toTime);
+        }
+        finally
+        {
+            _suppressTimeChanged = false;
+        }
+    }
+
+    private void SetDateTimeRange(DateTime fromTime, DateTime toTime)
+    {
         FromDate = fromTime.Date;
         FromHour = fromTime.Hour.ToString("00");
         FromMinute = fromTime.Minute.ToString("00");
@@ -305,7 +364,20 @@ public partial class ExportScaleReportViewModel : ObservableObject
         ToHour = toTime.Hour.ToString("00");
         ToMinute = toTime.Minute.ToString("00");
         ToSecond = toTime.Second.ToString("00");
-        TargetDate = _clock.NowLocal.Date;
+    }
+
+    private void MarkCustomShift()
+    {
+        if (_suppressTimeChanged || ShiftOptions.Count == 0)
+        {
+            return;
+        }
+
+        var custom = ShiftOptions.FirstOrDefault(x => string.Equals(x.Code, "CUSTOM", StringComparison.OrdinalIgnoreCase));
+        if (custom != null && !ReferenceEquals(SelectedShift, custom))
+        {
+            SelectedShift = custom;
+        }
     }
 
     private static (DateTime FromTime, DateTime ToTime) ResolveShiftRange(DateTime now)
@@ -330,6 +402,27 @@ public partial class ExportScaleReportViewModel : ObservableObject
 
         return (today.AddDays(-1).AddHours(22), today.AddHours(6).AddSeconds(-1));
     }
+
+    private ShiftReportShiftOption ResolveCurrentShift(DateTime now)
+    {
+        var code = now.TimeOfDay switch
+        {
+            var time when time >= TimeSpan.FromHours(6) && time < TimeSpan.FromHours(14) => "CA1",
+            var time when time >= TimeSpan.FromHours(14) && time < TimeSpan.FromHours(22) => "CA2",
+            _ => "CA3"
+        };
+
+        return ShiftOptions.First(x => x.Code == code);
+    }
+
+    private static (DateTime FromTime, DateTime ToTime) ResolveShiftRange(DateTime reportDate, string shiftCode)
+        => shiftCode switch
+        {
+            "CA1" => (reportDate.AddHours(6), reportDate.AddHours(14).AddSeconds(-1)),
+            "CA2" => (reportDate.AddHours(14), reportDate.AddHours(22).AddSeconds(-1)),
+            "CA3" => (reportDate.AddHours(22), reportDate.AddDays(1).AddHours(6).AddSeconds(-1)),
+            _ => (reportDate.AddHours(6), reportDate.AddHours(14).AddSeconds(-1))
+        };
 
     private bool TryBuildDateRange(out DateTime fromTime, out DateTime toTime, out string errorMessage)
     {

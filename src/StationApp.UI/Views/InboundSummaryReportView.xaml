@@ -115,11 +115,21 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="Ca" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Width="110"
+                              ItemsSource="{Binding ShiftOptions}"
+                              SelectedItem="{Binding SelectedShift, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              Style="{StaticResource ReportLookupComboStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
                     <TextBlock Text="Từ giờ" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
@@ -131,7 +141,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                <StackPanel Grid.Column="2" Margin="0,0,12,0">
                     <TextBlock Text="Đến giờ" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
@@ -143,7 +153,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                <StackPanel Grid.Column="3" Margin="0,0,12,0">
                     <TextBlock Text="Sản phẩm" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Grid Width="210">
                         <ComboBox x:Name="ProductComboBox" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
@@ -159,7 +169,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Column="3" Margin="0,0,12,0">
+                <StackPanel Grid.Column="4" Margin="0,0,12,0">
                     <TextBlock Text="Khách hàng" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <Grid Width="210">
                         <ComboBox x:Name="CustomerComboBox" Height="34" Style="{StaticResource ReportLookupComboStyle}" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
@@ -175,7 +185,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
                         <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>

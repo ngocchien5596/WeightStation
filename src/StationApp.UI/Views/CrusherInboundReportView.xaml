@@ -102,11 +102,21 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="Ca" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Width="110"
+                              ItemsSource="{Binding ShiftOptions}"
+                              SelectedItem="{Binding SelectedShift, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              Style="{StaticResource ReportLookupComboStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
                     <TextBlock Text="T&#x1EEB; gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding FromHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
@@ -118,7 +128,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                <StackPanel Grid.Column="2" Margin="0,0,12,0">
                     <TextBlock Text="&#x110;&#x1EBF;n gi&#x1EDD;" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ToHour, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ReportTimeComboStyle}"/>
@@ -130,7 +140,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                <StackPanel Grid.Column="3" Margin="0,0,12,0">
                     <TextBlock Text="S&#x1ED1; xe" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <TextBox Width="220"
                              Height="34"
@@ -138,7 +148,7 @@
                              Text="{Binding VehicleSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Command="{Binding PreviewCommand}" Style="{StaticResource UtilityButtonStyle}" Height="34" Width="64" Margin="0,0,8,0">
                         <TextBlock Text="XEM" FontWeight="SemiBold"/>
                     </Button>

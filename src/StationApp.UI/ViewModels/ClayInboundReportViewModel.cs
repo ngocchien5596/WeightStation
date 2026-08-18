@@ -31,6 +31,7 @@ public partial class ClayInboundReportViewModel : ObservableObject
     private bool _suppressProductSearchSync;
     private bool _suppressCarrierSearchSync;
     private bool _suppressFilterRefresh;
+    private bool _suppressTimeChanged;
     private readonly SemaphoreSlim _dataAccessGate = new(1, 1);
     private int _vesselReloadVersion;
 
@@ -57,6 +58,8 @@ public partial class ClayInboundReportViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<string> _hourOptions = [];
     [ObservableProperty] private ObservableCollection<string> _minuteOptions = [];
     [ObservableProperty] private ObservableCollection<string> _secondOptions = [];
+    [ObservableProperty] private ObservableCollection<ShiftReportShiftOption> _shiftOptions = [];
+    [ObservableProperty] private ShiftReportShiftOption? _selectedShift;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private ObservableCollection<ClayInboundReportRow> _previewRows = [];
     [ObservableProperty] private string _previewSummaryText = "Chưa có dữ liệu xem trước.";
@@ -101,6 +104,13 @@ public partial class ClayInboundReportViewModel : ObservableObject
         HourOptions = new ObservableCollection<string>(Enumerable.Range(0, 24).Select(x => x.ToString("00")));
         MinuteOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
         SecondOptions = new ObservableCollection<string>(Enumerable.Range(0, 60).Select(x => x.ToString("00")));
+        ShiftOptions =
+        [
+            new("CA1", "Ca 1"),
+            new("CA2", "Ca 2"),
+            new("CA3", "Ca 3"),
+            new("CUSTOM", "Tùy chỉnh")
+        ];
         var productOptions = await _lookupOptionsUseCase.GetProductsAsync(CancellationToken.None);
         ProductOptions = new ObservableCollection<ReportLookupOptionDto>(
             new[] { new ReportLookupOptionDto(string.Empty, "Tất cả sản phẩm") }.Concat(productOptions));
@@ -455,25 +465,80 @@ public partial class ClayInboundReportViewModel : ObservableObject
         ClearVesselSelection();
     }
 
-    partial void OnFromDateChanged(DateTime? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnFromHourChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnFromMinuteChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnFromSecondChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnToDateChanged(DateTime? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnToHourChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnToMinuteChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
-    partial void OnToSecondChanged(string? value) => ClearVesselSelectionAfterFilterChanged();
+    partial void OnSelectedShiftChanged(ShiftReportShiftOption? value)
+    {
+        if (value == null || string.Equals(value.Code, "CUSTOM", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        ApplyShift(FromDate ?? _clock.NowLocal.Date, value.Code);
+    }
+
+    partial void OnFromDateChanged(DateTime? value) => MarkCustomShiftAndClearVessel();
+    partial void OnFromHourChanged(string? value) => MarkCustomShiftAndClearVessel();
+    partial void OnFromMinuteChanged(string? value) => MarkCustomShiftAndClearVessel();
+    partial void OnFromSecondChanged(string? value) => MarkCustomShiftAndClearVessel();
+    partial void OnToDateChanged(DateTime? value) => MarkCustomShiftAndClearVessel();
+    partial void OnToHourChanged(string? value) => MarkCustomShiftAndClearVessel();
+    partial void OnToMinuteChanged(string? value) => MarkCustomShiftAndClearVessel();
+    partial void OnToSecondChanged(string? value) => MarkCustomShiftAndClearVessel();
+
     private void ApplyCurrentShift()
     {
-        var today = _clock.NowLocal.Date;
-        FromDate = today;
-        FromHour = "00";
-        FromMinute = "00";
-        FromSecond = "00";
-        ToDate = today;
-        ToHour = "23";
-        ToMinute = "59";
-        ToSecond = "59";
+        var now = _clock.NowLocal;
+        var (fromTime, toTime) = ResolveShiftRange(now);
+        _suppressTimeChanged = true;
+        try
+        {
+            SelectedShift = ResolveCurrentShift(now);
+            SetDateTimeRange(fromTime, toTime);
+        }
+        finally
+        {
+            _suppressTimeChanged = false;
+        }
+    }
+
+    private void ApplyShift(DateTime reportDate, string shiftCode)
+    {
+        var (fromTime, toTime) = ResolveShiftRange(reportDate.Date, shiftCode);
+        _suppressTimeChanged = true;
+        try
+        {
+            SetDateTimeRange(fromTime, toTime);
+            ClearVesselSelectionAfterFilterChanged();
+        }
+        finally
+        {
+            _suppressTimeChanged = false;
+        }
+    }
+
+    private void SetDateTimeRange(DateTime fromTime, DateTime toTime)
+    {
+        FromDate = fromTime.Date;
+        FromHour = fromTime.Hour.ToString("00");
+        FromMinute = fromTime.Minute.ToString("00");
+        FromSecond = fromTime.Second.ToString("00");
+        ToDate = toTime.Date;
+        ToHour = toTime.Hour.ToString("00");
+        ToMinute = toTime.Minute.ToString("00");
+        ToSecond = toTime.Second.ToString("00");
+    }
+
+    private void MarkCustomShiftAndClearVessel()
+    {
+        if (!_suppressTimeChanged && ShiftOptions.Count > 0)
+        {
+            var custom = ShiftOptions.FirstOrDefault(x => string.Equals(x.Code, "CUSTOM", StringComparison.OrdinalIgnoreCase));
+            if (custom != null && !ReferenceEquals(SelectedShift, custom))
+            {
+                SelectedShift = custom;
+            }
+        }
+
+        ClearVesselSelectionAfterFilterChanged();
     }
 
     private static string GetDefaultReportFolder()
@@ -702,13 +767,34 @@ public partial class ClayInboundReportViewModel : ObservableObject
         return (today.AddDays(-1).AddHours(22), today.AddHours(6).AddSeconds(-1));
     }
 
+    private ShiftReportShiftOption ResolveCurrentShift(DateTime now)
+    {
+        var code = now.TimeOfDay switch
+        {
+            var time when time >= TimeSpan.FromHours(6) && time < TimeSpan.FromHours(14) => "CA1",
+            var time when time >= TimeSpan.FromHours(14) && time < TimeSpan.FromHours(22) => "CA2",
+            _ => "CA3"
+        };
+
+        return ShiftOptions.First(x => x.Code == code);
+    }
+
+    private static (DateTime FromTime, DateTime ToTime) ResolveShiftRange(DateTime reportDate, string shiftCode)
+        => shiftCode switch
+        {
+            "CA1" => (reportDate.AddHours(6), reportDate.AddHours(14).AddSeconds(-1)),
+            "CA2" => (reportDate.AddHours(14), reportDate.AddHours(22).AddSeconds(-1)),
+            "CA3" => (reportDate.AddHours(22), reportDate.AddDays(1).AddHours(6).AddSeconds(-1)),
+            _ => (reportDate.AddHours(6), reportDate.AddHours(14).AddSeconds(-1))
+        };
+
     private bool TryBuildDateRange(out DateTime fromTime, out DateTime toTime, out string errorMessage)
     {
         if (!FromDate.HasValue)
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn Từ ngày.";
+            errorMessage = "Vui lòng chọn ngày cho Từ giờ.";
             return false;
         }
 
@@ -716,12 +802,66 @@ public partial class ClayInboundReportViewModel : ObservableObject
         {
             fromTime = default;
             toTime = default;
-            errorMessage = "Vui lòng chọn Đến ngày.";
+            errorMessage = "Vui lòng chọn ngày cho Đến giờ.";
             return false;
         }
 
-        fromTime = FromDate.Value.Date;
-        toTime = ToDate.Value.Date.AddDays(1).AddTicks(-1);
+        if (!int.TryParse(FromHour, out var fromHour) || fromHour is < 0 or > 23)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giờ của Từ giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(FromMinute, out var fromMinute) || fromMinute is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Phút của Từ giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(FromSecond, out var fromSecond) || fromSecond is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giây của Từ giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(ToHour, out var toHour) || toHour is < 0 or > 23)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giờ của Đến giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(ToMinute, out var toMinute) || toMinute is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Phút của Đến giờ không hợp lệ.";
+            return false;
+        }
+
+        if (!int.TryParse(ToSecond, out var toSecond) || toSecond is < 0 or > 59)
+        {
+            fromTime = default;
+            toTime = default;
+            errorMessage = "Giây của Đến giờ không hợp lệ.";
+            return false;
+        }
+
+        fromTime = FromDate.Value.Date
+            .AddHours(fromHour)
+            .AddMinutes(fromMinute)
+            .AddSeconds(fromSecond);
+        toTime = ToDate.Value.Date
+            .AddHours(toHour)
+            .AddMinutes(toMinute)
+            .AddSeconds(toSecond);
 
         if (fromTime > toTime)
         {
@@ -997,13 +1137,6 @@ public partial class ClayInboundReportViewModel : ObservableObject
 
     private static string BuildTimeRangeText(DateTime fromTime, DateTime toTime)
     {
-        if (fromTime.Date == toTime.Date)
-        {
-            return $"Ngày: {fromTime:dd/MM/yyyy}";
-        }
-
-        return $"Từ ngày {fromTime:dd/MM/yyyy} đến ngày {toTime:dd/MM/yyyy}";
+        return $"{fromTime:HH:mm:ss dd/MM/yyyy} - {toTime:HH:mm:ss dd/MM/yyyy}";
     }
 }
-
-
