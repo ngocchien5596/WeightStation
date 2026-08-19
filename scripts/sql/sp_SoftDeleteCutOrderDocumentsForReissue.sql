@@ -37,6 +37,8 @@ BEGIN
     DECLARE @SessionStatus NVARCHAR(60);
     DECLARE @IsNoLoad BIT = 0;
     DECLARE @ActiveLineCount INT;
+    DECLARE @TargetActiveLineCount INT = 0;
+    DECLARE @RemainingActiveLineCount INT = 0;
     DECLARE @PreserveSessionForReuse BIT = 0;
     DECLARE @IsExportScale BIT = 0;
     DECLARE @TransactionType NVARCHAR(30);
@@ -315,10 +317,15 @@ BEGIN
           AND ISNULL(wsl.IsDeleted, 0) = 0
           AND wsl.LineStatus <> N'CANCELLED';
 
-        IF (ISNULL(@ActiveLineCount, 0) > 1)
-        BEGIN
-            THROW 50013, N'Chua ho tro soft delete khi luot can cu con nhieu hon 1 cat lenh.', 1;
-        END;
+        SELECT
+            @TargetActiveLineCount = COUNT(1)
+        FROM dbo.weighing_session_lines wsl
+        WHERE wsl.WeighingSessionId = @SessionId
+          AND wsl.CutOrderId = @CutOrderId
+          AND ISNULL(wsl.IsDeleted, 0) = 0
+          AND wsl.LineStatus <> N'CANCELLED';
+
+        SET @RemainingActiveLineCount = ISNULL(@ActiveLineCount, 0) - ISNULL(@TargetActiveLineCount, 0);
 
         IF (@Weight2 IS NOT NULL AND ISNULL(@IsNoLoad, 0) = 0)
         BEGIN
@@ -327,7 +334,8 @@ BEGIN
 
         IF (@Weight1 IS NOT NULL
             AND @Weight2 IS NULL
-            AND ISNULL(@SessionStatus, N'') = N'PENDING_WEIGHT2')
+            AND ISNULL(@SessionStatus, N'') = N'PENDING_WEIGHT2'
+            AND ISNULL(@RemainingActiveLineCount, 0) <= 0)
         BEGIN
             SET @PreserveSessionForReuse = 1;
         END;
@@ -374,12 +382,15 @@ BEGIN
         ActualAllocatedWeight = NULL,
         ActualAllocatedBagCount = NULL,
         DeliveryTicketId = NULL,
+        SyncStatus = N'SYNC_QUEUED',
+        LastSyncAttemptAt = NULL,
+        LastSyncError = NULL,
         UpdatedAt = @Now,
         UpdatedBy = N'ERP_REISSUE'
     WHERE CutOrderId = @CutOrderId
       AND (@SessionId IS NULL OR WeighingSessionId = @SessionId);
 
-    IF (@SessionId IS NOT NULL AND ISNULL(@ActiveLineCount, 0) <= 1 AND @PreserveSessionForReuse = 0)
+    IF (@SessionId IS NOT NULL AND ISNULL(@RemainingActiveLineCount, 0) <= 0 AND @PreserveSessionForReuse = 0)
     BEGIN
         UPDATE dbo.weighing_sessions
         SET
@@ -388,6 +399,18 @@ BEGIN
             DeletedBy = N'ERP_REISSUE',
             SessionStatus = N'CANCELLED',
             IsCancelled = 1,
+            UpdatedAt = @Now,
+            UpdatedBy = N'ERP_REISSUE'
+        WHERE Id = @SessionId;
+    END;
+
+    IF (@SessionId IS NOT NULL AND ISNULL(@RemainingActiveLineCount, 0) > 0)
+    BEGIN
+        UPDATE dbo.weighing_sessions
+        SET
+            SyncStatus = N'SYNC_QUEUED',
+            LastSyncAttemptAt = NULL,
+            LastSyncError = NULL,
             UpdatedAt = @Now,
             UpdatedBy = N'ERP_REISSUE'
         WHERE Id = @SessionId;
