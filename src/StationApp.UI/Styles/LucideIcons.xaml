@@ -1,0 +1,67 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========================================================================= -->
+    <!-- LUCIDE VECTOR ICON GEOMETRIES (Official 24x24 Lucide Coordinate Grid)    -->
+    <!-- ========================================================================= -->
+
+    <!-- Home (Trang chủ) -->
+    <Geometry x:Key="Lucide.Home">M 3,9 L 12,2 L 21,9 L 21,20 A 2,2 0 0 1 19,22 L 5,22 A 2,2 0 0 1 3,20 Z M 9,22 L 9,12 L 15,12 L 15,22</Geometry>
+
+    <!-- LogIn (Danh sách xe vào) -->
+    <Geometry x:Key="Lucide.LogIn">M 15,3 L 19,3 A 2,2 0 0 1 21,5 L 21,19 A 2,2 0 0 1 19,21 L 15,21 M 10,17 L 15,12 L 10,7 M 15,12 L 3,12</Geometry>
+
+    <!-- Truck (Xe) -->
+    <Geometry x:Key="Lucide.Truck">M 14,18 L 14,6 A 2,2 0 0 0 12,4 L 4,4 A 2,2 0 0 0 2,6 L 2,17 A 1,1 0 0 0 3,18 L 5,18 M 15,18 L 9,18 M 19,18 L 21,18 A 1,1 0 0 0 22,17 L 22,13.35 A 1,1 0 0 0 21.78,12.726 L 18.3,8.376 A 1,1 0 0 0 17.52,8 L 14,8 M 19,18 A 2,2 0 1 0 15,18 A 2,2 0 1 0 19,18 M 9,18 A 2,2 0 1 0 5,18 A 2,2 0 1 0 9,18</Geometry>
+
+    <!-- Scale (Cân nội địa / Cân mỏ đá / Cân mỏ sét) -->
+    <Geometry x:Key="Lucide.Scale">M 16,16 L 19,8 L 22,16 C 21.13,16.65 20.08,17 19,17 C 17.87,17 16.87,16.65 16,16 Z M 2,16 L 5,8 L 8,16 C 7.13,16.65 6.08,17 5,17 C 3.87,17 2.87,16.65 2,16 Z M 7,21 L 17,21 M 12,3 L 12,21 M 3,7 L 5,7 C 7,7 10,6 12,5 C 14,6 17,7 19,7 L 21,7</Geometry>
+
+    <!-- Globe (Cân xuất khẩu) -->
+    <Geometry x:Key="Lucide.Globe">M 22,12 A 10,10 0 1 0 2,12 A 10,10 0 1 0 22,12 Z M 12,2 A 14.5,14.5 0 0 0 12,22 A 14.5,14.5 0 0 0 12,2 Z M 2,12 L 22,12</Geometry>
+
+    <!-- LogOut (Danh sách xe ra / Đăng xuất) -->
+    <Geometry x:Key="Lucide.LogOut">M 9,21 L 5,21 A 2,2 0 0 1 3,19 L 3,5 A 2,2 0 0 1 5,3 L 9,3 M 16,17 L 21,12 L 16,7 M 21,12 L 9,12</Geometry>
+
+    <!-- PieChart (Báo cáo) -->
+    <Geometry x:Key="Lucide.PieChart">M 21.21,15.89 A 10,10 0 1 1 8,2.83 M 22,12 A 10,10 0 0 0 12,2 L 12,12 Z</Geometry>
+
+    <!-- BarChart3 (Báo cáo tổng hợp) -->
+    <Geometry x:Key="Lucide.BarChart">M 3,3 L 3,21 L 21,21 M 18,17 L 18,9 M 13,17 L 13,5 M 8,17 L 8,14</Geometry>
+
+    <!-- FileText (Danh sách phiếu) -->
+    <Geometry x:Key="Lucide.FileText">M 15,2 L 6,2 A 2,2 0 0 0 4,4 L 4,20 A 2,2 0 0 0 6,22 L 18,22 A 2,2 0 0 0 20,20 L 20,7 Z M 14,2 L 14,6 A 2,2 0 0 0 16,8 L 20,8 M 10,9 L 8,9 M 16,13 L 8,13 M 16,17 L 8,17</Geometry>
+
+    <!-- Activity (Diagnostics) -->
+    <Geometry x:Key="Lucide.Activity">M 22,12 L 18,12 L 15,21 L 9,3 L 6,12 L 2,12</Geometry>
+
+    <!-- SlidersHorizontal / Settings (Cấu hình hệ thống) -->
+    <Geometry x:Key="Lucide.Settings">M 21,4 L 14,4 M 10,4 L 3,4 M 21,12 L 12,12 M 8,12 L 3,12 M 21,20 L 16,20 M 12,20 L 3,20 M 14,2 L 14,6 M 8,10 L 8,14 M 16,18 L 16,22</Geometry>
+
+    <!-- Menu Hamburger -->
+    <Geometry x:Key="Lucide.Menu">M 4,12 L 20,12 M 4,6 L 20,6 M 4,18 L 20,18</Geometry>
+
+    <!-- ChevronDown -->
+    <Geometry x:Key="Lucide.ChevronDown">M 6,9 L 12,15 L 18,9</Geometry>
+
+    <!-- ChevronUp -->
+    <Geometry x:Key="Lucide.ChevronUp">M 18,15 L 12,9 L 6,15</Geometry>
+
+    <!-- ========================================================================= -->
+    <!-- REUSABLE LUCIDE PATH STYLES                                               -->
+    <!-- ========================================================================= -->
+
+    <Style x:Key="LucidePathStyle" TargetType="Path">
+        <Setter Property="Width" Value="14"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+        <Setter Property="StrokeThickness" Value="1.7"/>
+        <Setter Property="StrokeStartLineCap" Value="Round"/>
+        <Setter Property="StrokeEndLineCap" Value="Round"/>
+        <Setter Property="StrokeLineJoin" Value="Round"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,10,0"/>
+    </Style>
+
+</ResourceDictionary>

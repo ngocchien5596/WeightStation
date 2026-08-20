@@ -6,6 +6,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/AppTheme.xaml"/>
+                <ResourceDictionary Source="Styles/LucideIcons.xaml"/>
                 <ResourceDictionary Source="Styles/ButtonStyles.xaml"/>
                 <ResourceDictionary Source="Styles/InputStyles.xaml"/>
                 <ResourceDictionary Source="Styles/BasePageStyles.xaml"/>

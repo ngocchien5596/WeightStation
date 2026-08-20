@@ -69,12 +69,11 @@
                                 Cursor="Hand"
                                 ToolTip="Thu gọn / Mở rộng menu"
                                 Margin="4,0,4,0">
-                            <TextBlock Text="&#xE700;"
-                                       FontFamily="Segoe MDL2 Assets"
-                                       FontSize="16"
-                                       Foreground="#D7E0F0"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource Lucide.Menu}"
+                                  Width="14" Height="14" Stretch="Uniform"
+                                  Stroke="#D7E0F0" StrokeThickness="1.7"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                     </Grid>
                 </Border>
@@ -93,8 +92,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Dashboard">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.Home}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="{StaticResource MainWindow.Nav.Dashboard}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -103,8 +101,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="IncomingVehicles">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE8A7;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.LogIn}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="{StaticResource MainWindow.Nav.Incoming}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -113,8 +110,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Weighing">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE7F6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.Scale}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="{StaticResource MainWindow.Nav.Weighing}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -123,8 +119,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="CrusherWeighing">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE7F6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.Scale}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="Cân mỏ đá" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -133,8 +128,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="ClayWeighing">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE7F6;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.Scale}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="C&#xE2;n m&#x1ECF; s&#xE9;t" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -143,8 +137,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="ExportWeighing">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE774;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.Globe}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="C&#xE2;n xu&#x1EA5;t kh&#x1EA9;u" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -153,8 +146,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="OutgoingVehicles">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE8A8;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.LogOut}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="{StaticResource MainWindow.Nav.Outgoing}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -164,17 +156,28 @@
                                     CommandParameter="Reports_">
                                 <DockPanel LastChildFill="False">
                                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE9D2;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                        <Path Data="{StaticResource Lucide.PieChart}" Style="{StaticResource LucidePathStyle}"/>
                                         <TextBlock Text="Báo cáo" VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <TextBlock DockPanel.Dock="Right"
-                                               Margin="8,0,0,0"
-                                               Text="{Binding IsReportsSubmenuVisible, Converter={StaticResource BoolToChevron}}"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               FontSize="10"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                               VerticalAlignment="Center"/>
+                                    <Path DockPanel.Dock="Right"
+                                          Margin="8,0,0,0"
+                                          Width="10" Height="10"
+                                          Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.7"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          VerticalAlignment="Center">
+                                        <Path.Style>
+                                            <Style TargetType="Path">
+                                                <Setter Property="Data" Value="{StaticResource Lucide.ChevronDown}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsReportsSubmenuVisible}" Value="True">
+                                                        <Setter Property="Data" Value="{StaticResource Lucide.ChevronUp}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Path.Style>
+                                    </Path>
                                 </DockPanel>
                             </Button>
 
@@ -215,8 +218,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="TicketList">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE8A4;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.FileText}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="{StaticResource MainWindow.Nav.Tickets}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -225,8 +227,7 @@
                                     Command="{Binding NavigateCommand}"
                                     CommandParameter="Diagnostics">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE97E;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                    <Path Data="{StaticResource Lucide.Activity}" Style="{StaticResource LucidePathStyle}"/>
                                     <TextBlock Text="{StaticResource MainWindow.Nav.Diagnostics}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -237,17 +238,28 @@
                                     CommandParameter="Settings_">
                                 <DockPanel LastChildFill="False">
                                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0"
-                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                        <Path Data="{StaticResource Lucide.Settings}" Style="{StaticResource LucidePathStyle}"/>
                                         <TextBlock Text="{StaticResource MainWindow.Nav.Settings}" VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <TextBlock DockPanel.Dock="Right"
-                                               Margin="8,0,0,0"
-                                               Text="{Binding IsSettingsSubmenuVisible, Converter={StaticResource BoolToChevron}}"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               FontSize="10"
-                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                               VerticalAlignment="Center"/>
+                                    <Path DockPanel.Dock="Right"
+                                          Margin="8,0,0,0"
+                                          Width="10" Height="10"
+                                          Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.7"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          VerticalAlignment="Center">
+                                        <Path.Style>
+                                            <Style TargetType="Path">
+                                                <Setter Property="Data" Value="{StaticResource Lucide.ChevronDown}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSettingsSubmenuVisible}" Value="True">
+                                                        <Setter Property="Data" Value="{StaticResource Lucide.ChevronUp}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Path.Style>
+                                    </Path>
                                 </DockPanel>
                             </Button>
 
@@ -347,8 +359,7 @@
 
                         <Button Style="{StaticResource SidebarLogoutButtonStyle}" Command="{Binding LogoutCommand}">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <TextBlock Text="&#xE8A8;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,8,0"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Center"/>
+                                <Path Data="{StaticResource Lucide.LogOut}" Style="{StaticResource LucidePathStyle}" Margin="0,0,8,0"/>
                                 <TextBlock Text="{StaticResource MainWindow.Nav.Logout}" VerticalAlignment="Center" FontSize="12"/>
                             </StackPanel>
                         </Button>

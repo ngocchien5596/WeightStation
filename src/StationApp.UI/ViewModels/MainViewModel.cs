@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text.Json;
 using System.Collections.Generic;
@@ -52,7 +52,7 @@ public partial class MainViewModel : ObservableObject
     public string CurrentUserRoleCode => _currentUserContext.RoleCode;
     public string CurrentStationDisplay => _currentStationContext.HasStation
         ? $"{_currentStationContext.StationCode} - {_currentStationContext.StationName}"
-        : "Chưa chọn trạm";
+        : "ChÆ°a chá»n tráº¡m";
     public string AppVersionText => $"v{_appVersionProvider.GetVersion()}";
     public string InboundSummaryReportMenuText => string.Equals(_currentStationContext.StationCode, "QN01", StringComparison.OrdinalIgnoreCase)
         ? "B\u00e1o c\u00e1o nh\u1eadp h\u00e0ng"
@@ -68,11 +68,14 @@ public partial class MainViewModel : ObservableObject
     public bool CanViewReportsMenu => CanViewExportSummaryReport || CanViewExportScaleReport || CanViewShiftProductOutputReport || CanViewInboundSummaryReport || CanViewCrusherInboundReport || CanViewClayInboundReport || CanViewEditHistoryReport;
     public bool CanViewExportSummaryReport => StationFeatures.ShowMenuExportReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewExportScaleReport => CanViewExportSummaryReport;
-    public bool CanViewShiftProductOutputReport => CanViewExportSummaryReport;
+    public bool CanViewShiftProductOutputReport => CanViewExportSummaryReport && !IsCrusherOrClayStation;
     public bool CanViewInboundSummaryReport => StationFeatures.ShowMenuInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewCrusherInboundReport => StationFeatures.ShowMenuCrusherInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewClayInboundReport => StationFeatures.ShowMenuClayInboundReport && StationAuthorization.CanViewReports(_currentUserContext.RoleCode);
     public bool CanViewEditHistoryReport => StationAuthorization.CanViewEditHistory(_currentUserContext.RoleCode);
+    private bool IsCrusherOrClayStation => string.Equals(_currentStationContext.StationCode, "QN02", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(_currentStationContext.StationCode, "QN03", StringComparison.OrdinalIgnoreCase);
+
     public bool CanViewTicketList => false;
     public bool CanViewDiagnostics => false;
     public bool CanViewSettingsMenu =>
@@ -671,6 +674,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewReportsMenu));
         OnPropertyChanged(nameof(CanViewExportSummaryReport));
         OnPropertyChanged(nameof(CanViewExportScaleReport));
+        OnPropertyChanged(nameof(CanViewShiftProductOutputReport));
         OnPropertyChanged(nameof(CanViewInboundSummaryReport));
         OnPropertyChanged(nameof(CanViewCrusherInboundReport));
         OnPropertyChanged(nameof(CanViewClayInboundReport));
@@ -863,3 +867,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 }
+
+
+
+
