@@ -220,6 +220,17 @@ public partial class MainViewModel : ObservableObject
         {
             var navigationVersion = ++_navigationVersion;
             CurrentDestination = destination;
+            if (!string.IsNullOrEmpty(destination))
+            {
+                if (destination.StartsWith("Reports_"))
+                {
+                    IsReportsSubmenuVisible = true;
+                }
+                else if (destination.StartsWith("Settings_") || destination == "AppUpdate")
+                {
+                    IsSettingsSubmenuVisible = true;
+                }
+            }
             DisposeCurrentViewModel();
 
             switch (destination)

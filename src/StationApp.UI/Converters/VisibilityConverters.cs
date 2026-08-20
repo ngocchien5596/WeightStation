@@ -50,7 +50,19 @@ public class MultiStringEqualityToBoolConverter : IMultiValueConverter
         if (values == null || values.Length < 2) return false;
         if (values[0] == null || values[1] == null) return false;
         
-        return values[0].ToString() == values[1].ToString();
+        string val0 = values[0].ToString() ?? string.Empty;
+        string val1 = values[1].ToString() ?? string.Empty;
+
+        if (parameter?.ToString() == "Prefix")
+        {
+            if (val0 == "Settings_" && val1.Equals("AppUpdate", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return val1.StartsWith(val0, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(val0, val1, StringComparison.OrdinalIgnoreCase);
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
@@ -83,3 +95,17 @@ public class InverseBooleanToVisibilityConverter : IValueConverter
         return value is not Visibility.Visible;
     }
 }
+
+public class BooleanToChevronConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is true ? "\uE70E" : "\uE70D";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+

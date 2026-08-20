@@ -9,6 +9,7 @@
     <converters:TransportMethodDisplayConverter x:Key="TransportMethodDisplayConverter"/>
     <converters:StringToVisibilityConverter x:Key="StringToVis"/>
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+    <converters:BooleanToChevronConverter x:Key="BoolToChevron"/>
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
     <!-- 1. COLOR TOKENS -->
@@ -16,16 +17,17 @@
     <SolidColorBrush x:Key="AppNavyDark" Color="#1B3263"/>
     <SolidColorBrush x:Key="AppNavyHover" Color="#294984"/>
     
-    <SolidColorBrush x:Key="SidebarBackground" Color="#1B2631"/>
-    <SolidColorBrush x:Key="SidebarTopBackground" Color="#1B2631"/>
-    <SolidColorBrush x:Key="SidebarFooterBackground" Color="#1B2631"/>
-    <SolidColorBrush x:Key="SidebarItemBackground" Color="#1B2631"/>
-    <SolidColorBrush x:Key="SidebarItemHoverBackground" Color="#263545"/>
-    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="#C5A059"/>
+    <SolidColorBrush x:Key="SidebarBackground" Color="#061225"/>
+    <SolidColorBrush x:Key="SidebarTopBackground" Color="#061225"/>
+    <SolidColorBrush x:Key="SidebarFooterBackground" Color="#061225"/>
+    <SolidColorBrush x:Key="SidebarItemBackground" Color="#061225"/>
+    <SolidColorBrush x:Key="SidebarItemHoverBackground" Color="#0F1E36"/>
+    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="#112340"/>
     <SolidColorBrush x:Key="SidebarItemSelectedForeground" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="SidebarItemForeground" Color="#CBD5E1"/>
-    <SolidColorBrush x:Key="SidebarIconForeground" Color="#CBD5E1"/>
-    <SolidColorBrush x:Key="SidebarDividerColor" Color="#CED6E0"/>
+    <SolidColorBrush x:Key="SidebarItemForeground" Color="#B0C0D4"/>
+    <SolidColorBrush x:Key="SidebarIconForeground" Color="#B0C0D4"/>
+    <SolidColorBrush x:Key="SidebarDividerColor" Color="#162846"/>
+    <SolidColorBrush x:Key="SidebarAccentBarBrush" Color="#D2A04A"/>
     
     <SolidColorBrush x:Key="HeaderBackground" Color="#203B73"/>
     <SolidColorBrush x:Key="HeaderForeground" Color="#FFFFFF"/>
@@ -57,11 +59,80 @@
         <Setter Property="Background" Value="{StaticResource SidebarItemBackground}"/>
         <Setter Property="Foreground" Value="{StaticResource SidebarItemForeground}"/>
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Height" Value="48"/>
+        <Setter Property="Height" Value="38"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        <Setter Property="Padding" Value="20,0,12,0"/>
+        <Setter Property="Padding" Value="16,0,12,0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="mainGrid" Background="{TemplateBinding Background}">
+                        <Border x:Name="accentBar" HorizontalAlignment="Left" Width="3" Background="Transparent"/>
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="mainGrid" Property="Background" Value="{StaticResource SidebarItemHoverBackground}"/>
+                        </Trigger>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <MultiBinding Converter="{StaticResource MultiStringEqToBool}">
+                                    <Binding Path="CommandParameter" RelativeSource="{RelativeSource Self}"/>
+                                    <Binding Path="DataContext.CurrentDestination" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                </MultiBinding>
+                            </DataTrigger.Binding>
+                            <Setter TargetName="mainGrid" Property="Background" Value="{StaticResource SidebarItemSelectedBackground}"/>
+                            <Setter TargetName="accentBar" Property="Background" Value="{StaticResource SidebarAccentBarBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource SidebarItemSelectedForeground}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SidebarExpandableItemStyle" TargetType="Button" BasedOn="{StaticResource SidebarMenuItemStyle}">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="mainGrid" Background="{TemplateBinding Background}">
+                        <Border x:Name="accentBar" HorizontalAlignment="Left" Width="3" Background="Transparent"/>
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="mainGrid" Property="Background" Value="{StaticResource SidebarItemHoverBackground}"/>
+                        </Trigger>
+                        <DataTrigger Value="True">
+                            <DataTrigger.Binding>
+                                <MultiBinding Converter="{StaticResource MultiStringEqToBool}" ConverterParameter="Prefix">
+                                    <Binding Path="CommandParameter" RelativeSource="{RelativeSource Self}"/>
+                                    <Binding Path="DataContext.CurrentDestination" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                </MultiBinding>
+                            </DataTrigger.Binding>
+                            <Setter TargetName="mainGrid" Property="Background" Value="{StaticResource SidebarItemSelectedBackground}"/>
+                            <Setter TargetName="accentBar" Property="Background" Value="{StaticResource SidebarAccentBarBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource SidebarItemSelectedForeground}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SidebarSubmenuItemStyle" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource SidebarItemBackground}"/>
+        <Setter Property="Foreground" Value="{StaticResource SidebarItemForeground}"/>
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="34,0,12,0"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
@@ -90,12 +161,35 @@
         </Setter>
     </Style>
 
-    <Style x:Key="SidebarExpandableItemStyle" TargetType="Button" BasedOn="{StaticResource SidebarMenuItemStyle}">
-        <Setter Property="FontWeight" Value="Bold"/>
-    </Style>
-
-    <Style x:Key="SidebarSubmenuItemStyle" TargetType="Button" BasedOn="{StaticResource SidebarMenuItemStyle}">
-        <Setter Property="FontWeight" Value="Normal"/>
+    <Style x:Key="SidebarLogoutButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#CBD5E1"/>
+        <Setter Property="BorderBrush" Value="#162846"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#0F1E36"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="#294984"/>
+                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- 3. HEADER STYLES -->
