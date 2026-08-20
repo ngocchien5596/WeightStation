@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StationApp.Application.DTOs;
@@ -43,18 +43,18 @@ public sealed class CreateTemporaryExportCutOrderUseCase
 
     public async Task<Guid> ExecuteAsync(CreateTemporaryExportCutOrderRequest request, CancellationToken ct)
     {
-        var customerCode = RequireText(request.CustomerCode, "Mã khách hàng");
-        var customerName = RequireText(request.CustomerName, "Khách hàng");
-        var productCode = RequireText(request.ProductCode, "Mã sản phẩm");
-        var productName = RequireText(request.ProductName, "Sản phẩm");
+        var customerCode = RequireText(request.CustomerCode, "MÃ£ khÃ¡ch hÃ ng");
+        var customerName = RequireText(request.CustomerName, "KhÃ¡ch hÃ ng");
+        var productCode = RequireText(request.ProductCode, "MÃ£ sáº£n pháº©m");
+        var productName = RequireText(request.ProductName, "Sáº£n pháº©m");
         var exportPackageType = RequireExportPackageType(request.ExportPackageType);
-        var plannedWeightKg = RequirePositive(request.PlannedWeight, "Số lượng đặt (kg)");
+        var plannedWeightKg = RequirePositive(request.PlannedWeight, "Sá»‘ lÆ°á»£ng Ä‘áº·t (kg)");
         var isBagged = exportPackageType == ExportPackageTypes.Bagged;
         var tareWeightKg = isBagged
-            ? RequireNonNegative(request.TareWeightKg, "Trọng lượng vỏ (kg)")
+            ? RequireNonNegative(request.TareWeightKg, "Trá»ng lÆ°á»£ng vá» (kg)")
             : 0m;
         var bagWeightKg = isBagged
-            ? RequirePositive(request.BagWeightKg, "Trọng lượng bao (kg)")
+            ? RequirePositive(request.BagWeightKg, "Trá»ng lÆ°á»£ng bao (kg)")
             : 0m;
 
         var now = _clock.NowLocal;
@@ -83,7 +83,8 @@ public sealed class CreateTemporaryExportCutOrderUseCase
             ProcessingStage = ProcessingStage.WEIGHING,
             IsExportScale = true,
             IsTemporaryExport = true,
-            TemporaryExportCreatedReason = "MANUAL_PRELOAD",
+            IsPortTransfer = request.IsPortTransfer,
+            TemporaryExportCreatedReason = request.IsPortTransfer ? "PORT_TRANSFER" : "MANUAL_PRELOAD",
             TemporaryExportDisplayCode = displayCode,
             SyncStatus = SyncStatus.SYNC_QUEUED,
             IdempotencyKey = Guid.NewGuid(),
@@ -111,7 +112,7 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         var normalized = NormalizeOptional(value);
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            throw new InvalidOperationException($"{fieldName} là bắt buộc.");
+            throw new InvalidOperationException($"{fieldName} lÃ  báº¯t buá»™c.");
         }
 
         return normalized;
@@ -121,7 +122,7 @@ public sealed class CreateTemporaryExportCutOrderUseCase
     {
         if (!value.HasValue || value.Value <= 0m)
         {
-            throw new InvalidOperationException($"{fieldName} phải lớn hơn 0.");
+            throw new InvalidOperationException($"{fieldName} pháº£i lá»›n hÆ¡n 0.");
         }
 
         return decimal.Round(value.Value, 3, MidpointRounding.AwayFromZero);
@@ -131,7 +132,7 @@ public sealed class CreateTemporaryExportCutOrderUseCase
     {
         if (!value.HasValue || value.Value < 0m)
         {
-            throw new InvalidOperationException($"{fieldName} phải lớn hơn hoặc bằng 0.");
+            throw new InvalidOperationException($"{fieldName} pháº£i lá»›n hÆ¡n hoáº·c báº±ng 0.");
         }
 
         return decimal.Round(value.Value, 3, MidpointRounding.AwayFromZero);
@@ -297,3 +298,4 @@ public sealed class CreateTemporaryExportCutOrderUseCase
         }, ct);
     }
 }
+

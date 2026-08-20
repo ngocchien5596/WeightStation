@@ -150,6 +150,13 @@
                     </StackPanel>
                     <TextBox Grid.Row="4" Grid.Column="1" Margin="0,3,12,3" Text="{Binding BagWeightKgInput, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsBagMetricsEnabled}" Style="{StaticResource StandardTextBoxStyle}"/>
 
+                    <CheckBox Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="2"
+                              Content="Chuy&#x1EC1;n t&#x1EA3;i"
+                              IsChecked="{Binding IsPortTransfer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              VerticalAlignment="Center"
+                              FontWeight="SemiBold"
+                              Foreground="#334155"/>
+
                     <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4"
                                Text="{Binding FractionalBagWarningMessage}"
                                Foreground="#B45309"

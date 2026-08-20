@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -1098,7 +1098,7 @@ public class CutOrderRepository : ICutOrderRepository
 
         if (!filter.IncludeErpCompletedFinalized)
         {
-            query = query.Where(co => !(co.ExportFinalizedAt.HasValue && co.ErpExportCompleted));
+            query = query.Where(co => !(co.ExportFinalizedAt.HasValue && (co.ErpExportCompleted || co.IsPortTransfer)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.ErpCutOrderId))
@@ -1228,7 +1228,8 @@ public class CutOrderRepository : ICutOrderRepository
                 co.ProcessingStage,
                 co.Notes,
                 co.IsTemporaryExport,
-                co.TemporaryExportDisplayCode);
+                co.TemporaryExportDisplayCode,
+                co.IsPortTransfer);
         }).ToList().AsReadOnly();
     }
 
@@ -1895,3 +1896,4 @@ public class CutOrderRepository : ICutOrderRepository
         return list.AsReadOnly();
     }
 }
+

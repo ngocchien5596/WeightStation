@@ -102,6 +102,10 @@
                     <Button Command="{Binding LoadVehiclesCommand}" Style="{StaticResource HeaderActionButton}" Margin="20,0,0,0">
                         <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
                     </Button>
+
+                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="8,0,0,0">
+                        <TextBlock Text="{StaticResource Workflow.RefreshButton}" VerticalAlignment="Center"/>
+                    </Button>
                 </StackPanel>
             </DockPanel>
         </Border>

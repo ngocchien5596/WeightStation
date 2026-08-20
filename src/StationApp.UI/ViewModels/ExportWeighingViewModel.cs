@@ -136,7 +136,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
     public bool CanFinalize =>
         SelectedCutOrder != null
         && !SelectedCutOrder.IsFinalized
-        && !SelectedCutOrder.IsTemporaryExport
+        && (!SelectedCutOrder.IsTemporaryExport || SelectedCutOrder.IsPortTransfer)
         && !IsLoading
         && Trips.Any(x => x.SessionStatus is WeighingSessionStatus.READY_TO_COMPLETE or WeighingSessionStatus.COMPLETED);
 
@@ -239,6 +239,14 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
     }
 
     [RelayCommand]
+    private async Task SearchAsync()
+    {
+        ClearSelectedTrip();
+        ClearTripFormFields();
+        await LoadCutOrdersAsync(loadTripsForSelectedCutOrder: false);
+    }
+
+    [RelayCommand]
     private async Task CreateTemporaryCutOrderAsync()
     {
         var dialogVm = new CreateTemporaryExportCutOrderDialogViewModel(_scopeFactory);
@@ -264,7 +272,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                     PlannedWeight: dialogResult.PlannedWeightKg,
                     TareWeightKg: dialogResult.TareWeightKg,
                     BagWeightKg: dialogResult.BagWeightKg,
-                    Notes: dialogResult.Notes),
+                    Notes: dialogResult.Notes,
+                    IsPortTransfer: dialogResult.IsPortTransfer),
                 CancellationToken.None);
 
             _toastService.ShowSuccess("Đã tạo cắt lệnh xuất khẩu tạm.");
@@ -314,7 +323,8 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
                     PlannedWeight: dialogResult.PlannedWeightKg,
                     TareWeightKg: dialogResult.TareWeightKg,
                     BagWeightKg: dialogResult.BagWeightKg,
-                    Notes: dialogResult.Notes),
+                    Notes: dialogResult.Notes,
+                    IsPortTransfer: dialogResult.IsPortTransfer),
                 CancellationToken.None);
 
             _toastService.ShowSuccess("Đã cập nhật cắt lệnh xuất khẩu tạm.");
@@ -867,7 +877,7 @@ public partial class ExportWeighingViewModel : ObservableObject, IDisposable, IW
             return;
         }
 
-        if (SelectedCutOrder.IsTemporaryExport)
+        if (SelectedCutOrder.IsTemporaryExport && !SelectedCutOrder.IsPortTransfer)
         {
             _toastService.ShowWarning("Không thể chốt tổng cắt lệnh tạm. Vui lòng map sang cắt lệnh thật trước khi chốt.");
             return;

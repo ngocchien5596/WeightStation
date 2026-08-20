@@ -510,7 +510,8 @@ public sealed record ExportScaleCutOrderListItem(
     ProcessingStage ProcessingStage,
     string? Notes,
     bool IsTemporaryExport = false,
-    string? TemporaryExportDisplayCode = null)
+    string? TemporaryExportDisplayCode = null,
+    bool IsPortTransfer = false)
 {
     public bool IsExportBagged => ExportPackageTypes.IsBagged(ExportPackageType, BagWeightKg);
     public string ExportPackageTypeDisplayName => ExportPackageTypes.ToDisplayName(ExportPackageType, BagWeightKg);
@@ -692,7 +693,8 @@ public sealed record CreateTemporaryExportCutOrderRequest(
     int? BagCount = null,
     decimal? TareWeightKg = null,
     decimal? BagWeightKg = null,
-    string? Notes = null
+    string? Notes = null,
+    bool IsPortTransfer = false
 );
 
 public sealed record UpdateTemporaryExportCutOrderRequest(
@@ -706,7 +708,8 @@ public sealed record UpdateTemporaryExportCutOrderRequest(
     decimal? PlannedWeight = null,
     decimal? TareWeightKg = null,
     decimal? BagWeightKg = null,
-    string? Notes = null
+    string? Notes = null,
+    bool IsPortTransfer = false
 );
 
 public sealed record MapTemporaryExportCutOrderRequest(

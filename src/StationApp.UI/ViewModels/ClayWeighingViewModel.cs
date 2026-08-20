@@ -867,6 +867,12 @@ public partial class ClayWeighingViewModel : ObservableObject, IDisposable, IWei
     }
 
     [RelayCommand]
+    private async Task SearchAsync()
+    {
+        await LoadVesselsAsync(loadTripsForSelectedVessel: false);
+    }
+
+    [RelayCommand]
     private async Task RefreshAsync()
     {
         _suppressVesselFilterLoad = true;

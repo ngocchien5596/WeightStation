@@ -28,6 +28,7 @@ public sealed partial class CreateTemporaryExportCutOrderDialogViewModel : Obser
     [ObservableProperty] private string _tareWeightKgInput = string.Empty;
     [ObservableProperty] private string _bagWeightKgInput = string.Empty;
     [ObservableProperty] private string _notes = string.Empty;
+    [ObservableProperty] private bool _isPortTransfer;
     [ObservableProperty] private string _bagCountPreview = string.Empty;
     [ObservableProperty] private bool _hasFractionalBagWarning;
     [ObservableProperty] private string _fractionalBagWarningMessage = string.Empty;
@@ -83,6 +84,7 @@ public sealed partial class CreateTemporaryExportCutOrderDialogViewModel : Obser
         TareWeightKgInput = FormatNumber(cutOrder.TareWeightKg ?? 0m);
         BagWeightKgInput = FormatNumber(cutOrder.BagWeightKg ?? 0m);
         Notes = cutOrder.Notes ?? string.Empty;
+        IsPortTransfer = cutOrder.IsPortTransfer;
         RecalculatePreview();
     }
 
@@ -178,7 +180,8 @@ public sealed partial class CreateTemporaryExportCutOrderDialogViewModel : Obser
             plannedWeightTons.Value * 1000m,
             tareWeightKg.Value,
             bagWeightKg.Value,
-            string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim());
+            string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim(),
+            IsPortTransfer);
         CloseRequested?.Invoke(this, true);
     }
 
@@ -436,4 +439,5 @@ public sealed record CreateTemporaryExportCutOrderDialogResult(
     decimal PlannedWeightKg,
     decimal TareWeightKg,
     decimal BagWeightKg,
-    string? Notes);
+    string? Notes,
+    bool IsPortTransfer);

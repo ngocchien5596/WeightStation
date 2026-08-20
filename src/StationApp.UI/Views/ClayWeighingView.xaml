@@ -33,7 +33,11 @@
         <Border Style="{StaticResource HeaderBorder}">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}">
+                    <Button Command="{Binding SearchCommand}" Style="{StaticResource HeaderActionButton}">
+                        <TextBlock Text="T&#x00CC;M KI&#x1EBE;M" VerticalAlignment="Center"/>
+                    </Button>
+
+                    <Button Command="{Binding RefreshCommand}" Style="{StaticResource HeaderActionButton}" Margin="8,0,0,0">
                         <TextBlock Text="L&#x00C0;M M&#x1EDA;I" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>

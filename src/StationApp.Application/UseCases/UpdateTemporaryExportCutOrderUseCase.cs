@@ -116,6 +116,7 @@ public sealed class UpdateTemporaryExportCutOrderUseCase
         cutOrder.BagWeightKg = bagWeightKg;
         cutOrder.ExportPackageType = exportPackageType;
         cutOrder.Notes = notes;
+        cutOrder.IsPortTransfer = request.IsPortTransfer;
         cutOrder.SyncStatus = SyncStatus.SYNC_QUEUED;
         cutOrder.UpdatedAt = now;
         cutOrder.UpdatedBy = username;
@@ -259,7 +260,8 @@ public sealed class UpdateTemporaryExportCutOrderUseCase
             cutOrder.TareWeightKg,
             cutOrder.BagWeightKg,
             cutOrder.ExportPackageType,
-            cutOrder.Notes
+            cutOrder.Notes,
+            cutOrder.IsPortTransfer
         };
 
     private static string? NormalizeOptional(string? value)
