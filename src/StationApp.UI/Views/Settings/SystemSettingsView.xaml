@@ -23,6 +23,7 @@
             </Style>
 
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Padding" Value="8,4"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -30,6 +31,7 @@
             </Style>
 
             <Style x:Key="FormPasswordBox" TargetType="PasswordBox" BasedOn="{StaticResource StandardPasswordBoxStyle}">
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Padding" Value="8,4"/>
                 <Setter Property="MinWidth" Value="480"/>

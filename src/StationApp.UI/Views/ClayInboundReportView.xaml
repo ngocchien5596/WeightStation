@@ -11,12 +11,14 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <Style x:Key="ReportDatePickerStyle" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}">
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Width" Value="124"/>
                 <Setter Property="Height" Value="34"/>
             </Style>
             <Style x:Key="ReportLookupComboStyle" TargetType="ComboBox">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
                 <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Foreground" Value="#111827"/>
                 <Setter Property="Background" Value="#FFFFFF"/>
                 <Setter Property="BorderBrush" Value="#9AA4AA"/>
@@ -29,6 +31,7 @@
             <Style x:Key="ReportTimeComboStyle" TargetType="ComboBox">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
                 <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Foreground" Value="#111827"/>
                 <Setter Property="Background" Value="#FFFFFF"/>
                 <Setter Property="BorderBrush" Value="#9AA4AA"/>

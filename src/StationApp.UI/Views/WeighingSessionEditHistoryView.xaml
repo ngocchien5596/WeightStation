@@ -12,6 +12,7 @@
                 <ResourceDictionary Source="/StationApp.UI;component/Styles/BasePageStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <Style x:Key="ReportDatePickerStyle" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}">
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Width" Value="130"/>
                 <Setter Property="Height" Value="34"/>
             </Style>

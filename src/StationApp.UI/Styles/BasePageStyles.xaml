@@ -306,7 +306,7 @@
     <Style x:Key="SystemDataGridRowStyle" TargetType="DataGridRow">
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="Foreground" Value="{Binding Converter={StaticResource OverweightToFore}}"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsSelected}" Value="True">
                 <Setter Property="Background" Value="#2980B9"/>
@@ -378,7 +378,7 @@
     <Style x:Key="DetailDataGridRowStyle" TargetType="DataGridRow">
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="Foreground" Value="{Binding Converter={StaticResource OverweightToFore}}"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsSelected}" Value="True">
                 <Setter Property="Background" Value="#E2E8F0"/>
@@ -418,7 +418,7 @@
     <Style x:Key="GridTextCenter" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,3"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Center"/>
     </Style>
@@ -426,7 +426,7 @@
     <Style x:Key="GridTextRight" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,3"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Right"/>
     </Style>
@@ -434,7 +434,7 @@
     <Style x:Key="GridTextLeft" TargetType="TextBlock">
         <Setter Property="Margin" Value="10,3"/>
         <Setter Property="FontSize" Value="12.5"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="TextAlignment" Value="Left"/>
     </Style>

@@ -18,7 +18,9 @@
                 <Setter Property="HorizontalAlignment" Value="Right"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
-            <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}"/>
+            <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
             <Style x:Key="FormDatePicker" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}"/>
             <Style x:Key="VehicleExpiryLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource FormLabel}">
                 <Style.Triggers>

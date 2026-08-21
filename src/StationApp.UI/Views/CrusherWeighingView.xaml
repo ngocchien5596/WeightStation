@@ -17,6 +17,7 @@
                 <Setter Property="Margin" Value="0,0,20,0"/>
             </Style>
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Margin" Value="0,2"/>
             </Style>
         </ResourceDictionary>
@@ -199,7 +200,7 @@
                         <Grid>
                             <TextBox Text="{Binding CurrentWeight, StringFormat={}{0:0.###}, UpdateSourceTrigger=LostFocus}"
                                      IsReadOnly="{Binding IsAutoMode}"
-                                     FontSize="42"
+                                     FontSize="50"
                                      FontWeight="SemiBold"
                                      FontFamily="Consolas"
                                      Foreground="#000"

@@ -22,11 +22,13 @@
                 <Setter Property="Margin" Value="0,8,0,2"/>
             </Style>
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Padding" Value="6,4"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
             <Style x:Key="FormCombo" TargetType="ComboBox" BasedOn="{StaticResource StandardComboBoxStyle}">
+                <Setter Property="FontWeight" Value="Medium"/>
                 <Setter Property="Height" Value="32"/>
             </Style>
         </ResourceDictionary>

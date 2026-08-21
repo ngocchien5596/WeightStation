@@ -20,9 +20,11 @@
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Margin" Value="0,2"/>
             </Style>
             <Style x:Key="FormDatePicker" TargetType="DatePicker" BasedOn="{StaticResource StandardDatePickerStyle}">
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Margin" Value="0,2"/>
             </Style>
             <Style x:Key="VehicleExpiryLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource FormLabel}">
@@ -328,7 +330,7 @@
                         <Grid>
                             <TextBox Text="{Binding CurrentWeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:0.###}'}"
                                      IsReadOnly="{Binding IsAutoMode}"
-                                     FontSize="42"
+                                     FontSize="50"
                                      FontWeight="SemiBold"
                                      FontFamily="Consolas"
                                      HorizontalAlignment="Stretch"

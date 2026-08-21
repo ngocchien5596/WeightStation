@@ -13,7 +13,7 @@
 
             <!-- Local style overrides to support strikethrough for cancelled (no-load) tickets -->
             <Style x:Key="GridTextCenter" TargetType="TextBlock" BasedOn="{StaticResource GridTextCenter}">
-                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="FontSize" Value="12.5"/>
                 <Setter Property="Margin" Value="10,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
@@ -26,7 +26,7 @@
             </Style>
 
             <Style x:Key="GridTextLeft" TargetType="TextBlock" BasedOn="{StaticResource GridTextLeft}">
-                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="FontSize" Value="12.5"/>
                 <Setter Property="Margin" Value="10,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
@@ -39,7 +39,7 @@
             </Style>
 
             <Style x:Key="GridTextRight" TargetType="TextBlock" BasedOn="{StaticResource GridTextRight}">
-                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="FontSize" Value="12.5"/>
                 <Setter Property="Margin" Value="10,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>

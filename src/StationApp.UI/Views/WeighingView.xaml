@@ -17,6 +17,7 @@
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
             <Style x:Key="FormBox" TargetType="TextBox" BasedOn="{StaticResource StandardTextBoxStyle}">
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Margin" Value="0,2"/>
             </Style>
         </ResourceDictionary>
@@ -130,6 +131,7 @@
 
                     <TextBlock Text="" Grid.Row="8" Style="{StaticResource FormLabel}"/>
                     <CheckBox Grid.Row="8" Grid.Column="1"
+                              Style="{StaticResource StandardCheckBoxStyle}"
                               IsChecked="{Binding UseActualWeightForBaggedCutOrders, Mode=TwoWay}"
                               VerticalAlignment="Center"
                               HorizontalAlignment="Left"
@@ -137,6 +139,7 @@
                               Visibility="{Binding ShowBaggedActualWeightOverride, Converter={StaticResource BoolToVis}}"
                               Content="K LẤY ĐỦ SỐ LƯỢNG"/>
                     <CheckBox Grid.Row="8" Grid.Column="2"
+                              Style="{StaticResource StandardCheckBoxStyle}"
                               Grid.ColumnSpan="2"
                               IsChecked="{Binding IsNoLoadMarked, Mode=TwoWay}"
                               IsEnabled="{Binding CanToggleNoLoad}"
@@ -145,6 +148,7 @@
                               Margin="4,0,0,0"
                               Content="{StaticResource Weighing.Action.NoLoad}"/>
                     <CheckBox Grid.Row="8" Grid.Column="3"
+                              Style="{StaticResource StandardCheckBoxStyle}"
                               IsChecked="{Binding IsPortTransferMarked, Mode=TwoWay}"
                               IsEnabled="{Binding CanTogglePortTransfer}"
                               VerticalAlignment="Center"
@@ -220,7 +224,7 @@
                         <Grid>
                             <TextBox Text="{Binding CurrentWeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='{}{0:0.###}'}"
                                      IsReadOnly="{Binding IsAutoMode}"
-                                     FontSize="42"
+                                     FontSize="50"
                                      FontWeight="SemiBold"
                                      FontFamily="Consolas"
                                      HorizontalAlignment="Stretch"
